@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compose Feedback Banner Standard"
+  short_description: "Apply success/error banner standard for Compose Desktop"
+  default_prompt: "Apply the project feedback banner standard: typed success or error messages, consistent colors, and reusable component usage in feature screens."

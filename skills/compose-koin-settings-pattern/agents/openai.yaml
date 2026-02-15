@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compose Koin and Settings"
+  short_description: "Apply Koin DI and Multiplatform Settings persistence pattern"
+  default_prompt: "Apply the project's DI and settings pattern: Koin modules for use cases/repositories and Multiplatform Settings for persisted UI/application settings."

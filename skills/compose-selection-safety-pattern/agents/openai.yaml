@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compose Selection Safety"
+  short_description: "Apply safe text selection pattern in Compose Desktop"
+  default_prompt: "Apply safe text selection in Compose Desktop: avoid global SelectionContainer and use local SelectionContainer only in stable text areas."

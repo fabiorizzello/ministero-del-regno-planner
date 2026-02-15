@@ -10,7 +10,7 @@
 - `feature/<nome>/domain`: entita', value object, regole.
 - `feature/<nome>/application`: use case.
 - `feature/<nome>/infrastructure`: repository SQLDelight e mapper.
-- `feature/<nome>/ui`: screen, state, intent.
+- `ui/<nome>`: screen, state, intent (presentazione separata dalla business logic).
 - `feature/<nome>/test`: test dominio/use case/repository.
 
 ## 3. Milestone M0 - Fondazioni tecniche
@@ -28,26 +28,28 @@ Definition of Done:
 - Log file scritto correttamente.
 - Build e test base verdi.
 
-## 4. Milestone M1 - Slice Persone
-Obiettivo: gestire anagrafica e stato attivo/disattivo.
+## 4. Milestone M1 - Slice Proclamatori
+Obiettivo: gestire anagrafica proclamatori e stato attivo/disattivo.
 
 Use case:
-- `CreaPersona`
-- `AggiornaPersona`
-- `DisattivaPersona`
-- `RiattivaPersona`
+- `CreaProclamatore`
+- `AggiornaProclamatore`
+- `ImpostaStatoProclamatore`
+- `CercaProclamatori`
 
 UI:
-- Elenco persone.
-- Form creazione/modifica.
+- Elenco proclamatori tabellare con paginazione.
+- Ricerca a destra con filtro unico nome/cognome.
+- Form creazione/modifica su schermata dedicata con breadcrumbs/rotte.
 - Toggle attivo/disattivo.
+- Pulsante eliminazione su riga tabella.
 
 Regole:
 - Validazioni base campi obbligatori.
 - Persistenza stato `attivo`.
 
 Definition of Done:
-- CRUD completo persone.
+- CRUD completo proclamatori.
 - Test use case + repository.
 
 ## 5. Milestone M2 - Slice Parti Settimanali
@@ -74,7 +76,7 @@ Definition of Done:
 Obiettivo: assegnare persone alle parti con vincoli dominio.
 
 Use case:
-- `AssegnaPersonaAParte`
+- `AssegnaProclamatoreAParte`
 - `RimuoviAssegnazione`
 
 UI:
@@ -82,9 +84,9 @@ UI:
 - Selettore persone per slot.
 
 Regole:
-- Esclusione persone non attive.
+- Esclusione proclamatori non attivi.
 - Regola `UOMO` e `LIBERO`.
-- Niente duplicato persona nello stesso parte/2 slot.
+- Niente duplicato proclamatore nella stessa parte/2 slot.
 
 Definition of Done:
 - Assegnazioni valide e persistite.
@@ -92,13 +94,13 @@ Definition of Done:
 - Test regole assegnazione.
 
 ## 7. Milestone M4 - Slice Suggerimenti Fuzzy
-Obiettivo: ranking persone assegnabili per priorita' storica.
+Obiettivo: ranking proclamatori assegnabili per priorita' storica.
 
 Use case:
-- `SuggerisciPersonePerParte`
+- `SuggerisciProclamatoriPerParte`
 
 UI:
-- Lista suggerimenti "fuzzy": tutte le persone assegnabili ordinate.
+- Lista suggerimenti "fuzzy": tutti i proclamatori assegnabili ordinati.
 
 Regole ranking:
 - Includere tutti gli assegnabili (esclusioni hard applicate).
@@ -192,7 +194,7 @@ Definition of Done:
 2. M1 Persone.
 3. M2 Parti.
 4. M3 Assegnazioni.
-5. M4 Suggerimenti fuzzy.
+5. M4 Suggerimenti fuzzy proclamatori.
 6. M5 Import schemi.
 7. M6 Output immagini/PDF.
 8. M7 Diagnostica.

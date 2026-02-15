@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -15,11 +16,15 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.arrow.core)
+            implementation(libs.arrow.optics)
+            implementation(libs.voyager.navigator)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -27,10 +32,23 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+            implementation(libs.sqldelight.sqlite.driver)
+            implementation(libs.sqldelight.coroutines.extensions)
+            implementation(libs.slf4j.api)
+            implementation(libs.logback.classic)
+            implementation(libs.koin.core)
+            implementation(libs.multiplatform.settings)
         }
     }
 }
 
+sqldelight {
+    databases {
+        create("MinisteroDatabase") {
+            packageName.set("org.example.project.db")
+        }
+    }
+}
 
 compose.desktop {
     application {

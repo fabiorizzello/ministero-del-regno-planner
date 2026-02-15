@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compose Table Standard"
+  short_description: "Apply the table grid standard for Compose Desktop screens"
+  default_prompt: "Apply the project table standard to a screen: grid lines for rows and columns, fixed columns spec, paginated list area, and consistent compact cell spacing."
