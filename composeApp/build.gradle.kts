@@ -37,7 +37,8 @@ compose.desktop {
         mainClass = "org.example.project.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            // Windows-first distribution: MSI/EXE are used as fallback installers.
+            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "org.example.project"
             packageVersion = "1.0.0"
         }
