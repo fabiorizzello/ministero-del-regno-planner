@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -165,6 +167,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     onRequestDeleteSelected: () -> Unit,
     onClearSelection: () -> Unit,
     onGoNuovo: () -> Unit,
+    canImportInitialJson: Boolean,
     onImportJson: () -> Unit,
     onEdit: (ProclamatoreId) -> Unit,
     onToggleActive: (ProclamatoreId, Boolean) -> Unit,
@@ -191,12 +194,14 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text("Aggiungi")
             }
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                onClick = onImportJson,
-                enabled = !isLoading,
-            ) {
-                Text("Importa JSON iniziale")
+            if (canImportInitialJson) {
+                Button(
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                    onClick = onImportJson,
+                    enabled = !isLoading,
+                ) {
+                    Text("Importa JSON iniziale")
+                }
             }
         }
 
@@ -233,7 +238,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
         .take(pageSize)
     val pageItemIds = pageItems.map { it.id }
     val hasSelection = selectedIds.isNotEmpty()
-    val batchActionsEnabled = hasSelection && !isLoading
+    val batchActionsEnabled = !isLoading
     val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
     val tableLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
 
@@ -256,34 +261,52 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 )
                 Text("Selezionati: ${selectedIds.size}")
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                    onClick = onActivateSelected,
-                    enabled = batchActionsEnabled,
-                ) { Text("Attiva") }
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                    onClick = onDeactivateSelected,
-                    enabled = batchActionsEnabled,
-                ) { Text("Disattiva") }
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                    onClick = onRequestDeleteSelected,
-                    enabled = batchActionsEnabled,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
-                ) { Text("Rimuovi") }
-                TextButton(
-                    modifier = Modifier.handCursorOnHover(enabled = hasSelection),
-                    onClick = onClearSelection,
-                    enabled = hasSelection && !isLoading,
-                ) { Text("Annulla selezione") }
+            if (hasSelection) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Button(
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        onClick = onActivateSelected,
+                        enabled = batchActionsEnabled,
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = null)
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Attiva")
+                    }
+                    Button(
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        onClick = onDeactivateSelected,
+                        enabled = batchActionsEnabled,
+                    ) {
+                        Icon(Icons.Filled.Block, contentDescription = null)
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Disattiva")
+                    }
+                    Button(
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        onClick = onRequestDeleteSelected,
+                        enabled = batchActionsEnabled,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                    ) {
+                        Icon(Icons.Filled.Delete, contentDescription = null)
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Rimuovi")
+                    }
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        onClick = onClearSelection,
+                        enabled = !isLoading,
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = null)
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Annulla selezione")
+                    }
+                }
             }
         }
     }

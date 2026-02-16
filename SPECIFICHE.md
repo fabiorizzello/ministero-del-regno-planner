@@ -128,6 +128,7 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - Import consentito solo per bootstrap iniziale anagrafica.
 - Precondizione obbligatoria: numero proclamatori esistenti = `0`.
 - Se esiste almeno un proclamatore: import bloccato con messaggio informativo.
+- In UI il pulsante `Importa JSON iniziale` e' visibile solo quando l'archivio proclamatori e' vuoto.
 - Nessuna modalita' merge/sovrascrittura/cancellazione differenziale.
 - JSON con radice `version` e array `proclamatori`.
 - Campi elemento: `nome`, `cognome`, `sesso`, `attivo` (opzionale, default `true`).

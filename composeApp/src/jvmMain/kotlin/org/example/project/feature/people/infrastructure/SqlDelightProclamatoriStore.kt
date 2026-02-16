@@ -16,6 +16,18 @@ class SqlDelightProclamatoriStore(
     }
 
     override suspend fun persist(aggregateRoot: Proclamatore) {
+        persistInternal(aggregateRoot)
+    }
+
+    override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {
+        database.ministeroDatabaseQueries.transaction {
+            aggregateRoots.forEach { aggregateRoot ->
+                persistInternal(aggregateRoot)
+            }
+        }
+    }
+
+    private fun persistInternal(aggregateRoot: Proclamatore) {
         val id = aggregateRoot.id.value
         val active = if (aggregateRoot.attivo) 1L else 0L
         database.ministeroDatabaseQueries.upsertProclaimer(

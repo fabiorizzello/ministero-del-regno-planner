@@ -2,11 +2,12 @@ package org.example.project.ui.proclamatori
 
 import arrow.core.Either
 import androidx.compose.ui.unit.dp
+import java.awt.FileDialog
+import java.awt.Frame
+import java.io.FilenameFilter
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import javax.swing.JFileChooser
-import javax.swing.filechooser.FileNameExtensionFilter
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -168,11 +169,15 @@ internal fun List<Proclamatore>.applySort(sort: ProclamatoriSort): List<Proclama
 }
 
 internal fun selectJsonFileForImport(): File? {
-    val chooser = JFileChooser().apply {
-        dialogTitle = "Seleziona file JSON proclamatori"
-        fileFilter = FileNameExtensionFilter("File JSON (*.json)", "json")
-        isAcceptAllFileFilterUsed = false
+    val dialog = FileDialog(null as Frame?, "Seleziona file JSON proclamatori", FileDialog.LOAD).apply {
+        directory = File(System.getProperty("user.home") ?: ".").absolutePath
+        filenameFilter = FilenameFilter { _, name -> name.endsWith(".json", ignoreCase = true) }
+        isVisible = true
     }
-    val result = chooser.showOpenDialog(null)
-    return if (result == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+    val selectedName = dialog.file ?: return null
+    val selectedDirectory = dialog.directory ?: return null
+    val selected = File(selectedDirectory, selectedName)
+    if (!selected.isFile) return null
+    if (!selected.name.endsWith(".json", ignoreCase = true)) return null
+    return selected
 }
