@@ -1,43 +1,10 @@
 package org.example.project.ui.proclamatori
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.text.selection.DisableSelection
-import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.focusable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,7 +17,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -58,12 +24,13 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import arrow.core.Either
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -71,26 +38,20 @@ import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
+import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
-import org.example.project.ui.components.FeedbackBanner
-import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
-import org.example.project.ui.components.StandardTableEmptyRow
-import org.example.project.ui.components.StandardTableHeader
-import org.example.project.ui.components.StandardTableViewport
-import org.example.project.ui.components.TableColumnSpec
-import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.standardTableCell
 import org.koin.core.context.GlobalContext
 
-private sealed interface ProclamatoriRoute {
+sealed interface ProclamatoriRoute {
     data object Elenco : ProclamatoriRoute
     data object Nuovo : ProclamatoriRoute
     data class Modifica(val id: ProclamatoreId) : ProclamatoriRoute
 }
+
 
 private sealed interface ProclamatoriFlowScreen : Screen
 
@@ -111,92 +72,6 @@ private data class ProclamatoriModificaScreen(
     override fun Content() {}
 }
 
-private val proclamatoriTableColumns = listOf(
-    TableColumnSpec("", 0.6f),
-    TableColumnSpec("Nome", 2f),
-    TableColumnSpec("Cognome", 2f),
-    TableColumnSpec("Sesso", 1f),
-    TableColumnSpec("Attivo", 1f),
-    TableColumnSpec("Azioni", 3f),
-)
-
-private const val proclamatoriTableTotalWeight = 9.6f
-private val tableScrollbarPadding = 12.dp
-private val successTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-
-private enum class ProclamatoriSortField { NOME, COGNOME, SESSO, ATTIVO }
-private enum class SortDirection { ASC, DESC }
-private data class ProclamatoriSort(
-    val field: ProclamatoriSortField = ProclamatoriSortField.COGNOME,
-    val direction: SortDirection = SortDirection.ASC,
-)
-
-private fun personDetails(nome: String, cognome: String): String {
-    val fullName = listOf(nome.trim(), cognome.trim())
-        .filter { it.isNotEmpty() }
-        .joinToString(" ")
-        .ifBlank { "-" }
-    return "Proclamatore: $fullName"
-}
-
-private fun detailsWithTimestamp(details: String? = null): String {
-    val timestamp = LocalDateTime.now().format(successTimestampFormatter)
-    return if (details.isNullOrBlank()) {
-        "Ora: $timestamp"
-    } else {
-        "$details | Ora: $timestamp"
-    }
-}
-
-private fun successNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione completata",
-        kind = FeedbackBannerKind.SUCCESS,
-        details = detailsWithTimestamp(details),
-    )
-}
-
-private fun errorNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione non completata",
-        kind = FeedbackBannerKind.ERROR,
-        details = detailsWithTimestamp(details),
-    )
-}
-
-private fun partialNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione parziale",
-        kind = FeedbackBannerKind.ERROR,
-        details = detailsWithTimestamp(details),
-    )
-}
-
-private fun toggleSort(current: ProclamatoriSort, field: ProclamatoriSortField): ProclamatoriSort {
-    return if (current.field == field) {
-        current.copy(direction = if (current.direction == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC)
-    } else {
-        ProclamatoriSort(field = field, direction = SortDirection.ASC)
-    }
-}
-
-private fun List<Proclamatore>.applySort(sort: ProclamatoriSort): List<Proclamatore> {
-    val comparator = when (sort.field) {
-        ProclamatoriSortField.NOME -> compareBy<Proclamatore> { it.nome.lowercase() }
-            .thenBy { it.cognome.lowercase() }
-        ProclamatoriSortField.COGNOME -> compareBy<Proclamatore> { it.cognome.lowercase() }
-            .thenBy { it.nome.lowercase() }
-        ProclamatoriSortField.SESSO -> compareBy<Proclamatore> { it.sesso.name }
-            .thenBy { it.cognome.lowercase() }
-            .thenBy { it.nome.lowercase() }
-        ProclamatoriSortField.ATTIVO -> compareBy<Proclamatore> { if (it.attivo) 0 else 1 }
-            .thenBy { it.cognome.lowercase() }
-            .thenBy { it.nome.lowercase() }
-    }
-    val sorted = this.sortedWith(comparator)
-    return if (sort.direction == SortDirection.ASC) sorted else sorted.reversed()
-}
-
 @Composable
 fun ProclamatoriScreen() {
     val koin = remember { GlobalContext.get() }
@@ -206,6 +81,7 @@ fun ProclamatoriScreen() {
     val aggiorna = remember { koin.get<AggiornaProclamatoreUseCase>() }
     val impostaStato = remember { koin.get<ImpostaStatoProclamatoreUseCase>() }
     val elimina = remember { koin.get<EliminaProclamatoreUseCase>() }
+    val importaDaJson = remember { koin.get<ImportaProclamatoriDaJsonUseCase>() }
     val verificaDuplicato = remember { koin.get<VerificaDuplicatoProclamatoreUseCase>() }
     val scope = rememberCoroutineScope()
     val searchFocusRequester = remember { FocusRequester() }
@@ -261,6 +137,23 @@ fun ProclamatoriScreen() {
         showFieldErrors = false
     }
 
+    suspend fun executeOnSelected(
+        action: suspend (ProclamatoreId) -> Either<DomainError, Unit>,
+        completedLabel: String,
+        noneCompletedLabel: String,
+    ): FeedbackBannerModel {
+        isLoading = true
+        val result = runMultiAction(selectedIds, action)
+        refreshList()
+        selectedIds = result.failedIds
+        isLoading = false
+        return noticeForMultiAction(
+            result = result,
+            completedLabel = completedLabel,
+            noneCompletedLabel = noneCompletedLabel,
+        )
+    }
+
     suspend fun openEdit(id: ProclamatoreId): Boolean {
         isLoading = true
         val loaded = carica(id)
@@ -285,117 +178,51 @@ fun ProclamatoriScreen() {
         refreshList(resetPage = true)
     }
 
-    if (deleteCandidate != null) {
-        DisableSelection {
-            AlertDialog(
-                onDismissRequest = { deleteCandidate = null },
-                title = { Text("Rimuovi proclamatore") },
-                text = {
-                    Text(
-                        "Confermi rimozione di " +
-                            "${deleteCandidate!!.nome} ${deleteCandidate!!.cognome}?",
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                        onClick = {
-                            val candidate = deleteCandidate ?: return@TextButton
-                            scope.launch {
-                                isLoading = true
-                                val result = elimina(candidate.id)
-                                result.fold(
-                                    ifLeft = { err ->
-                                        notice = errorNotice(
-                                            (err as? DomainError.Validation)?.message ?: "Rimozione non completata",
-                                        )
-                                    },
-                                    ifRight = {
-                                        notice = successNotice(
-                                            details = "Rimosso ${personDetails(candidate.nome, candidate.cognome)}",
-                                        )
-                                        refreshList()
-                                    },
-                                )
-                                deleteCandidate = null
-                                isLoading = false
-                            }
+    deleteCandidate?.let { candidate ->
+        ProclamatoreDeleteDialog(
+            candidate = candidate,
+            isLoading = isLoading,
+            onConfirm = {
+                scope.launch {
+                    isLoading = true
+                    val result = elimina(candidate.id)
+                    result.fold(
+                        ifLeft = { err ->
+                            notice = errorNotice(
+                                (err as? DomainError.Validation)?.message ?: "Rimozione non completata",
+                            )
                         },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) { Text("Rimuovi") }
-                },
-                dismissButton = {
-                    TextButton(
-                        modifier = Modifier.handCursorOnHover(),
-                        onClick = { deleteCandidate = null },
-                    ) { Text("Annulla") }
-                },
-            )
-        }
+                        ifRight = {
+                            notice = successNotice(
+                                details = "Rimosso ${personDetails(candidate.nome, candidate.cognome)}",
+                            )
+                            refreshList()
+                        },
+                    )
+                    deleteCandidate = null
+                    isLoading = false
+                }
+            },
+            onDismiss = { deleteCandidate = null },
+        )
     }
 
     if (showBatchDeleteConfirm) {
-        DisableSelection {
-            AlertDialog(
-                onDismissRequest = { showBatchDeleteConfirm = false },
-                title = { Text("Rimuovi proclamatori selezionati") },
-                text = {
-                    Text("Confermi rimozione di ${selectedIds.size} proclamatori selezionati?")
-                },
-                confirmButton = {
-                    TextButton(
-                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                        onClick = {
-                            scope.launch {
-                                val idsToRemove = selectedIds.toList()
-                                var removedCount = 0
-                                var failedCount = 0
-                                val failedIds = mutableSetOf<ProclamatoreId>()
-                                isLoading = true
-                                idsToRemove.forEach { id ->
-                                    elimina(id).fold(
-                                        ifLeft = {
-                                            failedCount++
-                                            failedIds += id
-                                        },
-                                        ifRight = {
-                                            removedCount++
-                                        },
-                                    )
-                                }
-                                refreshList()
-                                selectedIds = failedIds
-                                showBatchDeleteConfirm = false
-                                isLoading = false
-
-                                notice = when {
-                                    removedCount > 0 && failedCount == 0 -> {
-                                        successNotice("Proclamatori rimossi: $removedCount")
-                                    }
-                                    removedCount == 0 -> {
-                                        errorNotice("Nessun proclamatore rimosso")
-                                    }
-                                    else -> {
-                                        partialNotice("Proclamatori rimossi: $removedCount | Errori: $failedCount")
-                                    }
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) { Text("Rimuovi") }
-                },
-                dismissButton = {
-                    TextButton(
-                        modifier = Modifier.handCursorOnHover(),
-                        onClick = { showBatchDeleteConfirm = false },
-                    ) { Text("Annulla") }
-                },
-            )
-        }
+        ProclamatoriDeleteDialog(
+            selectedCount = selectedIds.size,
+            isLoading = isLoading,
+            onConfirm = {
+                scope.launch {
+                    notice = executeOnSelected(
+                        action = { id -> elimina(id) },
+                        completedLabel = "Proclamatori rimossi",
+                        noneCompletedLabel = "Nessun proclamatore rimosso",
+                    )
+                    showBatchDeleteConfirm = false
+                }
+            },
+            onDismiss = { showBatchDeleteConfirm = false },
+        )
     }
 
     Navigator(ProclamatoriElencoScreen) { navigator ->
@@ -427,6 +254,14 @@ fun ProclamatoriScreen() {
             !isCheckingDuplicate &&
             !isLoading
 
+        fun setRowSelected(id: ProclamatoreId, checked: Boolean) {
+            selectedIds = if (checked) {
+                selectedIds + id
+            } else {
+                selectedIds - id
+            }
+        }
+
         fun goToList() {
             notice = null
             selectedIds = emptySet()
@@ -441,6 +276,35 @@ fun ProclamatoriScreen() {
             clearForm()
             formError = null
             navigator.push(ProclamatoriNuovoScreen)
+        }
+
+        fun importaJsonIniziale() {
+            val selectedFile = selectJsonFileForImport() ?: return
+            scope.launch {
+                isLoading = true
+                val jsonContent = withContext(Dispatchers.IO) {
+                    runCatching { selectedFile.readText(Charsets.UTF_8) }.getOrNull()
+                }
+                if (jsonContent == null) {
+                    notice = errorNotice("Impossibile leggere il file selezionato")
+                    isLoading = false
+                    return@launch
+                }
+
+                val result = withContext(Dispatchers.IO) { importaDaJson(jsonContent) }
+                result.fold(
+                    ifLeft = { err ->
+                        notice = errorNotice(
+                            (err as? DomainError.Validation)?.message ?: "Import non completato",
+                        )
+                    },
+                    ifRight = { imported ->
+                        notice = successNotice("Importati ${imported.importati} proclamatori da ${selectedFile.name}")
+                        refreshList(resetPage = true)
+                    },
+                )
+                isLoading = false
+            }
         }
 
         fun submitForm() {
@@ -561,535 +425,110 @@ fun ProclamatoriScreen() {
 
         when (route) {
             ProclamatoriRoute.Elenco -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
-                        Button(
-                            modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                            onClick = { goToNuovo() },
-                            enabled = !isLoading,
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null)
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text("Aggiungi")
+                ProclamatoriElencoContent(
+                    searchTerm = searchTerm,
+                    onSearchTermChange = { value ->
+                        searchTerm = value
+                        scope.launch { refreshList(resetPage = true) }
+                    },
+                    onResetSearch = {
+                        searchTerm = ""
+                        scope.launch { refreshList(resetPage = true) }
+                    },
+                    searchFocusRequester = searchFocusRequester,
+                    allItems = allItems,
+                    isLoading = isLoading,
+                    notice = notice,
+                    onDismissNotice = { notice = null },
+                    selectedIds = selectedIds,
+                    sort = sort,
+                    pageIndex = pageIndex,
+                    pageSize = pageSize,
+                    tableListState = tableListState,
+                    onSortChange = { nextSort -> sort = nextSort },
+                    onToggleSelectPage = { pageIds, checked ->
+                        selectedIds = if (checked) {
+                            selectedIds + pageIds
+                        } else {
+                            selectedIds - pageIds.toSet()
                         }
-                    }
-
-                    OutlinedTextField(
-                        value = searchTerm,
-                        onValueChange = { value ->
-                            searchTerm = value
-                            scope.launch { refreshList(resetPage = true) }
-                        },
-                        modifier = Modifier
-                            .width(320.dp)
-                            .focusRequester(searchFocusRequester),
-                        label = { Text("Ricerca") },
-                        singleLine = true,
-                        trailingIcon = {
-                            if (searchTerm.isNotBlank()) {
-                                IconButton(
-                                    modifier = Modifier.handCursorOnHover(),
-                                    onClick = {
-                                        searchTerm = ""
-                                        scope.launch { refreshList(resetPage = true) }
-                                    },
-                                ) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Reset ricerca")
-                                }
+                    },
+                    onToggleRowSelected = { id, checked -> setRowSelected(id, checked) },
+                    onActivateSelected = {
+                        scope.launch {
+                            notice = executeOnSelected(
+                                action = { id -> impostaStato(id, true) },
+                                completedLabel = "Proclamatori attivati",
+                                noneCompletedLabel = "Nessun proclamatore attivato",
+                            )
+                        }
+                    },
+                    onDeactivateSelected = {
+                        scope.launch {
+                            notice = executeOnSelected(
+                                action = { id -> impostaStato(id, false) },
+                                completedLabel = "Proclamatori disattivati",
+                                noneCompletedLabel = "Nessun proclamatore disattivato",
+                            )
+                        }
+                    },
+                    onRequestDeleteSelected = { showBatchDeleteConfirm = true },
+                    onClearSelection = { selectedIds = emptySet() },
+                    onGoNuovo = { goToNuovo() },
+                    onImportJson = { importaJsonIniziale() },
+                    onEdit = { id ->
+                        scope.launch {
+                            if (openEdit(id)) {
+                                navigator.push(ProclamatoriModificaScreen(id))
                             }
-                        },
-                    )
-                }
-
-                FeedbackBanner(
-                    model = notice,
-                    onDismissRequest = { notice = null },
+                        }
+                    },
+                    onToggleActive = { id, next ->
+                        scope.launch {
+                            isLoading = true
+                            impostaStato(id, next)
+                            refreshList()
+                            isLoading = false
+                        }
+                    },
+                    onDelete = { candidate -> deleteCandidate = candidate },
+                    onPreviousPage = { pageIndex = (pageIndex - 1).coerceAtLeast(0) },
+                    onNextPage = {
+                        val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
+                        pageIndex = (pageIndex + 1).coerceAtMost(totalPages - 1)
+                    },
                 )
-
-                val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
-                val sortedItems = allItems.applySort(sort)
-                val pageItems = sortedItems
-                    .drop(pageIndex * pageSize)
-                    .take(pageSize)
-                val pageItemIds = pageItems.map { it.id }
-                val hasBatchSelection = selectedIds.isNotEmpty()
-                val batchActionsEnabled = hasBatchSelection && !isLoading
-                val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
-                val tableLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(
-                                checked = allPageSelected,
-                                onCheckedChange = { checked ->
-                                    selectedIds = if (checked) {
-                                        selectedIds + pageItemIds
-                                    } else {
-                                        selectedIds - pageItemIds.toSet()
-                                    }
-                                },
-                                enabled = !isLoading && pageItemIds.isNotEmpty(),
-                            )
-                            Text("Selezionati: ${selectedIds.size}")
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Button(
-                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                                onClick = {
-                                    scope.launch {
-                                        val ids = selectedIds.toList()
-                                        var updatedCount = 0
-                                        var failedCount = 0
-                                        val failedIds = mutableSetOf<ProclamatoreId>()
-                                        isLoading = true
-                                        ids.forEach { id ->
-                                            impostaStato(id, true).fold(
-                                                ifLeft = {
-                                                    failedCount++
-                                                    failedIds += id
-                                                },
-                                                ifRight = {
-                                                    updatedCount++
-                                                },
-                                            )
-                                        }
-                                        refreshList()
-                                        selectedIds = failedIds
-                                        isLoading = false
-                                        notice = when {
-                                            updatedCount > 0 && failedCount == 0 -> {
-                                                successNotice("Proclamatori attivati: $updatedCount")
-                                            }
-                                            updatedCount == 0 -> {
-                                                errorNotice("Nessun proclamatore attivato")
-                                            }
-                                            else -> {
-                                                partialNotice("Proclamatori attivati: $updatedCount | Errori: $failedCount")
-                                            }
-                                        }
-                                    }
-                                },
-                                enabled = batchActionsEnabled,
-                            ) {
-                                Text("Attiva")
-                            }
-                            Button(
-                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                                onClick = {
-                                    scope.launch {
-                                        val ids = selectedIds.toList()
-                                        var updatedCount = 0
-                                        var failedCount = 0
-                                        val failedIds = mutableSetOf<ProclamatoreId>()
-                                        isLoading = true
-                                        ids.forEach { id ->
-                                            impostaStato(id, false).fold(
-                                                ifLeft = {
-                                                    failedCount++
-                                                    failedIds += id
-                                                },
-                                                ifRight = {
-                                                    updatedCount++
-                                                },
-                                            )
-                                        }
-                                        refreshList()
-                                        selectedIds = failedIds
-                                        isLoading = false
-                                        notice = when {
-                                            updatedCount > 0 && failedCount == 0 -> {
-                                                successNotice("Proclamatori disattivati: $updatedCount")
-                                            }
-                                            updatedCount == 0 -> {
-                                                errorNotice("Nessun proclamatore disattivato")
-                                            }
-                                            else -> {
-                                                partialNotice("Proclamatori disattivati: $updatedCount | Errori: $failedCount")
-                                            }
-                                        }
-                                    }
-                                },
-                                enabled = batchActionsEnabled,
-                            ) {
-                                Text("Disattiva")
-                            }
-                            Button(
-                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
-                                onClick = { showBatchDeleteConfirm = true },
-                                enabled = batchActionsEnabled,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError,
-                                ),
-                            ) {
-                                Text("Rimuovi")
-                            }
-                            TextButton(
-                                modifier = Modifier.handCursorOnHover(enabled = hasBatchSelection),
-                                onClick = { selectedIds = emptySet() },
-                                enabled = hasBatchSelection && !isLoading,
-                            ) {
-                                Text("Annulla selezione")
-                            }
-                        }
-                    }
-                }
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = true),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        StandardTableHeader(
-                            columns = proclamatoriTableColumns,
-                            modifier = Modifier.padding(end = tableScrollbarPadding),
-                            lineColor = tableLineColor,
-                            onColumnClick = { index ->
-                                val sortField = when (index) {
-                                    1 -> ProclamatoriSortField.NOME
-                                    2 -> ProclamatoriSortField.COGNOME
-                                    3 -> ProclamatoriSortField.SESSO
-                                    4 -> ProclamatoriSortField.ATTIVO
-                                    else -> null
-                                }
-                                if (sortField != null) {
-                                    sort = toggleSort(sort, sortField)
-                                }
-                            },
-                            sortIndicatorText = { index ->
-                                val field = when (index) {
-                                    1 -> ProclamatoriSortField.NOME
-                                    2 -> ProclamatoriSortField.COGNOME
-                                    3 -> ProclamatoriSortField.SESSO
-                                    4 -> ProclamatoriSortField.ATTIVO
-                                    else -> null
-                                }
-                                if (field == sort.field) {
-                                    if (sort.direction == SortDirection.ASC) "▲" else "▼"
-                                } else {
-                                    null
-                                }
-                            },
-                        )
-                        StandardTableViewport(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = true),
-                            lineColor = tableLineColor,
-                        ) {
-                            LazyColumn(
-                                state = tableListState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(end = tableScrollbarPadding),
-                            ) {
-                                if (pageItems.isEmpty()) {
-                                    item {
-                                        StandardTableEmptyRow(
-                                            message = "Nessun proclamatore",
-                                            totalWeight = proclamatoriTableTotalWeight,
-                                            lineColor = tableLineColor,
-                                        )
-                                    }
-                                } else {
-                                    items(pageItems, key = { it.id.value }) { item ->
-                                        TableDataRow(
-                                            proclamatore = item,
-                                            loading = isLoading,
-                                            selected = item.id in selectedIds,
-                                            batchMode = hasBatchSelection,
-                                            lineColor = tableLineColor,
-                                            onToggleSelected = { checked ->
-                                                selectedIds = if (checked) {
-                                                    selectedIds + item.id
-                                                } else {
-                                                    selectedIds - item.id
-                                                }
-                                            },
-                                            onEdit = {
-                                                scope.launch {
-                                                    if (openEdit(item.id)) {
-                                                        navigator.push(ProclamatoriModificaScreen(item.id))
-                                                    }
-                                                }
-                                            },
-                                            onToggleActive = { next ->
-                                                scope.launch {
-                                                    isLoading = true
-                                                    impostaStato(item.id, next)
-                                                    refreshList()
-                                                    isLoading = false
-                                                }
-                                            },
-                                            onDelete = { deleteCandidate = item },
-                                        )
-                                    }
-                                }
-                            }
-
-                            VerticalScrollbar(
-                                adapter = rememberScrollbarAdapter(tableListState),
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .fillMaxHeight(),
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("Totale: ${allItems.size}")
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Button(
-                                    modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex > 0),
-                                    onClick = { pageIndex = (pageIndex - 1).coerceAtLeast(0) },
-                                    enabled = !isLoading && pageIndex > 0,
-                                ) { Text("Prec") }
-                                Text("Pagina ${pageIndex + 1} / $totalPages")
-                                Button(
-                                    modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1),
-                                    onClick = { pageIndex = (pageIndex + 1).coerceAtMost(totalPages - 1) },
-                                    enabled = !isLoading && pageIndex < totalPages - 1,
-                                ) { Text("Succ") }
-                            }
-                        }
-                    }
-                }
             }
-
             ProclamatoriRoute.Nuovo,
             is ProclamatoriRoute.Modifica,
             -> {
-                Text(
-                    if (route == ProclamatoriRoute.Nuovo) "Nuovo proclamatore" else "Modifica proclamatore",
-                    style = MaterialTheme.typography.headlineMedium,
+                ProclamatoriFormContent(
+                    route = route,
+                    nome = nome,
+                    onNomeChange = { value -> nome = value },
+                    cognome = cognome,
+                    onCognomeChange = { value -> cognome = value },
+                    sesso = sesso,
+                    onSessoChange = { nextSesso -> sesso = nextSesso },
+                    nomeTrim = nomeTrim,
+                    cognomeTrim = cognomeTrim,
+                    showFieldErrors = showFieldErrors,
+                    duplicateError = duplicateError,
+                    isCheckingDuplicate = isCheckingDuplicate,
+                    canSubmitForm = canSubmitForm,
+                    isLoading = isLoading,
+                    notice = notice,
+                    onDismissNotice = { notice = null },
+                    formError = formError,
+                    onSubmit = {
+                        showFieldErrors = true
+                        submitForm()
+                    },
+                    onCancel = { goToList() },
                 )
-
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        OutlinedTextField(
-                            value = nome,
-                            onValueChange = { nome = it },
-                            label = { Text("Nome") },
-                            isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            supportingText = {
-                                if (showFieldErrors && nomeTrim.isBlank()) {
-                                    Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
-                                }
-                            },
-                        )
-                        OutlinedTextField(
-                            value = cognome,
-                            onValueChange = { cognome = it },
-                            label = { Text("Cognome") },
-                            isError = (showFieldErrors && cognomeTrim.isBlank()) || duplicateError != null,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            supportingText = {
-                                if (showFieldErrors && cognomeTrim.isBlank()) {
-                                    Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
-                                } else if (duplicateError != null) {
-                                    Text(duplicateError!!, color = MaterialTheme.colorScheme.error)
-                                } else if (isCheckingDuplicate) {
-                                    Text("Verifica duplicato in corso...")
-                                }
-                            },
-                        )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = sesso == Sesso.M, onClick = { sesso = Sesso.M })
-                                Text("Uomo")
-                            }
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = sesso == Sesso.F, onClick = { sesso = Sesso.F })
-                                Text("Donna")
-                            }
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Button(
-                                modifier = Modifier.handCursorOnHover(enabled = canSubmitForm),
-                                onClick = {
-                                    showFieldErrors = true
-                                    submitForm()
-                                },
-                                enabled = canSubmitForm,
-                            ) {
-                                Text(if (route == ProclamatoriRoute.Nuovo) "Salva" else "Aggiorna")
-                            }
-                            TextButton(
-                                modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                                onClick = { goToList() },
-                                enabled = !isLoading,
-                            ) {
-                                Text("Annulla")
-                            }
-                        }
-                        FeedbackBanner(
-                            model = notice,
-                            onDismissRequest = { notice = null },
-                        )
-                        if (formError != null) {
-                            SelectionContainer {
-                                Text(
-                                    formError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }
 }
-}
 
-@Composable
-private fun Breadcrumbs(
-    route: ProclamatoriRoute,
-    currentModificaLabel: String?,
-    onGoList: () -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(
-            modifier = Modifier.handCursorOnHover(),
-            onClick = onGoList,
-        ) { Text("Proclamatori") }
-        Text("/")
-        when (route) {
-            ProclamatoriRoute.Elenco -> SelectionContainer { Text("Elenco") }
-            ProclamatoriRoute.Nuovo -> SelectionContainer { Text("Nuovo") }
-            is ProclamatoriRoute.Modifica -> SelectionContainer { Text(currentModificaLabel ?: "Modifica") }
-        }
-    }
-}
-
-@Composable
-private fun TableDataRow(
-    proclamatore: Proclamatore,
-    loading: Boolean,
-    selected: Boolean,
-    batchMode: Boolean,
-    lineColor: Color,
-    onToggleSelected: (Boolean) -> Unit,
-    onEdit: () -> Unit,
-    onToggleActive: (Boolean) -> Unit,
-    onDelete: () -> Unit,
-) {
-    val singleActionsEnabled = !loading && !batchMode
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.weight(0.6f).fillMaxHeight().standardTableCell(lineColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Checkbox(
-                checked = selected,
-                onCheckedChange = onToggleSelected,
-                enabled = !loading,
-            )
-        }
-        Box(modifier = Modifier.weight(2f).fillMaxHeight().standardTableCell(lineColor), contentAlignment = Alignment.CenterStart) {
-            Text(proclamatore.nome)
-        }
-        Box(modifier = Modifier.weight(2f).fillMaxHeight().standardTableCell(lineColor), contentAlignment = Alignment.CenterStart) {
-            Text(proclamatore.cognome)
-        }
-        Box(modifier = Modifier.weight(1f).fillMaxHeight().standardTableCell(lineColor), contentAlignment = Alignment.CenterStart) {
-            Text(proclamatore.sesso.name)
-        }
-        Row(
-            modifier = Modifier.weight(1f).fillMaxHeight().standardTableCell(lineColor),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(if (proclamatore.attivo) "Si" else "No")
-            Switch(
-                checked = proclamatore.attivo,
-                onCheckedChange = onToggleActive,
-                enabled = singleActionsEnabled,
-            )
-        }
-        Row(
-            modifier = Modifier.weight(3f).fillMaxHeight().standardTableCell(lineColor),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
-                onClick = onEdit,
-                enabled = singleActionsEnabled,
-            ) {
-                Icon(Icons.Filled.Edit, contentDescription = null)
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Modifica")
-            }
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
-                onClick = onDelete,
-                enabled = singleActionsEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Icon(Icons.Filled.Delete, contentDescription = null)
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Rimuovi")
-            }
-        }
-    }
 }

@@ -133,6 +133,17 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - Campi elemento: `nome`, `cognome`, `sesso`, `attivo` (opzionale, default `true`).
 - Import in transazione unica con validazione completa del file prima del commit.
 - Output finale: conteggio `importati` e `errori`.
+- Entry point UI: schermata `Proclamatori` con pulsante `Importa JSON iniziale`.
+- Esempio JSON supportato:
+```json
+{
+  "version": 1,
+  "proclamatori": [
+    { "nome": "Mario", "cognome": "Rossi", "sesso": "M", "attivo": true },
+    { "nome": "Lucia", "cognome": "Bianchi", "sesso": "F" }
+  ]
+}
+```
 
 ## 8. Use case principali (MVP)
 - Tutti i use case elencati sono `suspend`.

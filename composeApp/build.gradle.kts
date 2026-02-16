@@ -32,6 +32,7 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.sqlite.driver)
             implementation(libs.sqldelight.coroutines.extensions)
             implementation(libs.slf4j.api)

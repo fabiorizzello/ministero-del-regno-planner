@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "proclamatori": [
+    { "nome": "Mario", "cognome": "Rossi", "sesso": "M", "attivo": true },
+    { "nome": "Lucia", "cognome": "Bianchi", "sesso": "F" }
+  ]
+}

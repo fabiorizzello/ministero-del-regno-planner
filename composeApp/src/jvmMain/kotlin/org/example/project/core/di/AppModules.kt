@@ -11,6 +11,7 @@ import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
+import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
@@ -33,6 +34,7 @@ val appModule = module {
     single { CercaProclamatoriUseCase(get()) }
     single { CaricaProclamatoreUseCase(get()) }
     single { CreaProclamatoreUseCase(get(), get()) }
+    single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
     single { AggiornaProclamatoreUseCase(get(), get()) }
     single { ImpostaStatoProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get()) }
