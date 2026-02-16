@@ -29,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,6 +112,7 @@ private data class ProclamatoriModificaScreen(
 }
 
 private val proclamatoriTableColumns = listOf(
+    TableColumnSpec("", 0.6f),
     TableColumnSpec("Nome", 2f),
     TableColumnSpec("Cognome", 2f),
     TableColumnSpec("Sesso", 1f),
@@ -118,7 +120,7 @@ private val proclamatoriTableColumns = listOf(
     TableColumnSpec("Azioni", 3f),
 )
 
-private const val proclamatoriTableTotalWeight = 9f
+private const val proclamatoriTableTotalWeight = 9.6f
 private val tableScrollbarPadding = 12.dp
 private val successTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 
@@ -129,13 +131,45 @@ private data class ProclamatoriSort(
     val direction: SortDirection = SortDirection.ASC,
 )
 
-private fun successDetails(nome: String, cognome: String): String {
+private fun personDetails(nome: String, cognome: String): String {
     val fullName = listOf(nome.trim(), cognome.trim())
         .filter { it.isNotEmpty() }
         .joinToString(" ")
         .ifBlank { "-" }
+    return "Proclamatore: $fullName"
+}
+
+private fun detailsWithTimestamp(details: String? = null): String {
     val timestamp = LocalDateTime.now().format(successTimestampFormatter)
-    return "Proclamatore: $fullName | Ora: $timestamp"
+    return if (details.isNullOrBlank()) {
+        "Ora: $timestamp"
+    } else {
+        "$details | Ora: $timestamp"
+    }
+}
+
+private fun successNotice(details: String): FeedbackBannerModel {
+    return FeedbackBannerModel(
+        message = "Operazione completata",
+        kind = FeedbackBannerKind.SUCCESS,
+        details = detailsWithTimestamp(details),
+    )
+}
+
+private fun errorNotice(details: String): FeedbackBannerModel {
+    return FeedbackBannerModel(
+        message = "Operazione non completata",
+        kind = FeedbackBannerKind.ERROR,
+        details = detailsWithTimestamp(details),
+    )
+}
+
+private fun partialNotice(details: String): FeedbackBannerModel {
+    return FeedbackBannerModel(
+        message = "Operazione parziale",
+        kind = FeedbackBannerKind.ERROR,
+        details = detailsWithTimestamp(details),
+    )
 }
 
 private fun toggleSort(current: ProclamatoriSort, field: ProclamatoriSortField): ProclamatoriSort {
@@ -196,12 +230,16 @@ fun ProclamatoriScreen() {
     var cognome by remember { mutableStateOf("") }
     var sesso by remember { mutableStateOf(Sesso.M) }
     var showFieldErrors by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(emptySet<ProclamatoreId>()) }
 
     var deleteCandidate by remember { mutableStateOf<Proclamatore?>(null) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
     suspend fun refreshList(resetPage: Boolean = false) {
         isLoading = true
         allItems = cerca(searchTerm)
+        val validIds = allItems.map { it.id }.toSet()
+        selectedIds = selectedIds.filterTo(mutableSetOf()) { it in validIds }
         if (resetPage) {
             pageIndex = 0
         }
@@ -227,7 +265,7 @@ fun ProclamatoriScreen() {
         isLoading = true
         val loaded = carica(id)
         if (loaded == null) {
-            notice = FeedbackBannerModel("Proclamatore non trovato", FeedbackBannerKind.ERROR)
+            notice = errorNotice("Proclamatore non trovato")
             isLoading = false
             return false
         } else {
@@ -268,16 +306,13 @@ fun ProclamatoriScreen() {
                                 val result = elimina(candidate.id)
                                 result.fold(
                                     ifLeft = { err ->
-                                        notice = FeedbackBannerModel(
+                                        notice = errorNotice(
                                             (err as? DomainError.Validation)?.message ?: "Rimozione non completata",
-                                            FeedbackBannerKind.ERROR,
                                         )
                                     },
                                     ifRight = {
-                                        notice = FeedbackBannerModel(
-                                            message = "Proclamatore rimosso",
-                                            kind = FeedbackBannerKind.SUCCESS,
-                                            details = successDetails(candidate.nome, candidate.cognome),
+                                        notice = successNotice(
+                                            details = "Rimosso ${personDetails(candidate.nome, candidate.cognome)}",
                                         )
                                         refreshList()
                                     },
@@ -295,6 +330,68 @@ fun ProclamatoriScreen() {
                     TextButton(
                         modifier = Modifier.handCursorOnHover(),
                         onClick = { deleteCandidate = null },
+                    ) { Text("Annulla") }
+                },
+            )
+        }
+    }
+
+    if (showBatchDeleteConfirm) {
+        DisableSelection {
+            AlertDialog(
+                onDismissRequest = { showBatchDeleteConfirm = false },
+                title = { Text("Rimuovi proclamatori selezionati") },
+                text = {
+                    Text("Confermi rimozione di ${selectedIds.size} proclamatori selezionati?")
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        onClick = {
+                            scope.launch {
+                                val idsToRemove = selectedIds.toList()
+                                var removedCount = 0
+                                var failedCount = 0
+                                val failedIds = mutableSetOf<ProclamatoreId>()
+                                isLoading = true
+                                idsToRemove.forEach { id ->
+                                    elimina(id).fold(
+                                        ifLeft = {
+                                            failedCount++
+                                            failedIds += id
+                                        },
+                                        ifRight = {
+                                            removedCount++
+                                        },
+                                    )
+                                }
+                                refreshList()
+                                selectedIds = failedIds
+                                showBatchDeleteConfirm = false
+                                isLoading = false
+
+                                notice = when {
+                                    removedCount > 0 && failedCount == 0 -> {
+                                        successNotice("Proclamatori rimossi: $removedCount")
+                                    }
+                                    removedCount == 0 -> {
+                                        errorNotice("Nessun proclamatore rimosso")
+                                    }
+                                    else -> {
+                                        partialNotice("Proclamatori rimossi: $removedCount | Errori: $failedCount")
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) { Text("Rimuovi") }
+                },
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(),
+                        onClick = { showBatchDeleteConfirm = false },
                     ) { Text("Annulla") }
                 },
             )
@@ -332,6 +429,7 @@ fun ProclamatoriScreen() {
 
         fun goToList() {
             notice = null
+            selectedIds = emptySet()
             navigator.replaceAll(ProclamatoriElencoScreen)
             clearForm()
             formError = null
@@ -339,6 +437,7 @@ fun ProclamatoriScreen() {
 
         fun goToNuovo() {
             notice = null
+            selectedIds = emptySet()
             clearForm()
             formError = null
             navigator.push(ProclamatoriNuovoScreen)
@@ -378,11 +477,7 @@ fun ProclamatoriScreen() {
                         } else {
                             "Proclamatore aggiornato"
                         }
-                        notice = FeedbackBannerModel(
-                            message = operation,
-                            kind = FeedbackBannerKind.SUCCESS,
-                            details = successDetails(nome, cognome),
-                        )
+                        notice = successNotice("$operation: ${personDetails(nome, cognome)}")
                         navigator.replaceAll(ProclamatoriElencoScreen)
                         clearForm()
                         refreshList()
@@ -524,7 +619,142 @@ fun ProclamatoriScreen() {
                 val pageItems = sortedItems
                     .drop(pageIndex * pageSize)
                     .take(pageSize)
+                val pageItemIds = pageItems.map { it.id }
+                val hasBatchSelection = selectedIds.isNotEmpty()
+                val batchActionsEnabled = hasBatchSelection && !isLoading
+                val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
                 val tableLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = allPageSelected,
+                                onCheckedChange = { checked ->
+                                    selectedIds = if (checked) {
+                                        selectedIds + pageItemIds
+                                    } else {
+                                        selectedIds - pageItemIds.toSet()
+                                    }
+                                },
+                                enabled = !isLoading && pageItemIds.isNotEmpty(),
+                            )
+                            Text("Selezionati: ${selectedIds.size}")
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Button(
+                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                                onClick = {
+                                    scope.launch {
+                                        val ids = selectedIds.toList()
+                                        var updatedCount = 0
+                                        var failedCount = 0
+                                        val failedIds = mutableSetOf<ProclamatoreId>()
+                                        isLoading = true
+                                        ids.forEach { id ->
+                                            impostaStato(id, true).fold(
+                                                ifLeft = {
+                                                    failedCount++
+                                                    failedIds += id
+                                                },
+                                                ifRight = {
+                                                    updatedCount++
+                                                },
+                                            )
+                                        }
+                                        refreshList()
+                                        selectedIds = failedIds
+                                        isLoading = false
+                                        notice = when {
+                                            updatedCount > 0 && failedCount == 0 -> {
+                                                successNotice("Proclamatori attivati: $updatedCount")
+                                            }
+                                            updatedCount == 0 -> {
+                                                errorNotice("Nessun proclamatore attivato")
+                                            }
+                                            else -> {
+                                                partialNotice("Proclamatori attivati: $updatedCount | Errori: $failedCount")
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = batchActionsEnabled,
+                            ) {
+                                Text("Attiva")
+                            }
+                            Button(
+                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                                onClick = {
+                                    scope.launch {
+                                        val ids = selectedIds.toList()
+                                        var updatedCount = 0
+                                        var failedCount = 0
+                                        val failedIds = mutableSetOf<ProclamatoreId>()
+                                        isLoading = true
+                                        ids.forEach { id ->
+                                            impostaStato(id, false).fold(
+                                                ifLeft = {
+                                                    failedCount++
+                                                    failedIds += id
+                                                },
+                                                ifRight = {
+                                                    updatedCount++
+                                                },
+                                            )
+                                        }
+                                        refreshList()
+                                        selectedIds = failedIds
+                                        isLoading = false
+                                        notice = when {
+                                            updatedCount > 0 && failedCount == 0 -> {
+                                                successNotice("Proclamatori disattivati: $updatedCount")
+                                            }
+                                            updatedCount == 0 -> {
+                                                errorNotice("Nessun proclamatore disattivato")
+                                            }
+                                            else -> {
+                                                partialNotice("Proclamatori disattivati: $updatedCount | Errori: $failedCount")
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = batchActionsEnabled,
+                            ) {
+                                Text("Disattiva")
+                            }
+                            Button(
+                                modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                                onClick = { showBatchDeleteConfirm = true },
+                                enabled = batchActionsEnabled,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError,
+                                ),
+                            ) {
+                                Text("Rimuovi")
+                            }
+                            TextButton(
+                                modifier = Modifier.handCursorOnHover(enabled = hasBatchSelection),
+                                onClick = { selectedIds = emptySet() },
+                                enabled = hasBatchSelection && !isLoading,
+                            ) {
+                                Text("Annulla selezione")
+                            }
+                        }
+                    }
+                }
 
                 Card(
                     modifier = Modifier
@@ -543,10 +773,10 @@ fun ProclamatoriScreen() {
                             lineColor = tableLineColor,
                             onColumnClick = { index ->
                                 val sortField = when (index) {
-                                    0 -> ProclamatoriSortField.NOME
-                                    1 -> ProclamatoriSortField.COGNOME
-                                    2 -> ProclamatoriSortField.SESSO
-                                    3 -> ProclamatoriSortField.ATTIVO
+                                    1 -> ProclamatoriSortField.NOME
+                                    2 -> ProclamatoriSortField.COGNOME
+                                    3 -> ProclamatoriSortField.SESSO
+                                    4 -> ProclamatoriSortField.ATTIVO
                                     else -> null
                                 }
                                 if (sortField != null) {
@@ -555,10 +785,10 @@ fun ProclamatoriScreen() {
                             },
                             sortIndicatorText = { index ->
                                 val field = when (index) {
-                                    0 -> ProclamatoriSortField.NOME
-                                    1 -> ProclamatoriSortField.COGNOME
-                                    2 -> ProclamatoriSortField.SESSO
-                                    3 -> ProclamatoriSortField.ATTIVO
+                                    1 -> ProclamatoriSortField.NOME
+                                    2 -> ProclamatoriSortField.COGNOME
+                                    3 -> ProclamatoriSortField.SESSO
+                                    4 -> ProclamatoriSortField.ATTIVO
                                     else -> null
                                 }
                                 if (field == sort.field) {
@@ -593,7 +823,16 @@ fun ProclamatoriScreen() {
                                         TableDataRow(
                                             proclamatore = item,
                                             loading = isLoading,
+                                            selected = item.id in selectedIds,
+                                            batchMode = hasBatchSelection,
                                             lineColor = tableLineColor,
+                                            onToggleSelected = { checked ->
+                                                selectedIds = if (checked) {
+                                                    selectedIds + item.id
+                                                } else {
+                                                    selectedIds - item.id
+                                                }
+                                            },
                                             onEdit = {
                                                 scope.launch {
                                                     if (openEdit(item.id)) {
@@ -778,17 +1017,31 @@ private fun Breadcrumbs(
 private fun TableDataRow(
     proclamatore: Proclamatore,
     loading: Boolean,
+    selected: Boolean,
+    batchMode: Boolean,
     lineColor: Color,
+    onToggleSelected: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onToggleActive: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
+    val singleActionsEnabled = !loading && !batchMode
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            modifier = Modifier.weight(0.6f).fillMaxHeight().standardTableCell(lineColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = onToggleSelected,
+                enabled = !loading,
+            )
+        }
         Box(modifier = Modifier.weight(2f).fillMaxHeight().standardTableCell(lineColor), contentAlignment = Alignment.CenterStart) {
             Text(proclamatore.nome)
         }
@@ -807,7 +1060,7 @@ private fun TableDataRow(
             Switch(
                 checked = proclamatore.attivo,
                 onCheckedChange = onToggleActive,
-                enabled = !loading,
+                enabled = singleActionsEnabled,
             )
         }
         Row(
@@ -816,18 +1069,18 @@ private fun TableDataRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Button(
-                modifier = Modifier.handCursorOnHover(enabled = !loading),
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
                 onClick = onEdit,
-                enabled = !loading,
+                enabled = singleActionsEnabled,
             ) {
                 Icon(Icons.Filled.Edit, contentDescription = null)
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text("Modifica")
             }
             Button(
-                modifier = Modifier.handCursorOnHover(enabled = !loading),
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
                 onClick = onDelete,
-                enabled = !loading,
+                enabled = singleActionsEnabled,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,

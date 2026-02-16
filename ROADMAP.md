@@ -52,6 +52,26 @@ Definition of Done:
 - CRUD completo proclamatori.
 - Test use case + repository.
 
+## 4.1 Milestone M1B - Slice Import Proclamatori JSON
+Obiettivo: importare anagrafica proclamatori da file JSON solo in bootstrap iniziale.
+
+Use case:
+- `ImportaProclamatoriDaJson`
+
+UI:
+- Azione import file JSON proclamatori.
+- Messaggio bloccante se esistono gia' proclamatori.
+
+Regole:
+- Precondizione: import consentito solo con tabella proclamatori vuota (`count = 0`).
+- Nessun merge/sovrascrittura/cancellazione differenziale.
+- Import in transazione unica con validazione completa file prima del commit.
+
+Definition of Done:
+- Import JSON proclamatori funzionante solo a DB proclamatori vuoto.
+- Blocco import su DB non vuoto con feedback chiaro.
+- Test parsing e coerenza transazionale.
+
 ## 5. Milestone M2 - Slice Parti Settimanali
 Obiettivo: creare/modificare piano parti per settimana.
 
@@ -192,13 +212,14 @@ Definition of Done:
 ## 12. Ordine di rilascio consigliato
 1. M0 Fondazioni.
 2. M1 Persone.
-3. M2 Parti.
-4. M3 Assegnazioni.
-5. M4 Suggerimenti fuzzy proclamatori.
-6. M5 Import schemi.
-7. M6 Output immagini/PDF.
-8. M7 Diagnostica.
-9. M8 Aggiornamenti.
+3. M1B Import persone JSON.
+4. M2 Parti.
+5. M3 Assegnazioni.
+6. M4 Suggerimenti fuzzy proclamatori.
+7. M5 Import schemi.
+8. M6 Output immagini/PDF.
+9. M7 Diagnostica.
+10. M8 Aggiornamenti.
 
 ## 13. Gate qualita' per ogni milestone
 - Test use case del dominio obbligatori.

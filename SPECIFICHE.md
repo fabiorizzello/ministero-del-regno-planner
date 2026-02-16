@@ -1,4 +1,4 @@
-# Specifiche Progetto - v1.4
+# Specifiche Progetto - v1.6
 
 ## 1. Obiettivo
 Realizzare un'app desktop (Kotlin Compose) per pianificare settimanalmente le parti, gestire proclamatori e assegnazioni, con funzionamento locale e aggiornamenti semplici per utenti non tecnici.
@@ -124,6 +124,16 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - Ordinamento prioritario: chi non svolge quella parte da piu' tempo.
 - Nessuno storico: priorita' alta.
 
+### 7.5 Import proclamatori da JSON
+- Import consentito solo per bootstrap iniziale anagrafica.
+- Precondizione obbligatoria: numero proclamatori esistenti = `0`.
+- Se esiste almeno un proclamatore: import bloccato con messaggio informativo.
+- Nessuna modalita' merge/sovrascrittura/cancellazione differenziale.
+- JSON con radice `version` e array `proclamatori`.
+- Campi elemento: `nome`, `cognome`, `sesso`, `attivo` (opzionale, default `true`).
+- Import in transazione unica con validazione completa del file prima del commit.
+- Output finale: conteggio `importati` e `errori`.
+
 ## 8. Use case principali (MVP)
 - Tutti i use case elencati sono `suspend`.
 - `CreaProclamatore`
@@ -131,6 +141,7 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - `ImpostaStatoProclamatore` (attiva/disattiva)
 - `CercaProclamatori` (termine opzionale; se assente restituisce elenco completo)
 - `EliminaProclamatore`
+- `ImportaProclamatoriDaJson`
 - `CreaParteSettimanale`
 - `AggiornaParteSettimanale`
 - `ImportaPianoDaJson`
@@ -181,6 +192,8 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - Ricerca visibile a destra nella schermata elenco.
 - Flusso creazione/modifica su schermata dedicata con rotte e breadcrumbs.
 - Pulsante eliminazione disponibile su riga elenco.
+- Import proclamatori JSON disponibile solo a database proclamatori vuoto.
+- Se sono presenti proclamatori, import bloccato con messaggio esplicito.
 - Creazione e modifica parti settimanali.
 - Import JSON multi-settimana con conferma sovrascrittura.
 - Assegnazioni valide rispetto a `numeroPersone` e `regolaSesso`.

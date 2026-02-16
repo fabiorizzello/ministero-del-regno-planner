@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Checklist
@@ -55,49 +54,47 @@ fun AppScreen() {
                 ?: AppSection.PROCLAMATORI
 
             Scaffold { paddingValues ->
-                SelectionContainer {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    NavigationRail(
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
                     ) {
-                        NavigationRail(
-                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .padding(vertical = 6.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                AppSection.entries.forEach { section ->
-                                    NavigationRailItem(
-                                        selected = currentSection == section,
-                                        onClick = {
-                                            if (currentSection != section) {
-                                                navigator.replaceAll(section.screen)
-                                            }
-                                        },
-                                        icon = { Icon(section.icon, contentDescription = section.label) },
-                                        label = { Text(section.label) },
-                                        modifier = Modifier
-                                            .width(128.dp)
-                                            .handCursorOnHover(),
-                                    )
-                                }
+                            AppSection.entries.forEach { section ->
+                                NavigationRailItem(
+                                    selected = currentSection == section,
+                                    onClick = {
+                                        if (currentSection != section) {
+                                            navigator.replaceAll(section.screen)
+                                        }
+                                    },
+                                    icon = { Icon(section.icon, contentDescription = section.label) },
+                                    label = { Text(section.label) },
+                                    modifier = Modifier
+                                        .width(128.dp)
+                                        .handCursorOnHover(),
+                                )
                             }
                         }
-                        VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = 8.dp))
+                    }
+                    VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = 8.dp))
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(8.dp),
-                        ) {
-                            CurrentScreen()
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp),
+                    ) {
+                        CurrentScreen()
                     }
                 }
             }
