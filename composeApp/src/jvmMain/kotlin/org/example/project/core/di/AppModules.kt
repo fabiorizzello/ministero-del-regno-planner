@@ -17,6 +17,18 @@ import org.example.project.feature.people.application.ProclamatoriQuery
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
 import org.example.project.feature.people.infrastructure.SqlDelightProclamatoriQuery
 import org.example.project.feature.people.infrastructure.SqlDelightProclamatoriStore
+import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
+import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
+import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
+import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
+import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
+import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
+import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.infrastructure.GitHubDataSource
+import org.example.project.feature.weeklyparts.infrastructure.SqlDelightPartTypeStore
+import org.example.project.feature.weeklyparts.infrastructure.SqlDelightWeekPlanStore
 import org.koin.dsl.module
 
 val appModule = module {
@@ -39,4 +51,22 @@ val appModule = module {
     single { ImpostaStatoProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }
+
+    // Weekly parts
+    single<PartTypeStore> { SqlDelightPartTypeStore(get()) }
+    single<WeekPlanStore> { SqlDelightWeekPlanStore(get()) }
+    single {
+        GitHubDataSource(
+            partTypesUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/part-types.json",
+            weeklySchemasUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/weekly-schemas.json",
+        )
+    }
+
+    single { CaricaSettimanaUseCase(get()) }
+    single { CreaSettimanaUseCase(get(), get()) }
+    single { AggiungiParteUseCase(get()) }
+    single { RimuoviParteUseCase(get()) }
+    single { RiordinaPartiUseCase(get()) }
+    single { CercaTipiParteUseCase(get()) }
+    single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
 }
