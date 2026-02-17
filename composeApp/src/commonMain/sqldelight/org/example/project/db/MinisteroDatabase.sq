@@ -9,6 +9,16 @@ CREATE TABLE person (
 CREATE UNIQUE INDEX IF NOT EXISTS person_unique_full_name_nocase
 ON person(first_name COLLATE NOCASE, last_name COLLATE NOCASE);
 
+CREATE TABLE part_type (
+    id TEXT NOT NULL PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    label TEXT NOT NULL,
+    people_count INTEGER NOT NULL,
+    sex_rule TEXT NOT NULL,
+    fixed INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE week_plan (
     id TEXT NOT NULL PRIMARY KEY,
     week_start_date TEXT NOT NULL
@@ -17,11 +27,10 @@ CREATE TABLE week_plan (
 CREATE TABLE weekly_part (
     id TEXT NOT NULL PRIMARY KEY,
     week_plan_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    number_of_people INTEGER NOT NULL,
-    sex_rule TEXT NOT NULL,
+    part_type_id TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
-    FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE
+    FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE,
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id)
 );
 
 CREATE TABLE assignment (
@@ -33,6 +42,7 @@ CREATE TABLE assignment (
     FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT
 );
 
+-- Person queries (existing)
 searchProclaimers:
 SELECT id, first_name, last_name, sex, active
 FROM person
@@ -72,20 +82,92 @@ SET
 WHERE id = ?;
 
 insertProclaimerIfAbsent:
-INSERT INTO person(
-    id,
-    first_name,
-    last_name,
-    sex,
-    active
-)
+INSERT INTO person(id, first_name, last_name, sex, active)
 SELECT ?, ?, ?, ?, ?
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM person
-    WHERE id = ?
-);
+WHERE NOT EXISTS (SELECT 1 FROM person WHERE id = ?);
 
 deleteProclaimerById:
 DELETE FROM person
 WHERE id = ?;
+
+-- Part type queries
+allPartTypes:
+SELECT id, code, label, people_count, sex_rule, fixed, sort_order
+FROM part_type
+ORDER BY sort_order, label;
+
+findPartTypeByCode:
+SELECT id, code, label, people_count, sex_rule, fixed, sort_order
+FROM part_type
+WHERE code = ?;
+
+findPartTypeById:
+SELECT id, code, label, people_count, sex_rule, fixed, sort_order
+FROM part_type
+WHERE id = ?;
+
+findFixedPartType:
+SELECT id, code, label, people_count, sex_rule, fixed, sort_order
+FROM part_type
+WHERE fixed = 1
+LIMIT 1;
+
+upsertPartType:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order;
+
+-- Week plan queries
+findWeekPlanByDate:
+SELECT id, week_start_date
+FROM week_plan
+WHERE week_start_date = ?;
+
+insertWeekPlan:
+INSERT INTO week_plan(id, week_start_date)
+VALUES (?, ?);
+
+deleteWeekPlan:
+DELETE FROM week_plan WHERE id = ?;
+
+allWeekPlanDates:
+SELECT week_start_date FROM week_plan ORDER BY week_start_date;
+
+-- Weekly part queries (with JOIN to part_type)
+partsForWeek:
+SELECT
+    wp.id,
+    wp.week_plan_id,
+    wp.part_type_id,
+    wp.sort_order,
+    pt.code AS part_type_code,
+    pt.label AS part_type_label,
+    pt.people_count AS part_type_people_count,
+    pt.sex_rule AS part_type_sex_rule,
+    pt.fixed AS part_type_fixed,
+    pt.sort_order AS part_type_sort_order
+FROM weekly_part wp
+JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE wp.week_plan_id = ?
+ORDER BY wp.sort_order;
+
+insertWeeklyPart:
+INSERT INTO weekly_part(id, week_plan_id, part_type_id, sort_order)
+VALUES (?, ?, ?, ?);
+
+deleteWeeklyPart:
+DELETE FROM weekly_part WHERE id = ?;
+
+deleteAllPartsForWeek:
+DELETE FROM weekly_part WHERE week_plan_id = ?;
+
+updateWeeklyPartSortOrder:
+UPDATE weekly_part SET sort_order = ? WHERE id = ?;
+
+maxSortOrderForWeek:
+SELECT COALESCE(MAX(sort_order), -1) FROM weekly_part WHERE week_plan_id = ?;

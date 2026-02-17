@@ -47,6 +47,7 @@ sqldelight {
     databases {
         create("MinisteroDatabase") {
             packageName.set("org.example.project.db")
+            dialect(libs.sqldelight.dialect.sqlite338)
         }
     }
 }
