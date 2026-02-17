@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "weeks": [
+    {
+      "weekStartDate": "2026-02-16",
+      "parts": [
+        { "partTypeCode": "LETTURA_BIBLICA", "sortOrder": 0 },
+        { "partTypeCode": "INIZIARE_CONVERSAZIONE", "sortOrder": 1 },
+        { "partTypeCode": "INIZIARE_CONVERSAZIONE", "sortOrder": 2 },
+        { "partTypeCode": "SPIEGARE_CIO_CHE_SI_CREDE", "sortOrder": 3 }
+      ]
+    }
+  ]
+}
