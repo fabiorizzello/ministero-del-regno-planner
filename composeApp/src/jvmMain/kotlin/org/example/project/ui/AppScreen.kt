@@ -40,7 +40,7 @@ private enum class AppSection(
     val screen: Screen,
 ) {
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
-    WEEKLY_PARTS("Parti", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
+    WEEKLY_PARTS("Schemi", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
     ASSIGNMENTS("Assegnazioni", Icons.Filled.Checklist, AssignmentsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }

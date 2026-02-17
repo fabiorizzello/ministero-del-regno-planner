@@ -1,11 +1,15 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.example.project.feature.weeklyparts.application.RemoteDataSource
+import org.example.project.feature.weeklyparts.application.RemoteWeekSchema
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
@@ -15,22 +19,17 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.UUID
 
-data class RemoteWeekSchema(
-    val weekStartDate: String,
-    val partTypeCodes: List<String>,
-)
-
 class GitHubDataSource(
     private val partTypesUrl: String,
     private val weeklySchemasUrl: String,
-) {
+) : RemoteDataSource {
     private val client = HttpClient.newHttpClient()
 
-    fun fetchPartTypes(): List<PartType> {
+    override suspend fun fetchPartTypes(): List<PartType> = withContext(Dispatchers.IO) {
         val body = httpGet(partTypesUrl)
         val root = Json.parseToJsonElement(body).jsonObject
-        val arr = root["partTypes"]?.jsonArray ?: return emptyList()
-        return arr.mapIndexed { index, element ->
+        val arr = root["partTypes"]?.jsonArray ?: return@withContext emptyList()
+        arr.mapIndexed { index, element ->
             val obj = element.jsonObject
             PartType(
                 id = PartTypeId(UUID.randomUUID().toString()),
@@ -44,11 +43,11 @@ class GitHubDataSource(
         }
     }
 
-    fun fetchWeeklySchemas(): List<RemoteWeekSchema> {
+    override suspend fun fetchWeeklySchemas(): List<RemoteWeekSchema> = withContext(Dispatchers.IO) {
         val body = httpGet(weeklySchemasUrl)
         val root = Json.parseToJsonElement(body).jsonObject
-        val arr = root["weeks"]?.jsonArray ?: return emptyList()
-        return arr.map { element ->
+        val arr = root["weeks"]?.jsonArray ?: return@withContext emptyList()
+        arr.map { element ->
             val obj = element.jsonObject
             val parts = obj["parts"]!!.jsonArray.map { partEl ->
                 partEl.jsonObject["partTypeCode"]!!.jsonPrimitive.content

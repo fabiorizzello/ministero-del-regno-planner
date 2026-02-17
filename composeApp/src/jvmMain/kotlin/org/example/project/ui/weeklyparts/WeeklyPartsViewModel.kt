@@ -18,7 +18,7 @@ import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
-import org.example.project.feature.weeklyparts.infrastructure.RemoteWeekSchema
+import org.example.project.feature.weeklyparts.application.RemoteWeekSchema
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import java.time.DayOfWeek
@@ -118,10 +118,10 @@ internal class WeeklyPartsViewModel(
         }
     }
 
-    fun syncRemoteData(overwriteDates: Set<LocalDate> = emptySet()) {
+    fun syncRemoteData() {
         scope.launch {
             _state.update { it.copy(isImporting = true, weeksNeedingConfirmation = emptyList()) }
-            aggiornaDatiRemoti.fetchAndImport(overwriteDates).fold(
+            aggiornaDatiRemoti.fetchAndImport().fold(
                 ifLeft = { error ->
                     _state.update { it.copy(isImporting = false) }
                     showError(error)
@@ -148,8 +148,27 @@ internal class WeeklyPartsViewModel(
         }
     }
 
-    fun confirmOverwrite(dates: Set<LocalDate>) {
-        syncRemoteData(overwriteDates = dates)
+    fun confirmOverwrite() {
+        val pending = _state.value.weeksNeedingConfirmation
+        scope.launch {
+            _state.update { it.copy(isImporting = true, weeksNeedingConfirmation = emptyList()) }
+            aggiornaDatiRemoti.importSchemas(pending).fold(
+                ifLeft = { error ->
+                    _state.update { it.copy(isImporting = false) }
+                    showError(error)
+                },
+                ifRight = { count ->
+                    _state.update { it.copy(
+                        isImporting = false,
+                        notice = FeedbackBannerModel(
+                            "Sovrascritte $count settimane",
+                            FeedbackBannerKind.SUCCESS,
+                        ),
+                    ) }
+                    loadWeek()
+                },
+            )
+        }
     }
 
     fun dismissConfirmation() {

@@ -38,19 +38,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
-import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
-import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
-import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
-import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
-import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
-import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.StandardTableHeader
@@ -72,35 +64,16 @@ private val columns = listOf(
     TableColumnSpec("Regola", 0.8f),
     TableColumnSpec("", 0.5f),
 )
-private val totalWeight = columns.sumOf { it.weight.toDouble() }.toFloat()
-
 @Composable
 fun WeeklyPartsScreen() {
-    val koin = remember { GlobalContext.get() }
-    val vmScope = rememberCoroutineScope()
-    val viewModel = remember {
-        WeeklyPartsViewModel(
-            scope = vmScope,
-            caricaSettimana = koin.get<CaricaSettimanaUseCase>(),
-            creaSettimana = koin.get<CreaSettimanaUseCase>(),
-            aggiungiParte = koin.get<AggiungiParteUseCase>(),
-            rimuoviParte = koin.get<RimuoviParteUseCase>(),
-            riordinaParti = koin.get<RiordinaPartiUseCase>(),
-            cercaTipiParte = koin.get<CercaTipiParteUseCase>(),
-            aggiornaDatiRemoti = koin.get<AggiornaDatiRemotiUseCase>(),
-        )
-    }
+    val viewModel = remember { GlobalContext.get().get<WeeklyPartsViewModel>() }
     val state by viewModel.state.collectAsState()
 
     // Overwrite confirmation dialog
     if (state.weeksNeedingConfirmation.isNotEmpty()) {
         OverwriteConfirmDialog(
             weeks = state.weeksNeedingConfirmation.map { LocalDate.parse(it.weekStartDate) },
-            onConfirmAll = {
-                viewModel.confirmOverwrite(
-                    state.weeksNeedingConfirmation.map { LocalDate.parse(it.weekStartDate) }.toSet(),
-                )
-            },
+            onConfirmAll = { viewModel.confirmOverwrite() },
             onSkip = { viewModel.dismissConfirmation() },
         )
     }
@@ -143,6 +116,7 @@ fun WeeklyPartsScreen() {
             monday = state.currentMonday,
             sunday = state.sundayDate,
             indicator = state.weekIndicator,
+            enabled = !state.isLoading,
             onPrevious = { viewModel.navigateToPreviousWeek() },
             onNext = { viewModel.navigateToNextWeek() },
         )
@@ -162,6 +136,7 @@ fun WeeklyPartsScreen() {
                     Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
                     Button(
                         onClick = { viewModel.createWeek() },
+                        enabled = !state.isImporting,
                         modifier = Modifier.handCursorOnHover(),
                     ) {
                         Text("Crea settimana")
@@ -180,6 +155,7 @@ fun WeeklyPartsScreen() {
                             displayNumber = part.sortOrder + 3,
                             isFirst = index == 0,
                             isLast = index == parts.lastIndex,
+                            enabled = !state.isImporting,
                             onRemove = { viewModel.removePart(part.id) },
                             onMoveUp = { if (index > 0) viewModel.movePart(index, index - 1) },
                             onMoveDown = { if (index < parts.lastIndex) viewModel.movePart(index, index + 1) },
@@ -193,6 +169,7 @@ fun WeeklyPartsScreen() {
                 AddPartDropdown(
                     partTypes = state.partTypes,
                     onSelect = { viewModel.addPart(it.id) },
+                    enabled = !state.isImporting,
                 )
             }
         }
@@ -204,41 +181,44 @@ private fun WeekNavigator(
     monday: LocalDate,
     sunday: LocalDate,
     indicator: WeekTimeIndicator,
+    enabled: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
-    Column(
+    val (indicatorLabel, indicatorColor) = when (indicator) {
+        WeekTimeIndicator.CORRENTE -> "Corrente" to Color(0xFF4CAF50)
+        WeekTimeIndicator.FUTURA -> "Futura" to Color(0xFF2196F3)
+        WeekTimeIndicator.PASSATA -> "Passata" to Color(0xFF9E9E9E)
+    }
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
+        }
         Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            IconButton(onClick = onPrevious, modifier = Modifier.handCursorOnHover()) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
-            }
             Text(
                 text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
                 style = MaterialTheme.typography.titleMedium,
             )
-            IconButton(onClick = onNext, modifier = Modifier.handCursorOnHover()) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
-            }
+            Spacer(Modifier.width(8.dp))
+            AssistChip(
+                onClick = {},
+                label = { Text(indicatorLabel, style = MaterialTheme.typography.labelSmall) },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = indicatorColor.copy(alpha = 0.15f),
+                    labelColor = indicatorColor,
+                ),
+            )
         }
-        val (label, color) = when (indicator) {
-            WeekTimeIndicator.CORRENTE -> "Corrente" to Color(0xFF4CAF50)
-            WeekTimeIndicator.FUTURA -> "Futura" to Color(0xFF2196F3)
-            WeekTimeIndicator.PASSATA -> "Passata" to Color(0xFF9E9E9E)
+        IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
         }
-        AssistChip(
-            onClick = {},
-            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-            colors = AssistChipDefaults.assistChipColors(
-                containerColor = color.copy(alpha = 0.15f),
-                labelColor = color,
-            ),
-        )
     }
 }
 
@@ -248,6 +228,7 @@ private fun PartRow(
     displayNumber: Int,
     isFirst: Boolean,
     isLast: Boolean,
+    enabled: Boolean,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
@@ -275,16 +256,16 @@ private fun PartRow(
             if (!part.partType.fixed) {
                 Row {
                     if (!isFirst) {
-                        IconButton(onClick = onMoveUp, modifier = Modifier.handCursorOnHover()) {
+                        IconButton(onClick = onMoveUp, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
                             Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Sposta su", modifier = Modifier.height(16.dp))
                         }
                     }
                     if (!isLast) {
-                        IconButton(onClick = onMoveDown, modifier = Modifier.handCursorOnHover()) {
+                        IconButton(onClick = onMoveDown, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
                             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Sposta giu'", modifier = Modifier.height(16.dp))
                         }
                     }
-                    IconButton(onClick = onRemove, modifier = Modifier.handCursorOnHover()) {
+                    IconButton(onClick = onRemove, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
                         Icon(Icons.Filled.Close, contentDescription = "Rimuovi parte", modifier = Modifier.height(16.dp))
                     }
                 }
@@ -297,11 +278,13 @@ private fun PartRow(
 private fun AddPartDropdown(
     partTypes: List<org.example.project.feature.weeklyparts.domain.PartType>,
     onSelect: (org.example.project.feature.weeklyparts.domain.PartType) -> Unit,
+    enabled: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(
             onClick = { expanded = true },
+            enabled = enabled,
             modifier = Modifier.handCursorOnHover(),
         ) {
             Icon(Icons.Filled.Add, contentDescription = null)

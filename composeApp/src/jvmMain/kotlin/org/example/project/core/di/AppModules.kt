@@ -25,10 +25,16 @@ import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
 import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
+import org.example.project.feature.weeklyparts.application.RemoteDataSource
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.infrastructure.GitHubDataSource
 import org.example.project.feature.weeklyparts.infrastructure.SqlDelightPartTypeStore
 import org.example.project.feature.weeklyparts.infrastructure.SqlDelightWeekPlanStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import org.example.project.ui.proclamatori.ProclamatoriViewModel
+import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -55,7 +61,7 @@ val appModule = module {
     // Weekly parts
     single<PartTypeStore> { SqlDelightPartTypeStore(get()) }
     single<WeekPlanStore> { SqlDelightWeekPlanStore(get()) }
-    single {
+    single<RemoteDataSource> {
         GitHubDataSource(
             partTypesUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/part-types.json",
             weeklySchemasUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/weekly-schemas.json",
@@ -69,4 +75,31 @@ val appModule = module {
     single { RiordinaPartiUseCase(get()) }
     single { CercaTipiParteUseCase(get()) }
     single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
+
+    // ViewModels — singleton so they survive tab switches
+    single {
+        WeeklyPartsViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            caricaSettimana = get(),
+            creaSettimana = get(),
+            aggiungiParte = get(),
+            rimuoviParte = get(),
+            riordinaParti = get(),
+            cercaTipiParte = get(),
+            aggiornaDatiRemoti = get(),
+        )
+    }
+    single {
+        ProclamatoriViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            cerca = get(),
+            carica = get(),
+            crea = get(),
+            aggiorna = get(),
+            impostaStato = get(),
+            elimina = get(),
+            importaDaJson = get(),
+            verificaDuplicato = get(),
+        )
+    }
 }

@@ -52,6 +52,15 @@ sqldelight {
     }
 }
 
+tasks.register<JavaExec>("seedDatabase") {
+    description = "Popola la tabella part_type con i dati da data/part-types.json"
+    group = "application"
+    mainClass.set("org.example.project.core.cli.SeedDatabaseKt")
+    classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
+        kotlin.jvm().compilations["main"].output.allOutputs
+    workingDir = rootProject.projectDir
+}
+
 compose.desktop {
     application {
         mainClass = "org.example.project.MainKt"

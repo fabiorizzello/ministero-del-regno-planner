@@ -10,7 +10,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -23,14 +22,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
-import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
-import org.example.project.feature.people.application.CaricaProclamatoreUseCase
-import org.example.project.feature.people.application.CercaProclamatoriUseCase
-import org.example.project.feature.people.application.CreaProclamatoreUseCase
-import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
-import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
-import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.koin.core.context.GlobalContext
@@ -62,21 +53,7 @@ private data class ProclamatoriModificaScreen(
 
 @Composable
 fun ProclamatoriScreen() {
-    val koin = remember { GlobalContext.get() }
-    val vmScope = rememberCoroutineScope()
-    val viewModel = remember {
-        ProclamatoriViewModel(
-            scope = vmScope,
-            cerca = koin.get<CercaProclamatoriUseCase>(),
-            carica = koin.get<CaricaProclamatoreUseCase>(),
-            crea = koin.get<CreaProclamatoreUseCase>(),
-            aggiorna = koin.get<AggiornaProclamatoreUseCase>(),
-            impostaStato = koin.get<ImpostaStatoProclamatoreUseCase>(),
-            elimina = koin.get<EliminaProclamatoreUseCase>(),
-            importaDaJson = koin.get<ImportaProclamatoriDaJsonUseCase>(),
-            verificaDuplicato = koin.get<VerificaDuplicatoProclamatoreUseCase>(),
-        )
-    }
+    val viewModel = remember { GlobalContext.get().get<ProclamatoriViewModel>() }
     val state by viewModel.uiState.collectAsState()
 
     val tableListState = rememberLazyListState()
@@ -221,7 +198,7 @@ fun ProclamatoriScreen() {
                         onRequestDeleteSelected = { viewModel.requestBatchDeleteConfirm() },
                         onClearSelection = { viewModel.clearSelection() },
                         onGoNuovo = { goToNuovo() },
-                        canImportInitialJson = !state.isLoading && state.allItems.isEmpty(),
+                        canImportInitialJson = !state.isLoading && !state.isImporting && state.allItems.isEmpty(),
                         onImportJson = {
                             val selectedFile = selectJsonFileForImport() ?: return@ProclamatoriElencoContent
                             viewModel.importFromJsonFile(selectedFile)

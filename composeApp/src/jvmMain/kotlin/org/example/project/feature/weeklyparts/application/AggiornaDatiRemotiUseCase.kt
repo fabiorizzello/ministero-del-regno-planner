@@ -5,8 +5,6 @@ import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
-import org.example.project.feature.weeklyparts.infrastructure.GitHubDataSource
-import org.example.project.feature.weeklyparts.infrastructure.RemoteWeekSchema
 import java.time.LocalDate
 import java.util.UUID
 
@@ -17,22 +15,20 @@ data class ImportResult(
 )
 
 class AggiornaDatiRemotiUseCase(
-    private val gitHubDataSource: GitHubDataSource,
+    private val remoteDataSource: RemoteDataSource,
     private val partTypeStore: PartTypeStore,
     private val weekPlanStore: WeekPlanStore,
 ) {
-    suspend fun fetchAndImport(
-        overwriteDates: Set<LocalDate> = emptySet(),
-    ): Either<DomainError, ImportResult> = either {
+    suspend fun fetchAndImport(): Either<DomainError, ImportResult> = either {
         val remoteTypes = try {
-            gitHubDataSource.fetchPartTypes()
+            remoteDataSource.fetchPartTypes()
         } catch (e: Exception) {
             raise(DomainError.Validation("Errore nel download del catalogo: ${e.message}"))
         }
         partTypeStore.upsertAll(remoteTypes)
 
         val remoteSchemas = try {
-            gitHubDataSource.fetchWeeklySchemas()
+            remoteDataSource.fetchWeeklySchemas()
         } catch (e: Exception) {
             raise(DomainError.Validation("Errore nel download degli schemi: ${e.message}"))
         }
@@ -44,24 +40,12 @@ class AggiornaDatiRemotiUseCase(
             val date = LocalDate.parse(schema.weekStartDate)
             val existing = weekPlanStore.findByDate(date)
 
-            if (existing != null && date !in overwriteDates) {
+            if (existing != null) {
                 needConfirmation.add(schema)
                 continue
             }
 
-            if (existing != null) {
-                weekPlanStore.delete(existing.id)
-            }
-
-            val newPlanId = WeekPlanId(UUID.randomUUID().toString())
-            weekPlanStore.save(
-                WeekPlan(
-                    id = newPlanId,
-                    weekStartDate = date,
-                    parts = emptyList(),
-                ),
-            )
-            weekPlanStore.replaceAllParts(newPlanId, schema.partTypeCodes, partTypeStore)
+            importSchema(schema)
             imported++
         }
 
@@ -70,5 +54,35 @@ class AggiornaDatiRemotiUseCase(
             weeksImported = imported,
             weeksNeedingConfirmation = needConfirmation,
         )
+    }
+
+    suspend fun importSchemas(schemas: List<RemoteWeekSchema>): Either<DomainError, Int> = either {
+        var count = 0
+        for (schema in schemas) {
+            val date = LocalDate.parse(schema.weekStartDate)
+            val existing = weekPlanStore.findByDate(date)
+            if (existing != null) {
+                weekPlanStore.delete(existing.id)
+            }
+            importSchema(schema)
+            count++
+        }
+        count
+    }
+
+    private suspend fun importSchema(schema: RemoteWeekSchema) {
+        val date = LocalDate.parse(schema.weekStartDate)
+        val newPlanId = WeekPlanId(UUID.randomUUID().toString())
+        weekPlanStore.save(
+            WeekPlan(
+                id = newPlanId,
+                weekStartDate = date,
+                parts = emptyList(),
+            ),
+        )
+        val resolvedIds = schema.partTypeCodes.mapNotNull { code ->
+            partTypeStore.findByCode(code)?.id
+        }
+        weekPlanStore.replaceAllParts(newPlanId, resolvedIds)
     }
 }

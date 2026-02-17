@@ -25,7 +25,7 @@ class CreaSettimanaUseCase(
             parts = emptyList(),
         )
         weekPlanStore.save(weekPlan)
-        weekPlanStore.addPart(weekPlan.id, fixedPartType.id.value, sortOrder = 0)
+        weekPlanStore.addPart(weekPlan.id, fixedPartType.id, sortOrder = 0)
 
         weekPlanStore.findByDate(weekStartDate)
             ?: raise(DomainError.Validation("Errore nel salvataggio della settimana"))

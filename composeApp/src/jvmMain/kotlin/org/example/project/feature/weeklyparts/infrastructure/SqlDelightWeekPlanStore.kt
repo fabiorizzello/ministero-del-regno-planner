@@ -1,8 +1,8 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
 import org.example.project.db.MinisteroDatabase
-import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -43,14 +43,14 @@ class SqlDelightWeekPlanStore(
 
     override suspend fun addPart(
         weekPlanId: WeekPlanId,
-        partTypeId: String,
+        partTypeId: PartTypeId,
         sortOrder: Int,
     ): WeeklyPartId {
         val id = UUID.randomUUID().toString()
         database.ministeroDatabaseQueries.insertWeeklyPart(
             id = id,
             week_plan_id = weekPlanId.value,
-            part_type_id = partTypeId,
+            part_type_id = partTypeId.value,
             sort_order = sortOrder.toLong(),
         )
         return WeeklyPartId(id)
@@ -73,17 +73,15 @@ class SqlDelightWeekPlanStore(
 
     override suspend fun replaceAllParts(
         weekPlanId: WeekPlanId,
-        partTypeCodes: List<String>,
-        partTypeStore: PartTypeStore,
+        partTypeIds: List<PartTypeId>,
     ) {
-        val resolvedTypes = partTypeCodes.mapNotNull { code -> partTypeStore.findByCode(code) }
         database.ministeroDatabaseQueries.transaction {
             database.ministeroDatabaseQueries.deleteAllPartsForWeek(weekPlanId.value)
-            resolvedTypes.forEachIndexed { index, partType ->
+            partTypeIds.forEachIndexed { index, partTypeId ->
                 database.ministeroDatabaseQueries.insertWeeklyPart(
                     id = UUID.randomUUID().toString(),
                     week_plan_id = weekPlanId.value,
-                    part_type_id = partType.id.value,
+                    part_type_id = partTypeId.value,
                     sort_order = index.toLong(),
                 )
             }

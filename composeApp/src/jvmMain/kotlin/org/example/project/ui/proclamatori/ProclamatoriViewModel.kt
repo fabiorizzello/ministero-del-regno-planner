@@ -47,6 +47,7 @@ internal data class ProclamatoriUiState(
     val selectedIds: Set<ProclamatoreId> = emptySet(),
     val deleteCandidate: Proclamatore? = null,
     val showBatchDeleteConfirm: Boolean = false,
+    val isImporting: Boolean = false,
 )
 
 internal class ProclamatoriViewModel(
@@ -411,7 +412,7 @@ internal class ProclamatoriViewModel(
 
     fun importFromJsonFile(selectedFile: File) {
         scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, isImporting = true) }
             val jsonContent = withContext(Dispatchers.IO) {
                 runCatching { selectedFile.readText(Charsets.UTF_8) }.getOrNull()
             }
@@ -419,6 +420,7 @@ internal class ProclamatoriViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
+                        isImporting = false,
                         notice = errorNotice("Impossibile leggere il file selezionato"),
                     )
                 }
@@ -445,7 +447,7 @@ internal class ProclamatoriViewModel(
                     refreshListInternal(resetPage = true)
                 },
             )
-            _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isLoading = false, isImporting = false) }
         }
     }
 

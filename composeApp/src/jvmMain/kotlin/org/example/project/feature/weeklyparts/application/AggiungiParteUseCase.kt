@@ -18,7 +18,7 @@ class AggiungiParteUseCase(
             ?: raise(DomainError.Validation("Settimana non trovata"))
 
         val nextOrder = (weekPlan.parts.maxOfOrNull { it.sortOrder } ?: -1) + 1
-        weekPlanStore.addPart(weekPlan.id, partTypeId.value, nextOrder)
+        weekPlanStore.addPart(weekPlan.id, partTypeId, nextOrder)
 
         weekPlanStore.findByDate(weekStartDate)
             ?: raise(DomainError.Validation("Errore nel salvataggio"))
