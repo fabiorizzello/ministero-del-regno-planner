@@ -25,6 +25,7 @@ kotlin {
             implementation(libs.arrow.core)
             implementation(libs.arrow.optics)
             implementation(libs.voyager.navigator)
+            implementation(libs.reorderable)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

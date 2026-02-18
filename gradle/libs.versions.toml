@@ -14,6 +14,7 @@ logback = "1.5.18"
 koin = "3.5.6"
 multiplatform-settings = "1.1.1"
 voyager = "1.0.0"
+reorderable = "3.0.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -39,6 +40,7 @@ logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "lo
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
+reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 
 [plugins]
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
