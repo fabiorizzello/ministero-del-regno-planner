@@ -57,7 +57,7 @@ Realizzare un'app desktop (Kotlin Compose) per pianificare settimanalmente le pa
 - Standard tabellare unico: usare componenti condivisi (`TableColumnSpec`, `StandardTableHeader`, `StandardTableViewport`, `standardTableCell`, `StandardTableEmptyRow`).
 - Standard feedback unico: usare `FeedbackBanner` con stato tipizzato (`FeedbackBannerModel`, `FeedbackBannerKind.SUCCESS|ERROR`).
 - Feedback dismissibile: il banner espone chiusura (`X`) e puo' essere nascosto manualmente.
-- Tema applicativo: light mode Material3 come default.
+- Tema applicativo: light mode Material3 come default con spacing centralizzato (`AppSpacing` via `CompositionLocal`).
 - Selezione testo: evitare `SelectionContainer` globale su tutto l'albero UI (rischio crash gerarchia in Compose Desktop); usare selezione locale solo dove utile.
 - Le nuove schermate devono riusare i componenti standard, evitando varianti locali duplicate.
 - Documento operativo: `docs/UI_STANDARD.md`.

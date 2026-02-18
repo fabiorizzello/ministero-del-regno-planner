@@ -26,6 +26,16 @@ Riferimento implementazione:
 Riferimento implementazione:
 - `composeApp/src/jvmMain/kotlin/org/example/project/ui/components/FeedbackBanner.kt`
 
-## 3. Selezione Testo
+## 3. Spacing Centralizzato
+- Usare `MaterialTheme.spacing.*` per tutti i valori di padding e spacing.
+- Non usare valori `dp` hardcoded per padding/margin/spacing nei composable.
+- Token disponibili: `xxs` (2), `xs` (4), `sm` (6), `md` (8), `lg` (12), `xl` (16), `xxl` (32), `cardRadius` (12).
+- Valori strutturali (larghezze colonne, dimensioni icone, altezze pulsanti, elevazioni) restano in `dp` diretto.
+- Fornito tramite `CompositionLocalProvider` in `AppTheme`; accessibile con `MaterialTheme.spacing`.
+
+Riferimento implementazione:
+- `composeApp/src/jvmMain/kotlin/org/example/project/ui/theme/AppSpacing.kt`
+
+## 4. Selezione Testo
 - Non usare `SelectionContainer` globale nel tema/app root.
 - Applicare `SelectionContainer` solo in aree locali realmente utili (messaggi, output diagnostico, ecc.).
