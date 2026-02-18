@@ -1,6 +1,8 @@
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -31,6 +34,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,17 +50,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerModel
-import org.example.project.ui.components.StandardTableEmptyRow
-import org.example.project.ui.components.StandardTableHeader
-import org.example.project.ui.components.StandardTableViewport
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.standardTableCell
 
 @Composable
 internal fun Breadcrumbs(
@@ -240,9 +242,11 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     val hasSelection = selectedIds.isNotEmpty()
     val batchActionsEnabled = !isLoading
     val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
-    val tableLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -312,9 +316,9 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f, fill = true),
+        modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
             modifier = Modifier
@@ -322,46 +326,84 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            StandardTableHeader(
-                columns = proclamatoriTableColumns,
-                modifier = Modifier.padding(end = tableScrollbarPadding),
-                lineColor = tableLineColor,
-                onColumnClick = { index ->
-                    sortFieldForColumn(index)?.let { field ->
-                        onSortChange(toggleSort(sort, field))
-                    }
-                },
-                sortIndicatorText = { index -> sortIndicatorForColumn(index, sort) },
-            )
-
-            StandardTableViewport(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = true),
-                lineColor = tableLineColor,
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(end = 12.dp)
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(0.6f))
+                Text(
+                    text = "Nome" + (sortIndicatorForColumn(1, sort)?.let { " $it" } ?: ""),
+                    modifier = Modifier
+                        .weight(2f)
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .clickable { sortFieldForColumn(1)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "Cognome" + (sortIndicatorForColumn(2, sort)?.let { " $it" } ?: ""),
+                    modifier = Modifier
+                        .weight(2f)
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .clickable { sortFieldForColumn(2)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "Sesso" + (sortIndicatorForColumn(3, sort)?.let { " $it" } ?: ""),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .clickable { sortFieldForColumn(3)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "Attivo" + (sortIndicatorForColumn(4, sort)?.let { " $it" } ?: ""),
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .clickable { sortFieldForColumn(4)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "Azioni",
+                    modifier = Modifier.weight(3f),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
             ) {
                 LazyColumn(
                     state = tableListState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(end = tableScrollbarPadding),
+                        .padding(end = 12.dp),
                 ) {
                     if (pageItems.isEmpty()) {
                         item {
-                            StandardTableEmptyRow(
-                                message = "Nessun proclamatore",
-                                totalWeight = proclamatoriTableTotalWeight,
-                                lineColor = tableLineColor,
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("Nessun proclamatore", style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     } else {
                         items(pageItems, key = { it.id.value }) { item ->
+                            val index = pageItems.indexOf(item)
+                            val zebraColor = if (index % 2 == 0) Color.Transparent
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+
                             TableDataRow(
                                 proclamatore = item,
                                 loading = isLoading,
                                 selected = item.id in selectedIds,
                                 batchMode = hasSelection,
-                                lineColor = tableLineColor,
+                                backgroundColor = zebraColor,
                                 onToggleSelected = { checked -> onToggleRowSelected(item.id, checked) },
                                 onEdit = { onEdit(item.id) },
                                 onToggleActive = { next -> onToggleActive(item.id, next) },
@@ -528,7 +570,7 @@ internal fun TableDataRow(
     loading: Boolean,
     selected: Boolean,
     batchMode: Boolean,
-    lineColor: Color,
+    backgroundColor: Color,
     onToggleSelected: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onToggleActive: (Boolean) -> Unit,
@@ -538,14 +580,15 @@ internal fun TableDataRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min),
+            .height(IntrinsicSize.Min)
+            .background(backgroundColor),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
             Checkbox(
@@ -558,7 +601,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(2f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(proclamatore.nome)
@@ -567,7 +610,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(2f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(proclamatore.cognome)
@@ -576,7 +619,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(proclamatore.sesso.name)
@@ -585,7 +628,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -600,7 +643,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(3f)
                 .fillMaxHeight()
-                .standardTableCell(lineColor),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {

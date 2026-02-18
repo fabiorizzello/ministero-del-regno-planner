@@ -1,7 +1,6 @@
 package org.example.project.ui.proclamatori
 
 import arrow.core.Either
-import androidx.compose.ui.unit.dp
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.FilenameFilter
@@ -13,19 +12,7 @@ import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
-import org.example.project.ui.components.TableColumnSpec
 
-internal val proclamatoriTableColumns = listOf(
-    TableColumnSpec("", 0.6f),
-    TableColumnSpec("Nome", 2f),
-    TableColumnSpec("Cognome", 2f),
-    TableColumnSpec("Sesso", 1f),
-    TableColumnSpec("Attivo", 1f),
-    TableColumnSpec("Azioni", 3f),
-)
-
-internal const val proclamatoriTableTotalWeight = 9.6f
-internal val tableScrollbarPadding = 12.dp
 private val successTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 
 internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, ATTIVO }
