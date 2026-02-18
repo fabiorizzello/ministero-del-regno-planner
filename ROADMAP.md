@@ -92,44 +92,31 @@ Definition of Done:
 - Parti settimanali persistite e modificabili.
 - Test validazioni dominio.
 
-## 6. Milestone M3 - Slice Assegnazioni Core
-Obiettivo: assegnare persone alle parti con vincoli dominio.
+## 6. Milestone M3+M4 - Assegnazioni Core + Suggerimenti Fuzzy [COMPLETATA]
+Obiettivo: assegnare persone alle parti con vincoli dominio e ranking fuzzy basato sullo storico.
+Implementate insieme in un unico vertical slice.
 
 Use case:
 - `AssegnaProclamatoreAParte`
 - `RimuoviAssegnazione`
+- `CaricaAssegnazioni`
+- `SuggerisciProclamatoriPerParte`
 
 UI:
-- Screen assegnazioni per settimana.
-- Selettore persone per slot.
+- Tab Assegnazioni con card per ogni parte settimanale.
+- Dialog selezione proclamatore con ricerca, ranking a due colonne (globale e per tipo parte), toggle ordinamento.
+- Link bidirezionali tra tab Schemi e Assegnazioni (settimana sincronizzata via SharedWeekState).
+- Stato completamento visibile ("N/M slot assegnati").
 
 Regole:
 - Esclusione proclamatori non attivi.
 - Regola `UOMO` e `LIBERO`.
 - Niente duplicato proclamatore nella stessa parte/2 slot.
+- Ranking slot 1: basato solo su storico slot 1. Ranking slot 2: basato su storico slot 1+2.
+- Mai assegnato = priorita' massima.
 
-Definition of Done:
-- Assegnazioni valide e persistite.
-- Errori validazione mostrati in UI.
-- Test regole assegnazione.
-
-## 7. Milestone M4 - Slice Suggerimenti Fuzzy
-Obiettivo: ranking proclamatori assegnabili per priorita' storica.
-
-Use case:
-- `SuggerisciProclamatoriPerParte`
-
-UI:
-- Lista suggerimenti "fuzzy": tutti i proclamatori assegnabili ordinati.
-
-Regole ranking:
-- Includere tutti gli assegnabili (esclusioni hard applicate).
-- Priorita' alta a chi non ha storico.
-- Poi ordinamento per maggiore distanza dall'ultima volta sulla stessa parte.
-
-Definition of Done:
-- Ranking coerente con specifica.
-- Test su scenari con/senza storico.
+Design doc: `docs/plans/2026-02-18-assegnazioni-design.md`
+Implementation plan: `docs/plans/2026-02-18-assegnazioni-impl.md`
 
 ## 8. Milestone M5 - Slice Import Schemi Settimanali
 Obiettivo: import JSON multi-settimana con conflitti gestiti.
@@ -214,9 +201,8 @@ Definition of Done:
 2. M1 Persone.
 3. M1B Import persone JSON.
 4. M2 Parti.
-5. M3 Assegnazioni.
-6. M4 Suggerimenti fuzzy proclamatori.
-7. M5 Import schemi.
+5. M3+M4 Assegnazioni + Suggerimenti fuzzy. [COMPLETATA]
+6. M5 Import schemi.
 8. M6 Output immagini/PDF.
 9. M7 Diagnostica.
 10. M8 Aggiornamenti.

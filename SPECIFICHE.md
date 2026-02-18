@@ -120,9 +120,14 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 
 ### 7.4 Suggerimenti assegnazione
 - Suggerimento "fuzzy": mostra tutti i proclamatori assegnabili, ordinati per priorita'.
-- Esclusioni hard: regole parte (`UOMO`/`LIBERO`), proclamatore non attivo, vincoli di validazione.
-- Ordinamento prioritario: chi non svolge quella parte da piu' tempo.
-- Nessuno storico: priorita' alta.
+- Esclusioni hard: regole parte (`UOMO`/`LIBERO`), proclamatore non attivo, proclamatore gia' assegnato alla stessa parte.
+- Due colonne distanza: globale (qualsiasi parte) e per tipo parte.
+- Toggle ordinamento utente: globale o per tipo parte.
+- Nessuno storico: priorita' massima (in cima alla lista).
+- Ranking slot 1 (Proclamatore): basato solo su storico assegnazioni come slot 1.
+- Ranking slot 2 (Assistente): basato su storico assegnazioni come slot 1 + slot 2.
+- Formato distanza: "Mai assegnato", "Questa settimana", "N settimane fa".
+- Settimana selezionata sincronizzata tra tab Schemi e Assegnazioni tramite `SharedWeekState`.
 
 ### 7.5 Import proclamatori da JSON
 - Import consentito solo per bootstrap iniziale anagrafica.
@@ -159,6 +164,7 @@ Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
 - `ImportaPianoDaJson`
 - `AssegnaProclamatoreAParte`
 - `RimuoviAssegnazione`
+- `CaricaAssegnazioni`
 - `SuggerisciProclamatoriPerParte`
 
 ## 9. Migrazioni DB

@@ -39,3 +39,40 @@ Riferimento implementazione:
 ## 4. Selezione Testo
 - Non usare `SelectionContainer` globale nel tema/app root.
 - Applicare `SelectionContainer` solo in aree locali realmente utili (messaggi, output diagnostico, ecc.).
+
+## 5. Navigazione Settimana (WeekNavigator)
+- Usare il componente condiviso `WeekNavigator` per tutte le schermate che necessitano di navigazione settimanale.
+- Parametri: `monday`, `sunday`, `indicator` (WeekTimeIndicator), `enabled`, callbacks `onPrevious`/`onNext`.
+- La settimana selezionata e' sincronizzata tra tab tramite `SharedWeekState` (singleton Koin).
+- Formato data: italiano ("d MMMM yyyy").
+
+Riferimento implementazione:
+- `composeApp/src/jvmMain/kotlin/org/example/project/ui/components/WeekNavigator.kt`
+
+## 6. Card Assegnazione (PartAssignmentCard)
+- Ogni parte settimanale e' una card con header (numero, label tipo, chip regola sesso) e righe slot.
+- Parti fixed: solo label informativo "(parte fissa)", nessuno slot.
+- Parti con 1 persona: slot unico senza label ruolo.
+- Parti con 2 persone: slot "Proclamatore" e "Assistente".
+- Slot assegnato: nome + pulsante rimozione (X). Slot vuoto: pulsante "Assegna".
+
+Riferimento implementazione:
+- `composeApp/src/jvmMain/kotlin/org/example/project/ui/assignments/AssignmentsComponents.kt`
+
+## 7. Dialog Selezione Proclamatore (PersonPickerDialog)
+- Dialog modale con ricerca testuale, toggle ordinamento (Globale/Per parte), tabella suggerimenti.
+- Colonne: Nome, Ultima (globale), Ultima (questa parte), pulsante Assegna.
+- Distanza in settimane: "Mai assegnato", "Questa settimana", "N settimane fa".
+- Ordinamento: null-first (mai assegnato = priorita' massima).
+- Filtri hard applicati server-side; ricerca nome/cognome client-side.
+
+Riferimento implementazione:
+- `composeApp/src/jvmMain/kotlin/org/example/project/ui/assignments/AssignmentsComponents.kt`
+
+## 8. Navigazione tra Sezioni (LocalSectionNavigator)
+- Usare `LocalSectionNavigator.current` per navigare tra tab dall'interno di una schermata.
+- Fornito tramite `CompositionLocalProvider` in `AppScreen`.
+- Utile per link bidirezionali (es. "Vai allo schema" ↔ "Vai alle assegnazioni").
+
+Riferimento implementazione:
+- `composeApp/src/jvmMain/kotlin/org/example/project/ui/AppScreen.kt`
