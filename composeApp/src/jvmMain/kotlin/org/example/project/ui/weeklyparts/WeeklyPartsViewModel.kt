@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
@@ -51,6 +52,7 @@ internal data class WeeklyPartsUiState(
 
 internal class WeeklyPartsViewModel(
     private val scope: CoroutineScope,
+    private val sharedWeekState: SharedWeekState,
     private val caricaSettimana: CaricaSettimanaUseCase,
     private val creaSettimana: CreaSettimanaUseCase,
     private val aggiungiParte: AggiungiParteUseCase,
@@ -63,18 +65,21 @@ internal class WeeklyPartsViewModel(
     val state: StateFlow<WeeklyPartsUiState> = _state.asStateFlow()
 
     init {
-        loadWeek()
+        scope.launch {
+            sharedWeekState.currentMonday.collect { monday ->
+                _state.update { it.copy(currentMonday = monday) }
+                loadWeek()
+            }
+        }
         loadPartTypes()
     }
 
     fun navigateToPreviousWeek() {
-        _state.update { it.copy(currentMonday = it.currentMonday.minusWeeks(1)) }
-        loadWeek()
+        sharedWeekState.navigateToPreviousWeek()
     }
 
     fun navigateToNextWeek() {
-        _state.update { it.copy(currentMonday = it.currentMonday.plusWeeks(1)) }
-        loadWeek()
+        sharedWeekState.navigateToNextWeek()
     }
 
     fun createWeek() {

@@ -3,6 +3,7 @@ package org.example.project.core.di
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import java.util.prefs.Preferences
+import org.example.project.core.application.SharedWeekState
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
@@ -76,10 +77,14 @@ val appModule = module {
     single { CercaTipiParteUseCase(get()) }
     single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
 
+    // Shared state
+    single { SharedWeekState() }
+
     // ViewModels — singleton so they survive tab switches
     single {
         WeeklyPartsViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            sharedWeekState = get(),
             caricaSettimana = get(),
             creaSettimana = get(),
             aggiungiParte = get(),
