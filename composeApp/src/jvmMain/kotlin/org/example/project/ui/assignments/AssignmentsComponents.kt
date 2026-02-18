@@ -217,11 +217,11 @@ internal fun PersonPickerDialog(
         }
     }
 
-    // Sorting
+    // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
     val sorted = if (sortGlobal) {
-        filtered.sortedWith(compareBy(nullsFirst()) { it.lastGlobalWeeks })
+        filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
     } else {
-        filtered.sortedWith(compareBy(nullsFirst()) { it.lastForPartTypeWeeks })
+        filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
     }
 
     Dialog(onDismissRequest = onDismiss) {
