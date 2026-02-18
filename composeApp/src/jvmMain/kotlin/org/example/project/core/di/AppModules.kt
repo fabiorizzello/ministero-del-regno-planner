@@ -34,6 +34,13 @@ import org.example.project.feature.weeklyparts.infrastructure.SqlDelightWeekPlan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
+import org.example.project.feature.assignments.application.AssignmentStore
+import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
+import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
+import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
+import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
+import org.example.project.ui.assignments.AssignmentsViewModel
 import org.example.project.ui.proclamatori.ProclamatoriViewModel
 import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
 import org.koin.dsl.module
@@ -77,6 +84,13 @@ val appModule = module {
     single { CercaTipiParteUseCase(get()) }
     single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
 
+    // Assignments
+    single<AssignmentStore> { SqlDelightAssignmentStore(get()) }
+    single { CaricaAssegnazioniUseCase(get(), get()) }
+    single { AssegnaPersonaUseCase(get(), get()) }
+    single { RimuoviAssegnazioneUseCase(get()) }
+    single { SuggerisciProclamatoriUseCase(get(), get()) }
+
     // Shared state
     single { SharedWeekState() }
 
@@ -92,6 +106,17 @@ val appModule = module {
             riordinaParti = get(),
             cercaTipiParte = get(),
             aggiornaDatiRemoti = get(),
+        )
+    }
+    single {
+        AssignmentsViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            sharedWeekState = get(),
+            caricaSettimana = get(),
+            caricaAssegnazioni = get(),
+            assegnaPersona = get(),
+            rimuoviAssegnazione = get(),
+            suggerisciProclamatori = get(),
         )
     }
     single {
