@@ -20,10 +20,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
 sealed interface ProclamatoriRoute {
@@ -157,7 +159,7 @@ fun ProclamatoriScreen() {
                         else -> false
                     }
                 },
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
         ) {
             val currentModificaLabel = if (route is ProclamatoriRoute.Modifica) {
                 listOf(state.nome.trim(), state.cognome.trim())

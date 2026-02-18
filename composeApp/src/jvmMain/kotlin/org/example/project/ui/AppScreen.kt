@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -32,6 +33,7 @@ import org.example.project.ui.assignments.AssignmentsScreen
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.theme.AppTheme
+import org.example.project.ui.theme.spacing
 import org.example.project.ui.weeklyparts.WeeklyPartsScreen
 
 private enum class AppSection(
@@ -48,6 +50,7 @@ private enum class AppSection(
 @Composable
 fun AppScreen() {
     AppTheme {
+        val spacing = MaterialTheme.spacing
         Navigator(AppSection.PROCLAMATORI.screen) { navigator ->
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
@@ -58,16 +61,16 @@ fun AppScreen() {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
                     NavigationRail(
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                        modifier = Modifier.padding(vertical = spacing.md, horizontal = spacing.xs),
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .padding(vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(vertical = spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(spacing.md),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             AppSection.entries.forEach { section ->
@@ -87,12 +90,12 @@ fun AppScreen() {
                             }
                         }
                     }
-                    VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = 8.dp))
+                    VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = spacing.md))
 
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(8.dp),
+                            .padding(spacing.md),
                     ) {
                         CurrentScreen()
                     }

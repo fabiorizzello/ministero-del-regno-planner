@@ -26,6 +26,12 @@ class RimuoviParteUseCase(
 
         weekPlanStore.removePart(weeklyPartId)
 
+        // Ricompatta sort_order contigui 0..n-1
+        val updatedPlan = weekPlanStore.findByDate(weekStartDate)
+            ?: raise(DomainError.Validation("Errore nel salvataggio"))
+        val reorderedIds = updatedPlan.parts.map { it.id }
+        weekPlanStore.updateSortOrders(reorderedIds.mapIndexed { i, id -> id to i })
+
         weekPlanStore.findByDate(weekStartDate)
             ?: raise(DomainError.Validation("Errore nel salvataggio"))
     }

@@ -54,6 +54,7 @@ import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -77,9 +78,10 @@ fun WeeklyPartsScreen() {
         )
     }
 
+    val spacing = MaterialTheme.spacing
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().padding(spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
         // Top bar: sync button
         Row(
@@ -96,10 +98,10 @@ fun WeeklyPartsScreen() {
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(spacing.md))
                 }
                 Icon(Icons.Filled.Refresh, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(spacing.xs))
                 Text("Aggiorna dati")
             }
         }
@@ -145,13 +147,14 @@ fun WeeklyPartsScreen() {
 
 @Composable
 private fun EmptyWeekContent(isImporting: Boolean, onCreate: () -> Unit) {
+    val spacing = MaterialTheme.spacing
     Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xxl),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
             Button(
@@ -179,8 +182,9 @@ private fun PartsCard(
         onMove(from.index, to.index)
     }
 
+    val spacing = MaterialTheme.spacing
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column {
@@ -231,7 +235,7 @@ private fun PartsCard(
 
     // Add part button (outside card)
     if (partTypes.isNotEmpty()) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(spacing.md))
         AddPartDropdown(
             partTypes = partTypes,
             onSelect = { onAddPart(it.id) },
@@ -242,11 +246,12 @@ private fun PartsCard(
 
 @Composable
 private fun PartsHeader() {
+    val spacing = MaterialTheme.spacing
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = spacing.lg, vertical = spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(40.dp)) // drag handle space
@@ -268,12 +273,13 @@ private fun DraggablePartRow(
     onRemove: () -> Unit,
     dragModifier: Modifier,
 ) {
+    val spacing = MaterialTheme.spacing
     Surface(shadowElevation = elevation) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(backgroundColor)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Drag handle
@@ -285,7 +291,7 @@ private fun DraggablePartRow(
                     .size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(spacing.md))
 
             // Number
             Text(
@@ -334,11 +340,12 @@ private fun FixedPartRow(
     displayNumber: Int,
     backgroundColor: Color,
 ) {
+    val spacing = MaterialTheme.spacing
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Empty space where drag handle would be
@@ -382,6 +389,7 @@ private fun WeekNavigator(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
+    val spacing = MaterialTheme.spacing
     val (indicatorLabel, indicatorColor) = when (indicator) {
         WeekTimeIndicator.CORRENTE -> "Corrente" to Color(0xFF4CAF50)
         WeekTimeIndicator.FUTURA -> "Futura" to Color(0xFF2196F3)
@@ -403,7 +411,7 @@ private fun WeekNavigator(
                 text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
                 style = MaterialTheme.typography.titleMedium,
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(spacing.md))
             AssistChip(
                 onClick = {},
                 label = { Text(indicatorLabel, style = MaterialTheme.typography.labelSmall) },
@@ -425,6 +433,7 @@ private fun AddPartDropdown(
     onSelect: (org.example.project.feature.weeklyparts.domain.PartType) -> Unit,
     enabled: Boolean = true,
 ) {
+    val spacing = MaterialTheme.spacing
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(
@@ -433,7 +442,7 @@ private fun AddPartDropdown(
             modifier = Modifier.handCursorOnHover(),
         ) {
             Icon(Icons.Filled.Add, contentDescription = null)
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(spacing.xs))
             Text("Aggiungi parte")
         }
         DropdownMenu(
@@ -465,7 +474,7 @@ private fun OverwriteConfirmDialog(
         text = {
             Column {
                 Text("Le seguenti settimane esistono gia'. Vuoi sovrascriverle?")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(MaterialTheme.spacing.md))
                 weeks.forEach { date ->
                     Text(
                         text = "- ${date.format(dateFormatter)}",

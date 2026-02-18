@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +41,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -54,6 +57,7 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Proclamatore
+import org.example.project.ui.theme.spacing
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.ui.components.FeedbackBanner
@@ -66,7 +70,8 @@ internal fun Breadcrumbs(
     currentModificaLabel: String?,
     onGoList: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+    val spacing = MaterialTheme.spacing
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs), verticalAlignment = Alignment.CenterVertically) {
         TextButton(
             modifier = Modifier.handCursorOnHover(),
             onClick = onGoList,
@@ -177,13 +182,14 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
 ) {
+    val spacing = MaterialTheme.spacing
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
@@ -244,18 +250,18 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = spacing.lg, vertical = spacing.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(
@@ -263,52 +269,56 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     onCheckedChange = { checked -> onToggleSelectPage(pageItemIds, checked) },
                     enabled = !isLoading && pageItemIds.isNotEmpty(),
                 )
-                Text("Selezionati: ${selectedIds.size}")
+                Text("Selezionati: ${selectedIds.size}", style = MaterialTheme.typography.bodySmall)
             }
             if (hasSelection) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Button(
-                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
                         onClick = onActivateSelected,
                         enabled = batchActionsEnabled,
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Check, contentDescription = null)
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Attiva")
+                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Attiva", style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
-                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
                         onClick = onDeactivateSelected,
                         enabled = batchActionsEnabled,
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Block, contentDescription = null)
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Disattiva")
+                        Icon(Icons.Filled.Block, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Disattiva", style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
-                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled),
+                        modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
                         onClick = onRequestDeleteSelected,
                         enabled = batchActionsEnabled,
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError,
                         ),
                     ) {
-                        Icon(Icons.Filled.Delete, contentDescription = null)
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Rimuovi")
+                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Rimuovi", style = MaterialTheme.typography.labelSmall)
                     }
                     TextButton(
-                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading).height(30.dp),
                         onClick = onClearSelection,
                         enabled = !isLoading,
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null)
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Annulla selezione")
+                        Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Annulla", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -317,21 +327,21 @@ internal fun ColumnScope.ProclamatoriElencoContent(
 
     Card(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(end = 12.dp)
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                    .padding(end = spacing.lg)
+                    .padding(horizontal = spacing.sm, vertical = spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(0.6f))
@@ -381,12 +391,12 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     state = tableListState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(end = 12.dp),
+                        .padding(end = spacing.lg),
                 ) {
                     if (pageItems.isEmpty()) {
                         item {
                             Box(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                modifier = Modifier.fillMaxWidth().padding(spacing.xl),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text("Nessun proclamatore", style = MaterialTheme.typography.bodyMedium)
@@ -426,22 +436,24 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Totale: ${allItems.size}")
+                Text("Totale: ${allItems.size}", style = MaterialTheme.typography.bodySmall)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Button(
-                        modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex > 0),
+                    OutlinedButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex > 0).height(28.dp),
                         onClick = onPreviousPage,
                         enabled = !isLoading && pageIndex > 0,
-                    ) { Text("Prec") }
-                    Text("Pagina ${pageIndex + 1} / $totalPages")
-                    Button(
-                        modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1),
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                    ) { Text("Prec", style = MaterialTheme.typography.labelSmall) }
+                    Text("Pagina ${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1).height(28.dp),
                         onClick = onNextPage,
                         enabled = !isLoading && pageIndex < totalPages - 1,
-                    ) { Text("Succ") }
+                        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                    ) { Text("Succ", style = MaterialTheme.typography.labelSmall) }
                 }
             }
         }
@@ -476,10 +488,11 @@ internal fun ProclamatoriFormContent(
         style = MaterialTheme.typography.headlineMedium,
     )
 
+    val spacing = MaterialTheme.spacing
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             OutlinedTextField(
                 value = nome,
@@ -512,18 +525,18 @@ internal fun ProclamatoriFormContent(
                 },
             )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(selected = sesso == Sesso.M, onClick = { onSessoChange(Sesso.M) })
                     Text("Uomo")
                 }
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(selected = sesso == Sesso.F, onClick = { onSessoChange(Sesso.F) })
@@ -531,7 +544,7 @@ internal fun ProclamatoriFormContent(
                 }
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Button(
@@ -576,6 +589,7 @@ internal fun TableDataRow(
     onToggleActive: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
+    val spacing = MaterialTheme.spacing
     val singleActionsEnabled = !loading && !batchMode
     Row(
         modifier = Modifier
@@ -588,7 +602,7 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
             Checkbox(
@@ -601,38 +615,38 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(2f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(proclamatore.nome)
+            Text(proclamatore.nome, style = MaterialTheme.typography.bodySmall)
         }
         Box(
             modifier = Modifier
                 .weight(2f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(proclamatore.cognome)
+            Text(proclamatore.cognome, style = MaterialTheme.typography.bodySmall)
         }
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(proclamatore.sesso.name)
+            Text(proclamatore.sesso.name, style = MaterialTheme.typography.bodySmall)
         }
         Row(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
         ) {
-            Text(if (proclamatore.attivo) "Si" else "No")
+            Text(if (proclamatore.attivo) "Si" else "No", style = MaterialTheme.typography.bodySmall)
             Switch(
                 checked = proclamatore.attivo,
                 onCheckedChange = onToggleActive,
@@ -643,31 +657,32 @@ internal fun TableDataRow(
             modifier = Modifier
                 .weight(3f)
                 .fillMaxHeight()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
+            OutlinedButton(
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(28.dp),
                 onClick = onEdit,
                 enabled = singleActionsEnabled,
+                contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
             ) {
-                Icon(Icons.Filled.Edit, contentDescription = null)
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Modifica")
+                Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(spacing.xs))
+                Text("Modifica", style = MaterialTheme.typography.labelSmall)
             }
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled),
+            OutlinedButton(
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(28.dp),
                 onClick = onDelete,
                 enabled = singleActionsEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
+                contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = null)
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Rimuovi")
+                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(spacing.xs))
+                Text("Rimuovi", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
