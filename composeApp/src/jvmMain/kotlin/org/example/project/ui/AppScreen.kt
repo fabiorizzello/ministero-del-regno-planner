@@ -21,6 +21,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -36,7 +38,9 @@ import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.weeklyparts.WeeklyPartsScreen
 
-private enum class AppSection(
+internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
+
+internal enum class AppSection(
     val label: String,
     val icon: ImageVector,
     val screen: Screen,
@@ -56,48 +60,56 @@ fun AppScreen() {
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
                 ?: AppSection.PROCLAMATORI
 
-            Scaffold { paddingValues ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    NavigationRail(
-                        modifier = Modifier.padding(vertical = spacing.md, horizontal = spacing.xs),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(vertical = spacing.sm),
-                            verticalArrangement = Arrangement.spacedBy(spacing.md),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            AppSection.entries.forEach { section ->
-                                NavigationRailItem(
-                                    selected = currentSection == section,
-                                    onClick = {
-                                        if (currentSection != section) {
-                                            navigator.replaceAll(section.screen)
-                                        }
-                                    },
-                                    icon = { Icon(section.icon, contentDescription = section.label) },
-                                    label = { Text(section.label) },
-                                    modifier = Modifier
-                                        .width(128.dp)
-                                        .handCursorOnHover(),
-                                )
-                            }
-                        }
+            CompositionLocalProvider(
+                LocalSectionNavigator provides { section ->
+                    if (currentSection != section) {
+                        navigator.replaceAll(section.screen)
                     }
-                    VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = spacing.md))
-
-                    Box(
+                },
+            ) {
+                Scaffold { paddingValues ->
+                    Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(spacing.md),
+                            .padding(paddingValues),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
                     ) {
-                        CurrentScreen()
+                        NavigationRail(
+                            modifier = Modifier.padding(vertical = spacing.md, horizontal = spacing.xs),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(vertical = spacing.sm),
+                                verticalArrangement = Arrangement.spacedBy(spacing.md),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                AppSection.entries.forEach { section ->
+                                    NavigationRailItem(
+                                        selected = currentSection == section,
+                                        onClick = {
+                                            if (currentSection != section) {
+                                                navigator.replaceAll(section.screen)
+                                            }
+                                        },
+                                        icon = { Icon(section.icon, contentDescription = section.label) },
+                                        label = { Text(section.label) },
+                                        modifier = Modifier
+                                            .width(128.dp)
+                                            .handCursorOnHover(),
+                                    )
+                                }
+                            }
+                        }
+                        VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = spacing.md))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(spacing.md),
+                        ) {
+                            CurrentScreen()
+                        }
                     }
                 }
             }

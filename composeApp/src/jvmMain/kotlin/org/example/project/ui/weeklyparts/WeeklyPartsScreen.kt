@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.ui.AppSection
+import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.WeekNavigator
 import org.example.project.ui.components.WeekTimeIndicator
@@ -63,6 +65,7 @@ import java.time.LocalDate
 fun WeeklyPartsScreen() {
     val viewModel = remember { GlobalContext.get().get<WeeklyPartsViewModel>() }
     val state by viewModel.state.collectAsState()
+    val navigateToSection = LocalSectionNavigator.current
 
     // Overwrite confirmation dialog
     if (state.weeksNeedingConfirmation.isNotEmpty()) {
@@ -78,11 +81,18 @@ fun WeeklyPartsScreen() {
         modifier = Modifier.fillMaxSize().padding(spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        // Top bar: sync button
+        // Top bar: navigation + sync button
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            OutlinedButton(
+                onClick = { navigateToSection(AppSection.ASSIGNMENTS) },
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text("Vai alle assegnazioni")
+            }
+            Spacer(Modifier.weight(1f))
             OutlinedButton(
                 onClick = { viewModel.syncRemoteData() },
                 enabled = !state.isImporting,

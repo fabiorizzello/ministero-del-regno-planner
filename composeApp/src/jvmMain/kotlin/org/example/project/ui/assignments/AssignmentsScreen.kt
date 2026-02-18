@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -18,8 +19,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.example.project.ui.AppSection
+import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.WeekNavigator
+import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -27,6 +31,7 @@ import org.koin.core.context.GlobalContext
 fun AssignmentsScreen() {
     val viewModel = remember { GlobalContext.get().get<AssignmentsViewModel>() }
     val state by viewModel.state.collectAsState()
+    val navigateToSection = LocalSectionNavigator.current
     val spacing = MaterialTheme.spacing
 
     // Person picker dialog
@@ -71,12 +76,19 @@ fun AssignmentsScreen() {
             onNext = { viewModel.navigateToNextWeek() },
         )
 
-        // Status bar: completion count
+        // Status bar: navigation + completion count
         if (state.weekPlan != null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                OutlinedButton(
+                    onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Text("Vai allo schema")
+                }
                 Text(
                     "${state.assignedSlotCount}/${state.totalSlotCount} slot assegnati",
                     style = MaterialTheme.typography.bodyMedium,
@@ -91,12 +103,23 @@ fun AssignmentsScreen() {
                 CircularProgressIndicator()
             }
         } else if (state.weekPlan == null) {
-            // Week not configured
+            // Week not configured - with link to schema
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xxl),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                ) {
+                    Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
+                    OutlinedButton(
+                        onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text("Vai allo schema per crearla")
+                    }
+                }
             }
         } else {
             // Parts list
