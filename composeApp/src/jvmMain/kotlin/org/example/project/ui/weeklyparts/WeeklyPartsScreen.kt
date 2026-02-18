@@ -1,5 +1,7 @@
 package org.example.project.ui.weeklyparts
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,21 +11,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -31,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,27 +50,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.components.FeedbackBanner
-import org.example.project.ui.components.StandardTableHeader
-import org.example.project.ui.components.StandardTableViewport
-import org.example.project.ui.components.TableColumnSpec
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.standardTableCell
 import org.koin.core.context.GlobalContext
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
-private val columns = listOf(
-    TableColumnSpec("N.", 0.5f),
-    TableColumnSpec("Tipo", 3f),
-    TableColumnSpec("Persone", 0.8f),
-    TableColumnSpec("Regola", 0.8f),
-    TableColumnSpec("", 0.5f),
-)
 @Composable
 fun WeeklyPartsScreen() {
     val viewModel = remember { GlobalContext.get().get<WeeklyPartsViewModel>() }
@@ -94,7 +93,7 @@ fun WeeklyPartsScreen() {
             ) {
                 if (state.isImporting) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(16.dp).width(16.dp),
+                        modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                     )
                     Spacer(Modifier.width(8.dp))
@@ -127,52 +126,250 @@ fun WeeklyPartsScreen() {
                 CircularProgressIndicator()
             }
         } else if (state.weekPlan == null) {
-            // Week doesn't exist
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
-                    Button(
-                        onClick = { viewModel.createWeek() },
-                        enabled = !state.isImporting,
-                        modifier = Modifier.handCursorOnHover(),
-                    ) {
-                        Text("Crea settimana")
-                    }
-                }
-            }
+            EmptyWeekContent(
+                isImporting = state.isImporting,
+                onCreate = { viewModel.createWeek() },
+            )
         } else {
-            // Parts table
-            val parts = state.weekPlan!!.parts
-            StandardTableHeader(columns = columns)
-            StandardTableViewport {
-                LazyColumn {
-                    itemsIndexed(parts, key = { _, part -> part.id.value }) { index, part ->
-                        PartRow(
+            PartsCard(
+                parts = state.weekPlan!!.parts,
+                isImporting = state.isImporting,
+                partTypes = state.partTypes,
+                onMove = { from, to -> viewModel.movePart(from, to) },
+                onRemove = { viewModel.removePart(it) },
+                onAddPart = { viewModel.addPart(it) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyWeekContent(isImporting: Boolean, onCreate: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
+            Button(
+                onClick = onCreate,
+                enabled = !isImporting,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text("Crea settimana")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartsCard(
+    parts: List<WeeklyPart>,
+    isImporting: Boolean,
+    partTypes: List<PartType>,
+    onMove: (fromIndex: Int, toIndex: Int) -> Unit,
+    onRemove: (org.example.project.feature.weeklyparts.domain.WeeklyPartId) -> Unit,
+    onAddPart: (org.example.project.feature.weeklyparts.domain.PartTypeId) -> Unit,
+) {
+    val lazyListState = rememberLazyListState()
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        onMove(from.index, to.index)
+    }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column {
+            // Column headers
+            PartsHeader()
+
+            // Parts list
+            LazyColumn(state = lazyListState) {
+                items(parts, key = { it.id.value }) { part ->
+                    val index = parts.indexOf(part)
+                    val isFixed = part.partType.fixed
+                    val zebraColor = if (index % 2 == 0) {
+                        Color.Transparent
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    }
+
+                    if (isFixed) {
+                        FixedPartRow(
                             part = part,
                             displayNumber = part.sortOrder + 3,
-                            isFirst = index == 0,
-                            isLast = index == parts.lastIndex,
-                            enabled = !state.isImporting,
-                            onRemove = { viewModel.removePart(part.id) },
-                            onMoveUp = { if (index > 0) viewModel.movePart(index, index - 1) },
-                            onMoveDown = { if (index < parts.lastIndex) viewModel.movePart(index, index + 1) },
+                            backgroundColor = zebraColor,
                         )
+                    } else {
+                        ReorderableItem(
+                            reorderableLazyListState,
+                            key = part.id.value,
+                            enabled = !isImporting,
+                        ) { isDragging ->
+                            val elevation by animateDpAsState(
+                                targetValue = if (isDragging) 4.dp else 0.dp,
+                            )
+                            DraggablePartRow(
+                                part = part,
+                                displayNumber = part.sortOrder + 3,
+                                backgroundColor = zebraColor,
+                                elevation = elevation,
+                                enabled = !isImporting,
+                                onRemove = { onRemove(part.id) },
+                                dragModifier = Modifier.draggableHandle(),
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
 
-            // Add part button
-            if (state.partTypes.isNotEmpty()) {
-                AddPartDropdown(
-                    partTypes = state.partTypes,
-                    onSelect = { viewModel.addPart(it.id) },
-                    enabled = !state.isImporting,
+    // Add part button (outside card)
+    if (partTypes.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        AddPartDropdown(
+            partTypes = partTypes,
+            onSelect = { onAddPart(it.id) },
+            enabled = !isImporting,
+        )
+    }
+}
+
+@Composable
+private fun PartsHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(Modifier.width(40.dp)) // drag handle space
+        Text("N.", modifier = Modifier.width(36.dp), style = MaterialTheme.typography.labelMedium)
+        Text("Tipo", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+        Text("Persone", modifier = Modifier.width(64.dp), style = MaterialTheme.typography.labelMedium)
+        Text("Regola", modifier = Modifier.width(56.dp), style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.width(40.dp)) // remove button space
+    }
+}
+
+@Composable
+private fun DraggablePartRow(
+    part: WeeklyPart,
+    displayNumber: Int,
+    backgroundColor: Color,
+    elevation: androidx.compose.ui.unit.Dp,
+    enabled: Boolean,
+    onRemove: () -> Unit,
+    dragModifier: Modifier,
+) {
+    Surface(shadowElevation = elevation) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(backgroundColor)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Drag handle
+            Icon(
+                Icons.Rounded.DragHandle,
+                contentDescription = "Trascina per riordinare",
+                modifier = dragModifier
+                    .handCursorOnHover()
+                    .size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            )
+            Spacer(Modifier.width(8.dp))
+
+            // Number
+            Text(
+                "$displayNumber",
+                modifier = Modifier.width(36.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            // Type label
+            Text(
+                part.partType.label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            // People count
+            Text(
+                "${part.partType.peopleCount}",
+                modifier = Modifier.width(64.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            // Sex rule
+            Text(
+                part.partType.sexRule.name,
+                modifier = Modifier.width(56.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            // Remove button
+            IconButton(
+                onClick = onRemove,
+                enabled = enabled,
+                modifier = Modifier.size(32.dp).handCursorOnHover(),
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Rimuovi parte",
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FixedPartRow(
+    part: WeeklyPart,
+    displayNumber: Int,
+    backgroundColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Empty space where drag handle would be
+        Spacer(Modifier.width(28.dp))
+
+        Text(
+            "$displayNumber",
+            modifier = Modifier.width(36.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            part.partType.label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "${part.partType.peopleCount}",
+            modifier = Modifier.width(64.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            part.partType.sexRule.name,
+            modifier = Modifier.width(56.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // Empty space where remove button would be
+        Spacer(Modifier.width(40.dp))
     }
 }
 
@@ -218,58 +415,6 @@ private fun WeekNavigator(
         }
         IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
-        }
-    }
-}
-
-@Composable
-private fun PartRow(
-    part: WeeklyPart,
-    displayNumber: Int,
-    isFirst: Boolean,
-    isLast: Boolean,
-    enabled: Boolean,
-    onRemove: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-) {
-    val lineColor = MaterialTheme.colorScheme.outline
-    Row(modifier = Modifier.fillMaxWidth()) {
-        // N.
-        Box(Modifier.weight(columns[0].weight).standardTableCell(lineColor)) {
-            Text("$displayNumber", style = MaterialTheme.typography.bodyMedium)
-        }
-        // Tipo
-        Box(Modifier.weight(columns[1].weight).standardTableCell(lineColor)) {
-            Text(part.partType.label, style = MaterialTheme.typography.bodyMedium)
-        }
-        // Persone
-        Box(Modifier.weight(columns[2].weight).standardTableCell(lineColor)) {
-            Text("${part.partType.peopleCount}", style = MaterialTheme.typography.bodyMedium)
-        }
-        // Regola
-        Box(Modifier.weight(columns[3].weight).standardTableCell(lineColor)) {
-            Text(part.partType.sexRule.name, style = MaterialTheme.typography.bodyMedium)
-        }
-        // Actions
-        Box(Modifier.weight(columns[4].weight).standardTableCell(lineColor)) {
-            if (!part.partType.fixed) {
-                Row {
-                    if (!isFirst) {
-                        IconButton(onClick = onMoveUp, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Sposta su", modifier = Modifier.height(16.dp))
-                        }
-                    }
-                    if (!isLast) {
-                        IconButton(onClick = onMoveDown, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Sposta giu'", modifier = Modifier.height(16.dp))
-                        }
-                    }
-                    IconButton(onClick = onRemove, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-                        Icon(Icons.Filled.Close, contentDescription = "Rimuovi parte", modifier = Modifier.height(16.dp))
-                    }
-                }
-            }
         }
     }
 }
