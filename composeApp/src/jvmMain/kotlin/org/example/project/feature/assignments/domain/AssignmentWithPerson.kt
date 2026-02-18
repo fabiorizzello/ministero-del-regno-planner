@@ -1,14 +1,18 @@
 package org.example.project.feature.assignments.domain
 
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 
-@JvmInline
-value class AssignmentId(val value: String)
-
-data class Assignment(
+data class AssignmentWithPerson(
     val id: AssignmentId,
     val weeklyPartId: WeeklyPartId,
     val personId: ProclamatoreId,
     val slot: Int,
-)
+    val firstName: String,
+    val lastName: String,
+    val sex: Sesso,
+    val active: Boolean,
+) {
+    val fullName: String get() = "$firstName $lastName"
+}
