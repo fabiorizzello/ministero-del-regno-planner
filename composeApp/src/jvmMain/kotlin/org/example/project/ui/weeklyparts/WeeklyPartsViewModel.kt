@@ -22,11 +22,10 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.application.RemoteWeekSchema
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.WeekTimeIndicator
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
-
-enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
 internal data class WeeklyPartsUiState(
     val currentMonday: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),

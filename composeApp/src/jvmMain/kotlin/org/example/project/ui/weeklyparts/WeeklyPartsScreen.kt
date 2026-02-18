@@ -18,15 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,16 +49,15 @@ import androidx.compose.ui.unit.dp
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.components.FeedbackBanner
+import org.example.project.ui.components.WeekNavigator
+import org.example.project.ui.components.WeekTimeIndicator
+import org.example.project.ui.components.dateFormatter
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
 @Composable
 fun WeeklyPartsScreen() {
@@ -377,53 +372,6 @@ private fun FixedPartRow(
         )
         // Empty space where remove button would be
         Spacer(Modifier.width(40.dp))
-    }
-}
-
-@Composable
-private fun WeekNavigator(
-    monday: LocalDate,
-    sunday: LocalDate,
-    indicator: WeekTimeIndicator,
-    enabled: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-) {
-    val spacing = MaterialTheme.spacing
-    val (indicatorLabel, indicatorColor) = when (indicator) {
-        WeekTimeIndicator.CORRENTE -> "Corrente" to Color(0xFF4CAF50)
-        WeekTimeIndicator.FUTURA -> "Futura" to Color(0xFF2196F3)
-        WeekTimeIndicator.PASSATA -> "Passata" to Color(0xFF9E9E9E)
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
-        }
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.width(spacing.md))
-            AssistChip(
-                onClick = {},
-                label = { Text(indicatorLabel, style = MaterialTheme.typography.labelSmall) },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = indicatorColor.copy(alpha = 0.15f),
-                    labelColor = indicatorColor,
-                ),
-            )
-        }
-        IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
-        }
     }
 }
 
