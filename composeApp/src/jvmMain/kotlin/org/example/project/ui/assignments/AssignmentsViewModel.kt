@@ -1,6 +1,7 @@
 package org.example.project.ui.assignments
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,6 +71,7 @@ internal class AssignmentsViewModel(
 ) {
     private val _state = MutableStateFlow(AssignmentsUiState())
     val state: StateFlow<AssignmentsUiState> = _state.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         scope.launch {
@@ -157,7 +159,8 @@ internal class AssignmentsViewModel(
     }
 
     private fun loadWeekData() {
-        scope.launch {
+        loadJob?.cancel()
+        loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
             val weekPlan = caricaSettimana(_state.value.currentMonday)
             val assignments = caricaAssegnazioni(_state.value.currentMonday)

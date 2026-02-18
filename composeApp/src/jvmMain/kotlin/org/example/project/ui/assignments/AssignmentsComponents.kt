@@ -1,5 +1,6 @@
 package org.example.project.ui.assignments
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -160,7 +161,10 @@ private fun SlotRow(
         if (assignment != null) {
             Text(
                 text = assignment.fullName,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .handCursorOnHover()
+                    .clickable { onAssign() },
                 style = MaterialTheme.typography.bodyMedium,
             )
             IconButton(

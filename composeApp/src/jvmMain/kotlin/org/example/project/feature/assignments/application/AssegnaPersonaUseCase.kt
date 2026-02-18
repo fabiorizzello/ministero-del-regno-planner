@@ -39,13 +39,17 @@ class AssegnaPersonaUseCase(
             raise(DomainError.Validation("Proclamatore gia' assegnato a questa parte"))
         }
 
-        assignmentStore.save(
-            Assignment(
-                id = AssignmentId(UUID.randomUUID().toString()),
-                weeklyPartId = weeklyPartId,
-                personId = personId,
-                slot = slot,
+        try {
+            assignmentStore.save(
+                Assignment(
+                    id = AssignmentId(UUID.randomUUID().toString()),
+                    weeklyPartId = weeklyPartId,
+                    personId = personId,
+                    slot = slot,
+                )
             )
-        )
+        } catch (e: Exception) {
+            raise(DomainError.Validation("Errore nel salvataggio: ${e.message}"))
+        }
     }
 }

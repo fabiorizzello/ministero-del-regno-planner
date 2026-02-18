@@ -201,12 +201,15 @@ ORDER BY a.slot;
 upsertAssignment:
 INSERT INTO assignment(id, weekly_part_id, person_id, slot)
 VALUES (?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET
-    person_id = excluded.person_id,
-    slot = excluded.slot;
+ON CONFLICT(weekly_part_id, slot) DO UPDATE SET
+    id = excluded.id,
+    person_id = excluded.person_id;
 
 deleteAssignment:
 DELETE FROM assignment WHERE id = ?;
+
+deleteAssignmentByPartAndSlot:
+DELETE FROM assignment WHERE weekly_part_id = ? AND slot = ?;
 
 personAlreadyAssignedToPart:
 SELECT COUNT(*) FROM assignment
