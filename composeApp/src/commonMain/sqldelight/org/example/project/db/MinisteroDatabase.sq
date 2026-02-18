@@ -42,6 +42,9 @@ CREATE TABLE assignment (
     FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
+ON assignment(weekly_part_id, slot);
+
 -- Person queries (existing)
 searchProclaimers:
 SELECT id, first_name, last_name, sex, active
@@ -171,3 +174,89 @@ UPDATE weekly_part SET sort_order = ? WHERE id = ?;
 
 maxSortOrderForWeek:
 SELECT COALESCE(MAX(sort_order), -1) FROM weekly_part WHERE week_plan_id = ?;
+
+-- Assignment queries
+assignmentsForWeek:
+SELECT
+    a.id,
+    a.weekly_part_id,
+    a.person_id,
+    a.slot,
+    p.first_name,
+    p.last_name,
+    p.sex,
+    p.active
+FROM assignment a
+JOIN person p ON a.person_id = p.id
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+WHERE wp.week_plan_id = ?
+ORDER BY wp.sort_order, a.slot;
+
+assignmentsForWeeklyPart:
+SELECT a.id, a.weekly_part_id, a.person_id, a.slot
+FROM assignment a
+WHERE a.weekly_part_id = ?
+ORDER BY a.slot;
+
+upsertAssignment:
+INSERT INTO assignment(id, weekly_part_id, person_id, slot)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    person_id = excluded.person_id,
+    slot = excluded.slot;
+
+deleteAssignment:
+DELETE FROM assignment WHERE id = ?;
+
+personAlreadyAssignedToPart:
+SELECT COUNT(*) FROM assignment
+WHERE weekly_part_id = ? AND person_id = ?;
+
+-- Ranking queries (M4)
+lastGlobalAssignmentPerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS last_week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE p.active = 1
+GROUP BY p.id;
+
+lastPartTypeAssignmentPerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS last_week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+LEFT JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE p.active = 1
+  AND (pt.id = ? OR a.id IS NULL)
+GROUP BY p.id;
+
+lastSlot1GlobalAssignmentPerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS last_week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE p.active = 1
+GROUP BY p.id;
+
+lastSlot1PartTypeAssignmentPerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS last_week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+LEFT JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE p.active = 1
+  AND (pt.id = ? OR a.id IS NULL)
+GROUP BY p.id;
