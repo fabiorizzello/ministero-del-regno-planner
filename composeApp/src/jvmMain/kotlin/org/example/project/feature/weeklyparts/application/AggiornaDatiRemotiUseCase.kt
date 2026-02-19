@@ -13,6 +13,7 @@ data class ImportResult(
     val partTypesImported: Int,
     val weeksImported: Int,
     val weeksNeedingConfirmation: List<RemoteWeekSchema>,
+    val unresolvedPartTypeCodes: Set<String> = emptySet(),
 )
 
 class AggiornaDatiRemotiUseCase(
@@ -36,6 +37,7 @@ class AggiornaDatiRemotiUseCase(
 
         var imported = 0
         val needConfirmation = mutableListOf<RemoteWeekSchema>()
+        val allUnresolvedCodes = mutableSetOf<String>()
 
         for (schema in remoteSchemas) {
             val date = try {
@@ -50,7 +52,7 @@ class AggiornaDatiRemotiUseCase(
                 continue
             }
 
-            importSchema(schema)
+            allUnresolvedCodes += importSchema(schema)
             imported++
         }
 
@@ -58,6 +60,7 @@ class AggiornaDatiRemotiUseCase(
             partTypesImported = remoteTypes.size,
             weeksImported = imported,
             weeksNeedingConfirmation = needConfirmation,
+            unresolvedPartTypeCodes = allUnresolvedCodes,
         )
     }
 
@@ -79,7 +82,10 @@ class AggiornaDatiRemotiUseCase(
         count
     }
 
-    private suspend fun importSchema(schema: RemoteWeekSchema) {
+    /**
+     * Returns the list of part-type codes that could not be resolved to a known [PartType].
+     */
+    private suspend fun importSchema(schema: RemoteWeekSchema): List<String> {
         val date = LocalDate.parse(schema.weekStartDate)
         val newPlanId = WeekPlanId(UUID.randomUUID().toString())
         weekPlanStore.save(
@@ -89,9 +95,14 @@ class AggiornaDatiRemotiUseCase(
                 parts = emptyList(),
             ),
         )
+        val unresolvedCodes = mutableListOf<String>()
         val resolvedIds = schema.partTypeCodes.mapNotNull { code ->
-            partTypeStore.findByCode(code)?.id
+            partTypeStore.findByCode(code)?.id ?: run {
+                unresolvedCodes += code
+                null
+            }
         }
         weekPlanStore.replaceAllParts(newPlanId, resolvedIds)
+        return unresolvedCodes
     }
 }

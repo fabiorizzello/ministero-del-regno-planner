@@ -52,6 +52,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
+import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.WeekNavigator
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.dateFormatter
@@ -239,7 +240,7 @@ private fun PartsCard(
                     if (isFixed) {
                         FixedPartRow(
                             part = part,
-                            displayNumber = part.sortOrder + 3,
+                            displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
                             backgroundColor = zebraColor,
                         )
                     } else {
@@ -253,7 +254,7 @@ private fun PartsCard(
                             )
                             DraggablePartRow(
                                 part = part,
-                                displayNumber = part.sortOrder + 3,
+                                displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
                                 backgroundColor = zebraColor,
                                 elevation = elevation,
                                 enabled = !isDisabled,

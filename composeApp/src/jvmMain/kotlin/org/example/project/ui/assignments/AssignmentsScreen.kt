@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
+import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.WeekNavigator
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.handCursorOnHover
@@ -135,7 +136,7 @@ fun AssignmentsScreen() {
                     PartAssignmentCard(
                         part = part,
                         assignments = partAssignments,
-                        displayNumber = part.sortOrder + 1,
+                        displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
                         readOnly = readOnly,
                         onAssignSlot = { slot -> viewModel.openPersonPicker(part.id, slot) },
                         onRemoveAssignment = { viewModel.removeAssignment(it) },

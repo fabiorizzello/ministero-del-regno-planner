@@ -161,12 +161,20 @@ internal class WeeklyPartsViewModel(
                             weeksNeedingConfirmation = result.weeksNeedingConfirmation,
                         ) }
                     } else {
+                        val message = buildString {
+                            append("Aggiornamento completato: ${result.partTypesImported} tipi, ${result.weeksImported} settimane")
+                            if (result.unresolvedPartTypeCodes.isNotEmpty()) {
+                                append(" | Codici non risolti: ${result.unresolvedPartTypeCodes.joinToString(", ")}")
+                            }
+                        }
+                        val kind = if (result.unresolvedPartTypeCodes.isEmpty()) {
+                            FeedbackBannerKind.SUCCESS
+                        } else {
+                            FeedbackBannerKind.ERROR
+                        }
                         _state.update { it.copy(
                             isImporting = false,
-                            notice = FeedbackBannerModel(
-                                "Aggiornamento completato: ${result.partTypesImported} tipi, ${result.weeksImported} settimane",
-                                FeedbackBannerKind.SUCCESS,
-                            ),
+                            notice = FeedbackBannerModel(message, kind),
                         ) }
                         loadWeek()
                         loadPartTypes()
