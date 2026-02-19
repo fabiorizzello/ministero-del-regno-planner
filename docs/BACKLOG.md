@@ -148,6 +148,31 @@
 - `replaceAll` previene crescita back stack, ma Alt+Left / Back Mouse Button di Voyager può causare `pop()` che desincronizza il `NavigationRailItem` evidenziato dal contenuto visibile.
 - **Fix:** disabilitare back gesture o aggiungere guard `canPop`.
 
+### BUG-30: AppRuntime.initialize() senza guard contro re-inizializzazione
+- **File:** `core/config/AppRuntime.kt:7-9`
+- `initialize()` è public e sovrascrive `runtimePaths` silenziosamente se chiamata due volte. `AppBootstrap` ha un guard `if (initialized) return`, ma `AppRuntime` è direttamente accessibile.
+- **Fix:** aggiungere `check(runtimePaths == null) { "AppRuntime già inizializzato" }`.
+
+### BUG-31: WeekPlan.weekStartDate non validato come lunedì
+- **File:** `feature/weeklyparts/domain/WeekPlan.kt:8-12`
+- `weekStartDate` accetta qualsiasi `LocalDate`. Un JSON remoto con `"2024-03-13"` (mercoledì) crea un `WeekPlan` non trovabile dalla navigazione che usa solo lunedì.
+- **Fix:** `init { require(weekStartDate.dayOfWeek == DayOfWeek.MONDAY) }`.
+
+### BUG-32: PartType.code e label accettano stringhe vuote
+- **File:** `feature/weeklyparts/domain/PartType.kt:6-14`
+- Nessun check su `code.isNotBlank()` e `label.isNotBlank()`. Un `code = ""` causerebbe match falsi in `findByCode()`. Un `label = ""` è invisibile nella UI.
+- **Fix:** aggiungere `init { require(code.isNotBlank()); require(label.isNotBlank()) }`.
+
+### BUG-33: AssignmentWithPerson.slot senza invariante e fullName con spazi
+- **File:** `feature/assignments/domain/AssignmentWithPerson.kt:11,17`
+- `slot: Int` senza check `>= 1` (diverge da `Assignment` dopo fix SOLID-5). `fullName = "$firstName $lastName"` produce spazio leading/trailing se uno è blank.
+- **Fix:** `init { require(slot >= 1) }` e `fullName = "${firstName.trim()} ${lastName.trim()}"`.
+
+### BUG-34: SharedWeekState navigazione senza limiti — anni assurdi raggiungibili
+- **File:** `core/application/SharedWeekState.kt:17-23`
+- `navigateToPreviousWeek()`/`navigateToNextWeek()` non hanno bound. Click ripetuti portano in anni senza dati pratici senza feedback.
+- **Fix:** aggiungere limiti (es. 2020–2099) e ignorare navigazione fuori range.
+
 ---
 
 ## SQL — Schema e migrazioni
@@ -382,6 +407,11 @@
 - **File:** `composeApp/build.gradle.kts:72-73`
 - `packageName = "org.example.project"` è il placeholder del template. `AppVersion.current = "0.1.0-dev"` ma `packageVersion = "1.0.0"` — out-of-sync. Su Windows, cambiare packageName in futuro installa come app separata anziché upgrade.
 - **Fix:** usare il vero reverse-domain e sincronizzare `packageVersion` con `AppVersion.current`.
+
+### BUILD-4: AppVersion.current hardcoded — non generato dal build
+- **File:** `core/config/AppVersion.kt:5`
+- `const val current = "0.1.0-dev"` deve essere aggiornato manualmente. Root cause di BUILD-2 (out-of-sync con `packageVersion`). Se entrambi esistono indipendentemente, divergeranno di nuovo.
+- **Fix:** generare da Gradle via `buildConfigField` o `version.properties` risorsa scritta dal build.
 
 ### BUILD-3: Nessun vendor/copyright/icon nella distribuzione nativa
 - **File:** `composeApp/build.gradle.kts:69-75`
