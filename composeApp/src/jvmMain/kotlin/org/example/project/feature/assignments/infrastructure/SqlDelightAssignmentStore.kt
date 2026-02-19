@@ -6,9 +6,8 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
-import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.people.infrastructure.mapProclamatoreRow
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
@@ -84,15 +83,7 @@ class SqlDelightAssignmentStore(
         }
 
         val allActive = database.ministeroDatabaseQueries
-            .allActiveProclaimers { id, firstName, lastName, sex ->
-                Proclamatore(
-                    id = ProclamatoreId(id),
-                    nome = firstName,
-                    cognome = lastName,
-                    sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
-                    attivo = true,
-                )
-            }
+            .allActiveProclaimers(::mapProclamatoreRow)
             .executeAsList()
 
         return allActive.map { p ->

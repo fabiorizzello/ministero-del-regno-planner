@@ -57,7 +57,7 @@ ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
 allActiveProclaimers:
-SELECT id, first_name, last_name, sex
+SELECT id, first_name, last_name, sex, active
 FROM person
 WHERE active = 1
 ORDER BY last_name, first_name;

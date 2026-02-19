@@ -9,9 +9,8 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 class SharedWeekState {
-    private val _currentMonday = MutableStateFlow(
-        LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    )
+    private val _currentMonday = MutableStateFlow(currentMonday())
+
     val currentMonday: StateFlow<LocalDate> = _currentMonday.asStateFlow()
 
     fun navigateToPreviousWeek() {
@@ -28,8 +27,12 @@ class SharedWeekState {
         }
     }
 
-    private companion object {
-        const val MIN_YEAR = 2020
-        const val MAX_YEAR = 2099
+    companion object {
+        private const val MIN_YEAR = 2020
+        private const val MAX_YEAR = 2099
+
+        /** Returns the Monday of the current week. */
+        fun currentMonday(): LocalDate =
+            LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     }
 }

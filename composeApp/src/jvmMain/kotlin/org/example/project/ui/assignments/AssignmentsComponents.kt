@@ -51,7 +51,7 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
-import org.example.project.ui.theme.SemanticColors
+import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 
@@ -120,24 +120,6 @@ internal fun PartAssignmentCard(
     }
 }
 
-@Composable
-private fun SexRuleChip(sexRule: SexRule) {
-    val (label, chipColor) = when (sexRule) {
-        SexRule.UOMO -> "UOMO" to SemanticColors.blue
-        SexRule.LIBERO -> "LIBERO" to SemanticColors.grey
-    }
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = chipColor.copy(alpha = 0.15f),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = chipColor,
-        )
-    }
-}
 
 @Composable
 private fun SlotRow(

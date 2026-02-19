@@ -53,6 +53,7 @@ import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
+import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.WeekNavigator
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.dateFormatter
@@ -293,7 +294,7 @@ private fun PartsHeader() {
         Text("N.", modifier = Modifier.width(36.dp), style = MaterialTheme.typography.labelMedium)
         Text("Tipo", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
         Text("Persone", modifier = Modifier.width(64.dp), style = MaterialTheme.typography.labelMedium)
-        Text("Regola", modifier = Modifier.width(56.dp), style = MaterialTheme.typography.labelMedium)
+        Text("Regola", modifier = Modifier.width(72.dp), style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.width(40.dp)) // remove button space
     }
 }
@@ -347,11 +348,9 @@ private fun DraggablePartRow(
                 style = MaterialTheme.typography.bodyMedium,
             )
             // Sex rule
-            Text(
-                part.partType.sexRule.name,
-                modifier = Modifier.width(56.dp),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Box(modifier = Modifier.width(72.dp)) {
+                SexRuleChip(part.partType.sexRule)
+            }
 
             // Remove button
             IconButton(
@@ -404,12 +403,9 @@ private fun FixedPartRow(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            part.partType.sexRule.name,
-            modifier = Modifier.width(56.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Box(modifier = Modifier.width(72.dp)) {
+            SexRuleChip(part.partType.sexRule)
+        }
         // Empty space where remove button would be
         Spacer(Modifier.width(40.dp))
     }

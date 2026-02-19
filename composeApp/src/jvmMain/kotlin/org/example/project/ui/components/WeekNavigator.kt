@@ -29,7 +29,7 @@ const val DISPLAY_NUMBER_OFFSET = 3
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
 fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
-    val thisMonday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+    val thisMonday = org.example.project.core.application.SharedWeekState.currentMonday()
     return when {
         currentMonday == thisMonday -> WeekTimeIndicator.CORRENTE
         currentMonday.isAfter(thisMonday) -> WeekTimeIndicator.FUTURA

@@ -5,15 +5,13 @@ import java.awt.FileDialog
 import java.awt.Frame
 import java.io.FilenameFilter
 import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
-
-private val successTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.partialNotice
+import org.example.project.ui.components.successNotice
 
 internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, ATTIVO }
 internal enum class SortDirection { ASC, DESC }
@@ -28,39 +26,6 @@ internal fun personDetails(nome: String, cognome: String): String {
         .joinToString(" ")
         .ifBlank { "-" }
     return "Proclamatore: $fullName"
-}
-
-private fun detailsWithTimestamp(details: String? = null): String {
-    val timestamp = LocalDateTime.now().format(successTimestampFormatter)
-    return if (details.isNullOrBlank()) {
-        "Ora: $timestamp"
-    } else {
-        "$details | Ora: $timestamp"
-    }
-}
-
-internal fun successNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione completata",
-        kind = FeedbackBannerKind.SUCCESS,
-        details = detailsWithTimestamp(details),
-    )
-}
-
-internal fun errorNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione non completata",
-        kind = FeedbackBannerKind.ERROR,
-        details = detailsWithTimestamp(details),
-    )
-}
-
-internal fun partialNotice(details: String): FeedbackBannerModel {
-    return FeedbackBannerModel(
-        message = "Operazione parziale",
-        kind = FeedbackBannerKind.ERROR,
-        details = detailsWithTimestamp(details),
-    )
 }
 
 internal data class MultiActionResult(

@@ -3,7 +3,9 @@ package org.example.project.ui.proclamatori
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +24,10 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.ui.components.errorNotice
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -44,22 +49,40 @@ fun ProclamatoriScreen() {
     val rootFocusRequester = remember { FocusRequester() }
 
     listState.deleteCandidate?.let { candidate ->
-        ProclamatoreDeleteDialog(
-            candidate = candidate,
-            assignmentCount = listState.deleteAssignmentCount,
+        ConfirmDeleteDialog(
+            title = "Rimuovi proclamatore",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmDeleteCandidate() },
             onDismiss = { listVm.dismissDeleteCandidate() },
-        )
+        ) {
+            Column {
+                Text("Confermi rimozione di ${candidate.nome} ${candidate.cognome}?")
+                val count = listState.deleteAssignmentCount
+                if (count != 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = when {
+                            count < 0 -> "Attenzione: conteggio assegnazioni non disponibile."
+                            count == 1 -> "Attenzione: 1 assegnazione verra' cancellata."
+                            else -> "Attenzione: $count assegnazioni verranno cancellate."
+                        },
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
     }
 
     if (listState.showBatchDeleteConfirm) {
-        ProclamatoriDeleteDialog(
-            selectedCount = listState.selectedIds.size,
+        ConfirmDeleteDialog(
+            title = "Rimuovi proclamatori selezionati",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmBatchDelete() },
             onDismiss = { listVm.dismissBatchDeleteConfirm() },
-        )
+        ) {
+            Text("Confermi rimozione di ${listState.selectedIds.size} proclamatori selezionati?")
+        }
     }
 
     var route by remember { mutableStateOf<ProclamatoriRoute>(ProclamatoriRoute.Elenco) }

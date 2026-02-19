@@ -21,6 +21,8 @@ import org.example.project.feature.assignments.application.ContaAssegnazioniPers
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.successNotice
 
 internal data class ProclamatoriListUiState(
     val searchTerm: String = "",

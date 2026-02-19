@@ -26,12 +26,10 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 
 internal data class AssignmentsUiState(
-    val currentMonday: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+    val currentMonday: LocalDate = SharedWeekState.currentMonday(),
     val weekPlan: WeekPlan? = null,
     val assignments: List<AssignmentWithPerson> = emptyList(),
     val isLoading: Boolean = true,

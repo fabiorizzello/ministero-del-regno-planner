@@ -86,14 +86,11 @@ fun AppScreen() {
                                 verticalArrangement = Arrangement.spacedBy(spacing.md),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
+                                val navigateToSection = LocalSectionNavigator.current
                                 AppSection.entries.forEach { section ->
                                     NavigationRailItem(
                                         selected = currentSection == section,
-                                        onClick = {
-                                            if (currentSection != section) {
-                                                navigator.replaceAll(section.screen)
-                                            }
-                                        },
+                                        onClick = { navigateToSection(section) },
                                         icon = { Icon(section.icon, contentDescription = section.label) },
                                         label = { Text(section.label) },
                                         modifier = Modifier
