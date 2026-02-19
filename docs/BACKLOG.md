@@ -2,108 +2,108 @@
 
 ## BUG — Integrità dati e correttezza
 
-### BUG-1: EliminaProclamatoreUseCase senza transazione [COMPLETATO]
+### BUG-1: EliminaProclamatoreUseCase senza transazione
 - **File:** `feature/people/application/EliminaProclamatoreUseCase.kt:13-21`
 - `removeAllForPerson(id)` e `store.remove(id)` eseguiti come operazioni separate. Se `remove` fallisce dopo `removeAllForPerson`, le assegnazioni vengono cancellate ma il proclamatore resta — stato parziale corrotto.
 - **Fix:** wrappare in `database.transaction { }` o creare un metodo store dedicato.
 
-### BUG-2: Numbering display inconsistente tra schermate [COMPLETATO]
+### BUG-2: Numbering display inconsistente tra schermate
 - **File:** `ui/assignments/AssignmentsScreen.kt:138` → `sortOrder + 1`
 - **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:242,256` → `sortOrder + 3`
 - Lo stesso `WeeklyPart.sortOrder` viene visualizzato con offset diversi. Il `+3` è un magic number non documentato (presumibilmente le 3 parti fisse di apertura). Estrarre in costante nominata e unificare.
 
-### BUG-3: GitHubDataSource senza timeout HTTP [COMPLETATO]
+### BUG-3: GitHubDataSource senza timeout HTTP
 - **File:** `feature/weeklyparts/infrastructure/GitHubDataSource.kt:26`
 - `HttpClient.newHttpClient()` usa default senza `connectTimeout`/`readTimeout`. Un endpoint lento blocca il thread IO indefinitamente.
 - **Fix:** aggiungere timeout (es. 15s connect, 30s read).
 
-### BUG-4: Race condition in WeeklyPartsViewModel.loadWeek() [COMPLETATO]
+### BUG-4: Race condition in WeeklyPartsViewModel.loadWeek()
 - **File:** `ui/weeklyparts/WeeklyPartsViewModel.kt:194-208`
 - `loadWeek()` lancia una nuova coroutine senza cancellare la precedente. Se l'utente naviga rapidamente tra settimane, la risposta della query precedente può sovrascrivere quella corrente. `AssignmentsViewModel` gestisce correttamente con `loadJob?.cancel()`.
 - **Fix:** aggiungere `private var loadJob: Job? = null` e cancellare prima di ogni nuova invocazione.
 
-### BUG-5: movePart() fire-and-forget senza gestione errori [COMPLETATO]
+### BUG-5: movePart() fire-and-forget senza gestione errori
 - **File:** `ui/weeklyparts/WeeklyPartsViewModel.kt:118-129`
 - Update ottimistico della UI poi `riordinaParti(reordered)` senza error handling. Se il DB fallisce, la UI mostra l'ordine nuovo ma il DB mantiene il vecchio. Al prossimo reload la lista torna indietro senza feedback.
 - **Fix:** aggiungere `.fold()` o try/catch che revert l'update ottimistico e mostra errore. Nota: `RiordinaPartiUseCase` non ritorna `Either` (vedi BUG-10).
 
-### BUG-6: importSchema() ignora silenziosamente codici parte sconosciuti [COMPLETATO]
+### BUG-6: importSchema() ignora silenziosamente codici parte sconosciuti
 - **File:** `feature/weeklyparts/application/AggiornaDatiRemotiUseCase.kt:83-85`
 - `mapNotNull { partTypeStore.findByCode(code)?.id }` scarta codici non trovati senza warning. Il piano settimanale viene creato con meno parti del previsto.
 - **Fix:** raccogliere codici non risolti e includerli nel messaggio di successo o avvisare l'utente.
 
-### BUG-7: LocalDate.parse() può lanciare DateTimeParseException non catturata [COMPLETATO]
+### BUG-7: LocalDate.parse() può lanciare DateTimeParseException non catturata
 - **File:** `feature/weeklyparts/application/AggiornaDatiRemotiUseCase.kt:40,63,74`
 - `LocalDate.parse(schema.weekStartDate)` in blocchi `either { }` — ma `either` cattura solo `raise()`, non eccezioni arbitrarie. Dati remoti malformati crashano l'app.
 - **Fix:** wrappare in try/catch e `raise(DomainError.Validation(...))`.
 
-### BUG-8: Sesso.valueOf() / SexRule.valueOf() nei mapper possono crashare [COMPLETATO]
+### BUG-8: Sesso.valueOf() / SexRule.valueOf() nei mapper possono crashare
 - **File:** `feature/people/infrastructure/ProclamatoreRowMapper.kt:18`
 - **File:** `feature/assignments/infrastructure/SqlDelightAssignmentStore.kt:92`
 - **File:** `feature/weeklyparts/infrastructure/PartTypeRowMapper.kt:21`
 - Usano `valueOf()` che lancia `IllegalArgumentException` su valori DB inattesi. Non ci sono CHECK constraint SQL sulle colonne `TEXT NOT NULL`.
 - **Fix:** `runCatching { }.getOrDefault()` oppure aggiungere `CHECK(sex IN ('M','F'))` allo schema SQL.
 
-### BUG-9: selectJsonFileForImport() blocca il thread UI [COMPLETATO]
+### BUG-9: selectJsonFileForImport() blocca il thread UI
 - **File:** `ui/proclamatori/ProclamatoriUiSupport.kt:158-170`
 - AWT `FileDialog` con `isVisible = true` è bloccante. Chiamata direttamente da un lambda composable. Funziona perché AWT gestisce il proprio event pump, ma il pattern è fragile.
 - **Fix:** considerare `JFileChooser` su `Dispatchers.IO` o il composable `FileDialog` di Compose Desktop.
 
-### BUG-10: RiordinaPartiUseCase non ritorna Either — contratto inconsistente [COMPLETATO]
+### BUG-10: RiordinaPartiUseCase non ritorna Either — contratto inconsistente
 - **File:** `feature/weeklyparts/application/RiordinaPartiUseCase.kt:5-11`
 - Unico use case di write che è un `suspend fun` senza `Either<DomainError, Unit>`. Le eccezioni propagano non gestite nel `CoroutineScope`.
 - **Fix:** allineare al contratto degli altri use case con `Either`.
 
-### BUG-11: Search proclamatori senza debounce [COMPLETATO]
+### BUG-11: Search proclamatori senza debounce
 - **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:57-60`
 - `setSearchTerm()` chiama `refreshList()` immediatamente ad ogni carattere. Query DB completa ad ogni keystroke, a differenza del duplicate check che usa 250ms debounce.
 - **Fix:** aggiungere `searchJob` con `delay(250)` prima della query.
 
-### BUG-12: loadPartTypes() ingoia silenziosamente tutte le eccezioni [COMPLETATO]
+### BUG-12: loadPartTypes() ingoia silenziosamente tutte le eccezioni
 - **File:** `ui/weeklyparts/WeeklyPartsViewModel.kt:211-219`
 - `catch (_: Exception)` ignora l'errore — il bottone "Aggiungi parte" sparisce senza feedback. DB corrotto/locked è indistinguibile da "nessun tipo parte".
 - **Fix:** loggare l'eccezione e/o mostrare un flag `partTypesLoadFailed`.
 
-### BUG-13: requestDeleteCandidate() report 0 assegnazioni in caso di errore [COMPLETATO]
+### BUG-13: requestDeleteCandidate() report 0 assegnazioni in caso di errore
 - **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:118-127`
 - `catch (_: Exception) { 0 }` mostra "0 assegnazioni" anche su errore DB. L'utente potrebbe cancellare pensando non ci siano assegnazioni.
 - **Fix:** mostrare "conteggio non disponibile" anziché 0.
 
-### BUG-14: CreaSettimanaUseCase senza transazione [COMPLETATO]
+### BUG-14: CreaSettimanaUseCase senza transazione
 - **File:** `feature/weeklyparts/application/CreaSettimanaUseCase.kt:27-28`
 - `save(weekPlan)` e `addPart(...)` sono due operazioni separate. Se `addPart` fallisce, resta un piano senza parti.
 - **Fix:** wrappare in `transaction { }`.
 
-### BUG-15: AggiungiParteUseCase tre operazioni DB senza transazione [COMPLETATO]
+### BUG-15: AggiungiParteUseCase tre operazioni DB senza transazione
 - **File:** `feature/weeklyparts/application/AggiungiParteUseCase.kt:17-24`
 - `findByDate` → `addPart` → `findByDate` sono tre chiamate separate. Il secondo `findByDate` ricarica l'intero piano inutilmente.
 - **Fix:** wrappare in transazione e ottimizzare.
 
-### BUG-16: AssegnaPersonaUseCase non verifica slot già occupato [COMPLETATO]
+### BUG-16: AssegnaPersonaUseCase non verifica slot già occupato
 - **File:** `feature/assignments/application/AssegnaPersonaUseCase.kt:34-36`
 - Verifica `isPersonAssignedInWeek` ma non se lo slot `(weeklyPartId, slot)` è già occupato. Il SQL `ON CONFLICT DO UPDATE` sovrascrive silenziosamente l'assegnazione esistente senza conferma.
 - **Fix:** controllare slot occupato e avvisare o richiedere conferma.
 
-### BUG-17: DatabaseProvider manca @Volatile — double-checked locking non sicuro [COMPLETATO]
+### BUG-17: DatabaseProvider manca @Volatile — double-checked locking non sicuro
 - **File:** `core/persistence/DatabaseProvider.kt:8-14`
 - `private var instance` senza `@Volatile` con double-checked locking. Il JVM memory model potrebbe restituire un valore stale nel check esterno.
 - **Fix:** aggiungere `@Volatile`.
 
-### BUG-18: AppBootstrap.initialized non thread-safe [COMPLETATO]
+### BUG-18: AppBootstrap.initialized non thread-safe
 - **File:** `core/bootstrap/AppBootstrap.kt:9-10`
 - `private var initialized = false` senza sincronizzazione. Usare `@Volatile` o `AtomicBoolean`.
 
-### BUG-19: upsertAssignment aggiorna id su conflict — mutazione silente della PK [COMPLETATO]
+### BUG-19: upsertAssignment aggiorna id su conflict — mutazione silente della PK
 - **File:** `MinisteroDatabase.sq:193-198`
 - `ON CONFLICT(weekly_part_id, slot) DO UPDATE SET id = excluded.id` sovrascrive la primary key esistente. Qualsiasi `AssignmentId` in memoria diventa stale. `removeAssignment(oldId)` non troverà la riga.
 - **Fix:** rimuovere `id = excluded.id` dal `SET`.
 
-### BUG-20: loadSuggestions() senza job tracking — race condition possibile [COMPLETATO]
+### BUG-20: loadSuggestions() senza job tracking — race condition possibile
 - **File:** `ui/assignments/AssignmentsViewModel.kt:194-217`
 - `loadSuggestions()` lancia `scope.launch` senza cancellare il precedente. Se l'utente apre rapidamente il picker per parti diverse, i suggerimenti della prima query possono sovrascrivere quelli della seconda.
 - **Fix:** aggiungere `suggestionsJob?.cancel()` come in `loadWeekData()`.
 
-### BUG-21: Batch operations senza guard anti double-click [COMPLETATO]
+### BUG-21: Batch operations senza guard anti double-click
 - **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:172-202`
 - `confirmBatchDelete`, `activateSelected`, `deactivateSelected` lanciano `scope.launch` senza guard. Double-click prima che `isLoading` flippi = operazioni duplicate.
 - **Fix:** aggiungere flag `isBatchInProgress` o job cancellation.
@@ -113,32 +113,32 @@
 - `loadWeek()` chiamata dentro `collect {}`. Se lancia sincrona, cancella il flow collector — navigazione settimane rotta per il resto della sessione senza errore visibile.
 - **Fix:** wrappare `loadWeek()` in try/catch dentro il collect, o usare `catch { }` sul flow.
 
-### BUG-23: GitHubDataSource usa `!!` su tutti i campi JSON — NPE su dati remoti parziali [COMPLETATO]
+### BUG-23: GitHubDataSource usa `!!` su tutti i campi JSON — NPE su dati remoti parziali
 - **File:** `feature/weeklyparts/infrastructure/GitHubDataSource.kt:36-43,52-53`
 - Ogni accesso campo usa `!!`. Se un campo manca, `NullPointerException` con messaggio `"null"` — poco diagnostico per l'utente.
 - **Fix:** usare null-safe access con messaggi di errore descrittivi.
 
-### BUG-24: Import JSON senza limite dimensione file [COMPLETATO]
+### BUG-24: Import JSON senza limite dimensione file
 - **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:237-238`
 - `File.readText()` carica tutto in memoria senza controllo dimensione. Un file enorme causa `OutOfMemoryError` (non catturato da `runCatching` — è un `Error`, non `Exception`).
 - **Fix:** controllare `selectedFile.length()` prima e rifiutare file > 10MB.
 
-### BUG-25: ImportaProclamatoriDaJsonUseCase scarta la causa originale dell'eccezione [COMPLETATO]
+### BUG-25: ImportaProclamatoriDaJsonUseCase scarta la causa originale dell'eccezione
 - **File:** `feature/people/application/ImportaProclamatoriDaJsonUseCase.kt:40-44`
 - `catch (_: Exception)` perde il messaggio di errore originale. L'utente vede solo "Import non completato" senza dettagli diagnostici.
 - **Fix:** includere `e.message` nel `DomainError.Validation`.
 
-### BUG-26: Nessun uncaught exception handler — crash mostra dialog AWT grezzo [COMPLETATO]
+### BUG-26: Nessun uncaught exception handler — crash mostra dialog AWT grezzo
 - **File:** `main.kt:19`
 - `main()` non ha try/catch né `Thread.setDefaultUncaughtExceptionHandler`. Errori fatali (DB locked, paths non scrivibili) mostrano stack trace grezzi.
 - **Fix:** aggiungere handler globale con log + dialog user-friendly.
 
-### BUG-27: Bootstrap failure lascia AppRuntime non inizializzato — errore fuorviante downstream [COMPLETATO]
+### BUG-27: Bootstrap failure lascia AppRuntime non inizializzato — errore fuorviante downstream
 - **File:** `core/bootstrap/AppBootstrap.kt:14-22`
 - Se `PathsResolver.resolve()` fallisce (disco pieno, permessi), `AppRuntime.paths()` lancia `IllegalStateException("AppRuntime non inizializzato")` dentro Koin — errore non correlato alla causa root.
 - **Fix:** propagare l'eccezione da `initialize()` per gestirla in `main()`.
 
-### BUG-28: Inner Navigator con Screen a Content() vuoto — pattern fragile [COMPLETATO]
+### BUG-28: Inner Navigator con Screen a Content() vuoto — pattern fragile
 - **File:** `ui/proclamatori/ProclamatoriScreen.kt:37-52,84`
 - `ProclamatoriFlowScreen` implementations hanno `Content() {}` vuoto — usate solo come chiavi di navigazione. `DisposableEffect` futuri verrebbero firing/disposing ad ogni switch tab.
 - **Fix:** sostituire con `var route by remember { mutableStateOf<ProclamatoriRoute>(...) }`.
@@ -148,27 +148,27 @@
 - `replaceAll` previene crescita back stack, ma Alt+Left / Back Mouse Button di Voyager può causare `pop()` che desincronizza il `NavigationRailItem` evidenziato dal contenuto visibile.
 - **Fix:** disabilitare back gesture o aggiungere guard `canPop`.
 
-### BUG-30: AppRuntime.initialize() senza guard contro re-inizializzazione [COMPLETATO]
+### BUG-30: AppRuntime.initialize() senza guard contro re-inizializzazione
 - **File:** `core/config/AppRuntime.kt:7-9`
 - `initialize()` è public e sovrascrive `runtimePaths` silenziosamente se chiamata due volte. `AppBootstrap` ha un guard `if (initialized) return`, ma `AppRuntime` è direttamente accessibile.
 - **Fix:** aggiungere `check(runtimePaths == null) { "AppRuntime già inizializzato" }`.
 
-### BUG-31: WeekPlan.weekStartDate non validato come lunedì [COMPLETATO]
+### BUG-31: WeekPlan.weekStartDate non validato come lunedì
 - **File:** `feature/weeklyparts/domain/WeekPlan.kt:8-12`
 - `weekStartDate` accetta qualsiasi `LocalDate`. Un JSON remoto con `"2024-03-13"` (mercoledì) crea un `WeekPlan` non trovabile dalla navigazione che usa solo lunedì.
 - **Fix:** `init { require(weekStartDate.dayOfWeek == DayOfWeek.MONDAY) }`.
 
-### BUG-32: PartType.code e label accettano stringhe vuote [COMPLETATO]
+### BUG-32: PartType.code e label accettano stringhe vuote
 - **File:** `feature/weeklyparts/domain/PartType.kt:6-14`
 - Nessun check su `code.isNotBlank()` e `label.isNotBlank()`. Un `code = ""` causerebbe match falsi in `findByCode()`. Un `label = ""` è invisibile nella UI.
 - **Fix:** aggiungere `init { require(code.isNotBlank()); require(label.isNotBlank()) }`.
 
-### BUG-33: AssignmentWithPerson.slot senza invariante e fullName con spazi [COMPLETATO]
+### BUG-33: AssignmentWithPerson.slot senza invariante e fullName con spazi
 - **File:** `feature/assignments/domain/AssignmentWithPerson.kt:11,17`
 - `slot: Int` senza check `>= 1` (diverge da `Assignment` dopo fix SOLID-5). `fullName = "$firstName $lastName"` produce spazio leading/trailing se uno è blank.
 - **Fix:** `init { require(slot >= 1) }` e `fullName = "${firstName.trim()} ${lastName.trim()}"`.
 
-### BUG-34: SharedWeekState navigazione senza limiti — anni assurdi raggiungibili [COMPLETATO]
+### BUG-34: SharedWeekState navigazione senza limiti — anni assurdi raggiungibili
 - **File:** `core/application/SharedWeekState.kt:17-23`
 - `navigateToPreviousWeek()`/`navigateToNextWeek()` non hanno bound. Click ripetuti portano in anni senza dati pratici senza feedback.
 - **Fix:** aggiungere limiti (es. 2020–2099) e ignorare navigazione fuori range.
@@ -177,32 +177,32 @@
 
 ## SQL — Schema e migrazioni
 
-### SQL-1: Missing index su weekly_part(week_plan_id) [COMPLETATO]
+### SQL-1: Missing index su weekly_part(week_plan_id)
 - **File:** `MinisteroDatabase.sq:27-34`
 - FK senza indice. SQLite non crea indici automatici su FK. Ogni caricamento settimana fa full scan di `weekly_part`.
 - **Fix:** `CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx ON weekly_part(week_plan_id);`
 
-### SQL-2: Missing index su assignment(person_id) [COMPLETATO]
+### SQL-2: Missing index su assignment(person_id)
 - **File:** `MinisteroDatabase.sq:36-43`
 - Usato in `countAssignmentsForPerson`, `deleteAssignmentsForPerson`, e tutte le ranking query. Senza indice: full scan.
 - **Fix:** `CREATE INDEX IF NOT EXISTS assignment_person_id_idx ON assignment(person_id);`
 
-### SQL-3: Missing CHECK constraint su colonne con bounds semantici [COMPLETATO]
+### SQL-3: Missing CHECK constraint su colonne con bounds semantici
 - **File:** `MinisteroDatabase.sq:12-20`
 - `part_type.people_count` accetta 0 o negativi (loop `1..0` silenziosamente vuoto). `assignment.slot` accetta 0 o negativi.
 - **Fix:** `people_count INTEGER NOT NULL CHECK(people_count >= 1)`, `slot INTEGER NOT NULL CHECK(slot >= 1)`.
 
-### SQL-4: Colonne boolean senza CHECK(IN (0,1)) [COMPLETATO]
+### SQL-4: Colonne boolean senza CHECK(IN (0,1))
 - **File:** `MinisteroDatabase.sq:1-7, 12-20`
 - `person.active` e `part_type.fixed` accettano qualsiasi intero. Un valore `2` è silenziosamente `true` in Kotlin.
 - **Fix:** `CHECK(active IN (0, 1))`, `CHECK(fixed IN (0, 1))`.
 
-### SQL-5: ON DELETE mancante per weekly_part.part_type_id FK [COMPLETATO]
+### SQL-5: ON DELETE mancante per weekly_part.part_type_id FK
 - **File:** `MinisteroDatabase.sq:33`
 - Default SQLite è `RESTRICT`. Tentare di cancellare un `part_type` referenziato fallisce con errore constraint non tipizzato. Comportamento previsto ma non esplicito.
 - **Fix:** aggiungere `ON DELETE RESTRICT` esplicitamente e documentare.
 
-### SQL-6: Nessuna strategia di migrazione DB [COMPLETATO]
+### SQL-6: Nessuna strategia di migrazione DB
 - **File:** `core/persistence/DatabaseProvider.kt:18-20`
 - `JdbcSqliteDriver(schema = MinisteroDatabase.Schema)` auto-crea tabelle su DB nuovo. Per DB esistenti, cambiamenti schema non vengono applicati — nessun file di migrazione `.sqm` nel progetto.
 - **Fix:** aggiungere directory `migrations/` con file `.sqm` per ogni cambio schema futuro. Critico per field additions.
@@ -249,22 +249,22 @@
 
 ## DRY — Codice duplicato
 
-### DRY-1: Parsing PartType JSON duplicato [COMPLETATO]
+### DRY-1: Parsing PartType JSON duplicato
 - **File 1:** `feature/weeklyparts/infrastructure/GitHubDataSource.kt:32-43`
 - **File 2:** `core/cli/SeedDatabase.kt:30-41`
 - Blocco identico di mapping `JsonObject → PartType`. Estrarre in una funzione condivisa (es. `PartType.fromJson()`).
 
-### DRY-2: currentMonday() triplicata [COMPLETATO]
+### DRY-2: currentMonday() triplicata
 - **File 1:** `core/application/SharedWeekState.kt:13`
 - **File 2:** `ui/weeklyparts/WeeklyPartsViewModel.kt:34` (default UiState)
 - **File 3:** `ui/assignments/AssignmentsViewModel.kt:34` (default UiState)
 - I default nei data class UiState sono ridondanti perché i VM sovrascrivono immediatamente dal SharedWeekState. Estrarre `currentMonday()` in un helper e/o rimuovere default ridondanti.
 
-### DRY-3: successNotice/errorNotice confinati a proclamatori [COMPLETATO]
+### DRY-3: successNotice/errorNotice confinati a proclamatori
 - **File:** `ui/proclamatori/ProclamatoriUiSupport.kt:42-55` (internal)
 - Gli altri package (assignments, weeklyparts) costruiscono `FeedbackBannerModel` inline. Promuovere gli helper in `ui/components/` come funzioni pubbliche.
 
-### DRY-4: Dialog di eliminazione quasi identici [COMPLETATO]
+### DRY-4: Dialog di eliminazione quasi identici
 - **File:** `ui/proclamatori/ProclamatoriComponents.kt:89-134` (`ProclamatoreDeleteDialog`)
 - **File:** `ui/proclamatori/ProclamatoriComponents.kt:137-167` (`ProclamatoriDeleteDialog`)
 - Struttura identica (AlertDialog + stessi bottoni + stessi stili). Unificare in un singolo composable parametrizzato `ConfirmDeleteDialog`.
@@ -273,12 +273,12 @@
 - **File:** `feature/assignments/infrastructure/SqlDelightAssignmentStore.kt:87-94`
 - Lambda inline che mappa le stesse colonne di `ProclamatoreRowMapper` ma con `attivo = true` hardcoded. Valutare riuso del mapper condiviso con parametro.
 
-### DRY-6: NavigationRail onClick duplicato con LocalSectionNavigator [COMPLETATO]
+### DRY-6: NavigationRail onClick duplicato con LocalSectionNavigator
 - **File:** `ui/AppScreen.kt:64-67` (definizione provider)
 - **File:** `ui/AppScreen.kt:90-93` (onClick inline)
 - La stessa logica `if (currentSection != section) navigator.replaceAll(...)` appare due volte. Il `NavigationRailItem` dovrebbe usare `LocalSectionNavigator.current`.
 
-### DRY-7: SexRuleChip privata in AssignmentsComponents, reinventata inline in WeeklyPartsScreen [COMPLETATO]
+### DRY-7: SexRuleChip privata in AssignmentsComponents, reinventata inline in WeeklyPartsScreen
 - **File 1:** `ui/assignments/AssignmentsComponents.kt:124-140` (composable con mapping corretto)
 - **File 2:** `ui/weeklyparts/WeeklyPartsScreen.kt:350,408` (usa `sexRule.name` grezzo)
 - Stessa informazione visualizzata in modo diverso. Promuovere `SexRuleChip` in `ui/components/` e riusarla.
@@ -398,19 +398,19 @@
 
 ## Dead code — Codice morto
 
-### DEAD-1: DomainError.NotImplemented mai usato [COMPLETATO]
+### DEAD-1: DomainError.NotImplemented mai usato
 - **File:** `core/domain/DomainError.kt:5`
 - Nessun call site. Rimuovere la variante e il relativo ramo in `toMessage()`.
 
-### DEAD-2: maxSortOrderForWeek query SQL inutilizzata [COMPLETATO]
+### DEAD-2: maxSortOrderForWeek query SQL inutilizzata
 - **File:** `MinisteroDatabase.sq:173-174`
 - La query non è mai invocata. Il calcolo avviene in Kotlin in `AggiungiParteUseCase.kt:20`. Rimuovere.
 
-### DEAD-3: arrow-optics dependency inutilizzata [COMPLETATO]
+### DEAD-3: arrow-optics dependency inutilizzata
 - **File:** `gradle/libs.versions.toml:34`, `composeApp/build.gradle.kts:26`
 - Nessun import `arrow.optics` nel codice sorgente. Rimuovere la dipendenza per ridurre dimensione build. Nota: manca anche il KSP processor — la dipendenza non potrebbe funzionare neanche con annotazioni `@optics`.
 
-### DEAD-4: kotlin-testJunit e junit nel catalogo ma mai referenziati [COMPLETATO]
+### DEAD-4: kotlin-testJunit e junit nel catalogo ma mai referenziati
 - **File:** `gradle/libs.versions.toml:6,21-22`
 - `kotlin-testJunit` e `junit` dichiarati nel version catalog ma mai usati in `build.gradle.kts`. Rimuovere le entry.
 
