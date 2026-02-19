@@ -5,6 +5,7 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.db.MinisteroDatabase
 
 object DatabaseProvider {
+    @Volatile
     private var instance: MinisteroDatabase? = null
 
     fun database(): MinisteroDatabase {
