@@ -39,6 +39,7 @@ internal data class AssignmentsUiState(
     val pickerSortGlobal: Boolean = true,
     val pickerSuggestions: List<SuggestedProclamatore> = emptyList(),
     val isPickerLoading: Boolean = false,
+    val isAssigning: Boolean = false,
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
 
@@ -124,10 +125,12 @@ internal class AssignmentsViewModel(
     }
 
     fun confirmAssignment(personId: ProclamatoreId) {
+        if (_state.value.isAssigning) return
         val s = _state.value
         val weeklyPartId = s.pickerWeeklyPartId ?: return
         val slot = s.pickerSlot ?: return
 
+        _state.update { it.copy(isAssigning = true) }
         scope.launch {
             assegnaPersona(
                 weekStartDate = s.currentMonday,
@@ -135,8 +138,12 @@ internal class AssignmentsViewModel(
                 personId = personId,
                 slot = slot,
             ).fold(
-                ifLeft = { error -> showError(error) },
+                ifLeft = { error ->
+                    _state.update { it.copy(isAssigning = false) }
+                    showError(error)
+                },
                 ifRight = {
+                    _state.update { it.copy(isAssigning = false) }
                     closePersonPicker()
                     loadWeekData()
                 },

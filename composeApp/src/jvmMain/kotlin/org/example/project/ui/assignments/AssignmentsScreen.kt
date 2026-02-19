@@ -49,6 +49,7 @@ fun AssignmentsScreen() {
                 sortGlobal = state.pickerSortGlobal,
                 suggestions = state.pickerSuggestions,
                 isLoading = state.isPickerLoading,
+                isAssigning = state.isAssigning,
                 onSearchChange = { viewModel.setPickerSearchTerm(it) },
                 onToggleSort = { viewModel.togglePickerSort() },
                 onAssign = { viewModel.confirmAssignment(it) },

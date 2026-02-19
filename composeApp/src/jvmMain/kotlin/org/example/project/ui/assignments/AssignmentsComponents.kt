@@ -212,6 +212,7 @@ internal fun PersonPickerDialog(
     sortGlobal: Boolean,
     suggestions: List<SuggestedProclamatore>,
     isLoading: Boolean,
+    isAssigning: Boolean,
     onSearchChange: (String) -> Unit,
     onToggleSort: () -> Unit,
     onAssign: (ProclamatoreId) -> Unit,
@@ -353,6 +354,7 @@ internal fun PersonPickerDialog(
                             items(sorted, key = { it.proclamatore.id.value }) { suggestion ->
                                 SuggestionRow(
                                     suggestion = suggestion,
+                                    isAssigning = isAssigning,
                                     onAssign = { onAssign(suggestion.proclamatore.id) },
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -402,6 +404,7 @@ private fun SuggestionHeaderRow() {
 @Composable
 private fun SuggestionRow(
     suggestion: SuggestedProclamatore,
+    isAssigning: Boolean,
     onAssign: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
@@ -432,6 +435,7 @@ private fun SuggestionRow(
         )
         Button(
             onClick = onAssign,
+            enabled = !isAssigning,
             modifier = Modifier.width(110.dp).handCursorOnHover(),
         ) {
             Text("Assegna", style = MaterialTheme.typography.labelSmall)
