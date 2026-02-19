@@ -1,5 +1,6 @@
 package org.example.project.ui.assignments
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -36,10 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -76,28 +79,18 @@ internal fun PartAssignmentCard(
                     text = "$displayNumber. ${part.partType.label}",
                     style = MaterialTheme.typography.titleSmall,
                 )
-                if (!part.partType.fixed) {
-                    SexRuleChip(part.partType.sexRule)
-                }
+                SexRuleChip(part.partType.sexRule)
             }
 
             // Content
-            if (part.partType.fixed) {
-                // Fixed part: just show "(parte fissa)"
-                Text(
-                    text = "(parte fissa)",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else if (part.partType.peopleCount == 1) {
+            if (part.partType.peopleCount == 1) {
                 // Single person slot, no role label
                 val assignment = assignments.find { it.slot == 1 }
                 SlotRow(
                     label = null,
                     assignment = assignment,
                     onAssign = { onAssignSlot(1) },
-                    onRemove = { onRemoveAssignment(assignment!!.id.value) },
+                    onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
                 )
             } else {
                 // Multiple slots with role labels
@@ -108,7 +101,7 @@ internal fun PartAssignmentCard(
                         label = label,
                         assignment = assignment,
                         onAssign = { onAssignSlot(slot) },
-                        onRemove = { onRemoveAssignment(assignment!!.id.value) },
+                        onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
                     )
                 }
             }
@@ -228,21 +221,39 @@ internal fun PersonPickerDialog(
         filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
-            modifier = Modifier.width(600.dp),
+            modifier = Modifier.width(900.dp),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),
                 verticalArrangement = Arrangement.spacedBy(spacing.xl),
             ) {
-                // Title
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                // Title + close button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Chiudi",
+                        )
+                    }
+                }
 
                 // Search field
                 OutlinedTextField(
@@ -312,33 +323,28 @@ internal fun PersonPickerDialog(
 
                     HorizontalDivider()
 
-                    // Suggestions list
-                    LazyColumn(
-                        modifier = Modifier.height(300.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        items(sorted, key = { it.proclamatore.id.value }) { suggestion ->
-                            SuggestionRow(
-                                suggestion = suggestion,
-                                onAssign = { onAssign(suggestion.proclamatore.id) },
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    // Suggestions list with scrollbar
+                    Box(modifier = Modifier.height(300.dp)) {
+                        val listState = rememberLazyListState()
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            items(sorted, key = { it.proclamatore.id.value }) { suggestion ->
+                                SuggestionRow(
+                                    suggestion = suggestion,
+                                    onAssign = { onAssign(suggestion.proclamatore.id) },
+                                )
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            }
                         }
+                        VerticalScrollbar(
+                            adapter = rememberScrollbarAdapter(listState),
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                        )
                     }
                 }
 
-                // Dismiss button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.handCursorOnHover(),
-                    ) {
-                        Text("Annulla")
-                    }
-                }
             }
         }
     }
@@ -369,7 +375,7 @@ private fun SuggestionHeaderRow() {
             modifier = Modifier.width(120.dp),
             style = MaterialTheme.typography.labelMedium,
         )
-        Spacer(Modifier.width(80.dp)) // button space
+        Spacer(Modifier.width(110.dp)) // button space
     }
 }
 
@@ -406,7 +412,7 @@ private fun SuggestionRow(
         )
         Button(
             onClick = onAssign,
-            modifier = Modifier.width(80.dp).handCursorOnHover(),
+            modifier = Modifier.width(110.dp).handCursorOnHover(),
         ) {
             Text("Assegna", style = MaterialTheme.typography.labelSmall)
         }
