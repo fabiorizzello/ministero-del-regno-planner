@@ -459,7 +459,7 @@ private fun OverwriteConfirmDialog(
         title = { Text("Settimane gia' presenti") },
         text = {
             Column {
-                Text("Le seguenti settimane esistono gia'. Vuoi sovrascriverle?")
+                Text("Le seguenti settimane esistono gia':")
                 Spacer(Modifier.height(MaterialTheme.spacing.md))
                 weeks.forEach { date ->
                     Text(
@@ -467,6 +467,12 @@ private fun OverwriteConfirmDialog(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
+                Spacer(Modifier.height(MaterialTheme.spacing.lg))
+                Text(
+                    text = "Sovrascrivendo, tutte le parti e le assegnazioni esistenti verranno cancellate definitivamente.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         },
         confirmButton = {
