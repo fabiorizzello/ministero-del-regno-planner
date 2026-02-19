@@ -128,6 +128,26 @@
 - `catch (_: Exception)` perde il messaggio di errore originale. L'utente vede solo "Import non completato" senza dettagli diagnostici.
 - **Fix:** includere `e.message` nel `DomainError.Validation`.
 
+### BUG-26: Nessun uncaught exception handler — crash mostra dialog AWT grezzo
+- **File:** `main.kt:19`
+- `main()` non ha try/catch né `Thread.setDefaultUncaughtExceptionHandler`. Errori fatali (DB locked, paths non scrivibili) mostrano stack trace grezzi.
+- **Fix:** aggiungere handler globale con log + dialog user-friendly.
+
+### BUG-27: Bootstrap failure lascia AppRuntime non inizializzato — errore fuorviante downstream
+- **File:** `core/bootstrap/AppBootstrap.kt:14-22`
+- Se `PathsResolver.resolve()` fallisce (disco pieno, permessi), `AppRuntime.paths()` lancia `IllegalStateException("AppRuntime non inizializzato")` dentro Koin — errore non correlato alla causa root.
+- **Fix:** propagare l'eccezione da `initialize()` per gestirla in `main()`.
+
+### BUG-28: Inner Navigator con Screen a Content() vuoto — pattern fragile
+- **File:** `ui/proclamatori/ProclamatoriScreen.kt:37-52,84`
+- `ProclamatoriFlowScreen` implementations hanno `Content() {}` vuoto — usate solo come chiavi di navigazione. `DisposableEffect` futuri verrebbero firing/disposing ad ogni switch tab.
+- **Fix:** sostituire con `var route by remember { mutableStateOf<ProclamatoriRoute>(...) }`.
+
+### BUG-29: Outer Navigator senza guard su back-navigation
+- **File:** `ui/AppScreen.kt:58-92`
+- `replaceAll` previene crescita back stack, ma Alt+Left / Back Mouse Button di Voyager può causare `pop()` che desincronizza il `NavigationRailItem` evidenziato dal contenuto visibile.
+- **Fix:** disabilitare back gesture o aggiungere guard `canPop`.
+
 ---
 
 ## SQL — Schema e migrazioni
@@ -161,6 +181,11 @@
 - **File:** `core/persistence/DatabaseProvider.kt:18-20`
 - `JdbcSqliteDriver(schema = MinisteroDatabase.Schema)` auto-crea tabelle su DB nuovo. Per DB esistenti, cambiamenti schema non vengono applicati — nessun file di migrazione `.sqm` nel progetto.
 - **Fix:** aggiungere directory `migrations/` con file `.sqm` per ogni cambio schema futuro. Critico per field additions.
+
+### SQL-7: lastPartTypeAssignmentPerPerson esclude persone assegnate ad altre parti
+- **File:** `MinisteroDatabase.sq:226-237,250-261`
+- La condizione `pt.id = ? OR a.id IS NULL` esclude persone che hanno assegnazioni solo ad altri tipi parte (hanno `a.id NOT NULL` e `pt.id != ?`). Queste spariscono dal ranking invece di apparire come "mai assegnate a questo tipo". Il bug è mascherato perché `suggestedProclamatori()` tratta le chiavi mancanti come `null`.
+- **Fix:** ristrutturare con `pt.id IS NULL OR pt.id = ?` o subquery correlata.
 
 ---
 
@@ -222,6 +247,11 @@
 ### DRY-5: Mapper Proclamatore parzialmente duplicato in AssignmentStore
 - **File:** `feature/assignments/infrastructure/SqlDelightAssignmentStore.kt:87-94`
 - Lambda inline che mappa le stesse colonne di `ProclamatoreRowMapper` ma con `attivo = true` hardcoded. Valutare riuso del mapper condiviso con parametro.
+
+### DRY-7: SexRuleChip privata in AssignmentsComponents, reinventata inline in WeeklyPartsScreen
+- **File 1:** `ui/assignments/AssignmentsComponents.kt:124-140` (composable con mapping corretto)
+- **File 2:** `ui/weeklyparts/WeeklyPartsScreen.kt:350,408` (usa `sexRule.name` grezzo)
+- Stessa informazione visualizzata in modo diverso. Promuovere `SexRuleChip` in `ui/components/` e riusarla.
 
 ### DRY-6: NavigationRail onClick duplicato con LocalSectionNavigator
 - **File:** `ui/AppScreen.kt:64-67` (definizione provider)
@@ -308,6 +338,11 @@
 - Screen reader non annuncerà lo scopo delle icone in `IconButton` senza testo adiacente.
 - **Fix:** aggiungere `contentDescription` descrittive.
 
+### UX-11: Posizione finestra non salvata — riapre alla posizione OS default
+- **File:** `core/config/WindowSettingsStore.kt` + `main.kt:28-38`
+- `WindowSettings` salva `widthDp`, `heightDp`, `placement` ma non `position` (x, y). L'utente che sposta la finestra la ritrova altrove al prossimo lancio.
+- **Fix:** aggiungere `positionX`/`positionY` a `WindowSettings` con sentinel `-1` per "usa default OS".
+
 ### UX-10: Disallineamento colonne PartsHeader vs righe
 - **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:291` — header `Spacer(40.dp)`
 - **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:385-386` — righe `Spacer(28.dp)`
@@ -328,7 +363,53 @@
 
 ### DEAD-3: arrow-optics dependency inutilizzata
 - **File:** `gradle/libs.versions.toml:34`, `composeApp/build.gradle.kts:26`
-- Nessun import `arrow.optics` nel codice sorgente. Rimuovere la dipendenza per ridurre dimensione build.
+- Nessun import `arrow.optics` nel codice sorgente. Rimuovere la dipendenza per ridurre dimensione build. Nota: manca anche il KSP processor — la dipendenza non potrebbe funzionare neanche con annotazioni `@optics`.
+
+### DEAD-4: kotlin-testJunit e junit nel catalogo ma mai referenziati
+- **File:** `gradle/libs.versions.toml:6,21-22`
+- `kotlin-testJunit` e `junit` dichiarati nel version catalog ma mai usati in `build.gradle.kts`. Rimuovere le entry.
+
+---
+
+## Build — Configurazione build
+
+### BUILD-1: Nessun JVM target pinned — rischio bytecode/JRE mismatch
+- **File:** `composeApp/build.gradle.kts`
+- Nessun `jvmToolchain` o `jvmTarget` nel blocco `kotlin { }`. Se la macchina build ha JDK 21 ma il runtime bundled è JDK 17, `UnsupportedClassVersionError` al lancio.
+- **Fix:** `kotlin { jvmToolchain(17) }`.
+
+### BUILD-2: packageName placeholder e versione out-of-sync nell'installer
+- **File:** `composeApp/build.gradle.kts:72-73`
+- `packageName = "org.example.project"` è il placeholder del template. `AppVersion.current = "0.1.0-dev"` ma `packageVersion = "1.0.0"` — out-of-sync. Su Windows, cambiare packageName in futuro installa come app separata anziché upgrade.
+- **Fix:** usare il vero reverse-domain e sincronizzare `packageVersion` con `AppVersion.current`.
+
+### BUILD-3: Nessun vendor/copyright/icon nella distribuzione nativa
+- **File:** `composeApp/build.gradle.kts:69-75`
+- `nativeDistributions` senza `vendor`, `copyright`, `description`, `icon`. MSI/EXE mostra "Unknown Publisher" nel dialog UAC.
+- **Fix:** aggiungere metadata e icona.
+
+---
+
+## Sicurezza
+
+### SEC-1: LOCALAPPDATA usata senza sanitizzazione per costruire path
+- **File:** `core/config/PathsResolver.kt:31-36`
+- Variabile d'ambiente user-controlled usata direttamente in `Paths.get()`. Una variabile malconfigurata potrebbe puntare a percorsi inattesi (UNC injection su Windows).
+- **Fix:** normalizzare e validare che il path resti sotto `user.home`, o usare sempre `user.home`.
+
+---
+
+## Internazionalizzazione
+
+### I18N-1: DateTimeFormatter senza Locale esplicito
+- **File:** `ui/proclamatori/ProclamatoriUiSupport.kt:16`
+- `DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")` senza `Locale`. Usa `Locale.getDefault()` a runtime. Incoerenziacon `WeekNavigator.kt:39` che specifica `Locale.ITALIAN`.
+- **Fix:** aggiungere `Locale.ITALIAN` come in WeekNavigator.
+
+### I18N-2: SexRule.name mostrato direttamente nella UI
+- **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:350,408`
+- `part.partType.sexRule.name` mostra l'identifier Kotlin grezzo. `AssignmentsComponents` ha un mapping corretto via `SexRuleChip`. Bypassa il mapping display.
+- **Fix:** riusare `SexRuleChip` condiviso (vedi DRY-7).
 
 ---
 
