@@ -3,6 +3,7 @@ package org.example.project.feature.assignments.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -14,6 +15,7 @@ import java.util.UUID
 class AssegnaPersonaUseCase(
     private val weekPlanStore: WeekPlanStore,
     private val assignmentStore: AssignmentStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         weekStartDate: LocalDate,
@@ -31,19 +33,23 @@ class AssegnaPersonaUseCase(
             raise(DomainError.Validation("Slot non valido"))
         }
 
-        if (assignmentStore.isPersonAssignedInWeek(plan.id, personId)) {
-            raise(DomainError.Validation("Proclamatore gia' assegnato in questa settimana"))
-        }
-
         try {
-            assignmentStore.save(
-                Assignment(
-                    id = AssignmentId(UUID.randomUUID().toString()),
-                    weeklyPartId = weeklyPartId,
-                    personId = personId,
-                    slot = slot,
+            transactionRunner.runInTransaction {
+                if (assignmentStore.isPersonAssignedInWeek(plan.id, personId)) {
+                    throw IllegalStateException("Proclamatore gia' assegnato in questa settimana")
+                }
+
+                assignmentStore.save(
+                    Assignment(
+                        id = AssignmentId(UUID.randomUUID().toString()),
+                        weeklyPartId = weeklyPartId,
+                        personId = personId,
+                        slot = slot,
+                    )
                 )
-            )
+            }
+        } catch (e: IllegalStateException) {
+            raise(DomainError.Validation(e.message ?: "Errore nell'assegnazione"))
         } catch (e: Exception) {
             raise(DomainError.Validation("Errore nel salvataggio: ${e.message}"))
         }

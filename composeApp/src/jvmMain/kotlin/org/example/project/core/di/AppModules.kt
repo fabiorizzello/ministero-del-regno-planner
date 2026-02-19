@@ -6,6 +6,8 @@ import java.util.prefs.Preferences
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
+import org.example.project.core.persistence.SqlDelightTransactionRunner
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
@@ -55,6 +57,7 @@ val appModule = module {
     single { WindowSettingsStore(get()) }
 
     single { DatabaseProvider.database() }
+    single<TransactionRunner> { SqlDelightTransactionRunner(get()) }
 
     single<ProclamatoriQuery> { SqlDelightProclamatoriQuery(get()) }
     single<ProclamatoriAggregateStore> { SqlDelightProclamatoriStore(get()) }
@@ -65,7 +68,7 @@ val appModule = module {
     single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
     single { AggiornaProclamatoreUseCase(get(), get()) }
     single { ImpostaStatoProclamatoreUseCase(get()) }
-    single { EliminaProclamatoreUseCase(get(), get()) }
+    single { EliminaProclamatoreUseCase(get(), get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }
 
     // Weekly parts
@@ -79,8 +82,8 @@ val appModule = module {
     }
 
     single { CaricaSettimanaUseCase(get()) }
-    single { CreaSettimanaUseCase(get(), get()) }
-    single { AggiungiParteUseCase(get()) }
+    single { CreaSettimanaUseCase(get(), get(), get()) }
+    single { AggiungiParteUseCase(get(), get()) }
     single { RimuoviParteUseCase(get()) }
     single { RiordinaPartiUseCase(get()) }
     single { CercaTipiParteUseCase(get()) }
@@ -89,7 +92,7 @@ val appModule = module {
     // Assignments
     single<AssignmentStore> { SqlDelightAssignmentStore(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
-    single { AssegnaPersonaUseCase(get(), get()) }
+    single { AssegnaPersonaUseCase(get(), get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
     single { SuggerisciProclamatoriUseCase(get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
