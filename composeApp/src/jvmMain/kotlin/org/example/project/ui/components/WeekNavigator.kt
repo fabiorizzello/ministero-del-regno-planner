@@ -25,6 +25,15 @@ import java.util.Locale
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
+fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
+    val thisMonday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+    return when {
+        currentMonday == thisMonday -> WeekTimeIndicator.CORRENTE
+        currentMonday.isAfter(thisMonday) -> WeekTimeIndicator.FUTURA
+        else -> WeekTimeIndicator.PASSATA
+    }
+}
+
 internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
 @Composable

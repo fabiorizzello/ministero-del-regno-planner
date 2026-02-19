@@ -14,5 +14,4 @@ interface WeekPlanStore {
     suspend fun removePart(weeklyPartId: WeeklyPartId)
     suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>)
     suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>)
-    suspend fun allWeekDates(): List<LocalDate>
 }

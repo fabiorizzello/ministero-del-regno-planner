@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
+import org.example.project.core.domain.toMessage
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
@@ -22,6 +23,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
+import org.example.project.ui.components.computeWeekIndicator
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -43,15 +45,7 @@ internal data class AssignmentsUiState(
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
 
-    val weekIndicator: WeekTimeIndicator
-        get() {
-            val thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            return when {
-                currentMonday == thisMonday -> WeekTimeIndicator.CORRENTE
-                currentMonday.isAfter(thisMonday) -> WeekTimeIndicator.FUTURA
-                else -> WeekTimeIndicator.PASSATA
-            }
-        }
+    val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
     val sundayDate: LocalDate get() = currentMonday.plusDays(6)
 
@@ -132,22 +126,22 @@ internal class AssignmentsViewModel(
 
         _state.update { it.copy(isAssigning = true) }
         scope.launch {
-            assegnaPersona(
-                weekStartDate = s.currentMonday,
-                weeklyPartId = weeklyPartId,
-                personId = personId,
-                slot = slot,
-            ).fold(
-                ifLeft = { error ->
-                    _state.update { it.copy(isAssigning = false) }
-                    showError(error)
-                },
-                ifRight = {
-                    _state.update { it.copy(isAssigning = false) }
-                    closePersonPicker()
-                    loadWeekData()
-                },
-            )
+            try {
+                assegnaPersona(
+                    weekStartDate = s.currentMonday,
+                    weeklyPartId = weeklyPartId,
+                    personId = personId,
+                    slot = slot,
+                ).fold(
+                    ifLeft = { error -> showError(error) },
+                    ifRight = {
+                        closePersonPicker()
+                        loadWeekData()
+                    },
+                )
+            } finally {
+                _state.update { it.copy(isAssigning = false) }
+            }
         }
     }
 
@@ -195,24 +189,29 @@ internal class AssignmentsViewModel(
 
         scope.launch {
             _state.update { it.copy(isPickerLoading = true) }
-            val suggestions = suggerisciProclamatori(
-                weekStartDate = s.currentMonday,
-                weeklyPartId = weeklyPartId,
-                slot = slot,
-            )
-            _state.update { it.copy(pickerSuggestions = suggestions, isPickerLoading = false) }
+            try {
+                val suggestions = suggerisciProclamatori(
+                    weekStartDate = s.currentMonday,
+                    weeklyPartId = weeklyPartId,
+                    slot = slot,
+                )
+                _state.update { it.copy(pickerSuggestions = suggestions, isPickerLoading = false) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isPickerLoading = false,
+                        notice = FeedbackBannerModel("Errore nel caricamento suggerimenti: ${e.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
         }
     }
 
     private fun showError(error: DomainError) {
-        val message = when (error) {
-            is DomainError.Validation -> error.message
-            is DomainError.NotImplemented -> "Non implementato: ${error.area}"
-        }
         _state.update {
             it.copy(
                 isLoading = false,
-                notice = FeedbackBannerModel(message, FeedbackBannerKind.ERROR),
+                notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
             )
         }
     }

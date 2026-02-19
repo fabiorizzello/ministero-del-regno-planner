@@ -87,11 +87,4 @@ class SqlDelightWeekPlanStore(
             }
         }
     }
-
-    override suspend fun allWeekDates(): List<LocalDate> {
-        return database.ministeroDatabaseQueries
-            .allWeekPlanDates()
-            .executeAsList()
-            .map { LocalDate.parse(it) }
-    }
 }

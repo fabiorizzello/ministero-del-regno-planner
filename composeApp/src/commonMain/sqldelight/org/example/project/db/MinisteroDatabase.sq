@@ -104,11 +104,6 @@ SELECT id, code, label, people_count, sex_rule, fixed, sort_order
 FROM part_type
 WHERE code = ?;
 
-findPartTypeById:
-SELECT id, code, label, people_count, sex_rule, fixed, sort_order
-FROM part_type
-WHERE id = ?;
-
 findFixedPartType:
 SELECT id, code, label, people_count, sex_rule, fixed, sort_order
 FROM part_type
@@ -137,9 +132,6 @@ VALUES (?, ?);
 
 deleteWeekPlan:
 DELETE FROM week_plan WHERE id = ?;
-
-allWeekPlanDates:
-SELECT week_start_date FROM week_plan ORDER BY week_start_date;
 
 -- Weekly part queries (with JOIN to part_type)
 partsForWeek:
@@ -192,12 +184,6 @@ JOIN weekly_part wp ON a.weekly_part_id = wp.id
 WHERE wp.week_plan_id = ?
 ORDER BY wp.sort_order, a.slot;
 
-assignmentsForWeeklyPart:
-SELECT a.id, a.weekly_part_id, a.person_id, a.slot
-FROM assignment a
-WHERE a.weekly_part_id = ?
-ORDER BY a.slot;
-
 upsertAssignment:
 INSERT INTO assignment(id, weekly_part_id, person_id, slot)
 VALUES (?, ?, ?, ?)
@@ -207,13 +193,6 @@ ON CONFLICT(weekly_part_id, slot) DO UPDATE SET
 
 deleteAssignment:
 DELETE FROM assignment WHERE id = ?;
-
-deleteAssignmentByPartAndSlot:
-DELETE FROM assignment WHERE weekly_part_id = ? AND slot = ?;
-
-personAlreadyAssignedToPart:
-SELECT COUNT(*) FROM assignment
-WHERE weekly_part_id = ? AND person_id = ?;
 
 personAlreadyAssignedInWeek:
 SELECT COUNT(*) FROM assignment a

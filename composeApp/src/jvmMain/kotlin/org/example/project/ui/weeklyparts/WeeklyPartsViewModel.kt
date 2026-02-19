@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
+import org.example.project.core.domain.toMessage
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
@@ -23,6 +24,7 @@ import org.example.project.feature.weeklyparts.application.RemoteWeekSchema
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
+import org.example.project.ui.components.computeWeekIndicator
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -37,15 +39,7 @@ internal data class WeeklyPartsUiState(
     val weeksNeedingConfirmation: List<RemoteWeekSchema> = emptyList(),
     val removePartCandidate: WeeklyPartId? = null,
 ) {
-    val weekIndicator: WeekTimeIndicator
-        get() {
-            val thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            return when {
-                currentMonday == thisMonday -> WeekTimeIndicator.CORRENTE
-                currentMonday.isAfter(thisMonday) -> WeekTimeIndicator.FUTURA
-                else -> WeekTimeIndicator.PASSATA
-            }
-        }
+    val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
     val sundayDate: LocalDate get() = currentMonday.plusDays(6)
 }
@@ -225,13 +219,9 @@ internal class WeeklyPartsViewModel(
     }
 
     private fun showError(error: DomainError) {
-        val message = when (error) {
-            is DomainError.Validation -> error.message
-            is DomainError.NotImplemented -> "Non implementato: ${error.area}"
-        }
         _state.update { it.copy(
             isLoading = false,
-            notice = FeedbackBannerModel(message, FeedbackBannerKind.ERROR),
+            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
         ) }
     }
 }

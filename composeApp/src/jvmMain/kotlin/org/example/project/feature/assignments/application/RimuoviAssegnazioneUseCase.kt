@@ -8,6 +8,10 @@ class RimuoviAssegnazioneUseCase(
     private val assignmentStore: AssignmentStore,
 ) {
     suspend operator fun invoke(assignmentId: String): Either<DomainError, Unit> = either {
-        assignmentStore.remove(assignmentId)
+        try {
+            assignmentStore.remove(assignmentId)
+        } catch (e: Exception) {
+            raise(DomainError.Validation("Errore nella rimozione: ${e.message}"))
+        }
     }
 }

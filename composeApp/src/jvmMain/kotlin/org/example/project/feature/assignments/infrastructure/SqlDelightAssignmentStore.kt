@@ -10,7 +10,6 @@ import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
-import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -39,16 +38,6 @@ class SqlDelightAssignmentStore(
 
     override suspend fun remove(assignmentId: String) {
         database.ministeroDatabaseQueries.deleteAssignment(assignmentId)
-    }
-
-    override suspend fun isPersonAssignedToPart(
-        weeklyPartId: WeeklyPartId,
-        personId: ProclamatoreId,
-    ): Boolean {
-        val count = database.ministeroDatabaseQueries
-            .personAlreadyAssignedToPart(weeklyPartId.value, personId.value)
-            .executeAsOne()
-        return count > 0L
     }
 
     override suspend fun isPersonAssignedInWeek(

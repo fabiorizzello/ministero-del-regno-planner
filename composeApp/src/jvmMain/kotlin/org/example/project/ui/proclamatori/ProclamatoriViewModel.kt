@@ -306,7 +306,11 @@ internal class ProclamatoriViewModel(
 
     fun requestDeleteCandidate(candidate: Proclamatore) {
         scope.launch {
-            val count = assignmentStore.countAssignmentsForPerson(candidate.id)
+            val count = try {
+                assignmentStore.countAssignmentsForPerson(candidate.id)
+            } catch (_: Exception) {
+                0
+            }
             _uiState.update { it.copy(deleteCandidate = candidate, deleteAssignmentCount = count) }
         }
     }
