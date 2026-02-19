@@ -51,7 +51,7 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
-import org.example.project.ui.components.SemanticColors
+import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 

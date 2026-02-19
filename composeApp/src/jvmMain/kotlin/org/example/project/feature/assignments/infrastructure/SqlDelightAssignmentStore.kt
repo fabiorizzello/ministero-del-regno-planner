@@ -84,7 +84,7 @@ class SqlDelightAssignmentStore(
         }
 
         val allActive = database.ministeroDatabaseQueries
-            .allActiveProclaimers { id, firstName, lastName, sex, _ ->
+            .allActiveProclaimers { id, firstName, lastName, sex ->
                 Proclamatore(
                     id = ProclamatoreId(id),
                     nome = firstName,

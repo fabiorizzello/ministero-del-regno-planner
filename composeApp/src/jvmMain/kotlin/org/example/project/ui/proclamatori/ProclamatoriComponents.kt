@@ -491,8 +491,6 @@ internal fun ProclamatoriFormContent(
     isCheckingDuplicate: Boolean,
     canSubmitForm: Boolean,
     isLoading: Boolean,
-    notice: FeedbackBannerModel?,
-    onDismissNotice: () -> Unit,
     formError: String?,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
@@ -576,10 +574,6 @@ internal fun ProclamatoriFormContent(
                 ) { Text("Annulla") }
             }
 
-            FeedbackBanner(
-                model = notice,
-                onDismissRequest = onDismissNotice,
-            )
             if (formError != null) {
                 SelectionContainer {
                     Text(

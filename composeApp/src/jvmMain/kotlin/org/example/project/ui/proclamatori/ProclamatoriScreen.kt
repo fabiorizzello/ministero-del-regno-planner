@@ -19,7 +19,6 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
@@ -54,29 +53,31 @@ private data class ProclamatoriModificaScreen(
 
 @Composable
 fun ProclamatoriScreen() {
-    val viewModel = remember { GlobalContext.get().get<ProclamatoriViewModel>() }
-    val state by viewModel.uiState.collectAsState()
+    val listVm = remember { GlobalContext.get().get<ProclamatoriListViewModel>() }
+    val formVm = remember { GlobalContext.get().get<ProclamatoreFormViewModel>() }
+    val listState by listVm.uiState.collectAsState()
+    val formState by formVm.uiState.collectAsState()
 
     val tableListState = rememberLazyListState()
     val searchFocusRequester = remember { FocusRequester() }
     val rootFocusRequester = remember { FocusRequester() }
 
-    state.deleteCandidate?.let { candidate ->
+    listState.deleteCandidate?.let { candidate ->
         ProclamatoreDeleteDialog(
             candidate = candidate,
-            assignmentCount = state.deleteAssignmentCount,
-            isLoading = state.isLoading,
-            onConfirm = { viewModel.confirmDeleteCandidate() },
-            onDismiss = { viewModel.dismissDeleteCandidate() },
+            assignmentCount = listState.deleteAssignmentCount,
+            isLoading = listState.isLoading,
+            onConfirm = { listVm.confirmDeleteCandidate() },
+            onDismiss = { listVm.dismissDeleteCandidate() },
         )
     }
 
-    if (state.showBatchDeleteConfirm) {
+    if (listState.showBatchDeleteConfirm) {
         ProclamatoriDeleteDialog(
-            selectedCount = state.selectedIds.size,
-            isLoading = state.isLoading,
-            onConfirm = { viewModel.confirmBatchDelete() },
-            onDismiss = { viewModel.dismissBatchDeleteConfirm() },
+            selectedCount = listState.selectedIds.size,
+            isLoading = listState.isLoading,
+            onConfirm = { listVm.confirmBatchDelete() },
+            onDismiss = { listVm.dismissBatchDeleteConfirm() },
         )
     }
 
@@ -91,20 +92,36 @@ fun ProclamatoriScreen() {
         val currentEditId = (currentScreen as? ProclamatoriModificaScreen)?.id
         val isFormRoute = route != ProclamatoriRoute.Elenco
 
-        val canSubmitForm = state.canSubmitForm(route)
+        val canSubmitForm = formState.canSubmitForm(route)
 
         fun goToListManual() {
-            viewModel.prepareForManualNavigation()
+            listVm.dismissNotice()
+            listVm.clearSelection()
+            formVm.clearForm()
             navigator.replaceAll(ProclamatoriElencoScreen)
         }
 
         fun goToNuovo() {
-            viewModel.prepareForManualNavigation()
+            listVm.dismissNotice()
+            listVm.clearSelection()
+            formVm.clearForm()
             navigator.push(ProclamatoriNuovoScreen)
         }
 
-        LaunchedEffect(route, state.nome, state.cognome, currentEditId) {
-            viewModel.scheduleDuplicateCheck(isFormRoute = isFormRoute, currentEditId = currentEditId)
+        fun submitAndNavigate() {
+            formVm.submitForm(
+                route = route,
+                currentEditId = currentEditId,
+                onSuccess = { notice ->
+                    listVm.setNotice(notice)
+                    listVm.refreshList()
+                    navigator.replaceAll(ProclamatoriElencoScreen)
+                },
+            )
+        }
+
+        LaunchedEffect(route, formState.nome, formState.cognome, currentEditId) {
+            formVm.scheduleDuplicateCheck(isFormRoute = isFormRoute, currentEditId = currentEditId)
         }
 
         LaunchedEffect(route) {
@@ -132,11 +149,7 @@ fun ProclamatoriScreen() {
                             true
                         }
                         event.key == Key.Enter && isFormRoute && canSubmitForm -> {
-                            viewModel.submitForm(
-                                route = route,
-                                currentEditId = currentEditId,
-                                onSuccessNavigateToList = { navigator.replaceAll(ProclamatoriElencoScreen) },
-                            )
+                            submitAndNavigate()
                             true
                         }
                         else -> false
@@ -145,7 +158,7 @@ fun ProclamatoriScreen() {
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
         ) {
             val currentModificaLabel = if (route is ProclamatoriRoute.Modifica) {
-                listOf(state.nome.trim(), state.cognome.trim())
+                listOf(formState.nome.trim(), formState.cognome.trim())
                     .filter { it.isNotEmpty() }
                     .joinToString(" ")
                     .ifBlank { "Modifica" }
@@ -162,41 +175,43 @@ fun ProclamatoriScreen() {
             when (route) {
                 ProclamatoriRoute.Elenco -> {
                     ProclamatoriElencoContent(
-                        searchTerm = state.searchTerm,
-                        onSearchTermChange = { value -> viewModel.setSearchTerm(value) },
-                        onResetSearch = { viewModel.resetSearch() },
+                        searchTerm = listState.searchTerm,
+                        onSearchTermChange = { value -> listVm.setSearchTerm(value) },
+                        onResetSearch = { listVm.resetSearch() },
                         searchFocusRequester = searchFocusRequester,
-                        allItems = state.allItems,
-                        isLoading = state.isLoading,
-                        notice = state.notice,
-                        onDismissNotice = { viewModel.dismissNotice() },
-                        selectedIds = state.selectedIds,
-                        sort = state.sort,
-                        pageIndex = state.pageIndex,
-                        pageSize = state.pageSize,
+                        allItems = listState.allItems,
+                        isLoading = listState.isLoading,
+                        notice = listState.notice,
+                        onDismissNotice = { listVm.dismissNotice() },
+                        selectedIds = listState.selectedIds,
+                        sort = listState.sort,
+                        pageIndex = listState.pageIndex,
+                        pageSize = listState.pageSize,
                         tableListState = tableListState,
-                        onSortChange = { nextSort -> viewModel.setSort(nextSort) },
-                        onToggleSelectPage = { pageIds, checked -> viewModel.toggleSelectPage(pageIds, checked) },
-                        onToggleRowSelected = { id, checked -> viewModel.setRowSelected(id, checked) },
-                        onActivateSelected = { viewModel.activateSelected() },
-                        onDeactivateSelected = { viewModel.deactivateSelected() },
-                        onRequestDeleteSelected = { viewModel.requestBatchDeleteConfirm() },
-                        onClearSelection = { viewModel.clearSelection() },
+                        onSortChange = { nextSort -> listVm.setSort(nextSort) },
+                        onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
+                        onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
+                        onActivateSelected = { listVm.activateSelected() },
+                        onDeactivateSelected = { listVm.deactivateSelected() },
+                        onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
+                        onClearSelection = { listVm.clearSelection() },
                         onGoNuovo = { goToNuovo() },
-                        canImportInitialJson = !state.isLoading && !state.isImporting && state.allItems.isEmpty(),
+                        canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
                         onImportJson = {
                             val selectedFile = selectJsonFileForImport() ?: return@ProclamatoriElencoContent
-                            viewModel.importFromJsonFile(selectedFile)
+                            listVm.importFromJsonFile(selectedFile)
                         },
                         onEdit = { id ->
-                            viewModel.loadForEdit(id) {
-                                navigator.push(ProclamatoriModificaScreen(id))
-                            }
+                            formVm.loadForEdit(
+                                id = id,
+                                onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                                onSuccess = { navigator.push(ProclamatoriModificaScreen(id)) },
+                            )
                         },
-                        onToggleActive = { id, next -> viewModel.toggleActive(id, next) },
-                        onDelete = { candidate -> viewModel.requestDeleteCandidate(candidate) },
-                        onPreviousPage = { viewModel.goToPreviousPage() },
-                        onNextPage = { viewModel.goToNextPage() },
+                        onToggleActive = { id, next -> listVm.toggleActive(id, next) },
+                        onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
+                        onPreviousPage = { listVm.goToPreviousPage() },
+                        onNextPage = { listVm.goToNextPage() },
                     )
                 }
 
@@ -205,29 +220,21 @@ fun ProclamatoriScreen() {
                 -> {
                     ProclamatoriFormContent(
                         route = route,
-                        nome = state.nome,
-                        onNomeChange = { viewModel.setNome(it) },
-                        cognome = state.cognome,
-                        onCognomeChange = { viewModel.setCognome(it) },
-                        sesso = state.sesso,
-                        onSessoChange = { viewModel.setSesso(it) },
-                        nomeTrim = state.nome.trim(),
-                        cognomeTrim = state.cognome.trim(),
-                        showFieldErrors = state.showFieldErrors,
-                        duplicateError = state.duplicateError,
-                        isCheckingDuplicate = state.isCheckingDuplicate,
+                        nome = formState.nome,
+                        onNomeChange = { formVm.setNome(it) },
+                        cognome = formState.cognome,
+                        onCognomeChange = { formVm.setCognome(it) },
+                        sesso = formState.sesso,
+                        onSessoChange = { formVm.setSesso(it) },
+                        nomeTrim = formState.nome.trim(),
+                        cognomeTrim = formState.cognome.trim(),
+                        showFieldErrors = formState.showFieldErrors,
+                        duplicateError = formState.duplicateError,
+                        isCheckingDuplicate = formState.isCheckingDuplicate,
                         canSubmitForm = canSubmitForm,
-                        isLoading = state.isLoading,
-                        notice = state.notice,
-                        onDismissNotice = { viewModel.dismissNotice() },
-                        formError = state.formError,
-                        onSubmit = {
-                            viewModel.submitForm(
-                                route = route,
-                                currentEditId = currentEditId,
-                                onSuccessNavigateToList = { navigator.replaceAll(ProclamatoriElencoScreen) },
-                            )
-                        },
+                        isLoading = formState.isLoading,
+                        formError = formState.formError,
+                        onSubmit = { submitAndNavigate() },
                         onCancel = { goToListManual() },
                     )
                 }

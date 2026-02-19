@@ -17,20 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
-
-// Semantic colors shared across UI
-object SemanticColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val grey = Color(0xFF9E9E9E)
-}
 
 fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
     val thisMonday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))

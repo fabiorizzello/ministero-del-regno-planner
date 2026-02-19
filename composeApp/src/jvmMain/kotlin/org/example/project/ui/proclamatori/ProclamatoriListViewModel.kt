@@ -4,8 +4,6 @@ import arrow.core.Either
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,82 +11,40 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
-import org.example.project.feature.people.application.CaricaProclamatoreUseCase
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
-import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
-import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
 import org.example.project.ui.components.FeedbackBannerModel
 
-internal data class ProclamatoriUiState(
+internal data class ProclamatoriListUiState(
     val searchTerm: String = "",
     val allItems: List<Proclamatore> = emptyList(),
     val isLoading: Boolean = true,
     val notice: FeedbackBannerModel? = null,
-    val formError: String? = null,
-    val duplicateError: String? = null,
-    val isCheckingDuplicate: Boolean = false,
     val sort: ProclamatoriSort = ProclamatoriSort(),
     val pageIndex: Int = 0,
     val pageSize: Int = 10,
-    val initialNome: String = "",
-    val initialCognome: String = "",
-    val initialSesso: Sesso = Sesso.M,
-    val nome: String = "",
-    val cognome: String = "",
-    val sesso: Sesso = Sesso.M,
-    val showFieldErrors: Boolean = false,
     val selectedIds: Set<ProclamatoreId> = emptySet(),
     val deleteCandidate: Proclamatore? = null,
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
     val isImporting: Boolean = false,
-) {
-    fun canSubmitForm(route: ProclamatoriRoute): Boolean {
-        val nomeTrim = nome.trim()
-        val cognomeTrim = cognome.trim()
-        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
-        val hasFormChanges = when (route) {
-            ProclamatoriRoute.Nuovo -> requiredFieldsValid || sesso != Sesso.M
-            is ProclamatoriRoute.Modifica -> {
-                nomeTrim != initialNome.trim() ||
-                    cognomeTrim != initialCognome.trim() ||
-                    sesso != initialSesso
-            }
-            ProclamatoriRoute.Elenco -> false
-        }
-        return route != ProclamatoriRoute.Elenco &&
-            requiredFieldsValid &&
-            hasFormChanges &&
-            duplicateError == null &&
-            !isCheckingDuplicate &&
-            !isLoading
-    }
-}
+)
 
-internal class ProclamatoriViewModel(
+internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
     private val cerca: CercaProclamatoriUseCase,
-    private val carica: CaricaProclamatoreUseCase,
-    private val crea: CreaProclamatoreUseCase,
-    private val aggiorna: AggiornaProclamatoreUseCase,
     private val impostaStato: ImpostaStatoProclamatoreUseCase,
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
-    private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
 ) {
-    private val _uiState = MutableStateFlow(ProclamatoriUiState())
-    val uiState: StateFlow<ProclamatoriUiState> = _uiState.asStateFlow()
-
-    private var duplicateCheckJob: Job? = null
+    private val _uiState = MutableStateFlow(ProclamatoriListUiState())
+    val uiState: StateFlow<ProclamatoriListUiState> = _uiState.asStateFlow()
 
     init {
         refreshList(resetPage = true)
@@ -110,6 +66,10 @@ internal class ProclamatoriViewModel(
 
     fun dismissNotice() {
         _uiState.update { it.copy(notice = null) }
+    }
+
+    fun setNotice(notice: FeedbackBannerModel) {
+        _uiState.update { it.copy(notice = notice) }
     }
 
     fun setSort(nextSort: ProclamatoriSort) {
@@ -153,155 +113,6 @@ internal class ProclamatoriViewModel(
 
     fun clearSelection() {
         _uiState.update { it.copy(selectedIds = emptySet()) }
-    }
-
-    fun setNome(value: String) {
-        _uiState.update { it.copy(nome = value) }
-    }
-
-    fun setCognome(value: String) {
-        _uiState.update { it.copy(cognome = value) }
-    }
-
-    fun setSesso(value: Sesso) {
-        _uiState.update { it.copy(sesso = value) }
-    }
-
-    fun prepareForManualNavigation() {
-        dismissNotice()
-        clearSelection()
-        clearForm()
-    }
-
-    fun loadForEdit(id: ProclamatoreId, onSuccess: () -> Unit) {
-        scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val loaded = carica(id)
-            if (loaded == null) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        notice = errorNotice("Proclamatore non trovato"),
-                    )
-                }
-                return@launch
-            }
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    notice = null,
-                    initialNome = loaded.nome,
-                    initialCognome = loaded.cognome,
-                    initialSesso = loaded.sesso,
-                    nome = loaded.nome,
-                    cognome = loaded.cognome,
-                    sesso = loaded.sesso,
-                    formError = null,
-                    duplicateError = null,
-                    isCheckingDuplicate = false,
-                    showFieldErrors = false,
-                )
-            }
-            onSuccess()
-        }
-    }
-
-    fun submitForm(
-        route: ProclamatoriRoute,
-        currentEditId: ProclamatoreId?,
-        onSuccessNavigateToList: () -> Unit,
-    ) {
-        if (!_uiState.value.canSubmitForm(route)) {
-            _uiState.update { it.copy(showFieldErrors = true) }
-            return
-        }
-
-        scope.launch {
-            _uiState.update { it.copy(showFieldErrors = true, formError = null, isLoading = true) }
-            val state = _uiState.value
-            val result = if (route == ProclamatoriRoute.Nuovo) {
-                crea(
-                    CreaProclamatoreUseCase.Command(
-                        nome = state.nome,
-                        cognome = state.cognome,
-                        sesso = state.sesso,
-                    ),
-                )
-            } else {
-                aggiorna(
-                    AggiornaProclamatoreUseCase.Command(
-                        id = requireNotNull(currentEditId),
-                        nome = state.nome,
-                        cognome = state.cognome,
-                        sesso = state.sesso,
-                    ),
-                )
-            }
-
-            result.fold(
-                ifLeft = { err ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            formError = (err as? DomainError.Validation)?.message ?: "Operazione non completata",
-                        )
-                    }
-                },
-                ifRight = {
-                    val operation = if (route == ProclamatoriRoute.Nuovo) {
-                        "Proclamatore aggiunto"
-                    } else {
-                        "Proclamatore aggiornato"
-                    }
-                    val details = personDetails(state.nome, state.cognome)
-                    _uiState.update {
-                        it.copy(
-                            notice = successNotice("$operation: $details"),
-                            initialNome = "",
-                            initialCognome = "",
-                            initialSesso = Sesso.M,
-                            nome = "",
-                            cognome = "",
-                            sesso = Sesso.M,
-                            formError = null,
-                            duplicateError = null,
-                            isCheckingDuplicate = false,
-                            showFieldErrors = false,
-                        )
-                    }
-                    onSuccessNavigateToList()
-                    refreshListInternal()
-                },
-            )
-        }
-    }
-
-    fun scheduleDuplicateCheck(isFormRoute: Boolean, currentEditId: ProclamatoreId?) {
-        duplicateCheckJob?.cancel()
-        val state = _uiState.value
-        val nomeTrim = state.nome.trim()
-        val cognomeTrim = state.cognome.trim()
-
-        if (!isFormRoute || nomeTrim.isBlank() || cognomeTrim.isBlank()) {
-            _uiState.update { it.copy(duplicateError = null, isCheckingDuplicate = false) }
-            return
-        }
-
-        duplicateCheckJob = scope.launch {
-            _uiState.update { it.copy(isCheckingDuplicate = true) }
-            delay(250)
-            val exists = verificaDuplicato(nomeTrim, cognomeTrim, currentEditId)
-            _uiState.update {
-                it.copy(
-                    duplicateError = if (exists) {
-                        "Esiste gia' un proclamatore con questo nome e cognome"
-                    } else {
-                        null
-                    },
-                    isCheckingDuplicate = false,
-                )
-            }
-        }
     }
 
     fun requestDeleteCandidate(candidate: Proclamatore) {
@@ -458,23 +269,6 @@ internal class ProclamatoriViewModel(
                 },
             )
             _uiState.update { it.copy(isLoading = false, isImporting = false) }
-        }
-    }
-
-    private fun clearForm() {
-        _uiState.update {
-            it.copy(
-                initialNome = "",
-                initialCognome = "",
-                initialSesso = Sesso.M,
-                nome = "",
-                cognome = "",
-                sesso = Sesso.M,
-                formError = null,
-                duplicateError = null,
-                isCheckingDuplicate = false,
-                showFieldErrors = false,
-            )
         }
     }
 

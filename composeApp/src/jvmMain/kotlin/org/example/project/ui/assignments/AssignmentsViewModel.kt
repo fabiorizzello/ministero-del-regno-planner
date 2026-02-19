@@ -44,6 +44,7 @@ internal data class AssignmentsUiState(
     val pickerSuggestions: List<SuggestedProclamatore> = emptyList(),
     val isPickerLoading: Boolean = false,
     val isAssigning: Boolean = false,
+    val isRemoving: Boolean = false,
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
 
@@ -148,9 +149,9 @@ internal class AssignmentsViewModel(
     }
 
     fun removeAssignment(assignmentId: AssignmentId) {
-        if (_state.value.isLoading) return
+        if (_state.value.isRemoving) return
         scope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isRemoving = true) }
             try {
                 rimuoviAssegnazione(assignmentId).fold(
                     ifLeft = { error -> showError(error) },
@@ -162,7 +163,7 @@ internal class AssignmentsViewModel(
                     },
                 )
             } finally {
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isRemoving = false) }
             }
         }
     }

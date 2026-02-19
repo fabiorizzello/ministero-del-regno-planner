@@ -42,7 +42,8 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioneUs
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
 import org.example.project.ui.assignments.AssignmentsViewModel
-import org.example.project.ui.proclamatori.ProclamatoriViewModel
+import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
+import org.example.project.ui.proclamatori.ProclamatoriListViewModel
 import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
 import org.koin.dsl.module
 
@@ -122,17 +123,22 @@ val appModule = module {
         )
     }
     single {
-        ProclamatoriViewModel(
+        ProclamatoriListViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             cerca = get(),
-            carica = get(),
-            crea = get(),
-            aggiorna = get(),
             impostaStato = get(),
             elimina = get(),
             importaDaJson = get(),
-            verificaDuplicato = get(),
             contaAssegnazioni = get(),
+        )
+    }
+    single {
+        ProclamatoreFormViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            carica = get(),
+            crea = get(),
+            aggiorna = get(),
+            verificaDuplicato = get(),
         )
     }
 }
