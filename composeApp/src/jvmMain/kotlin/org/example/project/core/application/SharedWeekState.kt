@@ -3,6 +3,7 @@ package org.example.project.core.application
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -14,10 +15,10 @@ class SharedWeekState {
     val currentMonday: StateFlow<LocalDate> = _currentMonday.asStateFlow()
 
     fun navigateToPreviousWeek() {
-        _currentMonday.value = _currentMonday.value.minusWeeks(1)
+        _currentMonday.update { it.minusWeeks(1) }
     }
 
     fun navigateToNextWeek() {
-        _currentMonday.value = _currentMonday.value.plusWeeks(1)
+        _currentMonday.update { it.plusWeeks(1) }
     }
 }
