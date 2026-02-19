@@ -188,15 +188,28 @@ internal class WeeklyPartsViewModel(
     private fun loadWeek() {
         scope.launch {
             _state.update { it.copy(isLoading = true) }
-            val weekPlan = caricaSettimana(_state.value.currentMonday)
-            _state.update { it.copy(isLoading = false, weekPlan = weekPlan) }
+            try {
+                val weekPlan = caricaSettimana(_state.value.currentMonday)
+                _state.update { it.copy(isLoading = false, weekPlan = weekPlan) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        notice = FeedbackBannerModel("Errore nel caricamento: ${e.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
         }
     }
 
     private fun loadPartTypes() {
         scope.launch {
-            val types = cercaTipiParte()
-            _state.update { it.copy(partTypes = types) }
+            try {
+                val types = cercaTipiParte()
+                _state.update { it.copy(partTypes = types) }
+            } catch (_: Exception) {
+                // partTypes remains empty — "Aggiungi parte" button stays hidden
+            }
         }
     }
 

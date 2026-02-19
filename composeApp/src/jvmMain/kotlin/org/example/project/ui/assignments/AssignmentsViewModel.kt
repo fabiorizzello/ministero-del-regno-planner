@@ -56,7 +56,6 @@ internal data class AssignmentsUiState(
 
     val assignedSlotCount: Int get() = assignments.size
     val totalSlotCount: Int get() = weekPlan?.parts
-        ?.filter { !it.partType.fixed }
         ?.sumOf { it.partType.peopleCount } ?: 0
 }
 
@@ -162,9 +161,18 @@ internal class AssignmentsViewModel(
         loadJob?.cancel()
         loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
-            val weekPlan = caricaSettimana(_state.value.currentMonday)
-            val assignments = caricaAssegnazioni(_state.value.currentMonday)
-            _state.update { it.copy(isLoading = false, weekPlan = weekPlan, assignments = assignments) }
+            try {
+                val weekPlan = caricaSettimana(_state.value.currentMonday)
+                val assignments = caricaAssegnazioni(_state.value.currentMonday)
+                _state.update { it.copy(isLoading = false, weekPlan = weekPlan, assignments = assignments) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        notice = FeedbackBannerModel("Errore nel caricamento: ${e.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
         }
     }
 
