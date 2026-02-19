@@ -17,13 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.example.project.core.application.SharedWeekState
 import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 /** Offset added to sortOrder for user-facing part numbers (meeting program convention). */
@@ -32,7 +31,7 @@ const val DISPLAY_NUMBER_OFFSET = 3
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
 private fun computeWeekDistance(monday: LocalDate): Int {
-    val thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val thisMonday = SharedWeekState.currentMonday()
     return (ChronoUnit.DAYS.between(thisMonday, monday) / 7).toInt()
 }
 
