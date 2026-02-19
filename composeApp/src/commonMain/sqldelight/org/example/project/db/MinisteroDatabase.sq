@@ -236,10 +236,9 @@ SELECT
 FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-LEFT JOIN part_type pt ON wp.part_type_id = pt.id
 WHERE p.active = 1
-  AND (pt.id = ? OR a.id IS NULL)
 GROUP BY p.id;
 
 lastSlot1GlobalAssignmentPerPerson:
@@ -260,8 +259,7 @@ SELECT
 FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-LEFT JOIN part_type pt ON wp.part_type_id = pt.id
 WHERE p.active = 1
-  AND (pt.id = ? OR a.id IS NULL)
 GROUP BY p.id;
