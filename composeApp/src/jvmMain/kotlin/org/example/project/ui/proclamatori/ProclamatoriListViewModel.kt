@@ -4,6 +4,8 @@ import arrow.core.Either
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +35,7 @@ internal data class ProclamatoriListUiState(
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
     val isImporting: Boolean = false,
+    val isBatchInProgress: Boolean = false,
 )
 
 internal class ProclamatoriListViewModel(
@@ -45,6 +48,7 @@ internal class ProclamatoriListViewModel(
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriListUiState())
     val uiState: StateFlow<ProclamatoriListUiState> = _uiState.asStateFlow()
+    private var searchJob: Job? = null
 
     init {
         refreshList(resetPage = true)
@@ -56,7 +60,11 @@ internal class ProclamatoriListViewModel(
 
     fun setSearchTerm(value: String) {
         _uiState.update { it.copy(searchTerm = value) }
-        refreshList(resetPage = true)
+        searchJob?.cancel()
+        searchJob = scope.launch {
+            delay(250)
+            refreshListInternal(resetPage = true)
+        }
     }
 
     fun resetSearch() {
@@ -170,6 +178,7 @@ internal class ProclamatoriListViewModel(
     }
 
     fun confirmBatchDelete() {
+        if (_uiState.value.isBatchInProgress) return
         scope.launch {
             val resultNotice = executeOnSelected(
                 action = { id -> elimina(id) },
@@ -181,6 +190,7 @@ internal class ProclamatoriListViewModel(
     }
 
     fun activateSelected() {
+        if (_uiState.value.isBatchInProgress) return
         scope.launch {
             val notice = executeOnSelected(
                 action = { id -> impostaStato(id, true) },
@@ -192,6 +202,7 @@ internal class ProclamatoriListViewModel(
     }
 
     fun deactivateSelected() {
+        if (_uiState.value.isBatchInProgress) return
         scope.launch {
             val notice = executeOnSelected(
                 action = { id -> impostaStato(id, false) },
@@ -234,6 +245,17 @@ internal class ProclamatoriListViewModel(
     fun importFromJsonFile(selectedFile: File) {
         scope.launch {
             _uiState.update { it.copy(isLoading = true, isImporting = true) }
+            val fileSizeMb = selectedFile.length() / (1024 * 1024)
+            if (fileSizeMb > 10) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isImporting = false,
+                        notice = errorNotice("File troppo grande (${fileSizeMb}MB). Limite: 10MB"),
+                    )
+                }
+                return@launch
+            }
             val jsonContent = withContext(Dispatchers.IO) {
                 runCatching { selectedFile.readText(Charsets.UTF_8) }.getOrNull()
             }
@@ -277,7 +299,7 @@ internal class ProclamatoriListViewModel(
         completedLabel: String,
         noneCompletedLabel: String,
     ): FeedbackBannerModel {
-        _uiState.update { it.copy(isLoading = true) }
+        _uiState.update { it.copy(isLoading = true, isBatchInProgress = true) }
         val selected = _uiState.value.selectedIds
         val result = runMultiAction(selected, action)
         refreshListInternal()
@@ -285,6 +307,7 @@ internal class ProclamatoriListViewModel(
             it.copy(
                 selectedIds = result.failedIds,
                 isLoading = false,
+                isBatchInProgress = false,
             )
         }
         return noticeForMultiAction(

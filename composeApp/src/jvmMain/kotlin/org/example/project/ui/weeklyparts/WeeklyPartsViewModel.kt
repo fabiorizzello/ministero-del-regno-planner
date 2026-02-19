@@ -1,6 +1,7 @@
 package org.example.project.ui.weeklyparts
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,12 +60,22 @@ internal class WeeklyPartsViewModel(
 ) {
     private val _state = MutableStateFlow(WeeklyPartsUiState())
     val state: StateFlow<WeeklyPartsUiState> = _state.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         scope.launch {
             sharedWeekState.currentMonday.collect { monday ->
                 _state.update { it.copy(currentMonday = monday) }
-                loadWeek()
+                try {
+                    loadWeek()
+                } catch (e: Exception) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            notice = FeedbackBannerModel("Errore nel caricamento: ${e.message}", FeedbackBannerKind.ERROR),
+                        )
+                    }
+                }
             }
         }
         loadPartTypes()
@@ -125,7 +136,13 @@ internal class WeeklyPartsViewModel(
         val reordered = parts.mapIndexed { i, p -> p.copy(sortOrder = i) }
         _state.update { it.copy(weekPlan = currentPlan.copy(parts = reordered)) }
         scope.launch {
-            riordinaParti(reordered.map { it.id })
+            riordinaParti(reordered.map { it.id }).fold(
+                ifLeft = { error ->
+                    _state.update { it.copy(weekPlan = currentPlan) }
+                    showError(error)
+                },
+                ifRight = { /* optimistic update already applied */ },
+            )
         }
     }
 
@@ -193,7 +210,8 @@ internal class WeeklyPartsViewModel(
     }
 
     private fun loadWeek() {
-        scope.launch {
+        loadJob?.cancel()
+        loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
                 val weekPlan = caricaSettimana(_state.value.currentMonday)

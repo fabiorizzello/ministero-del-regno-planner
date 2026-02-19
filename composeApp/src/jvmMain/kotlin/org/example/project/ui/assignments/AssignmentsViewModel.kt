@@ -69,6 +69,7 @@ internal class AssignmentsViewModel(
     private val _state = MutableStateFlow(AssignmentsUiState())
     val state: StateFlow<AssignmentsUiState> = _state.asStateFlow()
     private var loadJob: Job? = null
+    private var suggestionsJob: Job? = null
 
     init {
         scope.launch {
@@ -196,7 +197,8 @@ internal class AssignmentsViewModel(
         val weeklyPartId = s.pickerWeeklyPartId ?: return
         val slot = s.pickerSlot ?: return
 
-        scope.launch {
+        suggestionsJob?.cancel()
+        suggestionsJob = scope.launch {
             _state.update { it.copy(isPickerLoading = true) }
             try {
                 val suggestions = suggerisciProclamatori(
