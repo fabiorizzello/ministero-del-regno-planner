@@ -273,15 +273,15 @@
 - **File:** `feature/assignments/infrastructure/SqlDelightAssignmentStore.kt:87-94`
 - Lambda inline che mappa le stesse colonne di `ProclamatoreRowMapper` ma con `attivo = true` hardcoded. Valutare riuso del mapper condiviso con parametro.
 
-### DRY-7: SexRuleChip privata in AssignmentsComponents, reinventata inline in WeeklyPartsScreen
-- **File 1:** `ui/assignments/AssignmentsComponents.kt:124-140` (composable con mapping corretto)
-- **File 2:** `ui/weeklyparts/WeeklyPartsScreen.kt:350,408` (usa `sexRule.name` grezzo)
-- Stessa informazione visualizzata in modo diverso. Promuovere `SexRuleChip` in `ui/components/` e riusarla.
-
 ### DRY-6: NavigationRail onClick duplicato con LocalSectionNavigator
 - **File:** `ui/AppScreen.kt:64-67` (definizione provider)
 - **File:** `ui/AppScreen.kt:90-93` (onClick inline)
 - La stessa logica `if (currentSection != section) navigator.replaceAll(...)` appare due volte. Il `NavigationRailItem` dovrebbe usare `LocalSectionNavigator.current`.
+
+### DRY-7: SexRuleChip privata in AssignmentsComponents, reinventata inline in WeeklyPartsScreen
+- **File 1:** `ui/assignments/AssignmentsComponents.kt:124-140` (composable con mapping corretto)
+- **File 2:** `ui/weeklyparts/WeeklyPartsScreen.kt:350,408` (usa `sexRule.name` grezzo)
+- Stessa informazione visualizzata in modo diverso. Promuovere `SexRuleChip` in `ui/components/` e riusarla.
 
 ---
 
@@ -363,16 +363,16 @@
 - Screen reader non annuncerà lo scopo delle icone in `IconButton` senza testo adiacente.
 - **Fix:** aggiungere `contentDescription` descrittive.
 
-### UX-11: Posizione finestra non salvata — riapre alla posizione OS default
-- **File:** `core/config/WindowSettingsStore.kt` + `main.kt:28-38`
-- `WindowSettings` salva `widthDp`, `heightDp`, `placement` ma non `position` (x, y). L'utente che sposta la finestra la ritrova altrove al prossimo lancio.
-- **Fix:** aggiungere `positionX`/`positionY` a `WindowSettings` con sentinel `-1` per "usa default OS".
-
 ### UX-10: Disallineamento colonne PartsHeader vs righe
 - **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:291` — header `Spacer(40.dp)`
 - **File:** `ui/weeklyparts/WeeklyPartsScreen.kt:385-386` — righe `Spacer(28.dp)`
 - Il placeholder drag handle nell'header è 40dp ma nelle righe è 28dp, causando disallineamento colonne.
 - **Fix:** estrarre costante condivisa per la larghezza dell'area drag handle.
+
+### UX-11: Posizione finestra non salvata — riapre alla posizione OS default
+- **File:** `core/config/WindowSettingsStore.kt` + `main.kt:28-38`
+- `WindowSettings` salva `widthDp`, `heightDp`, `placement` ma non `position` (x, y). L'utente che sposta la finestra la ritrova altrove al prossimo lancio.
+- **Fix:** aggiungere `positionX`/`positionY` a `WindowSettings` con sentinel `-1` per "usa default OS".
 
 ---
 
