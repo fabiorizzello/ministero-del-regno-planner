@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -56,6 +57,7 @@ internal fun PartAssignmentCard(
     part: WeeklyPart,
     assignments: List<AssignmentWithPerson>,
     displayNumber: Int,
+    readOnly: Boolean,
     onAssignSlot: (slot: Int) -> Unit,
     onRemoveAssignment: (assignmentId: String) -> Unit,
 ) {
@@ -89,6 +91,7 @@ internal fun PartAssignmentCard(
                 SlotRow(
                     label = null,
                     assignment = assignment,
+                    readOnly = readOnly,
                     onAssign = { onAssignSlot(1) },
                     onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
                 )
@@ -100,6 +103,7 @@ internal fun PartAssignmentCard(
                     SlotRow(
                         label = label,
                         assignment = assignment,
+                        readOnly = readOnly,
                         onAssign = { onAssignSlot(slot) },
                         onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
                     )
@@ -132,6 +136,7 @@ private fun SexRuleChip(sexRule: SexRule) {
 private fun SlotRow(
     label: String?,
     assignment: AssignmentWithPerson?,
+    readOnly: Boolean,
     onAssign: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -154,29 +159,44 @@ private fun SlotRow(
         if (assignment != null) {
             Text(
                 text = assignment.fullName,
-                modifier = Modifier
-                    .weight(1f)
-                    .handCursorOnHover()
-                    .clickable { onAssign() },
+                modifier = if (readOnly) {
+                    Modifier.weight(1f)
+                } else {
+                    Modifier
+                        .weight(1f)
+                        .handCursorOnHover()
+                        .clickable { onAssign() }
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.handCursorOnHover(),
-            ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Rimuovi ${assignment.fullName}",
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            if (!readOnly) {
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Rimuovi ${assignment.fullName}",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         } else {
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(
-                onClick = onAssign,
-                modifier = Modifier.handCursorOnHover(),
-            ) {
-                Text("Assegna")
+            if (readOnly) {
+                Text(
+                    text = "Non assegnato",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = onAssign,
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Text("Assegna")
+                }
             }
         }
     }

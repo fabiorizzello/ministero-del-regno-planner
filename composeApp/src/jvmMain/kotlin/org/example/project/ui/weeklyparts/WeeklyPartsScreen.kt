@@ -138,9 +138,11 @@ fun WeeklyPartsScreen() {
                 onCreate = { viewModel.createWeek() },
             )
         } else {
+            val isPastWeek = state.weekIndicator == WeekTimeIndicator.PASSATA
             PartsCard(
                 parts = state.weekPlan!!.parts,
                 isImporting = state.isImporting,
+                isPastWeek = isPastWeek,
                 partTypes = state.partTypes,
                 onMove = { from, to -> viewModel.movePart(from, to) },
                 onRemove = { viewModel.removePart(it) },
@@ -177,6 +179,7 @@ private fun EmptyWeekContent(isImporting: Boolean, onCreate: () -> Unit) {
 private fun PartsCard(
     parts: List<WeeklyPart>,
     isImporting: Boolean,
+    isPastWeek: Boolean,
     partTypes: List<PartType>,
     onMove: (fromIndex: Int, toIndex: Int) -> Unit,
     onRemove: (org.example.project.feature.weeklyparts.domain.WeeklyPartId) -> Unit,
@@ -186,6 +189,7 @@ private fun PartsCard(
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onMove(from.index, to.index)
     }
+    val isDisabled = isImporting || isPastWeek
 
     val spacing = MaterialTheme.spacing
     Card(
@@ -217,7 +221,7 @@ private fun PartsCard(
                         ReorderableItem(
                             reorderableLazyListState,
                             key = part.id.value,
-                            enabled = !isImporting,
+                            enabled = !isDisabled,
                         ) { isDragging ->
                             val elevation by animateDpAsState(
                                 targetValue = if (isDragging) 4.dp else 0.dp,
@@ -227,9 +231,9 @@ private fun PartsCard(
                                 displayNumber = part.sortOrder + 3,
                                 backgroundColor = zebraColor,
                                 elevation = elevation,
-                                enabled = !isImporting,
+                                enabled = !isDisabled,
                                 onRemove = { onRemove(part.id) },
-                                dragModifier = Modifier.draggableHandle(),
+                                dragModifier = if (isPastWeek) Modifier else Modifier.draggableHandle(),
                             )
                         }
                     }
@@ -244,7 +248,7 @@ private fun PartsCard(
         AddPartDropdown(
             partTypes = partTypes,
             onSelect = { onAddPart(it.id) },
-            enabled = !isImporting,
+            enabled = !isDisabled,
         )
     }
 }

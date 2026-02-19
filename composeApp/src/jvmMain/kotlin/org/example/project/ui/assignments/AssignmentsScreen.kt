@@ -23,6 +23,7 @@ import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.WeekNavigator
+import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
@@ -123,6 +124,7 @@ fun AssignmentsScreen() {
             }
         } else {
             // Parts list
+            val readOnly = state.weekIndicator == WeekTimeIndicator.PASSATA
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
@@ -133,6 +135,7 @@ fun AssignmentsScreen() {
                         part = part,
                         assignments = partAssignments,
                         displayNumber = part.sortOrder + 1,
+                        readOnly = readOnly,
                         onAssignSlot = { slot -> viewModel.openPersonPicker(part.id, slot) },
                         onRemoveAssignment = { id -> viewModel.removeAssignment(id) },
                     )
