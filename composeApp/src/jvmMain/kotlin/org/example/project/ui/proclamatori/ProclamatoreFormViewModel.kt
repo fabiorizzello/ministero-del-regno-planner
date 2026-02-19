@@ -16,6 +16,7 @@ import org.example.project.feature.people.application.VerificaDuplicatoProclamat
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.successNotice
 
 internal data class ProclamatoreFormUiState(
     val isLoading: Boolean = false,

@@ -55,6 +55,8 @@ internal enum class AppSection(
 fun AppScreen() {
     AppTheme {
         val spacing = MaterialTheme.spacing
+        // replaceAll is used for all navigation so the back stack never exceeds one
+        // entry, preventing accidental back navigation between sections.
         Navigator(AppSection.PROCLAMATORI.screen) { navigator ->
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
@@ -84,14 +86,11 @@ fun AppScreen() {
                                 verticalArrangement = Arrangement.spacedBy(spacing.md),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
+                                val navigateToSection = LocalSectionNavigator.current
                                 AppSection.entries.forEach { section ->
                                     NavigationRailItem(
                                         selected = currentSection == section,
-                                        onClick = {
-                                            if (currentSection != section) {
-                                                navigator.replaceAll(section.screen)
-                                            }
-                                        },
+                                        onClick = { navigateToSection(section) },
                                         icon = { Icon(section.icon, contentDescription = section.label) },
                                         label = { Text(section.label) },
                                         modifier = Modifier

@@ -39,8 +39,8 @@ class ImportaProclamatoriDaJsonUseCase(
         val proclamatori = parseAndValidate(jsonContent).bind()
         try {
             store.persistAll(proclamatori)
-        } catch (_: Exception) {
-            raise(DomainError.Validation("Import non completato. Errore durante il salvataggio"))
+        } catch (e: Exception) {
+            raise(DomainError.Validation("Import non completato. Errore durante il salvataggio: ${e.message}"))
         }
         Result(importati = proclamatori.size, errori = 0)
     }

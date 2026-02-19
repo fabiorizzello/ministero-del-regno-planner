@@ -1,6 +1,7 @@
 package org.example.project.ui.weeklyparts
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,12 +27,10 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 
 internal data class WeeklyPartsUiState(
-    val currentMonday: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+    val currentMonday: LocalDate = SharedWeekState.currentMonday(),
     val weekPlan: WeekPlan? = null,
     val isLoading: Boolean = true,
     val partTypes: List<PartType> = emptyList(),
@@ -39,6 +38,7 @@ internal data class WeeklyPartsUiState(
     val isImporting: Boolean = false,
     val weeksNeedingConfirmation: List<RemoteWeekSchema> = emptyList(),
     val removePartCandidate: WeeklyPartId? = null,
+    val partTypesLoadFailed: Boolean = false,
 ) {
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
@@ -58,12 +58,22 @@ internal class WeeklyPartsViewModel(
 ) {
     private val _state = MutableStateFlow(WeeklyPartsUiState())
     val state: StateFlow<WeeklyPartsUiState> = _state.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         scope.launch {
             sharedWeekState.currentMonday.collect { monday ->
                 _state.update { it.copy(currentMonday = monday) }
-                loadWeek()
+                try {
+                    loadWeek()
+                } catch (e: Exception) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            notice = FeedbackBannerModel("Errore nel caricamento: ${e.message}", FeedbackBannerKind.ERROR),
+                        )
+                    }
+                }
             }
         }
         loadPartTypes()
@@ -124,7 +134,13 @@ internal class WeeklyPartsViewModel(
         val reordered = parts.mapIndexed { i, p -> p.copy(sortOrder = i) }
         _state.update { it.copy(weekPlan = currentPlan.copy(parts = reordered)) }
         scope.launch {
-            riordinaParti(reordered.map { it.id })
+            riordinaParti(reordered.map { it.id }).fold(
+                ifLeft = { error ->
+                    _state.update { it.copy(weekPlan = currentPlan) }
+                    showError(error)
+                },
+                ifRight = { /* optimistic update already applied */ },
+            )
         }
     }
 
@@ -143,12 +159,20 @@ internal class WeeklyPartsViewModel(
                             weeksNeedingConfirmation = result.weeksNeedingConfirmation,
                         ) }
                     } else {
+                        val message = buildString {
+                            append("Aggiornamento completato: ${result.partTypesImported} tipi, ${result.weeksImported} settimane")
+                            if (result.unresolvedPartTypeCodes.isNotEmpty()) {
+                                append(" | Codici non risolti: ${result.unresolvedPartTypeCodes.joinToString(", ")}")
+                            }
+                        }
+                        val kind = if (result.unresolvedPartTypeCodes.isEmpty()) {
+                            FeedbackBannerKind.SUCCESS
+                        } else {
+                            FeedbackBannerKind.ERROR
+                        }
                         _state.update { it.copy(
                             isImporting = false,
-                            notice = FeedbackBannerModel(
-                                "Aggiornamento completato: ${result.partTypesImported} tipi, ${result.weeksImported} settimane",
-                                FeedbackBannerKind.SUCCESS,
-                            ),
+                            notice = FeedbackBannerModel(message, kind),
                         ) }
                         loadWeek()
                         loadPartTypes()
@@ -192,7 +216,8 @@ internal class WeeklyPartsViewModel(
     }
 
     private fun loadWeek() {
-        scope.launch {
+        loadJob?.cancel()
+        loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
                 val weekPlan = caricaSettimana(_state.value.currentMonday)
@@ -212,9 +237,9 @@ internal class WeeklyPartsViewModel(
         scope.launch {
             try {
                 val types = cercaTipiParte()
-                _state.update { it.copy(partTypes = types) }
+                _state.update { it.copy(partTypes = types, partTypesLoadFailed = false) }
             } catch (_: Exception) {
-                // partTypes remains empty — "Aggiungi parte" button stays hidden
+                _state.update { it.copy(partTypesLoadFailed = true) }
             }
         }
     }

@@ -15,7 +15,7 @@ internal fun mapProclamatoreRow(
         id = ProclamatoreId(id),
         nome = first_name,
         cognome = last_name,
-        sesso = Sesso.valueOf(sex),
+        sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
         attivo = active == 1L,
     )
 }

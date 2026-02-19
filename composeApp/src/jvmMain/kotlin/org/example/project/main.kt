@@ -15,8 +15,14 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.example.project.ui.AppScreen
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import org.slf4j.LoggerFactory
 
 fun main() {
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        val logger = LoggerFactory.getLogger("UncaughtException")
+        logger.error("Eccezione non gestita nel thread {}", thread.name, throwable)
+    }
+
     AppBootstrap.initialize()
     if (GlobalContext.getOrNull() == null) {
         startKoin { modules(appModule) }

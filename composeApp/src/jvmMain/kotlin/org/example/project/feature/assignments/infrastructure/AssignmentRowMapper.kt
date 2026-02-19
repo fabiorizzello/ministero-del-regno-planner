@@ -23,7 +23,7 @@ internal fun mapAssignmentWithPersonRow(
         slot = slot.toInt(),
         firstName = first_name,
         lastName = last_name,
-        sex = Sesso.valueOf(sex),
+        sex = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
         active = active == 1L,
     )
 }

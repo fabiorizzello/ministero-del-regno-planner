@@ -26,6 +26,9 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
+/** Offset added to sortOrder for user-facing part numbers (meeting program convention). */
+const val DISPLAY_NUMBER_OFFSET = 3
+
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
 private fun computeWeekDistance(monday: LocalDate): Int {

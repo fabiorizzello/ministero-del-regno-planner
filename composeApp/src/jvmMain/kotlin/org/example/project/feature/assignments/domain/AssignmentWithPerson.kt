@@ -14,5 +14,9 @@ data class AssignmentWithPerson(
     val sex: Sesso,
     val active: Boolean,
 ) {
-    val fullName: String get() = "$firstName $lastName"
+    init {
+        require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }
+    }
+
+    val fullName: String get() = "${firstName.trim()} ${lastName.trim()}"
 }

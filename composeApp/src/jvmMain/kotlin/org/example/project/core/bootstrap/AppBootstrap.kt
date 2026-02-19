@@ -6,6 +6,7 @@ import org.example.project.core.config.PathsResolver
 import org.slf4j.LoggerFactory
 
 object AppBootstrap {
+    @Volatile
     private var initialized = false
 
     fun initialize() {

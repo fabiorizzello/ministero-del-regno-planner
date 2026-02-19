@@ -14,4 +14,9 @@ data class Proclamatore(
     val cognome: String,
     val sesso: Sesso,
     val attivo: Boolean,
-)
+) {
+    init {
+        require(nome.isNotBlank()) { "nome non può essere vuoto" }
+        require(cognome.isNotBlank()) { "cognome non può essere vuoto" }
+    }
+}

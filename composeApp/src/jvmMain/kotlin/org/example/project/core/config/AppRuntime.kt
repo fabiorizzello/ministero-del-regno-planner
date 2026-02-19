@@ -5,6 +5,7 @@ object AppRuntime {
     private var runtimePaths: AppPaths? = null
 
     fun initialize(paths: AppPaths) {
+        check(runtimePaths == null) { "AppRuntime già inizializzato." }
         runtimePaths = paths
     }
 

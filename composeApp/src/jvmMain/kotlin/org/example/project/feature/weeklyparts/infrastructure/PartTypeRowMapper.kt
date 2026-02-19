@@ -18,7 +18,7 @@ internal fun mapPartTypeRow(
         code = code,
         label = label,
         peopleCount = people_count.toInt(),
-        sexRule = SexRule.valueOf(sex_rule),
+        sexRule = runCatching { SexRule.valueOf(sex_rule) }.getOrDefault(SexRule.LIBERO),
         fixed = fixed == 1L,
         sortOrder = sort_order.toInt(),
     )

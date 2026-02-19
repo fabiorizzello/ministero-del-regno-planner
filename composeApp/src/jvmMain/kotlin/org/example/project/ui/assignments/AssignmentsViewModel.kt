@@ -26,12 +26,10 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 
 internal data class AssignmentsUiState(
-    val currentMonday: LocalDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+    val currentMonday: LocalDate = SharedWeekState.currentMonday(),
     val weekPlan: WeekPlan? = null,
     val assignments: List<AssignmentWithPerson> = emptyList(),
     val isLoading: Boolean = true,
@@ -69,6 +67,7 @@ internal class AssignmentsViewModel(
     private val _state = MutableStateFlow(AssignmentsUiState())
     val state: StateFlow<AssignmentsUiState> = _state.asStateFlow()
     private var loadJob: Job? = null
+    private var suggestionsJob: Job? = null
 
     init {
         scope.launch {
@@ -196,7 +195,8 @@ internal class AssignmentsViewModel(
         val weeklyPartId = s.pickerWeeklyPartId ?: return
         val slot = s.pickerSlot ?: return
 
-        scope.launch {
+        suggestionsJob?.cancel()
+        suggestionsJob = scope.launch {
             _state.update { it.copy(isPickerLoading = true) }
             try {
                 val suggestions = suggerisciProclamatori(

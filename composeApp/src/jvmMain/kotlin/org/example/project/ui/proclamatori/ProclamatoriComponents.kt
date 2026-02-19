@@ -87,67 +87,18 @@ internal fun Breadcrumbs(
 }
 
 @Composable
-internal fun ProclamatoreDeleteDialog(
-    candidate: Proclamatore,
-    assignmentCount: Int,
+internal fun ConfirmDeleteDialog(
+    title: String,
     isLoading: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     DisableSelection {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Rimuovi proclamatore") },
-            text = {
-                Column {
-                    Text("Confermi rimozione di ${candidate.nome} ${candidate.cognome}?")
-                    if (assignmentCount > 0) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = if (assignmentCount == 1) {
-                                "Attenzione: 1 assegnazione verra' cancellata."
-                            } else {
-                                "Attenzione: $assignmentCount assegnazioni verranno cancellate."
-                            },
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                    onClick = onConfirm,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) { Text("Rimuovi") }
-            },
-            dismissButton = {
-                TextButton(
-                    modifier = Modifier.handCursorOnHover(),
-                    onClick = onDismiss,
-                ) { Text("Annulla") }
-            },
-        )
-    }
-}
-
-@Composable
-internal fun ProclamatoriDeleteDialog(
-    selectedCount: Int,
-    isLoading: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    DisableSelection {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("Rimuovi proclamatori selezionati") },
-            text = {
-                Text("Confermi rimozione di $selectedCount proclamatori selezionati?")
-            },
+            title = { Text(title) },
+            text = { content() },
             confirmButton = {
                 TextButton(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
