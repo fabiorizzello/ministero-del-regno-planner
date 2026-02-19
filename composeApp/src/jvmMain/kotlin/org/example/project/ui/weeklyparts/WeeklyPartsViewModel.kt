@@ -35,6 +35,7 @@ internal data class WeeklyPartsUiState(
     val notice: FeedbackBannerModel? = null,
     val isImporting: Boolean = false,
     val weeksNeedingConfirmation: List<RemoteWeekSchema> = emptyList(),
+    val removePartCandidate: WeeklyPartId? = null,
 ) {
     val weekIndicator: WeekTimeIndicator
         get() {
@@ -100,13 +101,23 @@ internal class WeeklyPartsViewModel(
         }
     }
 
-    fun removePart(weeklyPartId: WeeklyPartId) {
+    fun requestRemovePart(weeklyPartId: WeeklyPartId) {
+        _state.update { it.copy(removePartCandidate = weeklyPartId) }
+    }
+
+    fun confirmRemovePart() {
+        val partId = _state.value.removePartCandidate ?: return
+        _state.update { it.copy(removePartCandidate = null) }
         scope.launch {
-            rimuoviParte(_state.value.currentMonday, weeklyPartId).fold(
+            rimuoviParte(_state.value.currentMonday, partId).fold(
                 ifLeft = { error -> showError(error) },
                 ifRight = { weekPlan -> _state.update { it.copy(weekPlan = weekPlan) } },
             )
         }
+    }
+
+    fun dismissRemovePart() {
+        _state.update { it.copy(removePartCandidate = null) }
     }
 
     fun movePart(fromIndex: Int, toIndex: Int) {

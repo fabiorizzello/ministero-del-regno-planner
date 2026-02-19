@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,6 +74,29 @@ fun WeeklyPartsScreen() {
             weeks = state.weeksNeedingConfirmation.map { LocalDate.parse(it.weekStartDate) },
             onConfirmAll = { viewModel.confirmOverwrite() },
             onSkip = { viewModel.dismissConfirmation() },
+        )
+    }
+
+    // Remove part confirmation dialog
+    state.removePartCandidate?.let { partId ->
+        val partLabel = state.weekPlan?.parts?.find { it.id == partId }?.partType?.label ?: ""
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRemovePart() },
+            title = { Text("Rimuovi parte") },
+            text = {
+                Text("Rimuovere \"$partLabel\"? Tutte le assegnazioni associate verranno cancellate.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.confirmRemovePart() },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Rimuovi") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissRemovePart() }) { Text("Annulla") }
+            },
         )
     }
 
@@ -145,7 +169,7 @@ fun WeeklyPartsScreen() {
                 isPastWeek = isPastWeek,
                 partTypes = state.partTypes,
                 onMove = { from, to -> viewModel.movePart(from, to) },
-                onRemove = { viewModel.removePart(it) },
+                onRemove = { viewModel.requestRemovePart(it) },
                 onAddPart = { viewModel.addPart(it) },
             )
         }
