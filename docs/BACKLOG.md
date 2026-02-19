@@ -469,9 +469,3 @@
 - **File:** `docs/UI_STANDARD.md:15`
 - Riferimento a `TableStandard.kt` che non esiste più. Aggiornare la documentazione.
 
----
-
-## Feature gap
-
-### FEAT-1: Nessun test nel progetto
-- Non esistono directory `jvmTest`/`commonTest` né file `*Test.kt`. Priorità alta per aggiungere test unitari almeno per use case e ViewModel.
