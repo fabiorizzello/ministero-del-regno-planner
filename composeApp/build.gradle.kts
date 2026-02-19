@@ -23,7 +23,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.arrow.core)
-            implementation(libs.arrow.optics)
             implementation(libs.voyager.navigator)
             implementation(libs.reorderable)
         }

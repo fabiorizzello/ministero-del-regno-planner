@@ -170,9 +170,6 @@ DELETE FROM weekly_part WHERE week_plan_id = ?;
 updateWeeklyPartSortOrder:
 UPDATE weekly_part SET sort_order = ? WHERE id = ?;
 
-maxSortOrderForWeek:
-SELECT COALESCE(MAX(sort_order), -1) FROM weekly_part WHERE week_plan_id = ?;
-
 -- Assignment queries
 assignmentsForWeek:
 SELECT
