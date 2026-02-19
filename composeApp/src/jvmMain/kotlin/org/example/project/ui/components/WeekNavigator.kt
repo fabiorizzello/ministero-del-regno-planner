@@ -25,6 +25,13 @@ import java.util.Locale
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
+// Semantic colors shared across UI
+object SemanticColors {
+    val blue = Color(0xFF2196F3)
+    val green = Color(0xFF4CAF50)
+    val grey = Color(0xFF9E9E9E)
+}
+
 fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
     val thisMonday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
     return when {
@@ -33,6 +40,8 @@ fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
         else -> WeekTimeIndicator.PASSATA
     }
 }
+
+fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)
 
 internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
@@ -47,9 +56,9 @@ fun WeekNavigator(
 ) {
     val spacing = MaterialTheme.spacing
     val (indicatorLabel, indicatorColor) = when (indicator) {
-        WeekTimeIndicator.CORRENTE -> "Corrente" to Color(0xFF4CAF50)
-        WeekTimeIndicator.FUTURA -> "Futura" to Color(0xFF2196F3)
-        WeekTimeIndicator.PASSATA -> "Passata" to Color(0xFF9E9E9E)
+        WeekTimeIndicator.CORRENTE -> "Corrente" to SemanticColors.green
+        WeekTimeIndicator.FUTURA -> "Futura" to SemanticColors.blue
+        WeekTimeIndicator.PASSATA -> "Passata" to SemanticColors.grey
     }
     Row(
         modifier = Modifier.fillMaxWidth(),

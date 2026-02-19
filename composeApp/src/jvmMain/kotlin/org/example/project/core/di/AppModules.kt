@@ -37,6 +37,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentStore
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
+import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
@@ -90,6 +91,7 @@ val appModule = module {
     single { AssegnaPersonaUseCase(get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
     single { SuggerisciProclamatoriUseCase(get(), get()) }
+    single { ContaAssegnazioniPersonaUseCase(get()) }
 
     // Shared state
     single { SharedWeekState() }
@@ -130,7 +132,7 @@ val appModule = module {
             elimina = get(),
             importaDaJson = get(),
             verificaDuplicato = get(),
-            assignmentStore = get(),
+            contaAssegnazioni = get(),
         )
     }
 }

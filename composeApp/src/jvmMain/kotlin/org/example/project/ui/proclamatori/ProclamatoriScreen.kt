@@ -24,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -92,24 +91,7 @@ fun ProclamatoriScreen() {
         val currentEditId = (currentScreen as? ProclamatoriModificaScreen)?.id
         val isFormRoute = route != ProclamatoriRoute.Elenco
 
-        val nomeTrim = state.nome.trim()
-        val cognomeTrim = state.cognome.trim()
-        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
-        val hasFormChanges = when (route) {
-            ProclamatoriRoute.Nuovo -> requiredFieldsValid || state.sesso != Sesso.M
-            is ProclamatoriRoute.Modifica -> {
-                nomeTrim != state.initialNome.trim() ||
-                    cognomeTrim != state.initialCognome.trim() ||
-                    state.sesso != state.initialSesso
-            }
-            ProclamatoriRoute.Elenco -> false
-        }
-        val canSubmitForm = isFormRoute &&
-            requiredFieldsValid &&
-            hasFormChanges &&
-            state.duplicateError == null &&
-            !state.isCheckingDuplicate &&
-            !state.isLoading
+        val canSubmitForm = state.canSubmitForm(route)
 
         fun goToListManual() {
             viewModel.prepareForManualNavigation()
@@ -229,8 +211,8 @@ fun ProclamatoriScreen() {
                         onCognomeChange = { viewModel.setCognome(it) },
                         sesso = state.sesso,
                         onSessoChange = { viewModel.setSesso(it) },
-                        nomeTrim = nomeTrim,
-                        cognomeTrim = cognomeTrim,
+                        nomeTrim = state.nome.trim(),
+                        cognomeTrim = state.cognome.trim(),
                         showFieldErrors = state.showFieldErrors,
                         duplicateError = state.duplicateError,
                         isCheckingDuplicate = state.isCheckingDuplicate,

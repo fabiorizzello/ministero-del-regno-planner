@@ -46,6 +46,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
 ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
+allActiveProclaimers:
+SELECT id, first_name, last_name, sex, active
+FROM person
+WHERE active = 1
+ORDER BY last_name, first_name;
+
 searchProclaimers:
 SELECT id, first_name, last_name, sex, active
 FROM person

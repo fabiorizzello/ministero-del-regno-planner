@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,13 +45,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.ui.components.SemanticColors
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+
+// Column width constants for suggestion table
+private val WEEKS_COLUMN_WIDTH = 120.dp
+private val BUTTON_COLUMN_WIDTH = 110.dp
 
 @Composable
 internal fun PartAssignmentCard(
@@ -59,7 +66,7 @@ internal fun PartAssignmentCard(
     displayNumber: Int,
     readOnly: Boolean,
     onAssignSlot: (slot: Int) -> Unit,
-    onRemoveAssignment: (assignmentId: String) -> Unit,
+    onRemoveAssignment: (AssignmentId) -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
 
@@ -93,7 +100,7 @@ internal fun PartAssignmentCard(
                     assignment = assignment,
                     readOnly = readOnly,
                     onAssign = { onAssignSlot(1) },
-                    onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
+                    onRemove = { assignment?.let { onRemoveAssignment(it.id) } },
                 )
             } else {
                 // Multiple slots with role labels
@@ -105,7 +112,7 @@ internal fun PartAssignmentCard(
                         assignment = assignment,
                         readOnly = readOnly,
                         onAssign = { onAssignSlot(slot) },
-                        onRemove = { assignment?.let { onRemoveAssignment(it.id.value) } },
+                        onRemove = { assignment?.let { onRemoveAssignment(it.id) } },
                     )
                 }
             }
@@ -116,8 +123,8 @@ internal fun PartAssignmentCard(
 @Composable
 private fun SexRuleChip(sexRule: SexRule) {
     val (label, chipColor) = when (sexRule) {
-        SexRule.UOMO -> "UOMO" to Color(0xFF2196F3)
-        SexRule.LIBERO -> "LIBERO" to Color(0xFF9E9E9E)
+        SexRule.UOMO -> "UOMO" to SemanticColors.blue
+        SexRule.LIBERO -> "LIBERO" to SemanticColors.grey
     }
     Surface(
         shape = RoundedCornerShape(4.dp),
@@ -345,7 +352,7 @@ internal fun PersonPickerDialog(
                     HorizontalDivider()
 
                     // Suggestions list with scrollbar
-                    Box(modifier = Modifier.height(300.dp)) {
+                    Box(modifier = Modifier.heightIn(max = 400.dp)) {
                         val listState = rememberLazyListState()
                         LazyColumn(
                             state = listState,
@@ -389,15 +396,15 @@ private fun SuggestionHeaderRow() {
         )
         Text(
             text = "Ultima (globale)",
-            modifier = Modifier.width(120.dp),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
             text = "Ultima (parte)",
-            modifier = Modifier.width(120.dp),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
-        Spacer(Modifier.width(110.dp)) // button space
+        Spacer(Modifier.width(BUTTON_COLUMN_WIDTH))
     }
 }
 
@@ -423,20 +430,20 @@ private fun SuggestionRow(
         )
         Text(
             text = formatWeeksAgo(suggestion.lastGlobalWeeks),
-            modifier = Modifier.width(120.dp),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = formatWeeksAgo(suggestion.lastForPartTypeWeeks),
-            modifier = Modifier.width(120.dp),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(
             onClick = onAssign,
             enabled = !isAssigning,
-            modifier = Modifier.width(110.dp).handCursorOnHover(),
+            modifier = Modifier.width(BUTTON_COLUMN_WIDTH).handCursorOnHover(),
         ) {
             Text("Assegna", style = MaterialTheme.typography.labelSmall)
         }

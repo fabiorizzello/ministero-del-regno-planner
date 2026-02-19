@@ -126,10 +126,10 @@ fun AssignmentsScreen() {
         } else {
             // Parts list
             val readOnly = state.weekIndicator == WeekTimeIndicator.PASSATA
+            val parts = state.weekPlan?.parts ?: emptyList()
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
-                val parts = state.weekPlan!!.parts
                 items(parts, key = { it.id.value }) { part ->
                     val partAssignments = state.assignments.filter { it.weeklyPartId == part.id }
                     PartAssignmentCard(
@@ -138,7 +138,7 @@ fun AssignmentsScreen() {
                         displayNumber = part.sortOrder + 1,
                         readOnly = readOnly,
                         onAssignSlot = { slot -> viewModel.openPersonPicker(part.id, slot) },
-                        onRemoveAssignment = { id -> viewModel.removeAssignment(id) },
+                        onRemoveAssignment = { viewModel.removeAssignment(it) },
                     )
                 }
             }

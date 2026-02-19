@@ -25,6 +25,7 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
+import org.example.project.ui.components.sundayOf
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -41,7 +42,7 @@ internal data class WeeklyPartsUiState(
 ) {
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
-    val sundayDate: LocalDate get() = currentMonday.plusDays(6)
+    val sundayDate: LocalDate get() = sundayOf(currentMonday)
 }
 
 internal class WeeklyPartsViewModel(

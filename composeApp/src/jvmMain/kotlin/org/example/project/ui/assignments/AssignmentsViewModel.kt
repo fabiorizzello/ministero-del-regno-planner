@@ -14,6 +14,7 @@ import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -24,6 +25,7 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
+import org.example.project.ui.components.sundayOf
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -47,7 +49,7 @@ internal data class AssignmentsUiState(
 
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
-    val sundayDate: LocalDate get() = currentMonday.plusDays(6)
+    val sundayDate: LocalDate get() = sundayOf(currentMonday)
 
     val assignedSlotCount: Int get() = assignments.size
     val totalSlotCount: Int get() = weekPlan?.parts
@@ -145,17 +147,23 @@ internal class AssignmentsViewModel(
         }
     }
 
-    fun removeAssignment(assignmentId: String) {
+    fun removeAssignment(assignmentId: AssignmentId) {
+        if (_state.value.isLoading) return
         scope.launch {
-            rimuoviAssegnazione(assignmentId).fold(
-                ifLeft = { error -> showError(error) },
-                ifRight = {
-                    _state.update {
-                        it.copy(notice = FeedbackBannerModel("Assegnazione rimossa", FeedbackBannerKind.SUCCESS))
-                    }
-                    loadWeekData()
-                },
-            )
+            _state.update { it.copy(isLoading = true) }
+            try {
+                rimuoviAssegnazione(assignmentId).fold(
+                    ifLeft = { error -> showError(error) },
+                    ifRight = {
+                        _state.update {
+                            it.copy(notice = FeedbackBannerModel("Assegnazione rimossa", FeedbackBannerKind.SUCCESS))
+                        }
+                        loadWeekData()
+                    },
+                )
+            } finally {
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
 

@@ -21,7 +21,7 @@ import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
-import org.example.project.feature.assignments.application.AssignmentStore
+import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -50,7 +50,28 @@ internal data class ProclamatoriUiState(
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
     val isImporting: Boolean = false,
-)
+) {
+    fun canSubmitForm(route: ProclamatoriRoute): Boolean {
+        val nomeTrim = nome.trim()
+        val cognomeTrim = cognome.trim()
+        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
+        val hasFormChanges = when (route) {
+            ProclamatoriRoute.Nuovo -> requiredFieldsValid || sesso != Sesso.M
+            is ProclamatoriRoute.Modifica -> {
+                nomeTrim != initialNome.trim() ||
+                    cognomeTrim != initialCognome.trim() ||
+                    sesso != initialSesso
+            }
+            ProclamatoriRoute.Elenco -> false
+        }
+        return route != ProclamatoriRoute.Elenco &&
+            requiredFieldsValid &&
+            hasFormChanges &&
+            duplicateError == null &&
+            !isCheckingDuplicate &&
+            !isLoading
+    }
+}
 
 internal class ProclamatoriViewModel(
     private val scope: CoroutineScope,
@@ -62,7 +83,7 @@ internal class ProclamatoriViewModel(
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
-    private val assignmentStore: AssignmentStore,
+    private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriUiState())
     val uiState: StateFlow<ProclamatoriUiState> = _uiState.asStateFlow()
@@ -190,28 +211,7 @@ internal class ProclamatoriViewModel(
         currentEditId: ProclamatoreId?,
         onSuccessNavigateToList: () -> Unit,
     ) {
-        val snapshot = _uiState.value
-        val nomeTrim = snapshot.nome.trim()
-        val cognomeTrim = snapshot.cognome.trim()
-        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
-        val hasFormChanges = when (route) {
-            ProclamatoriRoute.Nuovo -> requiredFieldsValid || snapshot.sesso != Sesso.M
-            is ProclamatoriRoute.Modifica -> {
-                nomeTrim != snapshot.initialNome.trim() ||
-                    cognomeTrim != snapshot.initialCognome.trim() ||
-                    snapshot.sesso != snapshot.initialSesso
-            }
-            ProclamatoriRoute.Elenco -> false
-        }
-
-        val canSubmit = route != ProclamatoriRoute.Elenco &&
-            requiredFieldsValid &&
-            hasFormChanges &&
-            snapshot.duplicateError == null &&
-            !snapshot.isCheckingDuplicate &&
-            !snapshot.isLoading
-
-        if (!canSubmit) {
+        if (!_uiState.value.canSubmitForm(route)) {
             _uiState.update { it.copy(showFieldErrors = true) }
             return
         }
@@ -307,7 +307,7 @@ internal class ProclamatoriViewModel(
     fun requestDeleteCandidate(candidate: Proclamatore) {
         scope.launch {
             val count = try {
-                assignmentStore.countAssignmentsForPerson(candidate.id)
+                contaAssegnazioni(candidate.id)
             } catch (_: Exception) {
                 0
             }

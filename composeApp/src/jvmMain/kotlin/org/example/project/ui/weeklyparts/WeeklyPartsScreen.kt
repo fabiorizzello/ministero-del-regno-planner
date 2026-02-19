@@ -163,8 +163,9 @@ fun WeeklyPartsScreen() {
             )
         } else {
             val isPastWeek = state.weekIndicator == WeekTimeIndicator.PASSATA
+            val parts = state.weekPlan?.parts ?: emptyList()
             PartsCard(
-                parts = state.weekPlan!!.parts,
+                parts = parts,
                 isImporting = state.isImporting,
                 isPastWeek = isPastWeek,
                 partTypes = state.partTypes,

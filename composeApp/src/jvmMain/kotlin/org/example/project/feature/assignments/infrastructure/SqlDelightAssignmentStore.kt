@@ -3,6 +3,7 @@ package org.example.project.feature.assignments.infrastructure
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.application.AssignmentStore
 import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.Proclamatore
@@ -36,8 +37,8 @@ class SqlDelightAssignmentStore(
         }
     }
 
-    override suspend fun remove(assignmentId: String) {
-        database.ministeroDatabaseQueries.deleteAssignment(assignmentId)
+    override suspend fun remove(assignmentId: AssignmentId) {
+        database.ministeroDatabaseQueries.deleteAssignment(assignmentId.value)
     }
 
     override suspend fun isPersonAssignedInWeek(
@@ -82,19 +83,17 @@ class SqlDelightAssignmentStore(
                 .associate { it.person_id to it.last_week_date }
         }
 
-        // Get all active proclamatori using searchProclaimers with includeAll=1 and empty terms
         val allActive = database.ministeroDatabaseQueries
-            .searchProclaimers(1L, "", "", "") { id, firstName, lastName, sex, active ->
+            .allActiveProclaimers { id, firstName, lastName, sex, _ ->
                 Proclamatore(
                     id = ProclamatoreId(id),
                     nome = firstName,
                     cognome = lastName,
                     sesso = Sesso.valueOf(sex),
-                    attivo = active == 1L,
+                    attivo = true,
                 )
             }
             .executeAsList()
-            .filter { it.attivo }
 
         return allActive.map { p ->
             val lastGlobalDate = globalRanking[p.id.value]
