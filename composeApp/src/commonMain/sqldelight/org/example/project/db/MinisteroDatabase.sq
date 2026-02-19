@@ -3,7 +3,8 @@ CREATE TABLE person (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     sex TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1
+    active INTEGER NOT NULL DEFAULT 1,
+    CHECK(active IN (0, 1))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS person_unique_full_name_nocase
@@ -16,7 +17,9 @@ CREATE TABLE part_type (
     people_count INTEGER NOT NULL,
     sex_rule TEXT NOT NULL,
     fixed INTEGER NOT NULL DEFAULT 0,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    CHECK(people_count >= 1),
+    CHECK(fixed IN (0, 1))
 );
 
 CREATE TABLE week_plan (
@@ -30,7 +33,7 @@ CREATE TABLE weekly_part (
     part_type_id TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE,
-    FOREIGN KEY (part_type_id) REFERENCES part_type(id)
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE assignment (
@@ -39,8 +42,15 @@ CREATE TABLE assignment (
     person_id TEXT NOT NULL,
     slot INTEGER NOT NULL,
     FOREIGN KEY (weekly_part_id) REFERENCES weekly_part(id) ON DELETE CASCADE,
-    FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT
+    FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT,
+    CHECK(slot >= 1)
 );
+
+CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx
+ON weekly_part(week_plan_id);
+
+CREATE INDEX IF NOT EXISTS assignment_person_id_idx
+ON assignment(person_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
 ON assignment(weekly_part_id, slot);
@@ -191,7 +201,6 @@ upsertAssignment:
 INSERT INTO assignment(id, weekly_part_id, person_id, slot)
 VALUES (?, ?, ?, ?)
 ON CONFLICT(weekly_part_id, slot) DO UPDATE SET
-    id = excluded.id,
     person_id = excluded.person_id;
 
 deleteAssignment:
