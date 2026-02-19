@@ -6,6 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import java.util.UUID
 
 data class ImportResult(
@@ -23,21 +24,25 @@ class AggiornaDatiRemotiUseCase(
         val remoteTypes = try {
             remoteDataSource.fetchPartTypes()
         } catch (e: Exception) {
-            raise(DomainError.Validation("Errore nel download del catalogo: ${e.message}"))
+            raise(DomainError.Network("Errore nel download del catalogo: ${e.message}"))
         }
         partTypeStore.upsertAll(remoteTypes)
 
         val remoteSchemas = try {
             remoteDataSource.fetchWeeklySchemas()
         } catch (e: Exception) {
-            raise(DomainError.Validation("Errore nel download degli schemi: ${e.message}"))
+            raise(DomainError.Network("Errore nel download degli schemi: ${e.message}"))
         }
 
         var imported = 0
         val needConfirmation = mutableListOf<RemoteWeekSchema>()
 
         for (schema in remoteSchemas) {
-            val date = LocalDate.parse(schema.weekStartDate)
+            val date = try {
+                LocalDate.parse(schema.weekStartDate)
+            } catch (_: DateTimeParseException) {
+                raise(DomainError.Validation("Data non valida nello schema remoto: '${schema.weekStartDate}'"))
+            }
             val existing = weekPlanStore.findByDate(date)
 
             if (existing != null) {
@@ -59,7 +64,11 @@ class AggiornaDatiRemotiUseCase(
     suspend fun importSchemas(schemas: List<RemoteWeekSchema>): Either<DomainError, Int> = either {
         var count = 0
         for (schema in schemas) {
-            val date = LocalDate.parse(schema.weekStartDate)
+            val date = try {
+                LocalDate.parse(schema.weekStartDate)
+            } catch (_: DateTimeParseException) {
+                raise(DomainError.Validation("Data non valida nello schema remoto: '${schema.weekStartDate}'"))
+            }
             val existing = weekPlanStore.findByDate(date)
             if (existing != null) {
                 weekPlanStore.delete(existing.id)

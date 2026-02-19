@@ -100,13 +100,13 @@ internal fun ProclamatoreDeleteDialog(
             text = {
                 Column {
                     Text("Confermi rimozione di ${candidate.nome} ${candidate.cognome}?")
-                    if (assignmentCount > 0) {
+                    if (assignmentCount != 0) {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = if (assignmentCount == 1) {
-                                "Attenzione: 1 assegnazione verra' cancellata."
-                            } else {
-                                "Attenzione: $assignmentCount assegnazioni verranno cancellate."
+                            text = when {
+                                assignmentCount < 0 -> "Attenzione: conteggio assegnazioni non disponibile."
+                                assignmentCount == 1 -> "Attenzione: 1 assegnazione verra' cancellata."
+                                else -> "Attenzione: $assignmentCount assegnazioni verranno cancellate."
                             },
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,

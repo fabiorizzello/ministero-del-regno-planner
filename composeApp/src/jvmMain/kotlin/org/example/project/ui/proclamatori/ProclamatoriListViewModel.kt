@@ -120,7 +120,7 @@ internal class ProclamatoriListViewModel(
             val count = try {
                 contaAssegnazioni(candidate.id)
             } catch (_: Exception) {
-                0
+                -1
             }
             _uiState.update { it.copy(deleteCandidate = candidate, deleteAssignmentCount = count) }
         }

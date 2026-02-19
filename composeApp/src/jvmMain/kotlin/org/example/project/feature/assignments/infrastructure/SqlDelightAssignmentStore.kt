@@ -89,7 +89,7 @@ class SqlDelightAssignmentStore(
                     id = ProclamatoreId(id),
                     nome = firstName,
                     cognome = lastName,
-                    sesso = Sesso.valueOf(sex),
+                    sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
                     attivo = true,
                 )
             }

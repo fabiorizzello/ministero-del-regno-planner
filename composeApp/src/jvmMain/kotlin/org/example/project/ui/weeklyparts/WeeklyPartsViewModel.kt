@@ -39,6 +39,7 @@ internal data class WeeklyPartsUiState(
     val isImporting: Boolean = false,
     val weeksNeedingConfirmation: List<RemoteWeekSchema> = emptyList(),
     val removePartCandidate: WeeklyPartId? = null,
+    val partTypesLoadFailed: Boolean = false,
 ) {
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
@@ -212,9 +213,9 @@ internal class WeeklyPartsViewModel(
         scope.launch {
             try {
                 val types = cercaTipiParte()
-                _state.update { it.copy(partTypes = types) }
+                _state.update { it.copy(partTypes = types, partTypesLoadFailed = false) }
             } catch (_: Exception) {
-                // partTypes remains empty — "Aggiungi parte" button stays hidden
+                _state.update { it.copy(partTypesLoadFailed = true) }
             }
         }
     }

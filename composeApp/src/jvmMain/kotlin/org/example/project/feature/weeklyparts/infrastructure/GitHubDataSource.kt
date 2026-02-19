@@ -17,13 +17,16 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 import java.util.UUID
 
 class GitHubDataSource(
     private val partTypesUrl: String,
     private val weeklySchemasUrl: String,
 ) : RemoteDataSource {
-    private val client = HttpClient.newHttpClient()
+    private val client = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(15))
+        .build()
 
     override suspend fun fetchPartTypes(): List<PartType> = withContext(Dispatchers.IO) {
         val body = httpGet(partTypesUrl)
@@ -31,12 +34,20 @@ class GitHubDataSource(
         val arr = root["partTypes"]?.jsonArray ?: return@withContext emptyList()
         arr.mapIndexed { index, element ->
             val obj = element.jsonObject
+            val code = obj["code"]?.jsonPrimitive?.content
+                ?: error("partTypes[$index]: campo 'code' mancante")
+            val label = obj["label"]?.jsonPrimitive?.content
+                ?: error("partTypes[$index]: campo 'label' mancante")
+            val peopleCount = obj["peopleCount"]?.jsonPrimitive?.int
+                ?: error("partTypes[$index]: campo 'peopleCount' mancante")
+            val sexRuleStr = obj["sexRule"]?.jsonPrimitive?.content
+                ?: error("partTypes[$index]: campo 'sexRule' mancante")
             PartType(
                 id = PartTypeId(UUID.randomUUID().toString()),
-                code = obj["code"]!!.jsonPrimitive.content,
-                label = obj["label"]!!.jsonPrimitive.content,
-                peopleCount = obj["peopleCount"]!!.jsonPrimitive.int,
-                sexRule = SexRule.valueOf(obj["sexRule"]!!.jsonPrimitive.content),
+                code = code,
+                label = label,
+                peopleCount = peopleCount,
+                sexRule = SexRule.valueOf(sexRuleStr),
                 fixed = obj["fixed"]?.jsonPrimitive?.boolean ?: false,
                 sortOrder = index,
             )
@@ -47,13 +58,18 @@ class GitHubDataSource(
         val body = httpGet(weeklySchemasUrl)
         val root = Json.parseToJsonElement(body).jsonObject
         val arr = root["weeks"]?.jsonArray ?: return@withContext emptyList()
-        arr.map { element ->
+        arr.mapIndexed { index, element ->
             val obj = element.jsonObject
-            val parts = obj["parts"]!!.jsonArray.map { partEl ->
-                partEl.jsonObject["partTypeCode"]!!.jsonPrimitive.content
+            val weekStartDate = obj["weekStartDate"]?.jsonPrimitive?.content
+                ?: error("weeks[$index]: campo 'weekStartDate' mancante")
+            val partsArr = obj["parts"]?.jsonArray
+                ?: error("weeks[$index]: campo 'parts' mancante")
+            val parts = partsArr.mapIndexed { pIdx, partEl ->
+                partEl.jsonObject["partTypeCode"]?.jsonPrimitive?.content
+                    ?: error("weeks[$index].parts[$pIdx]: campo 'partTypeCode' mancante")
             }
             RemoteWeekSchema(
-                weekStartDate = obj["weekStartDate"]!!.jsonPrimitive.content,
+                weekStartDate = weekStartDate,
                 partTypeCodes = parts,
             )
         }
@@ -62,6 +78,7 @@ class GitHubDataSource(
     private fun httpGet(url: String): String {
         val request = HttpRequest.newBuilder()
             .uri(URI.create(url))
+            .timeout(Duration.ofSeconds(30))
             .GET()
             .build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
