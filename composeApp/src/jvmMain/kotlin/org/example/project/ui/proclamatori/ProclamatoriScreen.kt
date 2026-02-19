@@ -65,6 +65,7 @@ fun ProclamatoriScreen() {
     state.deleteCandidate?.let { candidate ->
         ProclamatoreDeleteDialog(
             candidate = candidate,
+            assignmentCount = state.deleteAssignmentCount,
             isLoading = state.isLoading,
             onConfirm = { viewModel.confirmDeleteCandidate() },
             onDismiss = { viewModel.dismissDeleteCandidate() },

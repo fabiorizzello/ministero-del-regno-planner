@@ -21,6 +21,7 @@ import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
+import org.example.project.feature.assignments.application.AssignmentStore
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -46,6 +47,7 @@ internal data class ProclamatoriUiState(
     val showFieldErrors: Boolean = false,
     val selectedIds: Set<ProclamatoreId> = emptySet(),
     val deleteCandidate: Proclamatore? = null,
+    val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
     val isImporting: Boolean = false,
 )
@@ -60,6 +62,7 @@ internal class ProclamatoriViewModel(
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
+    private val assignmentStore: AssignmentStore,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriUiState())
     val uiState: StateFlow<ProclamatoriUiState> = _uiState.asStateFlow()
@@ -302,7 +305,10 @@ internal class ProclamatoriViewModel(
     }
 
     fun requestDeleteCandidate(candidate: Proclamatore) {
-        _uiState.update { it.copy(deleteCandidate = candidate) }
+        scope.launch {
+            val count = assignmentStore.countAssignmentsForPerson(candidate.id)
+            _uiState.update { it.copy(deleteCandidate = candidate, deleteAssignmentCount = count) }
+        }
     }
 
     fun dismissDeleteCandidate() {

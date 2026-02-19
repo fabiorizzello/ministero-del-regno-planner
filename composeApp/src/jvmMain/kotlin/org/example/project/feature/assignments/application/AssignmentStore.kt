@@ -20,4 +20,6 @@ interface AssignmentStore {
         slot: Int,
         referenceDate: LocalDate,
     ): List<SuggestedProclamatore>
+    suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int
+    suspend fun removeAllForPerson(personId: ProclamatoreId)
 }

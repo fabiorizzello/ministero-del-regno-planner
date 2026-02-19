@@ -88,6 +88,7 @@ internal fun Breadcrumbs(
 @Composable
 internal fun ProclamatoreDeleteDialog(
     candidate: Proclamatore,
+    assignmentCount: Int,
     isLoading: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -97,7 +98,21 @@ internal fun ProclamatoreDeleteDialog(
             onDismissRequest = onDismiss,
             title = { Text("Rimuovi proclamatore") },
             text = {
-                Text("Confermi rimozione di ${candidate.nome} ${candidate.cognome}?")
+                Column {
+                    Text("Confermi rimozione di ${candidate.nome} ${candidate.cognome}?")
+                    if (assignmentCount > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = if (assignmentCount == 1) {
+                                "Attenzione: 1 assegnazione verra' cancellata."
+                            } else {
+                                "Attenzione: $assignmentCount assegnazioni verranno cancellate."
+                            },
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(

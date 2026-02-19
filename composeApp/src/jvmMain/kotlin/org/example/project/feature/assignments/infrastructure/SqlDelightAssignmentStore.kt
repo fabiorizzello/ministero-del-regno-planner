@@ -122,4 +122,15 @@ class SqlDelightAssignmentStore(
             )
         }
     }
+
+    override suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int {
+        return database.ministeroDatabaseQueries
+            .countAssignmentsForPerson(personId.value)
+            .executeAsOne()
+            .toInt()
+    }
+
+    override suspend fun removeAllForPerson(personId: ProclamatoreId) {
+        database.ministeroDatabaseQueries.deleteAssignmentsForPerson(personId.value)
+    }
 }

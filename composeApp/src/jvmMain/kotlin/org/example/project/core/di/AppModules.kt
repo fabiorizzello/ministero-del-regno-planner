@@ -63,7 +63,7 @@ val appModule = module {
     single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
     single { AggiornaProclamatoreUseCase(get(), get()) }
     single { ImpostaStatoProclamatoreUseCase(get()) }
-    single { EliminaProclamatoreUseCase(get()) }
+    single { EliminaProclamatoreUseCase(get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }
 
     // Weekly parts
@@ -130,6 +130,7 @@ val appModule = module {
             elimina = get(),
             importaDaJson = get(),
             verificaDuplicato = get(),
+            assignmentStore = get(),
         )
     }
 }
