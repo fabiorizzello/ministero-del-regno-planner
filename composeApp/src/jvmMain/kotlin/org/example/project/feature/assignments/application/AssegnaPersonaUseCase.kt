@@ -27,16 +27,12 @@ class AssegnaPersonaUseCase(
         val part = plan.parts.find { it.id == weeklyPartId }
             ?: raise(DomainError.Validation("Parte non trovata"))
 
-        if (part.partType.fixed) {
-            raise(DomainError.Validation("Non e' possibile assegnare una parte fissa"))
-        }
-
         if (slot < 1 || slot > part.partType.peopleCount) {
             raise(DomainError.Validation("Slot non valido"))
         }
 
-        if (assignmentStore.isPersonAssignedToPart(weeklyPartId, personId)) {
-            raise(DomainError.Validation("Proclamatore gia' assegnato a questa parte"))
+        if (assignmentStore.isPersonAssignedInWeek(plan.id, personId)) {
+            raise(DomainError.Validation("Proclamatore gia' assegnato in questa settimana"))
         }
 
         try {

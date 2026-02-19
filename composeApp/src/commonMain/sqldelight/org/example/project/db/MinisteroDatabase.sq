@@ -215,6 +215,11 @@ personAlreadyAssignedToPart:
 SELECT COUNT(*) FROM assignment
 WHERE weekly_part_id = ? AND person_id = ?;
 
+personAlreadyAssignedInWeek:
+SELECT COUNT(*) FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+WHERE wp.week_plan_id = ? AND a.person_id = ?;
+
 -- Ranking queries (M4)
 lastGlobalAssignmentPerPerson:
 SELECT

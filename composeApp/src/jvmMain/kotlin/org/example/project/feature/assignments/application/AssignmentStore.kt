@@ -14,6 +14,7 @@ interface AssignmentStore {
     suspend fun save(assignment: Assignment)
     suspend fun remove(assignmentId: String)
     suspend fun isPersonAssignedToPart(weeklyPartId: WeeklyPartId, personId: ProclamatoreId): Boolean
+    suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean
     suspend fun suggestedProclamatori(
         partTypeId: PartTypeId,
         slot: Int,

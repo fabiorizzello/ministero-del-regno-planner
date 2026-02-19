@@ -51,6 +51,16 @@ class SqlDelightAssignmentStore(
         return count > 0L
     }
 
+    override suspend fun isPersonAssignedInWeek(
+        weekPlanId: WeekPlanId,
+        personId: ProclamatoreId,
+    ): Boolean {
+        val count = database.ministeroDatabaseQueries
+            .personAlreadyAssignedInWeek(weekPlanId.value, personId.value)
+            .executeAsOne()
+        return count > 0L
+    }
+
     override suspend fun suggestedProclamatori(
         partTypeId: PartTypeId,
         slot: Int,

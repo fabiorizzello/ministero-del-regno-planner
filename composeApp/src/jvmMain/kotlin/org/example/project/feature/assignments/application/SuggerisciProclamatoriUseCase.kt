@@ -25,9 +25,8 @@ class SuggerisciProclamatoriUseCase(
             referenceDate = weekStartDate,
         )
 
-        // Filtri hard: regola sesso, gia' assegnato alla stessa parte
-        val existingForPart = assignmentStore.listByWeek(plan.id)
-            .filter { it.weeklyPartId == weeklyPartId }
+        // Filtri hard: regola sesso, gia' assegnato nella stessa settimana
+        val existingForWeek = assignmentStore.listByWeek(plan.id)
             .map { it.personId }
             .toSet()
 
@@ -37,7 +36,7 @@ class SuggerisciProclamatoriUseCase(
                 SexRule.UOMO -> p.sesso == Sesso.M
                 SexRule.LIBERO -> true
             }
-            passaSesso && p.id !in existingForPart
+            passaSesso && p.id !in existingForWeek
         }
     }
 }
