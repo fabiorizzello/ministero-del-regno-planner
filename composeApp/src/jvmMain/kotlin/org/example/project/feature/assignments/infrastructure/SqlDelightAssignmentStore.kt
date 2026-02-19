@@ -114,10 +114,10 @@ class SqlDelightAssignmentStore(
             SuggestedProclamatore(
                 proclamatore = p,
                 lastGlobalWeeks = lastGlobalDate?.let {
-                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
                 },
                 lastForPartTypeWeeks = lastPartDate?.let {
-                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
                 },
             )
         }

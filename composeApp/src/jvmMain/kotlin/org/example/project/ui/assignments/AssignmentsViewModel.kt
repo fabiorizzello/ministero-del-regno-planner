@@ -155,7 +155,12 @@ internal class AssignmentsViewModel(
         scope.launch {
             rimuoviAssegnazione(assignmentId).fold(
                 ifLeft = { error -> showError(error) },
-                ifRight = { loadWeekData() },
+                ifRight = {
+                    _state.update {
+                        it.copy(notice = FeedbackBannerModel("Assegnazione rimossa", FeedbackBannerKind.SUCCESS))
+                    }
+                    loadWeekData()
+                },
             )
         }
     }
