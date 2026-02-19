@@ -25,7 +25,7 @@
 ### BUG-5: movePart() fire-and-forget senza gestione errori
 - **File:** `ui/weeklyparts/WeeklyPartsViewModel.kt:118-129`
 - Update ottimistico della UI poi `riordinaParti(reordered)` senza error handling. Se il DB fallisce, la UI mostra l'ordine nuovo ma il DB mantiene il vecchio. Al prossimo reload la lista torna indietro senza feedback.
-- **Fix:** aggiungere `.fold()` o try/catch che revert l'update ottimistico e mostra errore. Nota: `RiordinaPartiUseCase` non ritorna `Either` (vedi SOLID-4).
+- **Fix:** aggiungere `.fold()` o try/catch che revert l'update ottimistico e mostra errore. Nota: `RiordinaPartiUseCase` non ritorna `Either` (vedi BUG-10).
 
 ### BUG-6: importSchema() ignora silenziosamente codici parte sconosciuti
 - **File:** `feature/weeklyparts/application/AggiornaDatiRemotiUseCase.kt:83-85`
@@ -93,6 +93,75 @@
 - **File:** `core/bootstrap/AppBootstrap.kt:9-10`
 - `private var initialized = false` senza sincronizzazione. Usare `@Volatile` o `AtomicBoolean`.
 
+### BUG-19: upsertAssignment aggiorna id su conflict — mutazione silente della PK
+- **File:** `MinisteroDatabase.sq:193-198`
+- `ON CONFLICT(weekly_part_id, slot) DO UPDATE SET id = excluded.id` sovrascrive la primary key esistente. Qualsiasi `AssignmentId` in memoria diventa stale. `removeAssignment(oldId)` non troverà la riga.
+- **Fix:** rimuovere `id = excluded.id` dal `SET`.
+
+### BUG-20: loadSuggestions() senza job tracking — race condition possibile
+- **File:** `ui/assignments/AssignmentsViewModel.kt:194-217`
+- `loadSuggestions()` lancia `scope.launch` senza cancellare il precedente. Se l'utente apre rapidamente il picker per parti diverse, i suggerimenti della prima query possono sovrascrivere quelli della seconda.
+- **Fix:** aggiungere `suggestionsJob?.cancel()` come in `loadWeekData()`.
+
+### BUG-21: Batch operations senza guard anti double-click
+- **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:172-202`
+- `confirmBatchDelete`, `activateSelected`, `deactivateSelected` lanciano `scope.launch` senza guard. Double-click prima che `isLoading` flippi = operazioni duplicate.
+- **Fix:** aggiungere flag `isBatchInProgress` o job cancellation.
+
+### BUG-22: collect in init di WeeklyPartsVM — eccezione in loadWeek() termina la subscription
+- **File:** `ui/weeklyparts/WeeklyPartsViewModel.kt:62-69`
+- `loadWeek()` chiamata dentro `collect {}`. Se lancia sincrona, cancella il flow collector — navigazione settimane rotta per il resto della sessione senza errore visibile.
+- **Fix:** wrappare `loadWeek()` in try/catch dentro il collect, o usare `catch { }` sul flow.
+
+### BUG-23: GitHubDataSource usa `!!` su tutti i campi JSON — NPE su dati remoti parziali
+- **File:** `feature/weeklyparts/infrastructure/GitHubDataSource.kt:36-43,52-53`
+- Ogni accesso campo usa `!!`. Se un campo manca, `NullPointerException` con messaggio `"null"` — poco diagnostico per l'utente.
+- **Fix:** usare null-safe access con messaggi di errore descrittivi.
+
+### BUG-24: Import JSON senza limite dimensione file
+- **File:** `ui/proclamatori/ProclamatoriListViewModel.kt:237-238`
+- `File.readText()` carica tutto in memoria senza controllo dimensione. Un file enorme causa `OutOfMemoryError` (non catturato da `runCatching` — è un `Error`, non `Exception`).
+- **Fix:** controllare `selectedFile.length()` prima e rifiutare file > 10MB.
+
+### BUG-25: ImportaProclamatoriDaJsonUseCase scarta la causa originale dell'eccezione
+- **File:** `feature/people/application/ImportaProclamatoriDaJsonUseCase.kt:40-44`
+- `catch (_: Exception)` perde il messaggio di errore originale. L'utente vede solo "Import non completato" senza dettagli diagnostici.
+- **Fix:** includere `e.message` nel `DomainError.Validation`.
+
+---
+
+## SQL — Schema e migrazioni
+
+### SQL-1: Missing index su weekly_part(week_plan_id)
+- **File:** `MinisteroDatabase.sq:27-34`
+- FK senza indice. SQLite non crea indici automatici su FK. Ogni caricamento settimana fa full scan di `weekly_part`.
+- **Fix:** `CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx ON weekly_part(week_plan_id);`
+
+### SQL-2: Missing index su assignment(person_id)
+- **File:** `MinisteroDatabase.sq:36-43`
+- Usato in `countAssignmentsForPerson`, `deleteAssignmentsForPerson`, e tutte le ranking query. Senza indice: full scan.
+- **Fix:** `CREATE INDEX IF NOT EXISTS assignment_person_id_idx ON assignment(person_id);`
+
+### SQL-3: Missing CHECK constraint su colonne con bounds semantici
+- **File:** `MinisteroDatabase.sq:12-20`
+- `part_type.people_count` accetta 0 o negativi (loop `1..0` silenziosamente vuoto). `assignment.slot` accetta 0 o negativi.
+- **Fix:** `people_count INTEGER NOT NULL CHECK(people_count >= 1)`, `slot INTEGER NOT NULL CHECK(slot >= 1)`.
+
+### SQL-4: Colonne boolean senza CHECK(IN (0,1))
+- **File:** `MinisteroDatabase.sq:1-7, 12-20`
+- `person.active` e `part_type.fixed` accettano qualsiasi intero. Un valore `2` è silenziosamente `true` in Kotlin.
+- **Fix:** `CHECK(active IN (0, 1))`, `CHECK(fixed IN (0, 1))`.
+
+### SQL-5: ON DELETE mancante per weekly_part.part_type_id FK
+- **File:** `MinisteroDatabase.sq:33`
+- Default SQLite è `RESTRICT`. Tentare di cancellare un `part_type` referenziato fallisce con errore constraint non tipizzato. Comportamento previsto ma non esplicito.
+- **Fix:** aggiungere `ON DELETE RESTRICT` esplicitamente e documentare.
+
+### SQL-6: Nessuna strategia di migrazione DB
+- **File:** `core/persistence/DatabaseProvider.kt:18-20`
+- `JdbcSqliteDriver(schema = MinisteroDatabase.Schema)` auto-crea tabelle su DB nuovo. Per DB esistenti, cambiamenti schema non vengono applicati — nessun file di migrazione `.sqm` nel progetto.
+- **Fix:** aggiungere directory `migrations/` con file `.sqm` per ogni cambio schema futuro. Critico per field additions.
+
 ---
 
 ## PERF — Performance
@@ -115,6 +184,16 @@
 - **File:** `feature/people/infrastructure/SqlDelightProclamatoriStore.kt:30-48`
 - Sempre UPDATE poi INSERT IF NOT EXISTS. Per record esistenti l'INSERT è no-op; per nuovi l'UPDATE non tocca righe. Due statement SQL per operazione.
 - **Fix:** usare `INSERT ... ON CONFLICT DO UPDATE` singolo.
+
+### PERF-5: Filter e sort senza remember in PersonPickerDialog
+- **File:** `ui/assignments/AssignmentsComponents.kt:235-250`
+- `suggestions.filter { }.sortedWith { }` ricalcolato ad ogni ricomposizione, anche per state changes non correlati (es. `isAssigning` toggle). Con 200+ proclamatori è O(n log n) inutile.
+- **Fix:** `remember(suggestions, searchTerm, sortGlobal) { filteredAndSorted }`.
+
+### PERF-6: assignments.filter { } senza groupBy in AssignmentsScreen
+- **File:** `ui/assignments/AssignmentsScreen.kt:134`
+- `state.assignments.filter { it.weeklyPartId == part.id }` dentro `items()` — O(parts × assignments) ad ogni ricomposizione.
+- **Fix:** pre-raggruppare con `remember(state.assignments) { assignments.groupBy { it.weeklyPartId } }`.
 
 ---
 
@@ -168,6 +247,18 @@
 ### SOLID-4: URL GitHub hardcoded nel modulo DI
 - **File:** `core/di/AppModules.kt:75-78`
 - URL raw GitHub come stringhe letterali. Estrarre in file di configurazione, variabile d'ambiente, o almeno `const val` in un oggetto config dedicato.
+
+### SOLID-5: Domain model senza invarianti — PartType, Assignment, Proclamatore
+- **File:** `feature/weeklyparts/domain/PartType.kt` — `peopleCount` accetta ≤0
+- **File:** `feature/assignments/domain/Assignment.kt:13` — `slot` accetta ≤0
+- **File:** `feature/people/domain/Proclamatore.kt` — `nome`/`cognome` accettano blank
+- I domain object non validano i propri invarianti. La validazione avviene solo nei use case di creazione, ma mapper DB e import li bypassano.
+- **Fix:** aggiungere `init { require(...) }` nelle data class domain.
+
+### SOLID-6: ProclamatoreFormViewModel è singleton ma gestisce stato form effimero
+- **File:** `core/di/AppModules.kt:135-143`
+- Lo scope `single` è sbagliato per un VM con stato form mutabile. Il codice compensa con `clearForm()` ad ogni navigazione, ma se un path dimentica la chiamata il form riapre con dati stale.
+- **Fix:** cambiare in `factory` scope o gestire lo stato form con `remember` nel composable.
 
 ---
 
