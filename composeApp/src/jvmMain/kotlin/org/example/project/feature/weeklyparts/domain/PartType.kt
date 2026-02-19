@@ -11,4 +11,10 @@ data class PartType(
     val sexRule: SexRule,
     val fixed: Boolean,
     val sortOrder: Int,
-)
+) {
+    init {
+        require(code.isNotBlank()) { "code non può essere vuoto" }
+        require(label.isNotBlank()) { "label non può essere vuoto" }
+        require(peopleCount >= 1) { "peopleCount deve essere >= 1, ricevuto: $peopleCount" }
+    }
+}

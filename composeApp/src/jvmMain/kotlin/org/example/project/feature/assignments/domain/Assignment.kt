@@ -11,4 +11,8 @@ data class Assignment(
     val weeklyPartId: WeeklyPartId,
     val personId: ProclamatoreId,
     val slot: Int,
-)
+) {
+    init {
+        require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }
+    }
+}
