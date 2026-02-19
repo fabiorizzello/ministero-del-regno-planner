@@ -152,6 +152,7 @@ fun WeeklyPartsScreen() {
         )
 
         // Content
+        val isPastWeek = state.weekIndicator == WeekTimeIndicator.PASSATA
         if (state.isLoading) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -159,10 +160,10 @@ fun WeeklyPartsScreen() {
         } else if (state.weekPlan == null) {
             EmptyWeekContent(
                 isImporting = state.isImporting,
+                isPastWeek = isPastWeek,
                 onCreate = { viewModel.createWeek() },
             )
         } else {
-            val isPastWeek = state.weekIndicator == WeekTimeIndicator.PASSATA
             val parts = state.weekPlan?.parts ?: emptyList()
             PartsCard(
                 parts = parts,
@@ -178,7 +179,7 @@ fun WeeklyPartsScreen() {
 }
 
 @Composable
-private fun EmptyWeekContent(isImporting: Boolean, onCreate: () -> Unit) {
+private fun EmptyWeekContent(isImporting: Boolean, isPastWeek: Boolean, onCreate: () -> Unit) {
     val spacing = MaterialTheme.spacing
     Box(
         modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xxl),
@@ -188,13 +189,18 @@ private fun EmptyWeekContent(isImporting: Boolean, onCreate: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
-            Button(
-                onClick = onCreate,
-                enabled = !isImporting,
-                modifier = Modifier.handCursorOnHover(),
-            ) {
-                Text("Crea settimana")
+            Text(
+                if (isPastWeek) "Settimana passata non configurata" else "Settimana non configurata",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (!isPastWeek) {
+                Button(
+                    onClick = onCreate,
+                    enabled = !isImporting,
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Text("Crea settimana")
+                }
             }
         }
     }

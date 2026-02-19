@@ -25,6 +25,7 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.WeekNavigator
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -91,10 +92,16 @@ fun AssignmentsScreen() {
                 ) {
                     Text("Vai allo schema")
                 }
+                val progressColor = when {
+                    state.totalSlotCount == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                    state.assignedSlotCount == 0 -> SemanticColors.grey
+                    state.assignedSlotCount < state.totalSlotCount -> SemanticColors.amber
+                    else -> SemanticColors.green
+                }
                 Text(
                     "${state.assignedSlotCount}/${state.totalSlotCount} slot assegnati",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = progressColor,
                 )
             }
         }

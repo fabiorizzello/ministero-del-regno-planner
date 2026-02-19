@@ -19,18 +19,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
+private fun computeWeekDistance(monday: LocalDate): Int {
+    val thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    return (ChronoUnit.DAYS.between(thisMonday, monday) / 7).toInt()
+}
+
 fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
-    val thisMonday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-    return when {
-        currentMonday == thisMonday -> WeekTimeIndicator.CORRENTE
-        currentMonday.isAfter(thisMonday) -> WeekTimeIndicator.FUTURA
+    return when (computeWeekDistance(currentMonday)) {
+        0 -> WeekTimeIndicator.CORRENTE
+        in 1..Int.MAX_VALUE -> WeekTimeIndicator.FUTURA
         else -> WeekTimeIndicator.PASSATA
+    }
+}
+
+fun formatWeekIndicatorLabel(monday: LocalDate): String {
+    val d = computeWeekDistance(monday)
+    return when {
+        d == 0 -> "Corrente"
+        d == 1 -> "tra 1 sett"
+        d > 1 -> "tra $d sett"
+        d == -1 -> "1 sett fa"
+        else -> "${-d} sett fa"
     }
 }
 
@@ -48,11 +66,12 @@ fun WeekNavigator(
     onNext: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
-    val (indicatorLabel, indicatorColor) = when (indicator) {
-        WeekTimeIndicator.CORRENTE -> "Corrente" to SemanticColors.green
-        WeekTimeIndicator.FUTURA -> "Futura" to SemanticColors.blue
-        WeekTimeIndicator.PASSATA -> "Passata" to SemanticColors.grey
+    val indicatorColor = when (indicator) {
+        WeekTimeIndicator.CORRENTE -> SemanticColors.green
+        WeekTimeIndicator.FUTURA -> SemanticColors.blue
+        WeekTimeIndicator.PASSATA -> SemanticColors.grey
     }
+    val indicatorLabel = formatWeekIndicatorLabel(monday)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
