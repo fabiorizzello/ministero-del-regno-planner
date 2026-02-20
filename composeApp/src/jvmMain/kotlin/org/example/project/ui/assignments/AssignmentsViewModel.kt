@@ -2,6 +2,8 @@ package org.example.project.ui.assignments
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,15 @@ import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
 import java.time.LocalDate
+
+private data class WeekLoadResult(
+    val weekPlan: WeekPlan?,
+    val assignments: List<AssignmentWithPerson>,
+    val prevPlan: WeekPlan?,
+    val prevAssignments: List<AssignmentWithPerson>,
+    val nextPlan: WeekPlan?,
+    val nextAssignments: List<AssignmentWithPerson>,
+)
 
 internal data class AssignmentsUiState(
     val currentMonday: LocalDate = SharedWeekState.currentMonday(),
@@ -199,33 +210,35 @@ internal class AssignmentsViewModel(
             _state.update { it.copy(isLoading = true) }
             try {
                 val monday = _state.value.currentMonday
-                val weekPlan = caricaSettimana(monday)
-                val assignments = caricaAssegnazioni(monday)
-
-                // Load adjacent week completion status
                 val prevMonday = monday.minusWeeks(1)
-                val prevPlan = caricaSettimana(prevMonday)
-                val prevAssignments = caricaAssegnazioni(prevMonday)
-                val prevStatus = computeCompletionStatus(prevPlan, prevAssignments)
-
                 val nextMonday = monday.plusWeeks(1)
-                val nextPlan = caricaSettimana(nextMonday)
-                val nextAssignments = caricaAssegnazioni(nextMonday)
-                val nextStatus = computeCompletionStatus(nextPlan, nextAssignments)
+
+                // Load current + adjacent weeks in parallel
+                val (weekPlan, assignments, prevPlan, prevAssignments, nextPlan, nextAssignments) = coroutineScope {
+                    val curPlan = async { caricaSettimana(monday) }
+                    val curAssign = async { caricaAssegnazioni(monday) }
+                    val pPlan = async { caricaSettimana(prevMonday) }
+                    val pAssign = async { caricaAssegnazioni(prevMonday) }
+                    val nPlan = async { caricaSettimana(nextMonday) }
+                    val nAssign = async { caricaAssegnazioni(nextMonday) }
+                    WeekLoadResult(curPlan.await(), curAssign.await(), pPlan.await(), pAssign.await(), nPlan.await(), nAssign.await())
+                }
 
                 _state.update {
                     it.copy(
                         isLoading = false,
                         weekPlan = weekPlan,
                         assignments = assignments,
-                        prevWeekStatus = prevStatus,
-                        nextWeekStatus = nextStatus,
+                        prevWeekStatus = computeCompletionStatus(prevPlan, prevAssignments),
+                        nextWeekStatus = computeCompletionStatus(nextPlan, nextAssignments),
                     )
                 }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
                         isLoading = false,
+                        prevWeekStatus = null,
+                        nextWeekStatus = null,
                         notice = FeedbackBannerModel("Errore nel caricamento: ${e.message}", FeedbackBannerKind.ERROR),
                     )
                 }
