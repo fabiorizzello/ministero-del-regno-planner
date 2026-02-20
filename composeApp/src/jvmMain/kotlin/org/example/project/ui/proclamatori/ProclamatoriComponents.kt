@@ -27,12 +27,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -189,6 +192,8 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     onClick = events.onImportJson,
                     enabled = !isLoading,
                 ) {
+                    Icon(Icons.Filled.FileOpen, contentDescription = "Importa file JSON iniziale")
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text("Importa JSON iniziale")
                 }
             }
@@ -425,14 +430,22 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                         onClick = events.onPreviousPage,
                         enabled = !isLoading && pageIndex > 0,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                    ) { Text("Prec", style = MaterialTheme.typography.labelSmall) }
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Pagina precedente", modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Prec", style = MaterialTheme.typography.labelSmall)
+                    }
                     Text("Pagina ${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(
                         modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1).height(28.dp),
                         onClick = events.onNextPage,
                         enabled = !isLoading && pageIndex < totalPages - 1,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                    ) { Text("Succ", style = MaterialTheme.typography.labelSmall) }
+                    ) {
+                        Text("Succ", style = MaterialTheme.typography.labelSmall)
+                        Spacer(Modifier.width(spacing.xs))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Pagina successiva", modifier = Modifier.size(14.dp))
+                    }
                 }
             }
         }
@@ -698,17 +711,17 @@ internal fun TableDataRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
             OutlinedButton(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(28.dp),
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(32.dp),
                 onClick = onEdit,
                 enabled = singleActionsEnabled,
                 contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
             ) {
-                Icon(Icons.Filled.Edit, contentDescription = "Modifica proclamatore", modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Edit, contentDescription = "Modifica proclamatore", modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(spacing.xs))
-                Text("Modifica", style = MaterialTheme.typography.labelSmall)
+                Text("Modifica", style = MaterialTheme.typography.labelMedium)
             }
             OutlinedButton(
-                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(28.dp),
+                modifier = Modifier.handCursorOnHover(enabled = singleActionsEnabled).height(32.dp),
                 onClick = onDelete,
                 enabled = singleActionsEnabled,
                 contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
@@ -716,9 +729,9 @@ internal fun TableDataRow(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = "Rimuovi proclamatore", modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Delete, contentDescription = "Rimuovi proclamatore", modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(spacing.xs))
-                Text("Rimuovi", style = MaterialTheme.typography.labelSmall)
+                Text("Rimuovi", style = MaterialTheme.typography.labelMedium)
             }
         }
     }
