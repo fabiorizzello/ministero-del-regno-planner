@@ -13,3 +13,8 @@ potremmo anche dare la possibilità di cancellare i dati vecchi (programmi, asse
 
 poi stavo pensando ad aggiungere un cruscotto in cui l'utente vede le settimane prossime (magari 1, 2 mesi) con specificato se da organizzare o se pianificata ecc. consiglia tu
 aggiunta modifica proclamator -> trasforma in modale
+indicatore per informare l'utente del progresso della pianificazione (pianificazione fino al xyz), 
+alert se non ci sono i programmi delle prossime 4 settimane ecc (valutare)
+
+
+pulsante per navigare a settimana corrente
