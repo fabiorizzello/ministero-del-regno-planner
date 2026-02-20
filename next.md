@@ -1,5 +1,3 @@
-nella vista assegnazioni potremmo aggiungere dettagli riguardanti settimana precedente e quella successiva (es. completamento parziale o da completare ecc)
-
 dobbiamo capire come gestire i seguenti rilasci e debug da parte mia, sviluppatore.
 dato che questa app gira su pc di utente e io non ho accesso.
 dobbiamo produrre logs dettagliati errori
@@ -14,6 +12,3 @@ poi stavo pensando ad aggiungere un cruscotto in cui l'utente vede le settimane 
 aggiunta modifica proclamator -> trasforma in modale
 indicatore per informare l'utente del progresso della pianificazione (pianificazione fino al xyz), 
 alert se non ci sono i programmi delle prossime 4 settimane ecc (valutare)
-
-
-pulsante per navigare a settimana corrente
