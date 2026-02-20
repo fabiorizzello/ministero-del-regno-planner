@@ -179,6 +179,7 @@ fun ProclamatoriScreen() {
                     onResetSearch = { listVm.resetSearch() },
                     searchFocusRequester = searchFocusRequester,
                     allItems = listState.allItems,
+                    sortedItems = listState.sortedItems,
                     isLoading = listState.isLoading,
                     notice = listState.notice,
                     onDismissNotice = { listVm.dismissNotice() },

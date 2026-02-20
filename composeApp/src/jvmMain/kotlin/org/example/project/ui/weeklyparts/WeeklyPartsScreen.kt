@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,6 +65,8 @@ import org.koin.core.context.GlobalContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDate
+
+private val DRAG_HANDLE_WIDTH = 40.dp
 
 @Composable
 fun WeeklyPartsScreen() {
@@ -134,7 +137,7 @@ fun WeeklyPartsScreen() {
                     )
                     Spacer(Modifier.width(spacing.md))
                 }
-                Icon(Icons.Filled.Refresh, contentDescription = null)
+                Icon(Icons.Filled.Refresh, contentDescription = "Aggiorna dati")
                 Spacer(Modifier.width(spacing.xs))
                 Text("Aggiorna dati")
             }
@@ -238,8 +241,7 @@ private fun PartsCard(
 
             // Parts list
             LazyColumn(state = lazyListState) {
-                items(parts, key = { it.id.value }) { part ->
-                    val index = parts.indexOf(part)
+                itemsIndexed(parts, key = { _, part -> part.id.value }) { index, part ->
                     val isFixed = part.partType.fixed
                     val zebraColor = if (index % 2 == 0) {
                         Color.Transparent
@@ -299,7 +301,7 @@ private fun PartsHeader() {
             .padding(horizontal = spacing.lg, vertical = spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Spacer(Modifier.width(40.dp)) // drag handle space
+        Spacer(Modifier.width(DRAG_HANDLE_WIDTH)) // drag handle space
         Text("N.", modifier = Modifier.width(36.dp), style = MaterialTheme.typography.labelMedium)
         Text("Tipo", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
         Text("Persone", modifier = Modifier.width(64.dp), style = MaterialTheme.typography.labelMedium)
@@ -328,15 +330,16 @@ private fun DraggablePartRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Drag handle
-            Icon(
-                Icons.Rounded.DragHandle,
-                contentDescription = "Trascina per riordinare",
-                modifier = dragModifier
-                    .handCursorOnHover()
-                    .size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            )
-            Spacer(Modifier.width(spacing.md))
+            Box(modifier = Modifier.width(DRAG_HANDLE_WIDTH), contentAlignment = Alignment.CenterStart) {
+                Icon(
+                    Icons.Rounded.DragHandle,
+                    contentDescription = "Trascina per riordinare",
+                    modifier = dragModifier
+                        .handCursorOnHover()
+                        .size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            }
 
             // Number
             Text(
@@ -392,7 +395,7 @@ private fun FixedPartRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Empty space where drag handle would be
-        Spacer(Modifier.width(28.dp))
+        Spacer(Modifier.width(DRAG_HANDLE_WIDTH))
 
         Text(
             "$displayNumber",
@@ -434,7 +437,7 @@ private fun AddPartDropdown(
             enabled = enabled,
             modifier = Modifier.handCursorOnHover(),
         ) {
-            Icon(Icons.Filled.Add, contentDescription = null)
+            Icon(Icons.Filled.Add, contentDescription = "Aggiungi parte")
             Spacer(Modifier.width(spacing.xs))
             Text("Aggiungi parte")
         }

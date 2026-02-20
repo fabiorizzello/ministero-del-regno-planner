@@ -2,8 +2,9 @@ package org.example.project.ui.components
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-private val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+private val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ITALIAN)
 
 private fun detailsWithTimestamp(details: String? = null): String {
     val timestamp = LocalDateTime.now().format(timestampFormatter)

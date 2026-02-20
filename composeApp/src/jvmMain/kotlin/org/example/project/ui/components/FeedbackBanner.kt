@@ -17,9 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import org.example.project.ui.theme.SemanticColors
 
 enum class FeedbackBannerKind {
     SUCCESS,
@@ -41,8 +41,8 @@ fun FeedbackBanner(
     if (model == null) return
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val successContentColor = if (isDark) Color(0xFFC8E6C9) else Color(0xFF1B5E20)
-    val successContainerColor = if (isDark) Color(0xFF1E4620) else Color(0xFFE8F5E9)
+    val successContentColor = if (isDark) SemanticColors.successContentDark else SemanticColors.successContentLight
+    val successContainerColor = if (isDark) SemanticColors.successContainerDark else SemanticColors.successContainerLight
 
     val (contentColor, containerColor) = when (model.kind) {
         FeedbackBannerKind.SUCCESS -> successContentColor to successContainerColor

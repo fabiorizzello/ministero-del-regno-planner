@@ -31,19 +31,11 @@ class SqlDelightProclamatoriStore(
         val id = aggregateRoot.id.value
         val active = if (aggregateRoot.attivo) 1L else 0L
         database.ministeroDatabaseQueries.upsertProclaimer(
-            aggregateRoot.nome,
-            aggregateRoot.cognome,
-            aggregateRoot.sesso.name,
-            active,
-            id,
-        )
-        database.ministeroDatabaseQueries.insertProclaimerIfAbsent(
             id,
             aggregateRoot.nome,
             aggregateRoot.cognome,
             aggregateRoot.sesso.name,
             active,
-            id,
         )
     }
 
