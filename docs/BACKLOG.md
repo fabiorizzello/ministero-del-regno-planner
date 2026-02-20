@@ -1,14 +1,5 @@
 # Backlog Tecnico
 
-## SQL — Schema e migrazioni
-
-### SQL-6: Nessuna strategia di migrazione DB
-- **File:** `core/persistence/DatabaseProvider.kt:18-20`
-- `JdbcSqliteDriver(schema = MinisteroDatabase.Schema)` auto-crea tabelle su DB nuovo. Per DB esistenti, cambiamenti schema non vengono applicati — nessun file di migrazione `.sqm` nel progetto.
-- **Fix:** aggiungere directory `migrations/` con file `.sqm` per ogni cambio schema futuro. Critico per field additions.
-
----
-
 ## SOLID — Principi architetturali
 
 ### SOLID-1: AssignmentStore viola Interface Segregation
