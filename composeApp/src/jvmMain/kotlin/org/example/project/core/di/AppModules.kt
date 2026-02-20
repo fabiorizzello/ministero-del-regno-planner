@@ -4,6 +4,7 @@ import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import java.util.prefs.Preferences
 import org.example.project.core.application.SharedWeekState
+import org.example.project.core.config.RemoteConfig
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
 import org.example.project.core.persistence.SqlDelightTransactionRunner
@@ -76,8 +77,8 @@ val appModule = module {
     single<WeekPlanStore> { SqlDelightWeekPlanStore(get()) }
     single<RemoteDataSource> {
         GitHubDataSource(
-            partTypesUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/part-types.json",
-            weeklySchemasUrl = "https://raw.githubusercontent.com/fabiooo4/efficaci-nel-ministero-data/main/weekly-schemas.json",
+            partTypesUrl = RemoteConfig.PART_TYPES_URL,
+            weeklySchemasUrl = RemoteConfig.WEEKLY_SCHEMAS_URL,
         )
     }
 
@@ -135,7 +136,7 @@ val appModule = module {
             contaAssegnazioni = get(),
         )
     }
-    single {
+    factory {
         ProclamatoreFormViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             carica = get(),

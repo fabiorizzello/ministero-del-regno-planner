@@ -27,6 +27,7 @@ import org.example.project.ui.components.successNotice
 internal data class ProclamatoriListUiState(
     val searchTerm: String = "",
     val allItems: List<Proclamatore> = emptyList(),
+    val sortedItems: List<Proclamatore> = emptyList(),
     val isLoading: Boolean = true,
     val notice: FeedbackBannerModel? = null,
     val sort: ProclamatoriSort = ProclamatoriSort(),
@@ -65,7 +66,7 @@ internal class ProclamatoriListViewModel(
         searchJob?.cancel()
         searchJob = scope.launch {
             delay(250)
-            refreshListInternal(resetPage = true)
+            refreshListInternal(resetPage = true, showLoading = false)
         }
     }
 
@@ -83,7 +84,7 @@ internal class ProclamatoriListViewModel(
     }
 
     fun setSort(nextSort: ProclamatoriSort) {
-        _uiState.update { it.copy(sort = nextSort) }
+        _uiState.update { it.copy(sort = nextSort, sortedItems = it.allItems.applySort(nextSort)) }
     }
 
     fun goToPreviousPage() {
@@ -319,8 +320,8 @@ internal class ProclamatoriListViewModel(
         )
     }
 
-    private suspend fun refreshListInternal(resetPage: Boolean = false) {
-        _uiState.update { it.copy(isLoading = true) }
+    private suspend fun refreshListInternal(resetPage: Boolean = false, showLoading: Boolean = true) {
+        if (showLoading) _uiState.update { it.copy(isLoading = true) }
         val state = _uiState.value
         val allItems = cerca(state.searchTerm)
         val validIds = allItems.map { it.id }.toSet()
@@ -332,6 +333,7 @@ internal class ProclamatoriListViewModel(
         _uiState.update {
             it.copy(
                 allItems = allItems,
+                sortedItems = allItems.applySort(it.sort),
                 selectedIds = selected,
                 pageIndex = nextPageIndex,
                 isLoading = false,

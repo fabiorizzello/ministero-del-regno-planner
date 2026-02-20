@@ -23,7 +23,9 @@ class AggiornaProclamatoreUseCase(
         val cognome = command.cognome.trim()
 
         if (nome.isBlank()) raise(DomainError.Validation("Il nome e' obbligatorio"))
+        if (nome.length > 100) raise(DomainError.Validation("Il nome non puo' superare 100 caratteri"))
         if (cognome.isBlank()) raise(DomainError.Validation("Il cognome e' obbligatorio"))
+        if (cognome.length > 100) raise(DomainError.Validation("Il cognome non puo' superare 100 caratteri"))
 
         val corrente = store.load(command.id)
             ?: raise(DomainError.Validation("Proclamatore non trovato"))

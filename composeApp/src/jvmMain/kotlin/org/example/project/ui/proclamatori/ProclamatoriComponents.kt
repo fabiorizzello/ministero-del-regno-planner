@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -65,6 +66,8 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.handCursorOnHover
 
+private const val NAME_MAX_LENGTH = 100
+
 @Composable
 internal fun Breadcrumbs(
     route: ProclamatoriRoute,
@@ -103,6 +106,7 @@ internal fun ConfirmDeleteDialog(
                 TextButton(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = onConfirm,
+                    enabled = !isLoading,
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
@@ -110,8 +114,9 @@ internal fun ConfirmDeleteDialog(
             },
             dismissButton = {
                 TextButton(
-                    modifier = Modifier.handCursorOnHover(),
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = onDismiss,
+                    enabled = !isLoading,
                 ) { Text("Annulla") }
             },
         )
@@ -125,6 +130,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     onResetSearch: () -> Unit,
     searchFocusRequester: FocusRequester,
     allItems: List<Proclamatore>,
+    sortedItems: List<Proclamatore>,
     isLoading: Boolean,
     notice: FeedbackBannerModel?,
     onDismissNotice: () -> Unit,
@@ -165,7 +171,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 onClick = onGoNuovo,
                 enabled = !isLoading,
             ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
+                Icon(Icons.Filled.Add, contentDescription = "Aggiungi proclamatore")
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text("Aggiungi")
             }
@@ -207,7 +213,6 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     )
 
     val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
-    val sortedItems = allItems.applySort(sort)
     val pageItems = sortedItems
         .drop(pageIndex * pageSize)
         .take(pageSize)
@@ -249,7 +254,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                         enabled = batchActionsEnabled,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Check, contentDescription = "Attiva selezionati", modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(spacing.xs))
                         Text("Attiva", style = MaterialTheme.typography.labelSmall)
                     }
@@ -259,7 +264,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                         enabled = batchActionsEnabled,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Block, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Block, contentDescription = "Disattiva selezionati", modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(spacing.xs))
                         Text("Disattiva", style = MaterialTheme.typography.labelSmall)
                     }
@@ -273,7 +278,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                             contentColor = MaterialTheme.colorScheme.onError,
                         ),
                     ) {
-                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Delete, contentDescription = "Rimuovi selezionati", modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(spacing.xs))
                         Text("Rimuovi", style = MaterialTheme.typography.labelSmall)
                     }
@@ -283,7 +288,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                         enabled = !isLoading,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Filled.Close, contentDescription = "Annulla selezione", modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(spacing.xs))
                         Text("Annulla", style = MaterialTheme.typography.labelSmall)
                     }
@@ -370,8 +375,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                             }
                         }
                     } else {
-                        items(pageItems, key = { it.id.value }) { item ->
-                            val index = pageItems.indexOf(item)
+                        itemsIndexed(pageItems, key = { _, item -> item.id.value }) { index, item ->
                             val zebraColor = if (index % 2 == 0) Color.Transparent
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
 
@@ -461,7 +465,7 @@ internal fun ProclamatoriFormContent(
         ) {
             OutlinedTextField(
                 value = nome,
-                onValueChange = onNomeChange,
+                onValueChange = { if (it.length <= NAME_MAX_LENGTH) onNomeChange(it) },
                 label = { Text("Nome") },
                 isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
                 modifier = Modifier.fillMaxWidth(),
@@ -469,12 +473,14 @@ internal fun ProclamatoriFormContent(
                 supportingText = {
                     if (showFieldErrors && nomeTrim.isBlank()) {
                         Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Text("${nome.length}/$NAME_MAX_LENGTH")
                     }
                 },
             )
             OutlinedTextField(
                 value = cognome,
-                onValueChange = onCognomeChange,
+                onValueChange = { if (it.length <= NAME_MAX_LENGTH) onCognomeChange(it) },
                 label = { Text("Cognome") },
                 isError = (showFieldErrors && cognomeTrim.isBlank()) || duplicateError != null,
                 modifier = Modifier.fillMaxWidth(),
@@ -486,6 +492,8 @@ internal fun ProclamatoriFormContent(
                         Text(duplicateError, color = MaterialTheme.colorScheme.error)
                     } else if (isCheckingDuplicate) {
                         Text("Verifica duplicato in corso...")
+                    } else {
+                        Text("${cognome.length}/$NAME_MAX_LENGTH")
                     }
                 },
             )
@@ -629,7 +637,7 @@ internal fun TableDataRow(
                 enabled = singleActionsEnabled,
                 contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
             ) {
-                Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Edit, contentDescription = "Modifica proclamatore", modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(spacing.xs))
                 Text("Modifica", style = MaterialTheme.typography.labelSmall)
             }
@@ -642,7 +650,7 @@ internal fun TableDataRow(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Delete, contentDescription = "Rimuovi proclamatore", modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(spacing.xs))
                 Text("Rimuovi", style = MaterialTheme.typography.labelSmall)
             }

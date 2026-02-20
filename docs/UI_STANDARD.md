@@ -11,9 +11,6 @@
 - Mantenere densita' compatta (padding standard celle).
 - Header e body devono considerare la stessa larghezza utile (incluso spazio scrollbar) per evitare disallineamenti colonne.
 
-Riferimento implementazione:
-- `composeApp/src/jvmMain/kotlin/org/example/project/ui/components/TableStandard.kt`
-
 ## 2. Banner Successo/Errore
 - Usare stato tipizzato `FeedbackBannerModel?` nella screen.
 - Popolare `kind` con `FeedbackBannerKind.SUCCESS` o `FeedbackBannerKind.ERROR`.

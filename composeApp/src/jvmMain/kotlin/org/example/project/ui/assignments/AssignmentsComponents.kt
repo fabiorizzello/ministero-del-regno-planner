@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -217,22 +218,24 @@ internal fun PersonPickerDialog(
         if (slotLabel != null) append(" ($slotLabel)")
     }
 
-    // Client-side filtering by search term
-    val filtered = if (searchTerm.isBlank()) {
-        suggestions
-    } else {
-        val lowerTerm = searchTerm.lowercase()
-        suggestions.filter { s ->
-            s.proclamatore.nome.lowercase().contains(lowerTerm) ||
-                s.proclamatore.cognome.lowercase().contains(lowerTerm)
+    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition
+    val sorted = remember(suggestions, searchTerm, sortGlobal) {
+        val filtered = if (searchTerm.isBlank()) {
+            suggestions
+        } else {
+            val lowerTerm = searchTerm.lowercase()
+            suggestions.filter { s ->
+                s.proclamatore.nome.lowercase().contains(lowerTerm) ||
+                    s.proclamatore.cognome.lowercase().contains(lowerTerm)
+            }
         }
-    }
 
-    // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
-    val sorted = if (sortGlobal) {
-        filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
-    } else {
-        filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
+        // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
+        if (sortGlobal) {
+            filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
+        } else {
+            filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
+        }
     }
 
     Dialog(

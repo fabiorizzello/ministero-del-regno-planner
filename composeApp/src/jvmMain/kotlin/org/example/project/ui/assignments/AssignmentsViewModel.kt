@@ -203,10 +203,12 @@ internal class AssignmentsViewModel(
         suggestionsJob = scope.launch {
             _state.update { it.copy(isPickerLoading = true) }
             try {
+                val alreadyAssignedIds = s.assignments.map { it.personId }.toSet()
                 val suggestions = suggerisciProclamatori(
                     weekStartDate = s.currentMonday,
                     weeklyPartId = weeklyPartId,
                     slot = slot,
+                    alreadyAssignedIds = alreadyAssignedIds,
                 )
                 _state.update { it.copy(pickerSuggestions = suggestions, isPickerLoading = false) }
             } catch (e: Exception) {

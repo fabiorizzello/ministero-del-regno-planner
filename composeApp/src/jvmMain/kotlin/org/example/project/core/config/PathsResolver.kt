@@ -28,11 +28,14 @@ object PathsResolver {
     }
 
     private fun resolveRootDir(): Path {
+        val userHome = Paths.get(System.getProperty("user.home")).normalize()
         val localAppData = System.getenv("LOCALAPPDATA")
-        return if (!localAppData.isNullOrBlank()) {
-            Paths.get(localAppData, APP_DIR_NAME)
-        } else {
-            Paths.get(System.getProperty("user.home"), ".$APP_DIR_NAME")
+        if (!localAppData.isNullOrBlank()) {
+            val candidate = Paths.get(localAppData, APP_DIR_NAME).normalize()
+            if (candidate.startsWith(userHome)) {
+                return candidate
+            }
         }
+        return userHome.resolve(".$APP_DIR_NAME")
     }
 }

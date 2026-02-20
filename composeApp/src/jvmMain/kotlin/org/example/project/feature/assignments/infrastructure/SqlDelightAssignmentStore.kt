@@ -55,50 +55,52 @@ class SqlDelightAssignmentStore(
         slot: Int,
         referenceDate: LocalDate,
     ): List<SuggestedProclamatore> {
-        // Choose ranking queries based on slot:
-        // Slot 1: only slot-1 history
-        // Slot 2+: all slots (1+2) history
-        val globalRanking: Map<String, String?> = if (slot == 1) {
-            database.ministeroDatabaseQueries
-                .lastSlot1GlobalAssignmentPerPerson()
-                .executeAsList()
-                .associate { it.person_id to it.last_week_date }
-        } else {
-            database.ministeroDatabaseQueries
-                .lastGlobalAssignmentPerPerson()
-                .executeAsList()
-                .associate { it.person_id to it.last_week_date }
-        }
+        return database.ministeroDatabaseQueries.transactionWithResult {
+            // Choose ranking queries based on slot:
+            // Slot 1: only slot-1 history
+            // Slot 2+: all slots (1+2) history
+            val globalRanking: Map<String, String?> = if (slot == 1) {
+                database.ministeroDatabaseQueries
+                    .lastSlot1GlobalAssignmentPerPerson()
+                    .executeAsList()
+                    .associate { it.person_id to it.last_week_date }
+            } else {
+                database.ministeroDatabaseQueries
+                    .lastGlobalAssignmentPerPerson()
+                    .executeAsList()
+                    .associate { it.person_id to it.last_week_date }
+            }
 
-        val partTypeRanking: Map<String, String?> = if (slot == 1) {
-            database.ministeroDatabaseQueries
-                .lastSlot1PartTypeAssignmentPerPerson(partTypeId.value)
+            val partTypeRanking: Map<String, String?> = if (slot == 1) {
+                database.ministeroDatabaseQueries
+                    .lastSlot1PartTypeAssignmentPerPerson(partTypeId.value)
+                    .executeAsList()
+                    .associate { it.person_id to it.last_week_date }
+            } else {
+                database.ministeroDatabaseQueries
+                    .lastPartTypeAssignmentPerPerson(partTypeId.value)
+                    .executeAsList()
+                    .associate { it.person_id to it.last_week_date }
+            }
+
+            val allActive = database.ministeroDatabaseQueries
+                .allActiveProclaimers(::mapProclamatoreRow)
                 .executeAsList()
-                .associate { it.person_id to it.last_week_date }
-        } else {
-            database.ministeroDatabaseQueries
-                .lastPartTypeAssignmentPerPerson(partTypeId.value)
-                .executeAsList()
-                .associate { it.person_id to it.last_week_date }
-        }
 
-        val allActive = database.ministeroDatabaseQueries
-            .allActiveProclaimers(::mapProclamatoreRow)
-            .executeAsList()
+            allActive.map { p ->
+                val lastGlobalDate = globalRanking[p.id.value]
+                val lastPartDate = partTypeRanking[p.id.value]
 
-        return allActive.map { p ->
-            val lastGlobalDate = globalRanking[p.id.value]
-            val lastPartDate = partTypeRanking[p.id.value]
-
-            SuggestedProclamatore(
-                proclamatore = p,
-                lastGlobalWeeks = lastGlobalDate?.let {
-                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                },
-                lastForPartTypeWeeks = lastPartDate?.let {
-                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                },
-            )
+                SuggestedProclamatore(
+                    proclamatore = p,
+                    lastGlobalWeeks = lastGlobalDate?.let {
+                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
+                    },
+                    lastForPartTypeWeeks = lastPartDate?.let {
+                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
+                    },
+                )
+            }
         }
     }
 

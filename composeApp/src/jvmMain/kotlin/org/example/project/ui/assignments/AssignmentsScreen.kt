@@ -138,11 +138,14 @@ fun AssignmentsScreen() {
             // Parts list
             val readOnly = state.weekIndicator == WeekTimeIndicator.PASSATA
             val parts = state.weekPlan?.parts ?: emptyList()
+            val assignmentsByPart = remember(state.assignments) {
+                state.assignments.groupBy { it.weeklyPartId }
+            }
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
                 items(parts, key = { it.id.value }) { part ->
-                    val partAssignments = state.assignments.filter { it.weeklyPartId == part.id }
+                    val partAssignments = assignmentsByPart[part.id] ?: emptyList()
                     PartAssignmentCard(
                         part = part,
                         assignments = partAssignments,

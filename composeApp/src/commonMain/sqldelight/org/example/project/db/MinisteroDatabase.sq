@@ -92,18 +92,13 @@ WHERE first_name = ? COLLATE NOCASE
   AND id != ?;
 
 upsertProclaimer:
-UPDATE person
-SET
-    first_name = ?,
-    last_name = ?,
-    sex = ?,
-    active = ?
-WHERE id = ?;
-
-insertProclaimerIfAbsent:
 INSERT INTO person(id, first_name, last_name, sex, active)
-SELECT ?, ?, ?, ?, ?
-WHERE NOT EXISTS (SELECT 1 FROM person WHERE id = ?);
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    sex = excluded.sex,
+    active = excluded.active;
 
 deleteProclaimerById:
 DELETE FROM person
