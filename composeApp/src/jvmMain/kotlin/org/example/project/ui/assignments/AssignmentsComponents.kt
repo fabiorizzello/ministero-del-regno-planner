@@ -38,6 +38,7 @@ import org.example.project.ui.theme.spacing
 private val WEEKS_COLUMN_WIDTH = 120.dp
 private val BUTTON_COLUMN_WIDTH = 132.dp
 private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
+private val ASSIGNED_PERSON_CHIP_MAX_WIDTH = 420.dp
 
 @Composable
 internal fun PartAssignmentCard(
@@ -174,6 +175,7 @@ private fun AssignedPersonChip(
 
     Row(
         modifier = modifier
+            .widthIn(max = ASSIGNED_PERSON_CHIP_MAX_WIDTH)
             .handCursorOnHover(enabled = !readOnly)
             .hoverable(
                 enabled = !readOnly,
