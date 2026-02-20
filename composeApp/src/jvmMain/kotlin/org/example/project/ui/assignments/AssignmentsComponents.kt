@@ -1,6 +1,8 @@
 package org.example.project.ui.assignments
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,14 +10,15 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -152,42 +155,46 @@ private fun AssignedPersonChip(
 ) {
     val spacing = MaterialTheme.spacing
     val shape = RoundedCornerShape(999.dp)
+    val chipInteractionSource = remember { MutableInteractionSource() }
+    val isHovered by chipInteractionSource.collectIsHoveredAsState()
     val containerColor = if (readOnly) {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    } else if (isHovered) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)
     } else {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
     }
     val borderColor = if (readOnly) {
         MaterialTheme.colorScheme.outlineVariant
+    } else if (isHovered) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
     } else {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
     }
 
     Row(
         modifier = modifier
+            .handCursorOnHover(enabled = !readOnly)
+            .hoverable(
+                enabled = !readOnly,
+                interactionSource = chipInteractionSource,
+            )
+            .clip(shape)
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
-            .padding(start = spacing.lg, end = spacing.sm, top = spacing.sm, bottom = spacing.sm),
+            .clickable(
+                enabled = !readOnly,
+                interactionSource = chipInteractionSource,
+                indication = LocalIndication.current,
+                onClick = onOpenPicker,
+            )
+            .padding(start = spacing.lg, end = spacing.xs, top = spacing.sm, bottom = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        FilledTonalIconButton(
-            onClick = onOpenPicker,
-            enabled = !readOnly,
-            modifier = Modifier.size(30.dp).handCursorOnHover(),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        ) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = if (readOnly) null else "Modifica assegnazione",
-                modifier = Modifier.size(20.dp),
-            )
-        }
         Text(
             text = fullName,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.titleSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -195,16 +202,16 @@ private fun AssignedPersonChip(
         if (!readOnly) {
             FilledIconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(30.dp).handCursorOnHover(),
+                modifier = Modifier.size(36.dp).handCursorOnHover(),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
                 Icon(
                     Icons.Filled.Close,
                     contentDescription = "Rimuovi $fullName",
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -222,6 +229,7 @@ private fun MissingAssignmentChip(
 
     Row(
         modifier = modifier
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surface, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, MaterialTheme.colorScheme.outline, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
