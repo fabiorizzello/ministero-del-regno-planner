@@ -30,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
@@ -65,6 +67,8 @@ internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Un
 private const val UI_SCALE_MIN = 0.85f
 private const val UI_SCALE_MAX = 1.25f
 private const val UI_SCALE_STEP_PERCENT = 5
+private const val UI_SCALE_SLIDER_STEPS = 7
+private val UI_SCALE_PRESET_PERCENTAGES = listOf(90, 100, 110, 120)
 
 internal enum class AppSection(
     val label: String,
@@ -88,6 +92,7 @@ fun AppScreen(
         var uiScale by rememberSaveable(initialUiScale) {
             mutableFloatStateOf(initialUiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
         }
+        var draftUiScale by remember { mutableFloatStateOf(uiScale) }
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
@@ -135,56 +140,86 @@ fun AppScreen(
                             },
                             actions = {
                                 Box {
+                                    fun applyUiScale(value: Float) {
+                                        val updatedScale = snapUiScale(value)
+                                        if (updatedScale != uiScale) {
+                                            uiScale = updatedScale
+                                            onUiScaleChange(updatedScale)
+                                        }
+                                        draftUiScale = updatedScale
+                                    }
                                     IconButton(
-                                        onClick = { isSizeMenuExpanded = true },
+                                        onClick = {
+                                            draftUiScale = uiScale
+                                            isSizeMenuExpanded = true
+                                        },
                                         modifier = Modifier.handCursorOnHover(),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.TextFields,
-                                            contentDescription = "Dimensione interfaccia",
+                                            contentDescription = "Dimensione testo",
                                             modifier = Modifier.size(20.dp),
                                         )
                                     }
 
                                     DropdownMenu(
                                         expanded = isSizeMenuExpanded,
-                                        onDismissRequest = { isSizeMenuExpanded = false },
+                                        onDismissRequest = {
+                                            applyUiScale(draftUiScale)
+                                            isSizeMenuExpanded = false
+                                        },
+                                        properties = PopupProperties(focusable = true),
                                     ) {
                                         Column(
                                             modifier = Modifier
-                                                .width(260.dp)
+                                                .width(300.dp)
                                                 .padding(spacing.md),
                                             verticalArrangement = Arrangement.spacedBy(spacing.sm),
                                         ) {
-                                            val uiScalePercentage = (uiScale * 100f).roundToInt()
-                                            val minPercentage = (UI_SCALE_MIN * 100f).roundToInt()
-                                            val maxPercentage = (UI_SCALE_MAX * 100f).roundToInt()
-                                            fun setUiScalePercentage(value: Int) {
-                                                val updatedPercentage = value.coerceIn(minPercentage, maxPercentage)
-                                                val updatedScale = updatedPercentage / 100f
-                                                if (updatedScale != uiScale) {
-                                                    uiScale = updatedScale
-                                                    onUiScaleChange(updatedScale)
+                                            val draftPercentage = draftUiScale.toUiScalePercentage()
+                                            Text("Dimensione testo")
+                                            Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
+                                            Slider(
+                                                value = draftUiScale,
+                                                onValueChange = { draftUiScale = snapUiScale(it) },
+                                                onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                steps = UI_SCALE_SLIDER_STEPS,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                            ) {
+                                                Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .horizontalScroll(rememberScrollState()),
+                                                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                            ) {
+                                                UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                    val presetScale = preset.toUiScale()
+                                                    OutlinedButton(
+                                                        onClick = { applyUiScale(presetScale) },
+                                                        enabled = draftPercentage != preset,
+                                                    ) {
+                                                        Text("$preset%")
+                                                    }
                                                 }
                                             }
-                                            Text("Dimensione interfaccia")
-                                            Text("$uiScalePercentage%", style = MaterialTheme.typography.bodySmall)
                                             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                                                 OutlinedButton(
-                                                    onClick = { setUiScalePercentage(uiScalePercentage - UI_SCALE_STEP_PERCENT) },
-                                                    enabled = uiScalePercentage > minPercentage,
+                                                    onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                    enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
                                                 ) {
                                                     Text("-$UI_SCALE_STEP_PERCENT%")
                                                 }
                                                 OutlinedButton(
-                                                    onClick = { setUiScalePercentage(100) },
-                                                    enabled = uiScalePercentage != 100,
-                                                ) {
-                                                    Text("100%")
-                                                }
-                                                OutlinedButton(
-                                                    onClick = { setUiScalePercentage(uiScalePercentage + UI_SCALE_STEP_PERCENT) },
-                                                    enabled = uiScalePercentage < maxPercentage,
+                                                    onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                    enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
                                                 ) {
                                                     Text("+$UI_SCALE_STEP_PERCENT%")
                                                 }
@@ -292,4 +327,17 @@ private data object DiagnosticsSectionScreen : Screen {
     override fun Content() {
         DiagnosticsScreen()
     }
+}
+
+private fun Float.toUiScalePercentage(): Int = (this * 100f).roundToInt()
+
+private fun Int.toUiScale(): Float {
+    val minPercentage = UI_SCALE_MIN.toUiScalePercentage()
+    val maxPercentage = UI_SCALE_MAX.toUiScalePercentage()
+    return this.coerceIn(minPercentage, maxPercentage) / 100f
+}
+
+private fun snapUiScale(value: Float): Float {
+    val snappedPercentage = ((value * 100f) / UI_SCALE_STEP_PERCENT).roundToInt() * UI_SCALE_STEP_PERCENT
+    return snappedPercentage.toUiScale()
 }
