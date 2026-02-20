@@ -1,4 +1,3 @@
-assegnazione -> settimana senza schema -> creo schema -> vado in assegnazione -> l'interfaccia dice ancora che non c'è uno schema (cache) verifica e fixa questi errori
 nella vista assegnazioni potremmo aggiungere dettagli riguardanti settimana precedente e quella successiva (es. completamento parziale o da completare ecc)
 
 dobbiamo capire come gestire i seguenti rilasci e debug da parte mia, sviluppatore.
