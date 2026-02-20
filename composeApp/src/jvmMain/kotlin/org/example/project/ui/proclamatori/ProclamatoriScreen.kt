@@ -171,68 +171,63 @@ fun ProclamatoriScreen() {
             onGoList = { goToListManual() },
         )
 
-        when (route) {
-            ProclamatoriRoute.Elenco -> {
-                val elencoEvents = remember(listVm, formVm) {
-                    ProclamatoriElencoEvents(
-                        onSearchTermChange = { value -> listVm.setSearchTerm(value) },
-                        onResetSearch = { listVm.resetSearch() },
-                        onDismissNotice = { listVm.dismissNotice() },
-                        onSortChange = { nextSort -> listVm.setSort(nextSort) },
-                        onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
-                        onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
-                        onActivateSelected = { listVm.activateSelected() },
-                        onDeactivateSelected = { listVm.deactivateSelected() },
-                        onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
-                        onClearSelection = { listVm.clearSelection() },
-                        onGoNuovo = { goToNuovo() },
-                        onImportJson = { listVm.startImportFromJson() },
-                        onEdit = { id ->
-                            formVm.loadForEdit(
-                                id = id,
-                                onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
-                                onSuccess = { route = ProclamatoriRoute.Modifica(id) },
-                            )
-                        },
-                        onToggleActive = { id, next -> listVm.toggleActive(id, next) },
-                        onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
-                        onPreviousPage = { listVm.goToPreviousPage() },
-                        onNextPage = { listVm.goToNextPage() },
+        val elencoEvents = remember(listVm, formVm) {
+            ProclamatoriElencoEvents(
+                onSearchTermChange = { value -> listVm.setSearchTerm(value) },
+                onResetSearch = { listVm.resetSearch() },
+                onDismissNotice = { listVm.dismissNotice() },
+                onSortChange = { nextSort -> listVm.setSort(nextSort) },
+                onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
+                onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
+                onActivateSelected = { listVm.activateSelected() },
+                onDeactivateSelected = { listVm.deactivateSelected() },
+                onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
+                onClearSelection = { listVm.clearSelection() },
+                onGoNuovo = { goToNuovo() },
+                onImportJson = { listVm.startImportFromJson() },
+                onEdit = { id ->
+                    formVm.loadForEdit(
+                        id = id,
+                        onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                        onSuccess = { route = ProclamatoriRoute.Modifica(id) },
                     )
-                }
-
-                ProclamatoriElencoContent(
-                    state = listState,
-                    searchFocusRequester = searchFocusRequester,
-                    tableListState = tableListState,
-                    canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
-                    events = elencoEvents,
-                )
-            }
-
-            ProclamatoriRoute.Nuovo,
-            is ProclamatoriRoute.Modifica,
-            -> {
-                ProclamatoriFormContent(
-                    route = route,
-                    nome = formState.nome,
-                    onNomeChange = { formVm.setNome(it) },
-                    cognome = formState.cognome,
-                    onCognomeChange = { formVm.setCognome(it) },
-                    sesso = formState.sesso,
-                    onSessoChange = { formVm.setSesso(it) },
-                    nomeTrim = formState.nome.trim(),
-                    cognomeTrim = formState.cognome.trim(),
-                    showFieldErrors = formState.showFieldErrors,
-                    duplicateError = formState.duplicateError,
-                    isCheckingDuplicate = formState.isCheckingDuplicate,
-                    canSubmitForm = canSubmitForm,
-                    isLoading = formState.isLoading,
-                    formError = formState.formError,
-                    onSubmit = { submitAndNavigate() },
-                    onCancel = { goToListManual() },
-                )
-            }
+                },
+                onToggleActive = { id, next -> listVm.toggleActive(id, next) },
+                onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
+                onPreviousPage = { listVm.goToPreviousPage() },
+                onNextPage = { listVm.goToNextPage() },
+            )
         }
+
+        ProclamatoriElencoContent(
+            state = listState,
+            searchFocusRequester = searchFocusRequester,
+            tableListState = tableListState,
+            canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
+            events = elencoEvents,
+        )
+    }
+
+    if (isFormRoute) {
+        ProclamatoriFormDialog(
+            route = route,
+            nome = formState.nome,
+            onNomeChange = { formVm.setNome(it) },
+            cognome = formState.cognome,
+            onCognomeChange = { formVm.setCognome(it) },
+            sesso = formState.sesso,
+            onSessoChange = { formVm.setSesso(it) },
+            nomeTrim = formState.nome.trim(),
+            cognomeTrim = formState.cognome.trim(),
+            showFieldErrors = formState.showFieldErrors,
+            duplicateError = formState.duplicateError,
+            isCheckingDuplicate = formState.isCheckingDuplicate,
+            canSubmitForm = canSubmitForm,
+            isLoading = formState.isLoading,
+            formError = formState.formError,
+            onSubmit = { submitAndNavigate() },
+            onCancel = { goToListManual() },
+            onDismiss = { goToListManual() },
+        )
     }
 }

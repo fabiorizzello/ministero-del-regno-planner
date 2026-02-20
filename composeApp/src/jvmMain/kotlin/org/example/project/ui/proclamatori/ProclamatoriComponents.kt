@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +59,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.ui.theme.spacing
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -546,6 +549,64 @@ internal fun ProclamatoriFormContent(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ProclamatoriFormDialog(
+    route: ProclamatoriRoute,
+    nome: String,
+    onNomeChange: (String) -> Unit,
+    cognome: String,
+    onCognomeChange: (String) -> Unit,
+    sesso: Sesso,
+    onSessoChange: (Sesso) -> Unit,
+    nomeTrim: String,
+    cognomeTrim: String,
+    showFieldErrors: Boolean,
+    duplicateError: String?,
+    isCheckingDuplicate: Boolean,
+    canSubmitForm: Boolean,
+    isLoading: Boolean,
+    formError: String?,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(spacing.cardRadius),
+            tonalElevation = 6.dp,
+            modifier = Modifier.width(640.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(spacing.xxl),
+            ) {
+                ProclamatoriFormContent(
+                    route = route,
+                    nome = nome,
+                    onNomeChange = onNomeChange,
+                    cognome = cognome,
+                    onCognomeChange = onCognomeChange,
+                    sesso = sesso,
+                    onSessoChange = onSessoChange,
+                    nomeTrim = nomeTrim,
+                    cognomeTrim = cognomeTrim,
+                    showFieldErrors = showFieldErrors,
+                    duplicateError = duplicateError,
+                    isCheckingDuplicate = isCheckingDuplicate,
+                    canSubmitForm = canSubmitForm,
+                    isLoading = isLoading,
+                    formError = formError,
+                    onSubmit = onSubmit,
+                    onCancel = onCancel,
+                )
             }
         }
     }
