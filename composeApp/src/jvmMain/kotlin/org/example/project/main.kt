@@ -34,6 +34,7 @@ fun main() {
     application {
         val settingsStore = remember { GlobalContext.get().get<WindowSettingsStore>() }
         val initialWindowSettings = remember { settingsStore.load() }
+        val initialUiScale = remember { settingsStore.loadUiScale() }
         val initialPosition = if (
             initialWindowSettings.positionXDp != WindowSettings.POSITION_UNSET &&
             initialWindowSettings.positionYDp != WindowSettings.POSITION_UNSET
@@ -67,7 +68,10 @@ fun main() {
             title = "Efficaci Nel Ministero",
             icon = painterResource("icon.png"),
         ) {
-            AppScreen()
+            AppScreen(
+                initialUiScale = initialUiScale,
+                onUiScaleChange = settingsStore::saveUiScale,
+            )
         }
     }
 }

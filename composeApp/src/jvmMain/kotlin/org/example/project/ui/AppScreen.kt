@@ -1,5 +1,11 @@
 package org.example.project.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Checklist
@@ -18,7 +25,6 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -55,6 +62,8 @@ import org.example.project.ui.weeklyparts.WeeklyPartsScreen
 import kotlin.math.roundToInt
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
+private const val UI_SCALE_MIN = 0.85f
+private const val UI_SCALE_MAX = 1.25f
 
 internal enum class AppSection(
     val label: String,
@@ -69,10 +78,15 @@ internal enum class AppSection(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun AppScreen() {
+fun AppScreen(
+    initialUiScale: Float = 1f,
+    onUiScaleChange: (Float) -> Unit = {},
+) {
     AppTheme {
         val spacing = MaterialTheme.spacing
-        var uiScale by rememberSaveable { mutableFloatStateOf(1f) }
+        var uiScale by rememberSaveable(initialUiScale) {
+            mutableFloatStateOf(initialUiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
+        }
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
@@ -110,17 +124,10 @@ fun AppScreen() {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     AppSection.entries.forEach { section ->
-                                        FilterChip(
+                                        TopBarSectionButton(
                                             selected = currentSection == section,
                                             onClick = { navigateToSection(section) },
-                                            label = { Text(section.label) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = section.icon,
-                                                    contentDescription = null,
-                                                )
-                                            },
-                                            modifier = Modifier.handCursorOnHover(),
+                                            section = section,
                                         )
                                     }
                                 }
@@ -154,9 +161,8 @@ fun AppScreen() {
                                             Slider(
                                                 value = uiScale,
                                                 onValueChange = { uiScale = it },
-                                                valueRange = 0.85f..1.25f,
-                                                steps = 7,
-                                                modifier = Modifier.handCursorOnHover(),
+                                                onValueChangeFinished = { onUiScaleChange(uiScale) },
+                                                valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
                                             )
                                         }
                                     }
@@ -176,6 +182,62 @@ fun AppScreen() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TopBarSectionButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    section: AppSection,
+) {
+    val spacing = MaterialTheme.spacing
+    val shape = RoundedCornerShape(999.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val containerColor = when {
+        selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isHovered) 0.95f else 0.85f)
+        isHovered -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val borderColor = when {
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+        isHovered -> MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Row(
+        modifier = Modifier
+            .handCursorOnHover()
+            .clip(shape)
+            .background(containerColor, shape)
+            .border(width = 1.dp, color = borderColor, shape = shape)
+            .hoverable(interactionSource = interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Icon(
+            imageVector = section.icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = section.label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelLarge,
+        )
     }
 }
 

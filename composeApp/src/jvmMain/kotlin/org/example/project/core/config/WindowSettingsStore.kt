@@ -37,6 +37,12 @@ class WindowSettingsStore(
         )
     }
 
+    fun loadUiScale(): Float {
+        return settings
+            .getFloat(KEY_UI_SCALE, DEFAULT_UI_SCALE)
+            .coerceIn(UI_SCALE_MIN, UI_SCALE_MAX)
+    }
+
     fun save(windowSettings: WindowSettings) {
         settings.putInt(KEY_WIDTH_DP, windowSettings.widthDp)
         settings.putInt(KEY_HEIGHT_DP, windowSettings.heightDp)
@@ -45,12 +51,20 @@ class WindowSettingsStore(
         settings.putInt(KEY_POSITION_Y, windowSettings.positionYDp)
     }
 
+    fun saveUiScale(uiScale: Float) {
+        settings.putFloat(KEY_UI_SCALE, uiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
+    }
+
     private companion object {
         const val KEY_WIDTH_DP = "window.widthDp"
         const val KEY_HEIGHT_DP = "window.heightDp"
         const val KEY_PLACEMENT = "window.placement"
         const val KEY_POSITION_X = "window.positionXDp"
         const val KEY_POSITION_Y = "window.positionYDp"
+        const val KEY_UI_SCALE = "ui.scale"
+        const val DEFAULT_UI_SCALE = 1.0f
+        const val UI_SCALE_MIN = 0.85f
+        const val UI_SCALE_MAX = 1.25f
     }
 }
 
