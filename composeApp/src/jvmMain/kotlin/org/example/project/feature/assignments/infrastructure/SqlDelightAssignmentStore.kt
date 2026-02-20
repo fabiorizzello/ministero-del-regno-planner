@@ -1,7 +1,9 @@
 package org.example.project.feature.assignments.infrastructure
 
 import org.example.project.db.MinisteroDatabase
-import org.example.project.feature.assignments.application.AssignmentStore
+import org.example.project.feature.assignments.application.AssignmentRanking
+import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
@@ -15,7 +17,7 @@ import java.time.temporal.ChronoUnit
 
 class SqlDelightAssignmentStore(
     private val database: MinisteroDatabase,
-) : AssignmentStore {
+) : AssignmentRepository, AssignmentRanking, PersonAssignmentLifecycle {
 
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> {
         return database.ministeroDatabaseQueries
@@ -102,6 +104,13 @@ class SqlDelightAssignmentStore(
                 )
             }
         }
+    }
+
+    override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int {
+        return database.ministeroDatabaseQueries
+            .countAssignmentsForWeek(weekPlanId.value)
+            .executeAsOne()
+            .toInt()
     }
 
     override suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int {

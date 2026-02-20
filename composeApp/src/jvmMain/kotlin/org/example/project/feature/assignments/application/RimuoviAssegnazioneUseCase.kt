@@ -6,7 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.domain.AssignmentId
 
 class RimuoviAssegnazioneUseCase(
-    private val assignmentStore: AssignmentStore,
+    private val assignmentStore: AssignmentRepository,
 ) {
     suspend operator fun invoke(assignmentId: AssignmentId): Either<DomainError, Unit> = either {
         try {

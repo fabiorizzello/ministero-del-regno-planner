@@ -80,6 +80,7 @@ fun WeeklyPartsScreen() {
     if (state.weeksNeedingConfirmation.isNotEmpty()) {
         OverwriteConfirmDialog(
             weeks = state.weeksNeedingConfirmation.map { LocalDate.parse(it.weekStartDate) },
+            assignmentCounts = state.overwriteAssignmentCounts,
             onConfirmAll = { viewModel.confirmOverwrite() },
             onSkip = { viewModel.dismissConfirmation() },
         )
@@ -461,6 +462,7 @@ private fun AddPartDropdown(
 @Composable
 private fun OverwriteConfirmDialog(
     weeks: List<LocalDate>,
+    assignmentCounts: Map<String, Int>,
     onConfirmAll: () -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -472,8 +474,10 @@ private fun OverwriteConfirmDialog(
                 Text("Le seguenti settimane esistono gia':")
                 Spacer(Modifier.height(MaterialTheme.spacing.md))
                 weeks.forEach { date ->
+                    val count = assignmentCounts[date.toString()] ?: 0
+                    val suffix = if (count > 0) " ($count assegnazioni)" else ""
                     Text(
-                        text = "- ${date.format(dateFormatter)}",
+                        text = "- ${date.format(dateFormatter)}$suffix",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

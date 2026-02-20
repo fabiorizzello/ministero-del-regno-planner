@@ -14,7 +14,7 @@ import java.util.UUID
 
 class AssegnaPersonaUseCase(
     private val weekPlanStore: WeekPlanStore,
-    private val assignmentStore: AssignmentStore,
+    private val assignmentStore: AssignmentRepository,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(

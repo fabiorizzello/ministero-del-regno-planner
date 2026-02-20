@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
+import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
@@ -39,6 +40,7 @@ internal data class WeeklyPartsUiState(
     val weeksNeedingConfirmation: List<RemoteWeekSchema> = emptyList(),
     val removePartCandidate: WeeklyPartId? = null,
     val partTypesLoadFailed: Boolean = false,
+    val overwriteAssignmentCounts: Map<String, Int> = emptyMap(),
 ) {
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
@@ -55,6 +57,7 @@ internal class WeeklyPartsViewModel(
     private val riordinaParti: RiordinaPartiUseCase,
     private val cercaTipiParte: CercaTipiParteUseCase,
     private val aggiornaDatiRemoti: AggiornaDatiRemotiUseCase,
+    private val assignmentRepository: AssignmentRepository,
 ) {
     private val _state = MutableStateFlow(WeeklyPartsUiState())
     val state: StateFlow<WeeklyPartsUiState> = _state.asStateFlow()
@@ -159,9 +162,18 @@ internal class WeeklyPartsViewModel(
                 },
                 ifRight = { result ->
                     if (result.weeksNeedingConfirmation.isNotEmpty()) {
+                        val counts = mutableMapOf<String, Int>()
+                        for (schema in result.weeksNeedingConfirmation) {
+                            val date = LocalDate.parse(schema.weekStartDate)
+                            val existing = caricaSettimana(date)
+                            if (existing != null) {
+                                counts[schema.weekStartDate] = assignmentRepository.countAssignmentsForWeek(existing.id)
+                            }
+                        }
                         _state.update { it.copy(
                             isImporting = false,
                             weeksNeedingConfirmation = result.weeksNeedingConfirmation,
+                            overwriteAssignmentCounts = counts,
                         ) }
                     } else {
                         val message = buildString {
@@ -190,7 +202,7 @@ internal class WeeklyPartsViewModel(
     fun confirmOverwrite() {
         val pending = _state.value.weeksNeedingConfirmation
         scope.launch {
-            _state.update { it.copy(isImporting = true, weeksNeedingConfirmation = emptyList()) }
+            _state.update { it.copy(isImporting = true, weeksNeedingConfirmation = emptyList(), overwriteAssignmentCounts = emptyMap()) }
             aggiornaDatiRemoti.importSchemas(pending).fold(
                 ifLeft = { error ->
                     _state.update { it.copy(isImporting = false) }
@@ -211,7 +223,7 @@ internal class WeeklyPartsViewModel(
     }
 
     fun dismissConfirmation() {
-        _state.update { it.copy(weeksNeedingConfirmation = emptyList()) }
+        _state.update { it.copy(weeksNeedingConfirmation = emptyList(), overwriteAssignmentCounts = emptyMap()) }
         loadWeek()
         loadPartTypes()
     }

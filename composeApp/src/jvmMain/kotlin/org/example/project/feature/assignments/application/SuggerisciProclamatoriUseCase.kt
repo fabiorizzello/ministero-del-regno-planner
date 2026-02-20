@@ -10,7 +10,7 @@ import java.time.LocalDate
 
 class SuggerisciProclamatoriUseCase(
     private val weekPlanStore: WeekPlanStore,
-    private val assignmentStore: AssignmentStore,
+    private val assignmentStore: AssignmentRanking,
 ) {
     suspend operator fun invoke(
         weekStartDate: LocalDate,

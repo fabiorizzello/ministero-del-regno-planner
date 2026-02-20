@@ -173,42 +173,40 @@ fun ProclamatoriScreen() {
 
         when (route) {
             ProclamatoriRoute.Elenco -> {
+                val elencoEvents = remember(listVm, formVm) {
+                    ProclamatoriElencoEvents(
+                        onSearchTermChange = { value -> listVm.setSearchTerm(value) },
+                        onResetSearch = { listVm.resetSearch() },
+                        onDismissNotice = { listVm.dismissNotice() },
+                        onSortChange = { nextSort -> listVm.setSort(nextSort) },
+                        onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
+                        onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
+                        onActivateSelected = { listVm.activateSelected() },
+                        onDeactivateSelected = { listVm.deactivateSelected() },
+                        onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
+                        onClearSelection = { listVm.clearSelection() },
+                        onGoNuovo = { goToNuovo() },
+                        onImportJson = { listVm.startImportFromJson() },
+                        onEdit = { id ->
+                            formVm.loadForEdit(
+                                id = id,
+                                onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                                onSuccess = { route = ProclamatoriRoute.Modifica(id) },
+                            )
+                        },
+                        onToggleActive = { id, next -> listVm.toggleActive(id, next) },
+                        onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
+                        onPreviousPage = { listVm.goToPreviousPage() },
+                        onNextPage = { listVm.goToNextPage() },
+                    )
+                }
+
                 ProclamatoriElencoContent(
-                    searchTerm = listState.searchTerm,
-                    onSearchTermChange = { value -> listVm.setSearchTerm(value) },
-                    onResetSearch = { listVm.resetSearch() },
+                    state = listState,
                     searchFocusRequester = searchFocusRequester,
-                    allItems = listState.allItems,
-                    sortedItems = listState.sortedItems,
-                    isLoading = listState.isLoading,
-                    notice = listState.notice,
-                    onDismissNotice = { listVm.dismissNotice() },
-                    selectedIds = listState.selectedIds,
-                    sort = listState.sort,
-                    pageIndex = listState.pageIndex,
-                    pageSize = listState.pageSize,
                     tableListState = tableListState,
-                    onSortChange = { nextSort -> listVm.setSort(nextSort) },
-                    onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
-                    onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
-                    onActivateSelected = { listVm.activateSelected() },
-                    onDeactivateSelected = { listVm.deactivateSelected() },
-                    onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
-                    onClearSelection = { listVm.clearSelection() },
-                    onGoNuovo = { goToNuovo() },
                     canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
-                    onImportJson = { listVm.startImportFromJson() },
-                    onEdit = { id ->
-                        formVm.loadForEdit(
-                            id = id,
-                            onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
-                            onSuccess = { route = ProclamatoriRoute.Modifica(id) },
-                        )
-                    },
-                    onToggleActive = { id, next -> listVm.toggleActive(id, next) },
-                    onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
-                    onPreviousPage = { listVm.goToPreviousPage() },
-                    onNextPage = { listVm.goToNextPage() },
+                    events = elencoEvents,
                 )
             }
 

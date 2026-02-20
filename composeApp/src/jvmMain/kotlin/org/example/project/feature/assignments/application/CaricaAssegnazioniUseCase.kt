@@ -6,7 +6,7 @@ import java.time.LocalDate
 
 class CaricaAssegnazioniUseCase(
     private val weekPlanStore: WeekPlanStore,
-    private val assignmentStore: AssignmentStore,
+    private val assignmentStore: AssignmentRepository,
 ) {
     suspend operator fun invoke(weekStartDate: LocalDate): List<AssignmentWithPerson> {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()

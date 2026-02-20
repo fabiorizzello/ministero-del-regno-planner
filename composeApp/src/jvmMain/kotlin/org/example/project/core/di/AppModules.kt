@@ -38,7 +38,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
-import org.example.project.feature.assignments.application.AssignmentStore
+import org.example.project.feature.assignments.application.AssignmentRanking
+import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
@@ -91,7 +93,10 @@ val appModule = module {
     single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
 
     // Assignments
-    single<AssignmentStore> { SqlDelightAssignmentStore(get()) }
+    single { SqlDelightAssignmentStore(get()) }
+    single<AssignmentRepository> { get<SqlDelightAssignmentStore>() }
+    single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
+    single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
@@ -113,6 +118,7 @@ val appModule = module {
             riordinaParti = get(),
             cercaTipiParte = get(),
             aggiornaDatiRemoti = get(),
+            assignmentRepository = get(),
         )
     }
     single {

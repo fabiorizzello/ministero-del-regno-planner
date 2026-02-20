@@ -66,6 +66,26 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.handCursorOnHover
 
+internal data class ProclamatoriElencoEvents(
+    val onSearchTermChange: (String) -> Unit,
+    val onResetSearch: () -> Unit,
+    val onDismissNotice: () -> Unit,
+    val onSortChange: (ProclamatoriSort) -> Unit,
+    val onToggleSelectPage: (List<ProclamatoreId>, Boolean) -> Unit,
+    val onToggleRowSelected: (ProclamatoreId, Boolean) -> Unit,
+    val onActivateSelected: () -> Unit,
+    val onDeactivateSelected: () -> Unit,
+    val onRequestDeleteSelected: () -> Unit,
+    val onClearSelection: () -> Unit,
+    val onGoNuovo: () -> Unit,
+    val onImportJson: () -> Unit,
+    val onEdit: (ProclamatoreId) -> Unit,
+    val onToggleActive: (ProclamatoreId, Boolean) -> Unit,
+    val onDelete: (Proclamatore) -> Unit,
+    val onPreviousPage: () -> Unit,
+    val onNextPage: () -> Unit,
+)
+
 private const val NAME_MAX_LENGTH = 100
 
 @Composable
@@ -125,36 +145,21 @@ internal fun ConfirmDeleteDialog(
 
 @Composable
 internal fun ColumnScope.ProclamatoriElencoContent(
-    searchTerm: String,
-    onSearchTermChange: (String) -> Unit,
-    onResetSearch: () -> Unit,
+    state: ProclamatoriListUiState,
     searchFocusRequester: FocusRequester,
-    allItems: List<Proclamatore>,
-    sortedItems: List<Proclamatore>,
-    isLoading: Boolean,
-    notice: FeedbackBannerModel?,
-    onDismissNotice: () -> Unit,
-    selectedIds: Set<ProclamatoreId>,
-    sort: ProclamatoriSort,
-    pageIndex: Int,
-    pageSize: Int,
     tableListState: LazyListState,
-    onSortChange: (ProclamatoriSort) -> Unit,
-    onToggleSelectPage: (List<ProclamatoreId>, Boolean) -> Unit,
-    onToggleRowSelected: (ProclamatoreId, Boolean) -> Unit,
-    onActivateSelected: () -> Unit,
-    onDeactivateSelected: () -> Unit,
-    onRequestDeleteSelected: () -> Unit,
-    onClearSelection: () -> Unit,
-    onGoNuovo: () -> Unit,
     canImportInitialJson: Boolean,
-    onImportJson: () -> Unit,
-    onEdit: (ProclamatoreId) -> Unit,
-    onToggleActive: (ProclamatoreId, Boolean) -> Unit,
-    onDelete: (Proclamatore) -> Unit,
-    onPreviousPage: () -> Unit,
-    onNextPage: () -> Unit,
+    events: ProclamatoriElencoEvents,
 ) {
+    val searchTerm = state.searchTerm
+    val allItems = state.allItems
+    val sortedItems = state.sortedItems
+    val isLoading = state.isLoading
+    val notice = state.notice
+    val selectedIds = state.selectedIds
+    val sort = state.sort
+    val pageIndex = state.pageIndex
+    val pageSize = state.pageSize
     val spacing = MaterialTheme.spacing
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -168,7 +173,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
             Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
             Button(
                 modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                onClick = onGoNuovo,
+                onClick = events.onGoNuovo,
                 enabled = !isLoading,
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "Aggiungi proclamatore")
@@ -178,7 +183,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
             if (canImportInitialJson) {
                 Button(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                    onClick = onImportJson,
+                    onClick = events.onImportJson,
                     enabled = !isLoading,
                 ) {
                     Text("Importa JSON iniziale")
@@ -188,7 +193,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
 
         OutlinedTextField(
             value = searchTerm,
-            onValueChange = onSearchTermChange,
+            onValueChange = events.onSearchTermChange,
             modifier = Modifier
                 .width(320.dp)
                 .focusRequester(searchFocusRequester),
@@ -198,7 +203,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 if (searchTerm.isNotBlank()) {
                     IconButton(
                         modifier = Modifier.handCursorOnHover(),
-                        onClick = onResetSearch,
+                        onClick = events.onResetSearch,
                     ) {
                         Icon(Icons.Filled.Close, contentDescription = "Reset ricerca")
                     }
@@ -209,7 +214,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
 
     FeedbackBanner(
         model = notice,
-        onDismissRequest = onDismissNotice,
+        onDismissRequest = events.onDismissNotice,
     )
 
     val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
@@ -238,7 +243,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
             ) {
                 Checkbox(
                     checked = allPageSelected,
-                    onCheckedChange = { checked -> onToggleSelectPage(pageItemIds, checked) },
+                    onCheckedChange = { checked -> events.onToggleSelectPage(pageItemIds, checked) },
                     enabled = !isLoading && pageItemIds.isNotEmpty(),
                 )
                 Text("Selezionati: ${selectedIds.size}", style = MaterialTheme.typography.bodySmall)
@@ -250,7 +255,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 ) {
                     Button(
                         modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
-                        onClick = onActivateSelected,
+                        onClick = events.onActivateSelected,
                         enabled = batchActionsEnabled,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
@@ -260,7 +265,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     }
                     Button(
                         modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
-                        onClick = onDeactivateSelected,
+                        onClick = events.onDeactivateSelected,
                         enabled = batchActionsEnabled,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
@@ -270,7 +275,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     }
                     Button(
                         modifier = Modifier.handCursorOnHover(enabled = batchActionsEnabled).height(30.dp),
-                        onClick = onRequestDeleteSelected,
+                        onClick = events.onRequestDeleteSelected,
                         enabled = batchActionsEnabled,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -284,7 +289,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     }
                     TextButton(
                         modifier = Modifier.handCursorOnHover(enabled = !isLoading).height(30.dp),
-                        onClick = onClearSelection,
+                        onClick = events.onClearSelection,
                         enabled = !isLoading,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) {
@@ -322,7 +327,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     modifier = Modifier
                         .weight(2f)
                         .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(1)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                        .clickable { sortFieldForColumn(1)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
                     style = MaterialTheme.typography.labelMedium,
                 )
                 Text(
@@ -330,7 +335,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     modifier = Modifier
                         .weight(2f)
                         .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(2)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                        .clickable { sortFieldForColumn(2)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
                     style = MaterialTheme.typography.labelMedium,
                 )
                 Text(
@@ -338,7 +343,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     modifier = Modifier
                         .weight(1f)
                         .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(3)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                        .clickable { sortFieldForColumn(3)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
                     style = MaterialTheme.typography.labelMedium,
                 )
                 Text(
@@ -346,7 +351,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     modifier = Modifier
                         .weight(1f)
                         .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(4)?.let { field -> onSortChange(toggleSort(sort, field)) } },
+                        .clickable { sortFieldForColumn(4)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
                     style = MaterialTheme.typography.labelMedium,
                 )
                 Text(
@@ -385,10 +390,10 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                                 selected = item.id in selectedIds,
                                 batchMode = hasSelection,
                                 backgroundColor = zebraColor,
-                                onToggleSelected = { checked -> onToggleRowSelected(item.id, checked) },
-                                onEdit = { onEdit(item.id) },
-                                onToggleActive = { next -> onToggleActive(item.id, next) },
-                                onDelete = { onDelete(item) },
+                                onToggleSelected = { checked -> events.onToggleRowSelected(item.id, checked) },
+                                onEdit = { events.onEdit(item.id) },
+                                onToggleActive = { next -> events.onToggleActive(item.id, next) },
+                                onDelete = { events.onDelete(item) },
                             )
                         }
                     }
@@ -414,14 +419,14 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                 ) {
                     OutlinedButton(
                         modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex > 0).height(28.dp),
-                        onClick = onPreviousPage,
+                        onClick = events.onPreviousPage,
                         enabled = !isLoading && pageIndex > 0,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) { Text("Prec", style = MaterialTheme.typography.labelSmall) }
                     Text("Pagina ${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(
                         modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1).height(28.dp),
-                        onClick = onNextPage,
+                        onClick = events.onNextPage,
                         enabled = !isLoading && pageIndex < totalPages - 1,
                         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
                     ) { Text("Succ", style = MaterialTheme.typography.labelSmall) }

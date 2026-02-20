@@ -9,16 +9,23 @@ import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
 
-interface AssignmentStore {
+interface AssignmentRepository {
     suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson>
     suspend fun save(assignment: Assignment)
     suspend fun remove(assignmentId: AssignmentId)
     suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean
+    suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int
+}
+
+interface AssignmentRanking {
     suspend fun suggestedProclamatori(
         partTypeId: PartTypeId,
         slot: Int,
         referenceDate: LocalDate,
     ): List<SuggestedProclamatore>
+}
+
+interface PersonAssignmentLifecycle {
     suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int
     suspend fun removeAllForPerson(personId: ProclamatoreId)
 }
