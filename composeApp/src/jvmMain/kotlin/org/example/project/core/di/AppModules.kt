@@ -47,6 +47,7 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioneUs
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
 import org.example.project.ui.assignments.AssignmentsViewModel
+import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
 import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
@@ -140,6 +141,12 @@ val appModule = module {
             elimina = get(),
             importaDaJson = get(),
             contaAssegnazioni = get(),
+        )
+    }
+    single {
+        DiagnosticsViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            database = get(),
         )
     }
     factory {

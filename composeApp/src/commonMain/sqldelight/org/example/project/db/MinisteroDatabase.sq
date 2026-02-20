@@ -265,3 +265,26 @@ LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
 WHERE p.active = 1
 GROUP BY p.id;
+
+-- Diagnostics queries
+countWeekPlansBeforeDate:
+SELECT COUNT(*)
+FROM week_plan
+WHERE week_start_date < ?;
+
+countWeeklyPartsBeforeDate:
+SELECT COUNT(*)
+FROM weekly_part wp
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE wpl.week_start_date < ?;
+
+countAssignmentsBeforeDate:
+SELECT COUNT(*)
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE wpl.week_start_date < ?;
+
+deleteWeekPlansBeforeDate:
+DELETE FROM week_plan
+WHERE week_start_date < ?;

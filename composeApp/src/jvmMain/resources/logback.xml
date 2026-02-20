@@ -8,6 +8,7 @@
             <fileNamePattern>${APP_LOG_DIR}/application.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>5MB</maxFileSize>
             <maxHistory>14</maxHistory>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
             <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
 
