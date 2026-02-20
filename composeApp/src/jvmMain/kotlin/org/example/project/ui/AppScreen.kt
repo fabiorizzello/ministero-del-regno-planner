@@ -28,8 +28,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,6 +64,7 @@ import kotlin.math.roundToInt
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
 private const val UI_SCALE_MIN = 0.85f
 private const val UI_SCALE_MAX = 1.25f
+private const val UI_SCALE_STEP_PERCENT = 5
 
 internal enum class AppSection(
     val label: String,
@@ -156,14 +157,38 @@ fun AppScreen(
                                             verticalArrangement = Arrangement.spacedBy(spacing.sm),
                                         ) {
                                             val uiScalePercentage = (uiScale * 100f).roundToInt()
+                                            val minPercentage = (UI_SCALE_MIN * 100f).roundToInt()
+                                            val maxPercentage = (UI_SCALE_MAX * 100f).roundToInt()
+                                            fun setUiScalePercentage(value: Int) {
+                                                val updatedPercentage = value.coerceIn(minPercentage, maxPercentage)
+                                                val updatedScale = updatedPercentage / 100f
+                                                if (updatedScale != uiScale) {
+                                                    uiScale = updatedScale
+                                                    onUiScaleChange(updatedScale)
+                                                }
+                                            }
                                             Text("Dimensione interfaccia")
                                             Text("$uiScalePercentage%", style = MaterialTheme.typography.bodySmall)
-                                            Slider(
-                                                value = uiScale,
-                                                onValueChange = { uiScale = it },
-                                                onValueChangeFinished = { onUiScaleChange(uiScale) },
-                                                valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                            )
+                                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                OutlinedButton(
+                                                    onClick = { setUiScalePercentage(uiScalePercentage - UI_SCALE_STEP_PERCENT) },
+                                                    enabled = uiScalePercentage > minPercentage,
+                                                ) {
+                                                    Text("-$UI_SCALE_STEP_PERCENT%")
+                                                }
+                                                OutlinedButton(
+                                                    onClick = { setUiScalePercentage(100) },
+                                                    enabled = uiScalePercentage != 100,
+                                                ) {
+                                                    Text("100%")
+                                                }
+                                                OutlinedButton(
+                                                    onClick = { setUiScalePercentage(uiScalePercentage + UI_SCALE_STEP_PERCENT) },
+                                                    enabled = uiScalePercentage < maxPercentage,
+                                                ) {
+                                                    Text("+$UI_SCALE_STEP_PERCENT%")
+                                                }
+                                            }
                                         }
                                     }
                                 }
