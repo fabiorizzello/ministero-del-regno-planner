@@ -23,6 +23,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.WeekCompletionStatus
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
@@ -43,6 +44,8 @@ internal data class AssignmentsUiState(
     val isPickerLoading: Boolean = false,
     val isAssigning: Boolean = false,
     val isRemoving: Boolean = false,
+    val prevWeekStatus: WeekCompletionStatus? = null,
+    val nextWeekStatus: WeekCompletionStatus? = null,
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
 
@@ -88,6 +91,10 @@ internal class AssignmentsViewModel(
 
     fun navigateToNextWeek() {
         sharedWeekState.navigateToNextWeek()
+    }
+
+    fun navigateToCurrentWeek() {
+        sharedWeekState.navigateToCurrentWeek()
     }
 
     fun openPersonPicker(weeklyPartId: WeeklyPartId, slot: Int) {
@@ -175,14 +182,46 @@ internal class AssignmentsViewModel(
         _state.update { it.copy(notice = null) }
     }
 
+    private fun computeCompletionStatus(weekPlan: WeekPlan?, assignments: List<AssignmentWithPerson>): WeekCompletionStatus {
+        val total = weekPlan?.parts?.sumOf { it.partType.peopleCount } ?: 0
+        val assigned = assignments.size
+        return when {
+            total == 0 || weekPlan == null -> WeekCompletionStatus.EMPTY
+            assigned >= total -> WeekCompletionStatus.COMPLETE
+            assigned > 0 -> WeekCompletionStatus.PARTIAL
+            else -> WeekCompletionStatus.EMPTY
+        }
+    }
+
     private fun loadWeekData() {
         loadJob?.cancel()
         loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val weekPlan = caricaSettimana(_state.value.currentMonday)
-                val assignments = caricaAssegnazioni(_state.value.currentMonday)
-                _state.update { it.copy(isLoading = false, weekPlan = weekPlan, assignments = assignments) }
+                val monday = _state.value.currentMonday
+                val weekPlan = caricaSettimana(monday)
+                val assignments = caricaAssegnazioni(monday)
+
+                // Load adjacent week completion status
+                val prevMonday = monday.minusWeeks(1)
+                val prevPlan = caricaSettimana(prevMonday)
+                val prevAssignments = caricaAssegnazioni(prevMonday)
+                val prevStatus = computeCompletionStatus(prevPlan, prevAssignments)
+
+                val nextMonday = monday.plusWeeks(1)
+                val nextPlan = caricaSettimana(nextMonday)
+                val nextAssignments = caricaAssegnazioni(nextMonday)
+                val nextStatus = computeCompletionStatus(nextPlan, nextAssignments)
+
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        weekPlan = weekPlan,
+                        assignments = assignments,
+                        prevWeekStatus = prevStatus,
+                        nextWeekStatus = nextStatus,
+                    )
+                }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(

@@ -81,6 +81,9 @@ fun AssignmentsScreen() {
             enabled = !state.isLoading,
             onPrevious = { viewModel.navigateToPreviousWeek() },
             onNext = { viewModel.navigateToNextWeek() },
+            prevWeekStatus = state.prevWeekStatus,
+            nextWeekStatus = state.nextWeekStatus,
+            onNavigateToCurrentWeek = { viewModel.navigateToCurrentWeek() },
         )
 
         // Status bar: navigation + completion count
