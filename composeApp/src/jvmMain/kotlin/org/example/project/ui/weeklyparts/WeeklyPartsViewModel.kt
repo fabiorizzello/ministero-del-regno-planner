@@ -95,6 +95,10 @@ internal class WeeklyPartsViewModel(
         sharedWeekState.navigateToNextWeek()
     }
 
+    fun navigateToCurrentWeek() {
+        sharedWeekState.navigateToCurrentWeek()
+    }
+
     fun createWeek() {
         scope.launch {
             _state.update { it.copy(isLoading = true) }

@@ -1,13 +1,19 @@
 package org.example.project.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
@@ -17,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import org.example.project.core.application.SharedWeekState
 import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
@@ -29,6 +36,8 @@ import java.util.Locale
 const val DISPLAY_NUMBER_OFFSET = 3
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
+
+enum class WeekCompletionStatus { COMPLETE, PARTIAL, EMPTY }
 
 private fun computeWeekDistance(monday: LocalDate): Int {
     val thisMonday = SharedWeekState.currentMonday()
@@ -59,6 +68,20 @@ fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)
 internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
 @Composable
+private fun CompletionDot(status: WeekCompletionStatus) {
+    val color = when (status) {
+        WeekCompletionStatus.COMPLETE -> SemanticColors.green
+        WeekCompletionStatus.PARTIAL -> SemanticColors.amber
+        WeekCompletionStatus.EMPTY -> SemanticColors.grey
+    }
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .background(color, CircleShape),
+    )
+}
+
+@Composable
 fun WeekNavigator(
     monday: LocalDate,
     sunday: LocalDate,
@@ -66,6 +89,9 @@ fun WeekNavigator(
     enabled: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    prevWeekStatus: WeekCompletionStatus? = null,
+    nextWeekStatus: WeekCompletionStatus? = null,
+    onNavigateToCurrentWeek: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     val indicatorColor = when (indicator) {
@@ -78,8 +104,13 @@ fun WeekNavigator(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
+            }
+            if (prevWeekStatus != null) {
+                CompletionDot(prevWeekStatus)
+            }
         }
         Row(
             modifier = Modifier.weight(1f),
@@ -99,9 +130,27 @@ fun WeekNavigator(
                     labelColor = indicatorColor,
                 ),
             )
+            if (onNavigateToCurrentWeek != null && indicator != WeekTimeIndicator.CORRENTE) {
+                Spacer(Modifier.width(spacing.sm))
+                IconButton(
+                    onClick = onNavigateToCurrentWeek,
+                    modifier = Modifier.handCursorOnHover().size(32.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Today,
+                        contentDescription = "Vai a settimana corrente",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
-        IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
+            }
+            if (nextWeekStatus != null) {
+                CompletionDot(nextWeekStatus)
+            }
         }
     }
 }

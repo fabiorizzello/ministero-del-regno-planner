@@ -27,6 +27,10 @@ class SharedWeekState {
         }
     }
 
+    fun navigateToCurrentWeek() {
+        _currentMonday.value = currentMonday()
+    }
+
     companion object {
         private const val MIN_YEAR = 2020
         private const val MAX_YEAR = 2099

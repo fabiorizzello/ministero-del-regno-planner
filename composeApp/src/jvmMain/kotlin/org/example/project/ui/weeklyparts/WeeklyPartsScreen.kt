@@ -158,6 +158,7 @@ fun WeeklyPartsScreen() {
             enabled = !state.isLoading,
             onPrevious = { viewModel.navigateToPreviousWeek() },
             onNext = { viewModel.navigateToNextWeek() },
+            onNavigateToCurrentWeek = { viewModel.navigateToCurrentWeek() },
         )
 
         // Content
