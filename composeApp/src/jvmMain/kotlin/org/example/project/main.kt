@@ -4,10 +4,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
 import org.example.project.core.bootstrap.AppBootstrap
+import org.example.project.core.config.WindowSettings
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.config.toSettingsSnapshot
 import org.example.project.core.di.appModule
@@ -31,10 +34,22 @@ fun main() {
     application {
         val settingsStore = remember { GlobalContext.get().get<WindowSettingsStore>() }
         val initialWindowSettings = remember { settingsStore.load() }
+        val initialPosition = if (
+            initialWindowSettings.positionXDp != WindowSettings.POSITION_UNSET &&
+            initialWindowSettings.positionYDp != WindowSettings.POSITION_UNSET
+        ) {
+            WindowPosition.Absolute(
+                x = initialWindowSettings.positionXDp.dp,
+                y = initialWindowSettings.positionYDp.dp,
+            )
+        } else {
+            WindowPosition.PlatformDefault
+        }
         val windowState = rememberWindowState(
             width = initialWindowSettings.widthDp.dp,
             height = initialWindowSettings.heightDp.dp,
             placement = initialWindowSettings.placement,
+            position = initialPosition,
         )
 
         LaunchedEffect(windowState) {
@@ -50,6 +65,7 @@ fun main() {
                 exitApplication()
             },
             title = "Efficaci Nel Ministero",
+            icon = painterResource("icon.png"),
         ) {
             AppScreen()
         }

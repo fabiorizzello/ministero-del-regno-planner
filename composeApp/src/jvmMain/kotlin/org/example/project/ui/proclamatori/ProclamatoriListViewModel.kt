@@ -245,9 +245,22 @@ internal class ProclamatoriListViewModel(
         }
     }
 
-    fun importFromJsonFile(selectedFile: File) {
+    fun startImportFromJson() {
+        if (_uiState.value.isImporting) return
         scope.launch {
-            _uiState.update { it.copy(isLoading = true, isImporting = true) }
+            _uiState.update { it.copy(isImporting = true) }
+            val selectedFile = selectJsonFileForImport()
+            if (selectedFile == null) {
+                _uiState.update { it.copy(isImporting = false) }
+                return@launch
+            }
+            importFromJsonFileInternal(selectedFile)
+        }
+    }
+
+    private fun importFromJsonFileInternal(selectedFile: File) {
+        scope.launch {
+            _uiState.update { it.copy(isLoading = true) }
             val fileSizeMb = selectedFile.length() / (1024 * 1024)
             if (fileSizeMb > 10) {
                 _uiState.update {

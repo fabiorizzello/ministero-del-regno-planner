@@ -10,7 +10,8 @@ plugins {
 
 kotlin {
     jvm()
-    
+    jvmToolchain(17)
+
     sourceSets {
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -43,6 +44,25 @@ kotlin {
     }
 }
 
+val appVersion: String = project.property("app.version") as String
+val numericVersion: String = appVersion.substringBefore("-")
+
+val generateVersionProps by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/versionProps")
+    outputs.dir(outputDir)
+    inputs.property("appVersion", appVersion)
+    doLast {
+        val version = inputs.properties["appVersion"] as String
+        val propsFile = outputDir.get().asFile.resolve("version.properties")
+        propsFile.parentFile.mkdirs()
+        propsFile.writeText("app.version=$version\n")
+    }
+}
+
+kotlin.sourceSets.named("jvmMain") {
+    resources.srcDir(generateVersionProps.map { it.outputs.files.singleFile })
+}
+
 sqldelight {
     databases {
         create("MinisteroDatabase") {
@@ -66,10 +86,18 @@ compose.desktop {
         mainClass = "org.example.project.MainKt"
 
         nativeDistributions {
-            // Windows-first distribution: MSI/EXE are used as fallback installers.
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
-            packageName = "org.example.project"
-            packageVersion = "1.0.0"
+            packageName = "efficaci-nel-ministero"
+            packageVersion = numericVersion
+            description = "Pianificatore per il ministero del Regno"
+            vendor = "Efficaci Nel Ministero"
+            copyright = "© 2025 Efficaci Nel Ministero"
+
+            windows {
+                iconFile.set(project.file("launcher-icon.ico"))
+                shortcut = true
+                menuGroup = "Efficaci Nel Ministero"
+            }
         }
     }
 }

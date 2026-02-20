@@ -1,6 +1,16 @@
 package org.example.project.core.config
 
+import java.util.Properties
+
 object AppVersion {
-    // Placeholder iniziale. Nelle release verra' sostituito dal pipeline/versioning.
-    const val current: String = "0.1.0-dev"
+    val current: String by lazy {
+        val stream = AppVersion::class.java.getResourceAsStream("/version.properties")
+        if (stream != null) {
+            val props = Properties()
+            stream.use { props.load(it) }
+            props.getProperty("app.version", "unknown")
+        } else {
+            "unknown"
+        }
+    }
 }

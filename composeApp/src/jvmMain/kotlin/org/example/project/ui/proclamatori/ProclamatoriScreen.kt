@@ -197,10 +197,7 @@ fun ProclamatoriScreen() {
                     onClearSelection = { listVm.clearSelection() },
                     onGoNuovo = { goToNuovo() },
                     canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
-                    onImportJson = {
-                        val selectedFile = selectJsonFileForImport() ?: return@ProclamatoriElencoContent
-                        listVm.importFromJsonFile(selectedFile)
-                    },
+                    onImportJson = { listVm.startImportFromJson() },
                     onEdit = { id ->
                         formVm.loadForEdit(
                             id = id,
