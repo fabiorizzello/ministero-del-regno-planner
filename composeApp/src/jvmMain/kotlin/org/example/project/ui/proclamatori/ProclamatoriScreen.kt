@@ -44,6 +44,8 @@ fun ProclamatoriScreen() {
     val listState by listVm.uiState.collectAsState()
     val formState by formVm.uiState.collectAsState()
 
+    LaunchedEffect(Unit) { listVm.onScreenEntered() }
+
     val tableListState = rememberLazyListState()
     val searchFocusRequester = remember { FocusRequester() }
     val rootFocusRequester = remember { FocusRequester() }

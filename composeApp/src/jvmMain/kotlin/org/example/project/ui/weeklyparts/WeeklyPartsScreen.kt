@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,8 @@ fun WeeklyPartsScreen() {
     val viewModel = remember { GlobalContext.get().get<WeeklyPartsViewModel>() }
     val state by viewModel.state.collectAsState()
     val navigateToSection = LocalSectionNavigator.current
+
+    LaunchedEffect(Unit) { viewModel.onScreenEntered() }
 
     // Overwrite confirmation dialog
     if (state.weeksNeedingConfirmation.isNotEmpty()) {

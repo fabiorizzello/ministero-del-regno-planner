@@ -52,7 +52,7 @@ internal class ProclamatoriListViewModel(
     val uiState: StateFlow<ProclamatoriListUiState> = _uiState.asStateFlow()
     private var searchJob: Job? = null
 
-    init {
+    fun onScreenEntered() {
         refreshList(resetPage = true)
     }
 

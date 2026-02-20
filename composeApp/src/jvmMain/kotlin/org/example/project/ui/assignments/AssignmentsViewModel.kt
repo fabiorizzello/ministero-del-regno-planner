@@ -78,6 +78,10 @@ internal class AssignmentsViewModel(
         }
     }
 
+    fun onScreenEntered() {
+        loadWeekData()
+    }
+
     fun navigateToPreviousWeek() {
         sharedWeekState.navigateToPreviousWeek()
     }

@@ -79,6 +79,11 @@ internal class WeeklyPartsViewModel(
         loadPartTypes()
     }
 
+    fun onScreenEntered() {
+        loadWeek()
+        loadPartTypes()
+    }
+
     fun navigateToPreviousWeek() {
         sharedWeekState.navigateToPreviousWeek()
     }
