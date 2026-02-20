@@ -23,14 +23,6 @@
 
 ## UI/UX — Miglioramenti interfaccia
 
-### UX-1: DiagnosticsScreen mostra testo TODO agli utenti
-- **File:** `ui/diagnostics/DiagnosticsScreen.kt:20`
-- `Text("Scaffolding M7 pronto: export zip DB + log ultimi 14 giorni da implementare.")` è visibile all'utente finale. Rimuovere o sostituire con UI placeholder appropriato.
-
-### UX-3: Nessun supporto dark mode
-- **File:** `ui/theme/AppTheme.kt:14`
-- `lightColorScheme()` hardcoded. Aggiungere `isSystemInDarkTheme()` e `darkColorScheme()`.
-
 ### UX-7: Overwrite schema remoto non mostra conteggio assegnazioni perse
 - **File:** `feature/weeklyparts/application/AggiornaDatiRemotiUseCase.kt:59-71`
 - `weekPlanStore.delete(existing.id)` cancella a cascata tutte le assegnazioni. Il dialog avvisa genericamente ma non indica quante assegnazioni verranno eliminate.
