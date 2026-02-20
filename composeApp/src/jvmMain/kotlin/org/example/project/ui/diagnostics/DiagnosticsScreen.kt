@@ -50,7 +50,8 @@ fun DiagnosticsScreen() {
                 val preview = state.cleanupPreview
                 Text(
                     "Eliminare i dati precedenti a ${formatCutoffDate(state.selectedRetention)}?\n" +
-                        "Settimane: ${preview.weekPlans}, Parti: ${preview.weeklyParts}, Assegnazioni: ${preview.assignments}.",
+                        "Settimane: ${preview.weekPlans}, Parti: ${preview.weeklyParts}, Assegnazioni: ${preview.assignments}.\n" +
+                        "Vengono eliminati solo programmi settimanali storici e relativi collegamenti.",
                 )
             },
             confirmButton = {
@@ -85,7 +86,7 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text("Informazioni applicazione", style = MaterialTheme.typography.titleMedium)
-                Text("Versione: ${state.appVersion}")
+                SelectionContainer { Text("Versione app: ${state.appVersion}") }
                 SelectionContainer { Text("DB: ${state.dbPath}") }
                 SelectionContainer { Text("Log: ${state.logsPath}") }
                 SelectionContainer { Text("Export: ${state.exportsPath}") }
@@ -117,6 +118,12 @@ fun DiagnosticsScreen() {
                         modifier = Modifier.handCursorOnHover(),
                     ) {
                         Text("Apri cartella export")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.copySupportInfo() },
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text("Copia info supporto")
                     }
                 }
             }
@@ -162,7 +169,9 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Pulizia dati storici", style = MaterialTheme.typography.titleMedium)
-                Text("Seleziona l'eta minima dei dati da eliminare.")
+                Text(retentionMeaning(state.selectedRetention))
+                Text(CLEANUP_SCOPE_TEXT)
+                Text(CLEANUP_EXCLUSIONS_TEXT)
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     DiagnosticsRetentionOption.entries.forEach { option ->
@@ -219,6 +228,15 @@ private fun formatCutoffDate(option: DiagnosticsRetentionOption): String {
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ITALIAN)
     return option.cutoffDate().format(formatter)
 }
+
+private fun retentionMeaning(option: DiagnosticsRetentionOption): String =
+    "Con \"${option.label}\" mantieni gli ultimi ${option.months} mesi e rimuovi settimane con data inizio precedente al cutoff."
+
+private const val CLEANUP_SCOPE_TEXT =
+    "Elementi eliminati: week_plan storici; weekly_part e assignment collegati (cancellazione in cascata)."
+
+private const val CLEANUP_EXCLUSIONS_TEXT =
+    "Elementi non toccati: proclamatori, tipi di parte, file log, file export diagnostici."
 
 private fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

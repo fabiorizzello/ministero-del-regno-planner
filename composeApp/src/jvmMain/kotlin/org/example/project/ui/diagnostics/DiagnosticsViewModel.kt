@@ -1,6 +1,8 @@
 package org.example.project.ui.diagnostics
 
 import java.awt.Desktop
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.nio.file.Files
@@ -214,6 +216,21 @@ internal class DiagnosticsViewModel(
         _state.update { it.copy(notice = null) }
     }
 
+    fun copySupportInfo() {
+        val snapshot = _state.value
+        val content = buildSupportInfo(snapshot)
+        runCatching {
+            val selection = StringSelection(content)
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+        }.onSuccess {
+            _state.update { it.copy(notice = successNotice("Info supporto copiate negli appunti")) }
+        }.onFailure { error ->
+            _state.update {
+                it.copy(notice = errorNotice("Copia info supporto non riuscita: ${error.message}"))
+            }
+        }
+    }
+
     private fun openPath(path: Path, errorPrefix: String) {
         runCatching {
             if (Desktop.isDesktopSupported()) {
@@ -344,6 +361,26 @@ internal class DiagnosticsViewModel(
             }
             true
         }.getOrDefault(false)
+    }
+
+    private fun buildSupportInfo(state: DiagnosticsUiState): String = buildString {
+        appendLine("Versione app: ${state.appVersion}")
+        appendLine("Generato il: ${OffsetDateTime.now()}")
+        appendLine("DB: ${state.dbPath}")
+        appendLine("Log: ${state.logsPath}")
+        appendLine("Export: ${state.exportsPath}")
+        appendLine("Spazio DB: ${state.dbSizeBytes} bytes")
+        appendLine("Spazio Log: ${state.logsSizeBytes} bytes")
+        appendLine("Spazio Totale: ${state.dbSizeBytes + state.logsSizeBytes} bytes")
+        appendLine("Retention selezionata: ${state.selectedRetention.label}")
+        appendLine("Cutoff retention: ${state.selectedRetention.cutoffDate()}")
+        appendLine(
+            "Anteprima pulizia: settimane ${state.cleanupPreview.weekPlans}, " +
+                "parti ${state.cleanupPreview.weeklyParts}, " +
+                "assegnazioni ${state.cleanupPreview.assignments}",
+        )
+        appendLine("Stato export: ${if (state.isExporting) "in corso" else "idle"}")
+        appendLine("Stato pulizia: ${if (state.isCleaning) "in corso" else "idle"}")
     }
 }
 
