@@ -9,6 +9,6 @@ e potremmo anche dare all'utente dettagli su quando i logs stanno occupando, qua
 potremmo anche dare la possibilità di cancellare i dati vecchi (programmi, assegnazioni.) selezionando vecchi di 6 mesi, 1 anno, 2 anni ecc.
 
 poi stavo pensando ad aggiungere un cruscotto in cui l'utente vede le settimane prossime (magari 1, 2 mesi) con specificato se da organizzare o se pianificata ecc. consiglia tu
-aggiunta modifica proclamator -> trasforma in modale
+
 indicatore per informare l'utente del progresso della pianificazione (pianificazione fino al xyz), 
 alert se non ci sono i programmi delle prossime 4 settimane ecc (valutare)
