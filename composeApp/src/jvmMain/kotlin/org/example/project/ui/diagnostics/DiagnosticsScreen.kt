@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -179,11 +180,18 @@ fun DiagnosticsScreen() {
                             selected = state.selectedRetention == option,
                             onClick = { viewModel.selectRetention(option) },
                             label = { Text(option.label) },
+                            modifier = Modifier.handCursorOnHover(),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
                         )
                     }
                 }
 
-                Text("Cutoff: ${formatCutoffDate(state.selectedRetention)}")
+                Text("Data limite: ${formatCutoffDate(state.selectedRetention)}")
                 Text(
                     "Anteprima: settimane ${state.cleanupPreview.weekPlans}, " +
                         "parti ${state.cleanupPreview.weeklyParts}, " +
@@ -230,13 +238,13 @@ private fun formatCutoffDate(option: DiagnosticsRetentionOption): String {
 }
 
 private fun retentionMeaning(option: DiagnosticsRetentionOption): String =
-    "Con \"${option.label}\" mantieni gli ultimi ${option.months} mesi e rimuovi settimane con data inizio precedente al cutoff."
+    "Con \"${option.label}\" mantieni gli ultimi ${option.months} mesi e rimuovi le settimane più vecchie della data limite."
 
 private const val CLEANUP_SCOPE_TEXT =
-    "Elementi eliminati: week_plan storici; weekly_part e assignment collegati (cancellazione in cascata)."
+    "Vengono eliminati: settimane passate, parti collegate e relative assegnazioni."
 
 private const val CLEANUP_EXCLUSIONS_TEXT =
-    "Elementi non toccati: proclamatori, tipi di parte, file log, file export diagnostici."
+    "Non vengono toccati: proclamatori, tipi di parte, file di log e file esportati."
 
 private fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

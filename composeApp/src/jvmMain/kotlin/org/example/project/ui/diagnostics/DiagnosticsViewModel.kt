@@ -182,9 +182,9 @@ internal class DiagnosticsViewModel(
                     append(" | Assegnazioni: ${result.deleted.assignments}")
                 }
                 val details = if (result.vacuumExecuted) {
-                    "$baseDetails | VACUUM completato"
+                    "$baseDetails | Ottimizzazione archivio completata"
                 } else {
-                    "$baseDetails | VACUUM non eseguito (DB in uso)"
+                    "$baseDetails | Ottimizzazione archivio rimandata (file in uso)"
                 }
                 _state.update {
                     it.copy(
@@ -372,8 +372,8 @@ internal class DiagnosticsViewModel(
         appendLine("Spazio DB: ${state.dbSizeBytes} bytes")
         appendLine("Spazio Log: ${state.logsSizeBytes} bytes")
         appendLine("Spazio Totale: ${state.dbSizeBytes + state.logsSizeBytes} bytes")
-        appendLine("Retention selezionata: ${state.selectedRetention.label}")
-        appendLine("Cutoff retention: ${state.selectedRetention.cutoffDate()}")
+        appendLine("Periodo selezionato: ${state.selectedRetention.label}")
+        appendLine("Data limite selezionata: ${state.selectedRetention.cutoffDate()}")
         appendLine(
             "Anteprima pulizia: settimane ${state.cleanupPreview.weekPlans}, " +
                 "parti ${state.cleanupPreview.weeklyParts}, " +
