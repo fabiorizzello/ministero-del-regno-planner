@@ -1,6 +1,7 @@
 package org.example.project.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.core.application.SharedWeekState
 import org.example.project.ui.theme.SemanticColors
@@ -37,7 +39,7 @@ const val DISPLAY_NUMBER_OFFSET = 3
 
 enum class WeekTimeIndicator { PASSATA, CORRENTE, FUTURA }
 
-enum class WeekCompletionStatus { COMPLETE, PARTIAL, EMPTY }
+enum class WeekCompletionStatus { COMPLETE, PARTIAL, EMPTY, PAST }
 
 private fun computeWeekDistance(monday: LocalDate): Int {
     val thisMonday = SharedWeekState.currentMonday()
@@ -69,16 +71,26 @@ internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.I
 
 @Composable
 private fun CompletionDot(status: WeekCompletionStatus) {
-    val color = when (status) {
-        WeekCompletionStatus.COMPLETE -> SemanticColors.green
-        WeekCompletionStatus.PARTIAL -> SemanticColors.amber
-        WeekCompletionStatus.EMPTY -> SemanticColors.grey
+    when (status) {
+        WeekCompletionStatus.EMPTY -> Box(
+            modifier = Modifier
+                .size(8.dp)
+                .border(1.dp, Color.Black, CircleShape),
+        )
+        else -> Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    when (status) {
+                        WeekCompletionStatus.COMPLETE -> SemanticColors.green
+                        WeekCompletionStatus.PARTIAL -> SemanticColors.amber
+                        WeekCompletionStatus.PAST -> SemanticColors.grey
+                        WeekCompletionStatus.EMPTY -> Color.Transparent
+                    },
+                    CircleShape,
+                ),
+        )
     }
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .background(color, CircleShape),
-    )
 }
 
 @Composable

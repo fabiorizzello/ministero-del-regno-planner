@@ -193,7 +193,8 @@ internal class AssignmentsViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    private fun computeCompletionStatus(weekPlan: WeekPlan?, assignments: List<AssignmentWithPerson>): WeekCompletionStatus {
+    private fun computeCompletionStatus(monday: LocalDate, weekPlan: WeekPlan?, assignments: List<AssignmentWithPerson>): WeekCompletionStatus {
+        if (computeWeekIndicator(monday) == WeekTimeIndicator.PASSATA) return WeekCompletionStatus.PAST
         val total = weekPlan?.parts?.sumOf { it.partType.peopleCount } ?: 0
         val assigned = assignments.size
         return when {
@@ -229,8 +230,8 @@ internal class AssignmentsViewModel(
                         isLoading = false,
                         weekPlan = weekPlan,
                         assignments = assignments,
-                        prevWeekStatus = computeCompletionStatus(prevPlan, prevAssignments),
-                        nextWeekStatus = computeCompletionStatus(nextPlan, nextAssignments),
+                        prevWeekStatus = computeCompletionStatus(prevMonday, prevPlan, prevAssignments),
+                        nextWeekStatus = computeCompletionStatus(nextMonday, nextPlan, nextAssignments),
                     )
                 }
             } catch (e: Exception) {

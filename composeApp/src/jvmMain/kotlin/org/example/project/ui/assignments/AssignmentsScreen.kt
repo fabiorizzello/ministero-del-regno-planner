@@ -119,21 +119,24 @@ fun AssignmentsScreen() {
                 CircularProgressIndicator()
             }
         } else if (state.weekPlan == null) {
-            // Week not configured - with link to schema
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xxl),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
-                    OutlinedButton(
-                        onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
-                        modifier = Modifier.handCursorOnHover(),
+                if (state.weekIndicator == WeekTimeIndicator.PASSATA) {
+                    Text("Nessuno schema per questa settimana", style = MaterialTheme.typography.bodyLarge)
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(spacing.md),
                     ) {
-                        Text("Vai allo schema per crearla")
+                        Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
+                        OutlinedButton(
+                            onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
+                            modifier = Modifier.handCursorOnHover(),
+                        ) {
+                            Text("Vai allo schema per crearla")
+                        }
                     }
                 }
             }

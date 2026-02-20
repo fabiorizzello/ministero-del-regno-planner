@@ -21,9 +21,13 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,12 +41,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,7 +54,6 @@ import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
@@ -148,20 +149,18 @@ private fun SlotRow(
             Spacer(Modifier.width(spacing.md))
         }
 
+        Spacer(Modifier.weight(1f))
         if (assignment != null) {
-            Text(
-                text = assignment.fullName,
-                modifier = if (readOnly) {
-                    Modifier.weight(1f)
-                } else {
-                    Modifier
-                        .weight(1f)
-                        .handCursorOnHover()
-                        .clickable { onAssign() }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
             if (!readOnly) {
+                OutlinedButton(
+                    onClick = onAssign,
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Text(assignment.fullName)
+                    Spacer(Modifier.width(spacing.sm))
+                    Icon(Icons.Filled.Edit, contentDescription = "Modifica", modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(spacing.xs))
                 IconButton(
                     onClick = onRemove,
                     modifier = Modifier.handCursorOnHover(),
@@ -172,25 +171,26 @@ private fun SlotRow(
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
-            }
-        } else {
-            if (readOnly) {
-                Text(
-                    text = "Non assegnato",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             } else {
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(
-                    onClick = onAssign,
-                    modifier = Modifier.handCursorOnHover(),
-                ) {
-                    Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(MaterialTheme.spacing.xs))
-                    Text("Assegna")
-                }
+                Text(
+                    text = assignment.fullName,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        } else if (readOnly) {
+            Text(
+                text = "Non assegnato",
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            OutlinedButton(
+                onClick = onAssign,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(spacing.xs))
+                Text("Assegna")
             }
         }
     }

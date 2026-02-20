@@ -43,7 +43,8 @@ CREATE TABLE assignment (
     slot INTEGER NOT NULL,
     FOREIGN KEY (weekly_part_id) REFERENCES weekly_part(id) ON DELETE CASCADE,
     FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT,
-    CHECK(slot >= 1)
+    CHECK(slot >= 1),
+    UNIQUE(weekly_part_id, slot)
 );
 
 CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx
