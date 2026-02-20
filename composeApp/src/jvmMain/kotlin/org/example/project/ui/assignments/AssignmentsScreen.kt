@@ -3,9 +3,13 @@ package org.example.project.ui.assignments
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -141,25 +145,46 @@ fun AssignmentsScreen() {
                 }
             }
         } else {
-            // Parts list
+            // Parts grid (1|2, 3|4, ...)
             val readOnly = state.weekIndicator == WeekTimeIndicator.PASSATA
             val parts = state.weekPlan?.parts ?: emptyList()
+            val partRows = remember(parts) { parts.chunked(2) }
             val assignmentsByPart = remember(state.assignments) {
                 state.assignments.groupBy { it.weeklyPartId }
             }
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
-                items(parts, key = { it.id.value }) { part ->
-                    val partAssignments = assignmentsByPart[part.id] ?: emptyList()
-                    PartAssignmentCard(
-                        part = part,
-                        assignments = partAssignments,
-                        displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
-                        readOnly = readOnly,
-                        onAssignSlot = { slot -> viewModel.openPersonPicker(part.id, slot) },
-                        onRemoveAssignment = { viewModel.removeAssignment(it) },
-                    )
+                items(partRows, key = { row -> row.joinToString("|") { it.id.value } }) { rowParts ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.lg),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        rowParts.forEach { part ->
+                            val partAssignments = assignmentsByPart[part.id] ?: emptyList()
+                            PartAssignmentCard(
+                                part = part,
+                                assignments = partAssignments,
+                                displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
+                                readOnly = readOnly,
+                                onAssignSlot = { slot -> viewModel.openPersonPicker(part.id, slot) },
+                                onRemoveAssignment = { viewModel.removeAssignment(it) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                            )
+                        }
+                        if (rowParts.size == 1) {
+                            Spacer(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                            )
+                        }
+                    }
                 }
             }
         }

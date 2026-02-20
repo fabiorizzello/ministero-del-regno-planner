@@ -1,4 +1,0 @@
-interface:
-  display_name: "Compose Voyager Navigation"
-  short_description: "Apply Voyager navigation patterns for app and feature flows"
-  default_prompt: "Apply the project's Voyager pattern: app-level section navigation with replaceAll and feature-level nested navigator for list/create/edit flows with breadcrumbs."

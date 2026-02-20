@@ -17,10 +17,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,6 +99,7 @@ private fun CompletionDot(status: WeekCompletionStatus) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun WeekNavigator(
     monday: LocalDate,
     sunday: LocalDate,
@@ -144,15 +150,21 @@ fun WeekNavigator(
             )
             if (onNavigateToCurrentWeek != null && indicator != WeekTimeIndicator.CORRENTE) {
                 Spacer(Modifier.width(spacing.sm))
-                IconButton(
-                    onClick = onNavigateToCurrentWeek,
-                    modifier = Modifier.handCursorOnHover().size(32.dp),
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text("Vai a oggi") } },
+                    state = rememberTooltipState(),
                 ) {
-                    Icon(
-                        Icons.Filled.Today,
-                        contentDescription = "Vai a settimana corrente",
-                        modifier = Modifier.size(18.dp),
-                    )
+                    IconButton(
+                        onClick = onNavigateToCurrentWeek,
+                        modifier = Modifier.handCursorOnHover().size(32.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Today,
+                            contentDescription = "Vai a settimana corrente",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }

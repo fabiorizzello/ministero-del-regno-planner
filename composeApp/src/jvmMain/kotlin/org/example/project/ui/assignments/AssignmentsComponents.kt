@@ -1,51 +1,23 @@
 package org.example.project.ui.assignments
 
-import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -61,7 +33,8 @@ import org.example.project.ui.theme.spacing
 
 // Column width constants for suggestion table
 private val WEEKS_COLUMN_WIDTH = 120.dp
-private val BUTTON_COLUMN_WIDTH = 110.dp
+private val BUTTON_COLUMN_WIDTH = 132.dp
+private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
 
 @Composable
 internal fun PartAssignmentCard(
@@ -71,10 +44,12 @@ internal fun PartAssignmentCard(
     readOnly: Boolean,
     onAssignSlot: (slot: Int) -> Unit,
     onRemoveAssignment: (AssignmentId) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
 
     Card(
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(spacing.cardRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
@@ -151,48 +126,124 @@ private fun SlotRow(
 
         Spacer(Modifier.weight(1f))
         if (assignment != null) {
-            if (!readOnly) {
-                OutlinedButton(
-                    onClick = onAssign,
-                    modifier = Modifier.handCursorOnHover(),
-                ) {
-                    Text(assignment.fullName)
-                    Spacer(Modifier.width(spacing.sm))
-                    Icon(Icons.Filled.Edit, contentDescription = "Modifica", modifier = Modifier.size(16.dp))
-                }
-                Spacer(Modifier.width(spacing.xs))
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.handCursorOnHover(),
-                ) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = "Rimuovi ${assignment.fullName}",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            } else {
-                Text(
-                    text = assignment.fullName,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        } else if (readOnly) {
-            Text(
-                text = "Non assegnato",
-                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            AssignedPersonChip(
+                fullName = assignment.fullName,
+                readOnly = readOnly,
+                onOpenPicker = onAssign,
+                onRemove = onRemove,
             )
         } else {
-            OutlinedButton(
-                onClick = onAssign,
+            MissingAssignmentChip(
+                readOnly = readOnly,
+                onAssign = onAssign,
                 modifier = Modifier.handCursorOnHover(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AssignedPersonChip(
+    fullName: String,
+    readOnly: Boolean,
+    onOpenPicker: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    val shape = RoundedCornerShape(999.dp)
+    val containerColor = if (readOnly) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+    }
+    val borderColor = if (readOnly) {
+        MaterialTheme.colorScheme.outlineVariant
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+    }
+
+    Row(
+        modifier = modifier
+            .background(containerColor, shape)
+            .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
+            .padding(start = spacing.lg, end = spacing.sm, top = spacing.sm, bottom = spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        FilledTonalIconButton(
+            onClick = onOpenPicker,
+            enabled = !readOnly,
+            modifier = Modifier.size(30.dp).handCursorOnHover(),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        ) {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = if (readOnly) null else "Modifica assegnazione",
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = fullName,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (!readOnly) {
+            FilledIconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(30.dp).handCursorOnHover(),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
             ) {
-                Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text("Assegna")
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Rimuovi $fullName",
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun MissingAssignmentChip(
+    readOnly: Boolean,
+    onAssign: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    val shape = RoundedCornerShape(999.dp)
+
+    Row(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface, shape)
+            .border(ASSIGNMENT_CHIP_BORDER_WIDTH, MaterialTheme.colorScheme.outline, shape)
+            .clickable(enabled = !readOnly, onClick = onAssign)
+            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Icon(
+            Icons.Filled.PersonAdd,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = if (readOnly) "Non assegnato" else "Assegna",
+            style = if (readOnly) {
+                MaterialTheme.typography.titleSmall.copy(fontStyle = FontStyle.Italic)
+            } else {
+                MaterialTheme.typography.titleSmall
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -432,11 +483,21 @@ private fun SuggestionRow(
         Button(
             onClick = onAssign,
             enabled = !isAssigning,
-            modifier = Modifier.width(BUTTON_COLUMN_WIDTH).handCursorOnHover(),
+            modifier = Modifier
+                .width(BUTTON_COLUMN_WIDTH)
+                .height(36.dp)
+                .handCursorOnHover(),
         ) {
             Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(MaterialTheme.spacing.xs))
-            Text("Assegna", style = MaterialTheme.typography.labelSmall)
+            Text(
+                text = "Assegna",
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

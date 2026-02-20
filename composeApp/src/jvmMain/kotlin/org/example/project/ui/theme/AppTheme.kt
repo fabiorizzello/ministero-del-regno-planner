@@ -12,6 +12,7 @@ fun AppTheme(
     CompositionLocalProvider(LocalSpacing provides AppSpacing()) {
         MaterialTheme(
             colorScheme = lightColorScheme(),
+            typography = AppTypography,
             content = content,
         )
     }
