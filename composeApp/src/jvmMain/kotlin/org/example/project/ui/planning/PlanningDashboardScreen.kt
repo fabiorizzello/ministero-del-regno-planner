@@ -93,11 +93,6 @@ fun PlanningDashboardScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text("Cruscotto pianificazione", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Periodo da vedere",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     PlanningHorizonOption.entries.forEach { option ->
                         PlanningHorizonChip(
