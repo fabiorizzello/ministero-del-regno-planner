@@ -31,6 +31,7 @@ class GeneraPdfAssegnazioni(
 
         val parts = weekPlan.parts
             .filter { selectedPartIds.isEmpty() || selectedPartIds.contains(it.id) }
+            .sortedBy { it.sortOrder }
             .map { part ->
                 val partAssignments = assignments.filter { it.weeklyPartId == part.id }
                 val entries = (1..part.partType.peopleCount).map { slot ->
