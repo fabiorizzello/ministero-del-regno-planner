@@ -20,3 +20,4 @@ node_modules/
 composeApp/logs/
 .gradle-home/
 .worktrees/
+.automaker
