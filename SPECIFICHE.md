@@ -1,228 +1,69 @@
-# Specifiche Progetto - v1.6
+# Specifiche Progetto - v1.7 (allineate al codice)
 
 ## 1. Obiettivo
-Realizzare un'app desktop (Kotlin Compose) per pianificare settimanalmente le parti, gestire proclamatori e assegnazioni, con funzionamento locale e aggiornamenti semplici per utenti non tecnici.
+Applicazione desktop Windows (Kotlin Compose JVM) per gestire:
+- anagrafica proclamatori,
+- piano parti settimanali,
+- assegnazioni con suggerimenti,
+- strumenti diagnostici per supporto remoto.
 
-## 2. Priorita' prodotto
-- Prima fase: funzionalita' core di dominio (proclamatori, parti, assegnazioni, import piano).
-- Seconda fase: qualita' operativa (aggiornamenti, diagnostica, packaging, supporto).
-- Ogni scelta tecnica deve minimizzare attrito operativo per l'utente finale.
+## 2. Vincoli invarianti
+- Lingua UI: italiano.
+- Settimana con inizio lunedi'.
+- Storage locale in `AppData/Local/EfficaciNelMinistero`.
+- Nessuna dipendenza da server personale sempre acceso.
 
-## 3. Vincoli di prodotto
-- Piattaforma: desktop Windows (Kotlin Compose JVM).
-- Lingua: italiano.
-- Inizio settimana: lunedi'.
-- Nessuna dipendenza da VPN o server personale sempre acceso.
+## 3. Architettura e stack
+- DDD leggero + vertical slices.
+- Use case applicativi espliciti, UI separata dalla business logic.
+- Compose Desktop + Voyager.
+- SQLite + SQLDelight.
+- Koin per DI.
+- SLF4J + Logback rolling file.
+- ViewModel + StateFlow per stato UI.
 
-## 4. Principi architetturali
-- Approccio: DDD leggero con enfasi sul dominio e sui use case applicativi.
-- Vertical slices: ogni feature e' implementata end-to-end (UI -> use case -> persistenza) in uno slice dedicato.
-- Use case espliciti: logica applicativa concentrata in use case nominati.
-- Service layer minimo: evitare servizi generici se non necessari; introdurre servizi solo quando risolvono un problema reale.
-- Dominio stabile: entita', value object e regole di validazione indipendenti da UI e DB.
-- Separazione netta Query/Write:
-- Query side dedicato alla lettura (`cerca(termine?)`).
-- Write side dedicato agli aggregati (`load(aggregateId)` e `persist(aggregateRoot)`).
-- Stato applicazione per slice con `ViewModel + StateFlow`.
-- Pattern UI consigliato: MVI leggero (`UiState`, `Intent`, `Effect`) senza framework MVI obbligatorio.
-- `Store5` non adottato nel MVP (non necessario per il carico remoto attuale).
-- UI separata dalla business logic:
-- cartella unica `ui/` per schermate/interfacce.
-- nessuna regola business direttamente nei composable.
+## 4. Stato implementazione reale (codice -> specifiche)
 
-## 5. Stack tecnico deciso
-- UI: Kotlin Compose Desktop.
-- Navigazione UI: Voyager (app-level e flow feature-level).
-- Database locale: SQLite.
-- Accesso DB e migrazioni: SQLDelight.
-- Logging: SLF4J + Logback con rolling file.
-- Programmazione funzionale: Arrow (`arrow-core`, `arrow-optics`).
-- Dependency Injection: Koin.
-- Stato/UI orchestration: ViewModel + StateFlow.
-- Settings persistenti: Multiplatform Settings.
-- Networking: nessun REST/GQL applicativo; per update/schemi uso client HTTP leggero (no Ktor nel MVP).
-- Distribuzione aggiornamenti: pacchetto installabile pubblicato su GitHub Releases.
-- Storage locale su Windows: `AppData/Local/EfficaciNelMinistero`.
-- DB SQLite salvato in `AppData` (cartella `data/`).
-- Impostazioni finestra (dimensione/stato) persistite con Multiplatform Settings e ripristinate all'avvio.
+### 4.1 Implementato
+- Fondazioni: bootstrap path app (`data`, `logs`, `exports`), DB locale, logging rolling con retention automatica 14 giorni all'avvio.
+- Proclamatori: CRUD completo, ricerca, stato attivo/disattivo, eliminazione, import JSON iniziale solo con archivio vuoto.
+- Parti settimanali: creazione/modifica/rimozione/riordino manuale per settimana, sincronizzazione schemi/tipologie da remoto con gestione conflitti.
+- Assegnazioni: assegnazione/rimozione per slot, vincoli dominio (`UOMO`/`LIBERO`, no duplicato nella stessa parte), suggerimenti fuzzy con ranking distinto slot 1/slot 2.
+- Diagnostica: schermata info app e percorsi, export `.zip` (DB + log recenti + metadata), indicatori spazio DB/log, pulizia dati storici (`6 mesi`, `1 anno`, `2 anni`).
 
-## 5.1 Linee guida async e thread UI
-- Tutti i use case applicativi chiamati dalla UI sono `suspend`.
-- Le operazioni I/O (DB, file, download update/schemi) devono eseguire fuori dal thread UI.
-- La UI non blocca mai il thread principale durante query/mutation.
-- Ogni azione asincrona espone stato di caricamento (`isLoading`) ed eventuale errore.
-- Le query continue da DB sono esposte con `Flow` e raccolte in stato UI.
+### 4.2 Parzialmente implementato
+- Cruscotto pianificazione: presente navigazione settimana corrente/precedente/successiva e stato completamento slot; manca vista estesa 1-2 mesi con alert dedicati sui buchi.
 
-## 5.2 Standard UI condivisi
-- Standard tabellare unico: usare componenti condivisi (`TableColumnSpec`, `StandardTableHeader`, `StandardTableViewport`, `standardTableCell`, `StandardTableEmptyRow`).
-- Standard feedback unico: usare `FeedbackBanner` con stato tipizzato (`FeedbackBannerModel`, `FeedbackBannerKind.SUCCESS|ERROR`).
-- Feedback dismissibile: il banner espone chiusura (`X`) e puo' essere nascosto manualmente.
-- Tema applicativo: light mode Material3 come default con spacing centralizzato (`AppSpacing` via `CompositionLocal`).
-- Selezione testo: evitare `SelectionContainer` globale su tutto l'albero UI (rischio crash gerarchia in Compose Desktop); usare selezione locale solo dove utile.
-- Le nuove schermate devono riusare i componenti standard, evitando varianti locali duplicate.
-- Documento operativo: `docs/UI_STANDARD.md`.
-- Decisioni consolidate sessione: `docs/PATTERNI_SESSIONE.md`.
-- Skill operative disponibili nel repo:
-- `skills/compose-table-standard`
-- `skills/compose-feedback-banner-standard`
+### 4.3 Non implementato (specifiche da mantenere)
+- Output operativo: generazione immagini assegnazioni (`PNG`) e generazione PDF A4 dinamico con foglietti.
+- Aggiornamenti applicazione: use case `VerificaAggiornamenti` e `AggiornaApplicazione`, flusso UI di check periodico e update da GitHub Releases.
 
-## 6. Modello dati di dominio
+## 5. Regole funzionali correnti
 
-### 6.1 Proclamatore
-- `id`
-- `nome`
-- `cognome`
-- `sesso` (`M` | `F`)
-- `attivo` (`true` | `false`)
+### 5.1 Proclamatori
+- Unicita' logica nome+cognome case-insensitive.
+- Proclamatori non attivi esclusi da nuove assegnazioni.
+- Import JSON iniziale bloccato se esiste almeno un proclamatore.
 
-### 6.2 Settimana
-- `id`
-- `dataInizio` (sempre lunedi')
+### 5.2 Parti e settimane
+- Parti con `numeroPersone` in `{1,2}`.
+- Regola sesso parte in `{UOMO, LIBERO}`.
+- Conflitto dati settimana in sincronizzazione remota risolto con conferma utente.
 
-### 6.3 ParteSettimanale
-- `id`
-- `settimanaId`
-- `titolo`
-- `numeroPersone` (`1` | `2`)
-- `regolaSesso` (`UOMO` | `LIBERO`)
-- `ordine`
-
-### 6.4 Assegnazione
-- `id`
-- `parteSettimanaleId`
-- `proclamatoreId`
-- `slot` (`1` | `2`)
-
-Nota: per `numeroPersone = 1` esiste solo `slot = 1`.
-
-## 7. Regole funzionali core
-
-### 7.1 Gestione proclamatori
-- Creazione e modifica proclamatore.
-- Rimozione proclamatore (hard delete fisico su DB).
-- Disattivazione/riattivazione proclamatore.
-- Proclamatori disattivati esclusi da nuove assegnazioni.
-- Storico assegnazioni mantenuto.
-- Unicita': combinazione `nome + cognome` univoca (case-insensitive).
-- Ricerca unica (termine opzionale) su nome/cognome.
-
-### 7.2 Gestione piano settimanale
-- Inserimento e modifica manuale delle parti.
-- Import JSON locale con piu' settimane.
-- Il JSON import contiene solo parti, non assegnazioni.
-- Se settimana gia' presente: prompt `Sovrascrivere settimana esistente?` (`Si`/`No`).
-
-### 7.3 Regole assegnazione
-- `UOMO`: assegnati solo con `sesso = M`.
-- `LIBERO`: nessun vincolo di sesso.
-- Parti da 2 persone: slot 1 e slot 2 obbligatori.
+### 5.3 Assegnazioni e suggerimenti
 - Una persona non puo' occupare due slot della stessa parte.
+- Suggerimenti ordinabili su distanza globale/per tipo parte.
+- "Mai assegnato" prioritario rispetto a chi ha storico recente.
 
-### 7.4 Suggerimenti assegnazione
-- Suggerimento "fuzzy": mostra tutti i proclamatori assegnabili, ordinati per priorita'.
-- Esclusioni hard: regole parte (`UOMO`/`LIBERO`), proclamatore non attivo, proclamatore gia' assegnato alla stessa parte.
-- Due colonne distanza: globale (qualsiasi parte) e per tipo parte.
-- Toggle ordinamento utente: globale o per tipo parte.
-- Nessuno storico: priorita' massima (in cima alla lista).
-- Ranking slot 1 (Proclamatore): basato solo su storico assegnazioni come slot 1.
-- Ranking slot 2 (Assistente): basato su storico assegnazioni come slot 1 + slot 2.
-- Formato distanza: "Mai assegnato", "Questa settimana", "N settimane fa".
-- Settimana selezionata sincronizzata tra tab Schemi e Assegnazioni tramite `SharedWeekState`.
+### 5.4 Diagnostica
+- Export diagnostico include DB completo, log recenti e metadati ambiente.
+- Log retention: massimo 14 giorni con pulizia automatica all'avvio.
+- Pulizia dati storici settimanali selezionabile per soglia temporale.
 
-### 7.5 Import proclamatori da JSON
-- Import consentito solo per bootstrap iniziale anagrafica.
-- Precondizione obbligatoria: numero proclamatori esistenti = `0`.
-- Se esiste almeno un proclamatore: import bloccato con messaggio informativo.
-- In UI il pulsante `Importa JSON iniziale` e' visibile solo quando l'archivio proclamatori e' vuoto.
-- Nessuna modalita' merge/sovrascrittura/cancellazione differenziale.
-- JSON con radice `version` e array `proclamatori`.
-- Campi elemento: `nome`, `cognome`, `sesso`, `attivo` (opzionale, default `true`).
-- Import in transazione unica con validazione completa del file prima del commit.
-- Output finale: conteggio `importati` e `errori`.
-- Entry point UI: schermata `Proclamatori` con pulsante `Importa JSON iniziale`.
-- Esempio JSON supportato:
-```json
-{
-  "version": 1,
-  "proclamatori": [
-    { "nome": "Mario", "cognome": "Rossi", "sesso": "M", "attivo": true },
-    { "nome": "Lucia", "cognome": "Bianchi", "sesso": "F" }
-  ]
-}
-```
+## 6. Backlog specifiche aperte
+- Dashboard pianificazione estesa: orizzonte futuro configurabile (default 4-8 settimane), indicatore "pianificato fino al ...", alert esplicito se mancano programmi nelle prossime 4 settimane.
+- Output operativo: PNG per persona assegnata con naming standardizzato settimana, PDF A4 dinamico multi-foglietto.
+- Aggiornamenti applicazione: verifica update all'avvio e periodica, azioni separate `Verifica aggiornamenti`/`Aggiorna`, canale release GitHub con UX guidata.
 
-## 8. Use case principali (MVP)
-- Tutti i use case elencati sono `suspend`.
-- `CreaProclamatore`
-- `AggiornaProclamatore`
-- `ImpostaStatoProclamatore` (attiva/disattiva)
-- `CercaProclamatori` (termine opzionale; se assente restituisce elenco completo)
-- `EliminaProclamatore`
-- `ImportaProclamatoriDaJson`
-- `CreaParteSettimanale`
-- `AggiornaParteSettimanale`
-- `ImportaPianoDaJson`
-- `AssegnaProclamatoreAParte`
-- `RimuoviAssegnazione`
-- `CaricaAssegnazioni`
-- `SuggerisciProclamatoriPerParte`
-
-## 9. Migrazioni DB
-- Fase attuale (sviluppo): schema consolidato in migration iniziale unica, senza retrocompatibilita' con dati legacy.
-- Nessun file migrazione incrementale (`.sqm`) finche' non si entra in fase di produzione.
-- In fase produzione: migrazioni SQLDelight versionate e verificate in build.
-
-## 10. Aggiornamenti applicazione (QOL)
-- Nessuna VPN.
-- Aggiornamento con pacchetto installabile unico da GitHub Releases.
-- Ogni release puo' includere nuova versione app, asset schemi settimanali predefiniti e migrazioni DB SQLDelight.
-- Check aggiornamenti:
-- all'apertura dell'applicazione
-- periodicamente ogni 30 minuti dopo l'apertura.
-- Flusso aggiornamento a 2 step con pulsanti distinti:
-- `Verifica aggiornamenti`
-- `Aggiorna` (abilitato solo se disponibile una nuova versione o nuovi schemi).
-- Obiettivo UX: minima interazione utente.
-
-## 10.1 Aggiornamento schemi settimanali (QOL)
-- Gli schemi settimanali possono essere aggiornati anche senza nuova versione applicativa.
-- Import/aggiornamento schemi con gestione conflitti per settimana.
-- In caso di conflitto: chiedere conferma `Sovrascrivere settimana esistente?` (`Si`/`No`).
-
-## 11. Diagnostica e supporto (QOL)
-- Log applicativi su file rolling locale.
-- Schermata diagnostica con versione app, percorso DB SQLite, percorso cartella log, azione `Apri cartella log`.
-- Export diagnostico `.zip` con DB SQLite completo, log recenti (ultimi 14 giorni) e metadati base (versione app, timestamp, OS).
-- Le impostazioni UI persistenti (finestra) risiedono nella stessa root `AppData` dell'app.
-
-## 12. Output utenti
-- Generazione immagine per ogni proclamatore assegnato.
-- Nome file immagine in formato breve: `YYYYMM<giornoLunedi>-<giornoDomenica>_Nome_Cognome.png` (esempio: `20260212-19_Mario_Rossi.png`).
-- Nessuna integrazione WhatsApp API.
-
-## 13. PDF e stampa
-- PDF dinamico: impaginazione automatica di N foglietti su A4 in base al numero di parti selezionate per la stampa.
-- Template grafico con campi dinamici (parte, persona/e, settimana).
-
-## 14. Criteri di accettazione MVP
-- Gestione proclamatori con stato attivo/disattivo.
-- Elenco proclamatori tabellare sempre visibile (anche vuoto) con paginazione.
-- Ricerca visibile a destra nella schermata elenco.
-- Flusso creazione/modifica su schermata dedicata con rotte e breadcrumbs.
-- Pulsante eliminazione disponibile su riga elenco.
-- Import proclamatori JSON disponibile solo a database proclamatori vuoto.
-- Se sono presenti proclamatori, import bloccato con messaggio esplicito.
-- Creazione e modifica parti settimanali.
-- Import JSON multi-settimana con conferma sovrascrittura.
-- Assegnazioni valide rispetto a `numeroPersone` e `regolaSesso`.
-- Suggerimenti ordinati per "piu' tempo dall'ultima assegnazione".
-- Generazione immagini per invio manuale.
-- Operazioni I/O senza blocco UI e gestione loading/error in schermata.
-- Separazione query/write rispettata con write su aggregate root (`load/persist`).
-
-## 15. Criteri di accettazione QOL
-- Export diagnostico con DB + log recenti.
-- Processo update tramite pacchetto GitHub Releases.
-
-## 16. Piano implementativo
-- L'ordine operativo e la scomposizione in vertical slices sono definiti in `ROADMAP.md`.
+## 7. Riferimento pianificazione
+Le attivita' residue sono definite in `ROADMAP.md` (solo backlog non completato).
