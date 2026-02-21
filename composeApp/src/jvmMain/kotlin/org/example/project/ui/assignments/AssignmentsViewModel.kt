@@ -19,6 +19,8 @@ import org.example.project.feature.assignments.application.SuggerisciProclamator
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.GeneraPdfAssegnazioni
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.WeekPlan
@@ -57,6 +59,11 @@ internal data class AssignmentsUiState(
     val isRemoving: Boolean = false,
     val prevWeekStatus: WeekCompletionStatus? = null,
     val nextWeekStatus: WeekCompletionStatus? = null,
+    val isOutputDialogOpen: Boolean = false,
+    val outputSelectedPartIds: Set<WeeklyPartId> = emptySet(),
+    val isGeneratingPdf: Boolean = false,
+    val isGeneratingImages: Boolean = false,
+    val outputStatus: String? = null,
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
 
@@ -77,6 +84,8 @@ internal class AssignmentsViewModel(
     private val assegnaPersona: AssegnaPersonaUseCase,
     private val rimuoviAssegnazione: RimuoviAssegnazioneUseCase,
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
+    private val generaPdfAssegnazioni: GeneraPdfAssegnazioni,
+    private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
 ) {
     private val _state = MutableStateFlow(AssignmentsUiState())
     val state: StateFlow<AssignmentsUiState> = _state.asStateFlow()
@@ -193,6 +202,97 @@ internal class AssignmentsViewModel(
         _state.update { it.copy(notice = null) }
     }
 
+    fun openOutputDialog() {
+        val partIds = _state.value.weekPlan?.parts?.map { it.id }?.toSet().orEmpty()
+        _state.update {
+            it.copy(
+                isOutputDialogOpen = true,
+                outputSelectedPartIds = if (it.outputSelectedPartIds.isEmpty()) partIds else it.outputSelectedPartIds,
+            )
+        }
+    }
+
+    fun closeOutputDialog() {
+        _state.update { it.copy(isOutputDialogOpen = false) }
+    }
+
+    fun toggleOutputPart(partId: WeeklyPartId) {
+        _state.update { state ->
+            val updated = state.outputSelectedPartIds.toMutableSet().apply {
+                if (contains(partId)) remove(partId) else add(partId)
+            }
+            state.copy(outputSelectedPartIds = updated)
+        }
+    }
+
+    fun selectAllOutputParts() {
+        val allIds = _state.value.weekPlan?.parts?.map { it.id }?.toSet().orEmpty()
+        _state.update { it.copy(outputSelectedPartIds = allIds) }
+    }
+
+    fun clearOutputPartsSelection() {
+        _state.update { it.copy(outputSelectedPartIds = emptySet()) }
+    }
+
+    fun generatePdf() {
+        if (_state.value.isGeneratingPdf) return
+        val weekPlan = _state.value.weekPlan ?: return
+        val selectedIds = _state.value.outputSelectedPartIds
+            .ifEmpty { weekPlan.parts.map { it.id }.toSet() }
+        scope.launch {
+            _state.update { it.copy(isGeneratingPdf = true, outputStatus = "Generazione PDF in corso...") }
+            runCatching {
+                generaPdfAssegnazioni(weekPlan.weekStartDate, selectedIds)
+            }.onSuccess { path ->
+                _state.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        outputStatus = "PDF creato: ${path.fileName}",
+                        notice = FeedbackBannerModel("PDF creato: ${path.fileName}", FeedbackBannerKind.SUCCESS),
+                    )
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        outputStatus = "Errore PDF: ${error.message}",
+                        notice = FeedbackBannerModel("Generazione PDF non riuscita: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
+    fun generateImages() {
+        if (_state.value.isGeneratingImages) return
+        val weekPlan = _state.value.weekPlan ?: return
+        val selectedIds = _state.value.outputSelectedPartIds
+            .ifEmpty { weekPlan.parts.map { it.id }.toSet() }
+        scope.launch {
+            _state.update { it.copy(isGeneratingImages = true, outputStatus = "Generazione immagini in corso...") }
+            runCatching {
+                generaImmaginiAssegnazioni(weekPlan.weekStartDate, selectedIds)
+            }.onSuccess { paths ->
+                val summary = if (paths.isEmpty()) "Nessuna immagine generata" else "${paths.size} immagini create"
+                _state.update {
+                    it.copy(
+                        isGeneratingImages = false,
+                        outputStatus = summary,
+                        notice = FeedbackBannerModel(summary, FeedbackBannerKind.SUCCESS),
+                    )
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isGeneratingImages = false,
+                        outputStatus = "Errore immagini: ${error.message}",
+                        notice = FeedbackBannerModel("Generazione immagini non riuscita: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
     private fun computeCompletionStatus(monday: LocalDate, weekPlan: WeekPlan?, assignments: List<AssignmentWithPerson>): WeekCompletionStatus {
         if (computeWeekIndicator(monday) == WeekTimeIndicator.PASSATA) return WeekCompletionStatus.PAST
         val total = weekPlan?.parts?.sumOf { it.partType.peopleCount } ?: 0
@@ -232,6 +332,7 @@ internal class AssignmentsViewModel(
                         assignments = assignments,
                         prevWeekStatus = computeCompletionStatus(prevMonday, prevPlan, prevAssignments),
                         nextWeekStatus = computeCompletionStatus(nextMonday, nextPlan, nextAssignments),
+                        outputSelectedPartIds = adjustOutputSelection(weekPlan?.parts?.map { it.id }?.toSet().orEmpty()),
                     )
                 }
             } catch (e: Exception) {
@@ -282,5 +383,13 @@ internal class AssignmentsViewModel(
                 notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
             )
         }
+    }
+
+    private fun adjustOutputSelection(availableIds: Set<WeeklyPartId>): Set<WeeklyPartId> {
+        if (availableIds.isEmpty()) return emptySet()
+        val selected = _state.value.outputSelectedPartIds
+        if (selected.isEmpty()) return availableIds
+        val filtered = selected.intersect(availableIds)
+        return if (filtered.isEmpty()) availableIds else filtered
     }
 }

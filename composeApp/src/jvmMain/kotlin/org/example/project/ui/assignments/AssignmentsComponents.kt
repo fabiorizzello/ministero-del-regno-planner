@@ -30,6 +30,7 @@ import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
@@ -424,6 +425,76 @@ internal fun PersonPickerDialog(
                     }
                 }
 
+            }
+        }
+    }
+}
+
+@Composable
+internal fun OutputPartsDialog(
+    parts: List<WeeklyPart>,
+    selectedPartIds: Set<WeeklyPartId>,
+    onTogglePart: (WeeklyPart) -> Unit,
+    onSelectAll: () -> Unit,
+    onClearAll: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.6f),
+            shape = RoundedCornerShape(spacing.cardRadius),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                Text("Seleziona parti da includere", style = MaterialTheme.typography.titleMedium)
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    items(parts, key = { it.id.value }) { part ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(part.partType.label, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    text = "Slot: ${part.partType.peopleCount}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Checkbox(
+                                checked = selectedPartIds.contains(part.id),
+                                onCheckedChange = { onTogglePart(part) },
+                            )
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        OutlinedButton(onClick = onSelectAll, modifier = Modifier.handCursorOnHover()) {
+                            Text("Tutte")
+                        }
+                        OutlinedButton(onClick = onClearAll, modifier = Modifier.handCursorOnHover()) {
+                            Text("Nessuna")
+                        }
+                    }
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.handCursorOnHover()) {
+                        Text("Chiudi")
+                    }
+                }
             }
         }
     }

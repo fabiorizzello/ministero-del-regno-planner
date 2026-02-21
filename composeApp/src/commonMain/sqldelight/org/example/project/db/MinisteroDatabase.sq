@@ -138,6 +138,32 @@ SELECT id, week_start_date
 FROM week_plan
 WHERE week_start_date = ?;
 
+weekPlansInRange:
+SELECT id, week_start_date
+FROM week_plan
+WHERE week_start_date >= ? AND week_start_date <= ?
+ORDER BY week_start_date;
+
+totalSlotsByWeekInRange:
+SELECT
+    wpl.id AS week_plan_id,
+    COALESCE(SUM(pt.people_count), 0) AS total_slots
+FROM week_plan wpl
+LEFT JOIN weekly_part wp ON wp.week_plan_id = wpl.id
+LEFT JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE wpl.week_start_date >= ? AND wpl.week_start_date <= ?
+GROUP BY wpl.id;
+
+assignmentCountsByWeekInRange:
+SELECT
+    wpl.id AS week_plan_id,
+    COUNT(a.id) AS assignment_count
+FROM week_plan wpl
+LEFT JOIN weekly_part wp ON wp.week_plan_id = wpl.id
+LEFT JOIN assignment a ON a.weekly_part_id = wp.id
+WHERE wpl.week_start_date >= ? AND wpl.week_start_date <= ?
+GROUP BY wpl.id;
+
 insertWeekPlan:
 INSERT INTO week_plan(id, week_start_date)
 VALUES (?, ?);

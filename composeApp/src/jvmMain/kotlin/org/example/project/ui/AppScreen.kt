@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ViewWeek
@@ -57,6 +58,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.assignments.AssignmentsScreen
 import org.example.project.ui.diagnostics.DiagnosticsScreen
+import org.example.project.ui.planning.PlanningDashboardScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
@@ -77,6 +79,7 @@ internal enum class AppSection(
 ) {
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
     WEEKLY_PARTS("Schemi", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
+    PLANNING("Cruscotto", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     ASSIGNMENTS("Assegnazioni", Icons.Filled.Checklist, AssignmentsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
@@ -319,6 +322,13 @@ private data object AssignmentsSectionScreen : Screen {
     @Composable
     override fun Content() {
         AssignmentsScreen()
+    }
+}
+
+private data object PlanningDashboardSectionScreen : Screen {
+    @Composable
+    override fun Content() {
+        PlanningDashboardScreen()
     }
 }
 

@@ -40,6 +40,7 @@ kotlin {
             implementation(libs.logback.classic)
             implementation(libs.koin.core)
             implementation(libs.multiplatform.settings)
+            implementation(libs.pdfbox)
         }
     }
 }

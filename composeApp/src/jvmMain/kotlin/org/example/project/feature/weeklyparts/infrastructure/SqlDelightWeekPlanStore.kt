@@ -5,6 +5,7 @@ import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.util.UUID
@@ -28,6 +29,27 @@ class SqlDelightWeekPlanStore(
             weekStartDate = weekStartDate,
             parts = parts,
         )
+    }
+
+    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> {
+        return database.ministeroDatabaseQueries
+            .weekPlansInRange(startDate.toString(), endDate.toString())
+            .executeAsList()
+            .map { row ->
+                WeekPlanSummary(
+                    id = WeekPlanId(row.id),
+                    weekStartDate = LocalDate.parse(row.week_start_date),
+                )
+            }
+    }
+
+    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> {
+        return database.ministeroDatabaseQueries
+            .totalSlotsByWeekInRange(startDate.toString(), endDate.toString())
+            .executeAsList()
+            .associate { row ->
+                WeekPlanId(row.week_plan_id) to row.total_slots.toInt()
+            }
     }
 
     override suspend fun save(weekPlan: WeekPlan) {

@@ -158,6 +158,43 @@ fun DiagnosticsScreen() {
                 modifier = Modifier.padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
+                Text("Aggiornamenti applicazione", style = MaterialTheme.typography.titleMedium)
+                Text(state.updateStatusText)
+                val lastCheck = state.updateLastCheck?.let { formatUpdateCheck(it) } ?: "mai"
+                Text("Ultimo controllo: $lastCheck", style = MaterialTheme.typography.bodySmall)
+                if (state.updateAvailable && state.updateLatestVersion != null) {
+                    Text(
+                        "Versione disponibile: ${state.updateLatestVersion}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                ) {
+                    DiagnosticsOutlinedActionButton(
+                        label = if (state.isCheckingUpdates) "Verifica in corso..." else "Verifica aggiornamenti",
+                        icon = Icons.Filled.Refresh,
+                        onClick = { viewModel.checkUpdates() },
+                        enabled = !state.isCheckingUpdates,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DiagnosticsOutlinedActionButton(
+                        label = if (state.isUpdating) "Aggiornamento..." else "Aggiorna",
+                        icon = Icons.Filled.FileOpen,
+                        onClick = { viewModel.startUpdate() },
+                        enabled = state.updateAvailable && state.updateAsset != null && !state.isUpdating,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
                 Text("Occupazione disco", style = MaterialTheme.typography.titleMedium)
                 Text("Database: ${formatBytes(state.dbSizeBytes)}")
                 Text("Log: ${formatBytes(state.logsSizeBytes)}")
@@ -272,6 +309,11 @@ private fun formatCutoffDate(option: DiagnosticsRetentionOption): String {
     return option.cutoffDate().format(formatter)
 }
 
+private fun formatUpdateCheck(instant: java.time.Instant): String {
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ITALIAN)
+    return instant.atZone(java.time.ZoneId.systemDefault()).format(formatter)
+}
+
 private fun retentionMeaning(option: DiagnosticsRetentionOption): String =
     "Con \"${option.label}\" mantieni gli ultimi ${option.months} mesi e rimuovi le settimane piu' vecchie della data limite."
 
@@ -383,4 +425,3 @@ private fun formatBytes(bytes: Long): String {
     }
     return String.format(Locale.ITALIAN, "%.1f %s", value, units[unitIndex])
 }
-

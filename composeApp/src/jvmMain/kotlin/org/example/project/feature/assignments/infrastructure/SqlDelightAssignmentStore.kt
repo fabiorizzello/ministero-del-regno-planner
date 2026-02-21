@@ -113,6 +113,15 @@ class SqlDelightAssignmentStore(
             .toInt()
     }
 
+    override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> {
+        return database.ministeroDatabaseQueries
+            .assignmentCountsByWeekInRange(startDate.toString(), endDate.toString())
+            .executeAsList()
+            .associate { row ->
+                WeekPlanId(row.week_plan_id) to row.assignment_count.toInt()
+            }
+    }
+
     override suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int {
         return database.ministeroDatabaseQueries
             .countAssignmentsForPerson(personId.value)

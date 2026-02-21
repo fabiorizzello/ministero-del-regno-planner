@@ -67,6 +67,18 @@ fun AssignmentsScreen() {
         }
     }
 
+    if (state.isOutputDialogOpen) {
+        val parts = state.weekPlan?.parts ?: emptyList()
+        OutputPartsDialog(
+            parts = parts,
+            selectedPartIds = state.outputSelectedPartIds,
+            onTogglePart = { viewModel.toggleOutputPart(it.id) },
+            onSelectAll = { viewModel.selectAllOutputParts() },
+            onClearAll = { viewModel.clearOutputPartsSelection() },
+            onDismiss = { viewModel.closeOutputDialog() },
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
@@ -114,6 +126,47 @@ fun AssignmentsScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = progressColor,
                 )
+            }
+        }
+
+        if (state.weekPlan != null) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.openOutputDialog() },
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text("Seleziona parti")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.generatePdf() },
+                        enabled = !state.isGeneratingPdf,
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text(if (state.isGeneratingPdf) "PDF in corso..." else "Genera PDF")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.generateImages() },
+                        enabled = !state.isGeneratingImages,
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text(if (state.isGeneratingImages) "Immagini in corso..." else "Genera immagini")
+                    }
+                }
+                if (!state.outputStatus.isNullOrBlank()) {
+                    Text(
+                        text = state.outputStatus ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 

@@ -5,6 +5,7 @@ import com.russhwolf.settings.Settings
 import java.util.prefs.Preferences
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.config.RemoteConfig
+import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
 import org.example.project.core.persistence.SqlDelightTransactionRunner
@@ -46,8 +47,20 @@ import org.example.project.feature.assignments.application.ContaAssegnazioniPers
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.GeneraPdfAssegnazioni
+import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
+import org.example.project.feature.planning.application.CalcolaProgressoPianificazione
+import org.example.project.feature.planning.application.CaricaPanoramicaPianificazioneFutura
+import org.example.project.feature.planning.application.GeneraAlertCoperturaSettimane
+import org.example.project.feature.updates.application.AggiornaApplicazione
+import org.example.project.feature.updates.application.UpdateScheduler
+import org.example.project.feature.updates.application.UpdateStatusStore
+import org.example.project.feature.updates.application.VerificaAggiornamenti
+import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
 import org.example.project.ui.assignments.AssignmentsViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
+import org.example.project.ui.planning.PlanningDashboardViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
 import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
@@ -59,6 +72,7 @@ val appModule = module {
         PreferencesSettings(node)
     }
     single { WindowSettingsStore(get()) }
+    single { UpdateSettingsStore(get()) }
 
     single { DatabaseProvider.database() }
     single<TransactionRunner> { SqlDelightTransactionRunner(get()) }
@@ -104,6 +118,28 @@ val appModule = module {
     single { SuggerisciProclamatoriUseCase(get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
 
+    // Output
+    single { PdfAssignmentsRenderer() }
+    single { GeneraPdfAssegnazioni(get(), get(), get()) }
+    single { GeneraImmaginiAssegnazioni(get(), get(), get()) }
+
+    // Updates
+    single { UpdateStatusStore() }
+    single { GitHubReleasesClient() }
+    single { VerificaAggiornamenti(get(), get(), get()) }
+    single { AggiornaApplicazione() }
+    single(createdAtStart = true) {
+        UpdateScheduler(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            verificaAggiornamenti = get(),
+        )
+    }
+
+    // Planning dashboard
+    single { CalcolaProgressoPianificazione() }
+    single { GeneraAlertCoperturaSettimane() }
+    single { CaricaPanoramicaPianificazioneFutura(get(), get(), get(), get()) }
+
     // Shared state
     single { SharedWeekState() }
 
@@ -131,6 +167,15 @@ val appModule = module {
             assegnaPersona = get(),
             rimuoviAssegnazione = get(),
             suggerisciProclamatori = get(),
+            generaPdfAssegnazioni = get(),
+            generaImmaginiAssegnazioni = get(),
+        )
+    }
+    single {
+        PlanningDashboardViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            sharedWeekState = get(),
+            caricaPanoramica = get(),
         )
     }
     single {
@@ -147,6 +192,10 @@ val appModule = module {
         DiagnosticsViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             database = get(),
+            verificaAggiornamenti = get(),
+            aggiornaApplicazione = get(),
+            updateStatusStore = get(),
+            updateSettingsStore = get(),
         )
     }
     factory {
