@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,16 +104,19 @@ fun PlanningDashboardScreen() {
                         )
                     }
                 }
-                Text(
-                    "Pianificato fino al $plannedThroughLabel",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "Settimane pronte: $plannedWeeks/${state.weeks.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    PlanningSummaryChip(
+                        text = "Pianificato fino al $plannedThroughLabel",
+                        modifier = Modifier.weight(1f),
+                    )
+                    PlanningSummaryChip(
+                        text = "Settimane pronte $plannedWeeks/${state.weeks.size}",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
 
@@ -207,6 +212,25 @@ private fun PlanningHorizonChip(
             selectedBorderWidth = 1.dp,
         ),
     )
+}
+
+@Composable
+private fun PlanningSummaryChip(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
 }
 
 @Composable
