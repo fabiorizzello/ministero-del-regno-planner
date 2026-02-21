@@ -94,7 +94,7 @@ fun PlanningDashboardScreen() {
             ) {
                 Text("Cruscotto pianificazione", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Orizzonte",
+                    "Periodo da vedere",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -113,7 +113,7 @@ fun PlanningDashboardScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Settimane complete: $plannedWeeks/${state.weeks.size}",
+                    "Settimane pronte: $plannedWeeks/${state.weeks.size}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
