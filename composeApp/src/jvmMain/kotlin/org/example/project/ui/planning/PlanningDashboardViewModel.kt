@@ -15,11 +15,11 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import java.time.LocalDate
 
-private const val DEFAULT_HORIZON_WEEKS = 8
+private const val DASHBOARD_WEEKS = 8
+private const val ALERT_WEEKS = 4
 
 internal data class PlanningDashboardUiState(
     val currentMonday: LocalDate = SharedWeekState.currentMonday(),
-    val horizonWeeks: Int = DEFAULT_HORIZON_WEEKS,
     val isLoading: Boolean = true,
     val weeks: List<PlanningWeekStatus> = emptyList(),
     val plannedThrough: LocalDate? = null,
@@ -50,13 +50,6 @@ internal class PlanningDashboardViewModel(
         loadOverview()
     }
 
-    fun setHorizonWeeks(value: Int) {
-        val sanitized = value.coerceIn(4, 16)
-        if (sanitized == _state.value.horizonWeeks) return
-        _state.update { it.copy(horizonWeeks = sanitized) }
-        loadOverview()
-    }
-
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
     }
@@ -67,7 +60,7 @@ internal class PlanningDashboardViewModel(
             _state.update { it.copy(isLoading = true) }
             runCatching {
                 val snapshot = _state.value
-                caricaPanoramica(snapshot.currentMonday, snapshot.horizonWeeks, alertWeeks = 4)
+                caricaPanoramica(snapshot.currentMonday, DASHBOARD_WEEKS, alertWeeks = ALERT_WEEKS)
             }.onSuccess { overview ->
                 val plannedThroughDate = overview.progress.plannedThroughWeekKey?.let { LocalDate.parse(it) }
                 _state.update {
@@ -75,7 +68,7 @@ internal class PlanningDashboardViewModel(
                         isLoading = false,
                         weeks = overview.weeks,
                         plannedThrough = plannedThroughDate,
-                        alerts = overview.alerts,
+                        alerts = overview.alerts.distinctBy { alert -> alert.weekKeys.joinToString("|") },
                     )
                 }
             }.onFailure { error ->
