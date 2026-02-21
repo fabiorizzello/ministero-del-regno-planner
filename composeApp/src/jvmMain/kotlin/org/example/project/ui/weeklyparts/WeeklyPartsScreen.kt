@@ -32,7 +32,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -121,14 +120,14 @@ fun WeeklyPartsScreen() {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilledTonalButton(
+            Button(
                 onClick = { navigateToSection(AppSection.ASSIGNMENTS) },
                 modifier = Modifier.handCursorOnHover(),
             ) {
                 Text("Vai alle assegnazioni")
             }
             Spacer(Modifier.weight(1f))
-            FilledTonalButton(
+            OutlinedButton(
                 onClick = { viewModel.syncRemoteData() },
                 enabled = !state.isImporting,
                 modifier = Modifier.handCursorOnHover(),

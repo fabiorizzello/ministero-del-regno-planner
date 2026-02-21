@@ -478,12 +478,12 @@ internal fun ProclamatoriFormContent(
     onCancel: () -> Unit,
 ) {
     val isNew = route == ProclamatoriRoute.Nuovo
+    val spacing = MaterialTheme.spacing
     Text(
         if (isNew) "Nuovo proclamatore" else "Modifica proclamatore",
         style = MaterialTheme.typography.headlineMedium,
     )
-
-    val spacing = MaterialTheme.spacing
+    Spacer(Modifier.height(spacing.lg))
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -607,10 +607,13 @@ internal fun ProclamatoriFormDialog(
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
-            modifier = Modifier.width(640.dp),
+            modifier = Modifier
+                .padding(spacing.lg)
+                .width(680.dp),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 ProclamatoriFormContent(
                     route = route,

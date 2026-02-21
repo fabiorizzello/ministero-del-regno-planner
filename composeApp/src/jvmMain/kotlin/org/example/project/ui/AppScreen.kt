@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
@@ -135,25 +134,11 @@ fun AppScreen(
                             brush = Brush.verticalGradient(
                                 listOf(
                                     MaterialTheme.colorScheme.background,
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                                 ),
                             ),
                         ),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .size(460.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(360.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)),
-                    )
                     Scaffold(
                         containerColor = Color.Transparent,
                         topBar = {

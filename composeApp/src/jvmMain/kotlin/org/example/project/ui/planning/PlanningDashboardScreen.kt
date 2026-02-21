@@ -113,8 +113,10 @@ fun PlanningDashboardScreen() {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
+            shape = RoundedCornerShape(18.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             val plannedWeeks = state.weeks.count { it.status == WeekPlanningStatus.PIANIFICATA }
             val plannedThroughLabel = state.plannedThrough?.format(dateFormatter) ?: "n/d"
@@ -128,7 +130,14 @@ fun PlanningDashboardScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Cruscotto pianificazione", style = MaterialTheme.typography.titleMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                        Text("Cruscotto pianificazione", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Panoramica settimane e copertura assegnazioni",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (missingWeeksCount > 0) {
                         PlanningAlertPill(
                             missingWeeksCount = missingWeeksCount,
@@ -300,12 +309,13 @@ private fun PlanningSummaryChip(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
             style = MaterialTheme.typography.bodySmall,
         )
     }
