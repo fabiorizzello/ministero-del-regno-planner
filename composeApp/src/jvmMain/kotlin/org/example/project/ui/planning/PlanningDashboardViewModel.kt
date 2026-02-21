@@ -69,6 +69,10 @@ internal class PlanningDashboardViewModel(
         _state.update { it.copy(notice = null) }
     }
 
+    fun navigateToWeek(weekStartDate: LocalDate) {
+        sharedWeekState.navigateToWeek(weekStartDate)
+    }
+
     private fun loadOverview() {
         loadJob?.cancel()
         loadJob = scope.launch {
