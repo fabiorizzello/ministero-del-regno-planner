@@ -1,6 +1,8 @@
 package org.example.project.ui.planning
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,11 +100,10 @@ fun PlanningDashboardScreen() {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     PlanningHorizonOption.entries.forEach { option ->
-                        FilterChip(
+                        PlanningHorizonChip(
                             selected = state.horizon == option,
                             onClick = { viewModel.setHorizon(option) },
-                            label = { Text(option.label) },
-                            modifier = Modifier.handCursorOnHover(),
+                            label = option.label,
                         )
                     }
                 }
@@ -162,6 +164,54 @@ fun PlanningDashboardScreen() {
             }
         }
     }
+}
+
+@Composable
+private fun PlanningHorizonChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = when {
+        isFocused -> MaterialTheme.colorScheme.primary
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        modifier = modifier.handCursorOnHover(),
+        interactionSource = interactionSource,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        elevation = FilterChipDefaults.filterChipElevation(
+            elevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp,
+            draggedElevation = 0.dp,
+            disabledElevation = 0.dp,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = borderColor,
+            selectedBorderColor = borderColor,
+            disabledBorderColor = borderColor,
+            disabledSelectedBorderColor = borderColor,
+            borderWidth = 1.dp,
+            selectedBorderWidth = 1.dp,
+        ),
+    )
 }
 
 @Composable
