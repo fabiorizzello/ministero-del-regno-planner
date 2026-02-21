@@ -3,16 +3,16 @@ package org.example.project.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object SemanticColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val grey = Color(0xFF9E9E9E)
-    val amber = Color(0xFFFFA000)
+    val blue = Color(0xFF2F80ED)
+    val green = Color(0xFF2E9E5A)
+    val grey = Color(0xFF8A94A6)
+    val amber = Color(0xFFF59E0B)
 
     // Success banner colors (light mode)
-    val successContentLight = Color(0xFF1B5E20)
-    val successContainerLight = Color(0xFFE8F5E9)
+    val successContentLight = Color(0xFF0F5D33)
+    val successContainerLight = Color(0xFFD8F3E2)
 
     // Success banner colors (dark mode)
-    val successContentDark = Color(0xFFC8E6C9)
-    val successContainerDark = Color(0xFF1E4620)
+    val successContentDark = Color(0xFFC9ECD7)
+    val successContainerDark = Color(0xFF1D4732)
 }

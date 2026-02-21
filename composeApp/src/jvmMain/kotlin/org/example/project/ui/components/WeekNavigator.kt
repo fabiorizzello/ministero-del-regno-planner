@@ -1,5 +1,6 @@
 package org.example.project.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -8,9 +9,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -22,7 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
@@ -30,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.example.project.core.application.SharedWeekState
 import org.example.project.ui.theme.SemanticColors
@@ -80,7 +86,7 @@ private fun CompletionDot(status: WeekCompletionStatus) {
         WeekCompletionStatus.EMPTY -> Box(
             modifier = Modifier
                 .size(8.dp)
-                .border(1.dp, Color.Black, CircleShape),
+                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
         )
         else -> Box(
             modifier = Modifier
@@ -118,62 +124,81 @@ fun WeekNavigator(
         WeekTimeIndicator.PASSATA -> SemanticColors.grey
     }
     val indicatorLabel = formatWeekIndicatorLabel(monday)
-    Row(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
-            }
-            if (prevWeekStatus != null) {
-                CompletionDot(prevWeekStatus)
-            }
-        }
         Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.width(spacing.md))
-            AssistChip(
-                onClick = {},
-                label = { Text(indicatorLabel, style = MaterialTheme.typography.labelSmall) },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = indicatorColor.copy(alpha = 0.15f),
-                    labelColor = indicatorColor,
-                ),
-            )
-            if (onNavigateToCurrentWeek != null && indicator != WeekTimeIndicator.CORRENTE) {
-                Spacer(Modifier.width(spacing.sm))
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text("Vai a oggi") } },
-                    state = rememberTooltipState(),
-                ) {
-                    IconButton(
-                        onClick = onNavigateToCurrentWeek,
-                        modifier = Modifier.handCursorOnHover().size(32.dp),
+            Column(
+                modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                IconButton(onClick = onPrevious, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Settimana precedente")
+                }
+                if (prevWeekStatus != null) {
+                    CompletionDot(prevWeekStatus)
+                }
+            }
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.width(spacing.md))
+                AssistChip(
+                    onClick = {},
+                    label = { Text(indicatorLabel, style = MaterialTheme.typography.labelSmall) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = indicatorColor.copy(alpha = 0.15f),
+                        labelColor = indicatorColor,
+                    ),
+                )
+                if (onNavigateToCurrentWeek != null && indicator != WeekTimeIndicator.CORRENTE) {
+                    Spacer(Modifier.width(spacing.sm))
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            positioning = TooltipAnchorPosition.Above,
+                        ),
+                        tooltip = { PlainTooltip { Text("Vai a oggi") } },
+                        state = rememberTooltipState(),
                     ) {
-                        Icon(
-                            Icons.Filled.Today,
-                            contentDescription = "Vai a settimana corrente",
-                            modifier = Modifier.size(18.dp),
-                        )
+                        IconButton(
+                            onClick = onNavigateToCurrentWeek,
+                            modifier = Modifier.handCursorOnHover().size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Today,
+                                contentDescription = "Vai a settimana corrente",
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
             }
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
-            }
-            if (nextWeekStatus != null) {
-                CompletionDot(nextWeekStatus)
+            Column(
+                modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                IconButton(onClick = onNext, enabled = enabled, modifier = Modifier.handCursorOnHover()) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Settimana successiva")
+                }
+                if (nextWeekStatus != null) {
+                    CompletionDot(nextWeekStatus)
+                }
             }
         }
     }

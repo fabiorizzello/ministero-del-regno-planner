@@ -1,5 +1,6 @@
 package org.example.project.ui.diagnostics
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -53,6 +56,8 @@ fun DiagnosticsScreen() {
     val viewModel = remember { GlobalContext.get().get<DiagnosticsViewModel>() }
     val state by viewModel.state.collectAsState()
     val spacing = MaterialTheme.spacing
+    val sectionCardShape = RoundedCornerShape(spacing.cardRadius + 2.dp)
+    val sectionCardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
 
@@ -100,7 +105,13 @@ fun DiagnosticsScreen() {
             onDismissRequest = { viewModel.dismissNotice() },
         )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = sectionCardShape,
+            border = sectionCardBorder,
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
             Column(
                 modifier = Modifier.padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -156,7 +167,13 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = sectionCardShape,
+            border = sectionCardBorder,
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
             Column(
                 modifier = Modifier.padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
@@ -193,7 +210,13 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = sectionCardShape,
+            border = sectionCardBorder,
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
             Column(
                 modifier = Modifier.padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
@@ -230,7 +253,13 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = sectionCardShape,
+            border = sectionCardBorder,
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
             Column(
                 modifier = Modifier.padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),

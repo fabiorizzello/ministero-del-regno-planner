@@ -1,6 +1,7 @@
 package org.example.project.ui.weeklyparts
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -119,14 +121,14 @@ fun WeeklyPartsScreen() {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { navigateToSection(AppSection.ASSIGNMENTS) },
                 modifier = Modifier.handCursorOnHover(),
             ) {
                 Text("Vai alle assegnazioni")
             }
             Spacer(Modifier.weight(1f))
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { viewModel.syncRemoteData() },
                 enabled = !state.isImporting,
                 modifier = Modifier.handCursorOnHover(),
@@ -195,21 +197,30 @@ private fun EmptyWeekContent(isImporting: Boolean, isPastWeek: Boolean, onCreate
         modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xxl),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+            tonalElevation = 1.dp,
+            shadowElevation = 1.dp,
         ) {
-            Text(
-                if (isPastWeek) "Settimana passata non configurata" else "Settimana non configurata",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            if (!isPastWeek) {
-                Button(
-                    onClick = onCreate,
-                    enabled = !isImporting,
-                    modifier = Modifier.handCursorOnHover(),
-                ) {
-                    Text("Crea settimana")
+            Column(
+                modifier = Modifier.padding(horizontal = spacing.xl, vertical = spacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                Text(
+                    if (isPastWeek) "Settimana passata non configurata" else "Settimana non configurata",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                if (!isPastWeek) {
+                    Button(
+                        onClick = onCreate,
+                        enabled = !isImporting,
+                        modifier = Modifier.handCursorOnHover(),
+                    ) {
+                        Text("Crea settimana")
+                    }
                 }
             }
         }
@@ -235,7 +246,9 @@ private fun PartsCard(
     val spacing = MaterialTheme.spacing
     Card(
         shape = RoundedCornerShape(spacing.cardRadius),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column {
             // Column headers

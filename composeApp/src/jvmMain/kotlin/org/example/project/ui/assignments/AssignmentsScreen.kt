@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -117,7 +118,7 @@ fun AssignmentsScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
                     modifier = Modifier.handCursorOnHover(),
                 ) {
@@ -182,7 +183,7 @@ fun AssignmentsScreen() {
                         verticalArrangement = Arrangement.spacedBy(spacing.md),
                     ) {
                         Text("Settimana non configurata", style = MaterialTheme.typography.bodyLarge)
-                        OutlinedButton(
+                        FilledTonalButton(
                             onClick = { navigateToSection(AppSection.WEEKLY_PARTS) },
                             modifier = Modifier.handCursorOnHover(),
                         ) {

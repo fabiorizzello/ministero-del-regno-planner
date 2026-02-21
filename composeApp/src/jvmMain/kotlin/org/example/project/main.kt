@@ -3,12 +3,13 @@ package org.example.project
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.unit.dp
+import efficaci_nel_ministero.composeapp.generated.resources.Res
+import efficaci_nel_ministero.composeapp.generated.resources.icon
 import org.example.project.core.bootstrap.AppBootstrap
 import org.example.project.core.config.WindowSettings
 import org.example.project.core.config.WindowSettingsStore
@@ -16,6 +17,7 @@ import org.example.project.core.config.toSettingsSnapshot
 import org.example.project.core.di.appModule
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.example.project.ui.AppScreen
+import org.jetbrains.compose.resources.painterResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.slf4j.LoggerFactory
@@ -66,7 +68,7 @@ fun main() {
                 exitApplication()
             },
             title = "Efficaci Nel Ministero",
-            icon = painterResource("icon.png"),
+            icon = painterResource(Res.drawable.icon),
         ) {
             AppScreen(
                 initialUiScale = initialUiScale,

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
@@ -34,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,6 +49,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -124,142 +128,174 @@ fun AppScreen(
                 LocalDensity provides scaledDensity,
             ) {
                 val navigateToSection = LocalSectionNavigator.current
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    primarySections.forEach { section ->
-                                        TopBarSectionButton(
-                                            selected = currentSection == section,
-                                            onClick = { navigateToSection(section) },
-                                            section = section,
-                                        )
-                                    }
-                                }
-                            },
-                            actions = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    IconButton(
-                                        onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
-                                        modifier = Modifier.handCursorOnHover(),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.background,
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                ),
+                            ),
+                        ),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .size(460.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(360.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)),
+                    )
+                    Scaffold(
+                        containerColor = Color.Transparent,
+                        topBar = {
+                            TopAppBar(
+                                title = {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.BugReport,
-                                            contentDescription = "Diagnostica",
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
-
-                                    Box {
-                                        fun applyUiScale(value: Float) {
-                                            val updatedScale = snapUiScale(value)
-                                            if (updatedScale != uiScale) {
-                                                uiScale = updatedScale
-                                                onUiScaleChange(updatedScale)
-                                            }
-                                            draftUiScale = updatedScale
+                                        primarySections.forEach { section ->
+                                            TopBarSectionButton(
+                                                selected = currentSection == section,
+                                                onClick = { navigateToSection(section) },
+                                                section = section,
+                                            )
                                         }
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                                ),
+                                actions = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
                                         IconButton(
-                                            onClick = {
-                                                draftUiScale = uiScale
-                                                isSizeMenuExpanded = true
-                                            },
+                                            onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
                                             modifier = Modifier.handCursorOnHover(),
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Filled.TextFields,
-                                                contentDescription = "Dimensione testo",
+                                                imageVector = Icons.Filled.BugReport,
+                                                contentDescription = "Diagnostica",
                                                 modifier = Modifier.size(20.dp),
                                             )
                                         }
 
-                                        DropdownMenu(
-                                            expanded = isSizeMenuExpanded,
-                                            onDismissRequest = {
-                                                applyUiScale(draftUiScale)
-                                                isSizeMenuExpanded = false
-                                            },
-                                            properties = PopupProperties(focusable = true),
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .width(300.dp)
-                                                    .padding(spacing.md),
-                                                verticalArrangement = Arrangement.spacedBy(spacing.sm),
-                                            ) {
-                                                val draftPercentage = draftUiScale.toUiScalePercentage()
-                                                Text("Dimensione testo")
-                                                Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
-                                                Slider(
-                                                    value = draftUiScale,
-                                                    onValueChange = { draftUiScale = snapUiScale(it) },
-                                                    onValueChangeFinished = { applyUiScale(draftUiScale) },
-                                                    valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                                    steps = UI_SCALE_SLIDER_STEPS,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                ) {
-                                                    Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                    Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                        Box {
+                                            fun applyUiScale(value: Float) {
+                                                val updatedScale = snapUiScale(value)
+                                                if (updatedScale != uiScale) {
+                                                    uiScale = updatedScale
+                                                    onUiScaleChange(updatedScale)
                                                 }
-                                                Row(
+                                                draftUiScale = updatedScale
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    draftUiScale = uiScale
+                                                    isSizeMenuExpanded = true
+                                                },
+                                                modifier = Modifier.handCursorOnHover(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.TextFields,
+                                                    contentDescription = "Dimensione testo",
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = isSizeMenuExpanded,
+                                                onDismissRequest = {
+                                                    applyUiScale(draftUiScale)
+                                                    isSizeMenuExpanded = false
+                                                },
+                                                properties = PopupProperties(focusable = true),
+                                            ) {
+                                                Column(
                                                     modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .horizontalScroll(rememberScrollState()),
-                                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                        .width(300.dp)
+                                                        .padding(spacing.md),
+                                                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
                                                 ) {
-                                                    UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
-                                                        val presetScale = preset.toUiScale()
-                                                        OutlinedButton(
-                                                            onClick = { applyUiScale(presetScale) },
-                                                            enabled = draftPercentage != preset,
-                                                        ) {
-                                                            Text("$preset%")
+                                                    val draftPercentage = draftUiScale.toUiScalePercentage()
+                                                    Text("Dimensione testo")
+                                                    Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
+                                                    Slider(
+                                                        value = draftUiScale,
+                                                        onValueChange = { draftUiScale = snapUiScale(it) },
+                                                        onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                        valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                        steps = UI_SCALE_SLIDER_STEPS,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                    )
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                    ) {
+                                                        Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                        Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .horizontalScroll(rememberScrollState()),
+                                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                    ) {
+                                                        UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                            val presetScale = preset.toUiScale()
+                                                            OutlinedButton(
+                                                                onClick = { applyUiScale(presetScale) },
+                                                                enabled = draftPercentage != preset,
+                                                            ) {
+                                                                Text("$preset%")
+                                                            }
                                                         }
                                                     }
-                                                }
-                                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                                                    OutlinedButton(
-                                                        onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                    ) {
-                                                        Text("-$UI_SCALE_STEP_PERCENT%")
-                                                    }
-                                                    OutlinedButton(
-                                                        onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
-                                                    ) {
-                                                        Text("+$UI_SCALE_STEP_PERCENT%")
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                        OutlinedButton(
+                                                            onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                            enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
+                                                        ) {
+                                                            Text("-$UI_SCALE_STEP_PERCENT%")
+                                                        }
+                                                        OutlinedButton(
+                                                            onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                            enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
+                                                        ) {
+                                                            Text("+$UI_SCALE_STEP_PERCENT%")
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                            },
-                        )
-                    },
-                ) { paddingValues ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .padding(horizontal = spacing.md, vertical = spacing.sm),
-                    ) {
-                        CurrentScreen()
+                                },
+                            )
+                        },
+                    ) { paddingValues ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues)
+                                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                        ) {
+                            CurrentScreen()
+                        }
                     }
                 }
             }
@@ -278,12 +314,12 @@ private fun TopBarSectionButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val containerColor = when {
-        selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isHovered) 0.95f else 0.85f)
-        isHovered -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)
-        else -> MaterialTheme.colorScheme.surface
+        selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isHovered) 0.95f else 0.82f)
+        isHovered -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
     }
     val borderColor = when {
-        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
         isHovered -> MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
         else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
     }
