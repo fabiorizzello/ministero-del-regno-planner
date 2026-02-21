@@ -77,9 +77,9 @@ internal enum class AppSection(
     val icon: ImageVector,
     val screen: Screen,
 ) {
+    PLANNING("Cruscotto", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
     WEEKLY_PARTS("Schemi", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
-    PLANNING("Cruscotto", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     ASSIGNMENTS("Assegnazioni", Icons.Filled.Checklist, AssignmentsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
@@ -107,10 +107,10 @@ fun AppScreen(
 
         // replaceAll is used for all navigation so the back stack never exceeds one
         // entry, preventing accidental back navigation between sections.
-        Navigator(AppSection.PROCLAMATORI.screen) { navigator ->
+        Navigator(AppSection.PLANNING.screen) { navigator ->
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
-                ?: AppSection.PROCLAMATORI
+                ?: AppSection.PLANNING
 
             CompositionLocalProvider(
                 LocalSectionNavigator provides { section ->
