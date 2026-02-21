@@ -3,28 +3,32 @@ package org.example.project.ui.planning
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,12 +39,13 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.dateFormatter
+import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.components.sundayOf
 import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
-private const val DASHBOARD_LABEL_WEEKS = 8
+private val COMPACT_GRID_BREAKPOINT = 900.dp
 
 @Composable
 fun PlanningDashboardScreen() {
@@ -86,9 +91,20 @@ fun PlanningDashboardScreen() {
             ) {
                 Text("Cruscotto pianificazione", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Panoramica semplificata: prossime $DASHBOARD_LABEL_WEEKS settimane",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Orizzonte",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    PlanningHorizonOption.entries.forEach { option ->
+                        FilterChip(
+                            selected = state.horizon == option,
+                            onClick = { viewModel.setHorizon(option) },
+                            label = { Text(option.label) },
+                            modifier = Modifier.handCursorOnHover(),
+                        )
+                    }
+                }
                 Text(
                     "Pianificato fino al $plannedThroughLabel",
                     style = MaterialTheme.typography.bodySmall,
@@ -107,14 +123,41 @@ fun PlanningDashboardScreen() {
                 CircularProgressIndicator()
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 320.dp),
-                horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                verticalArrangement = Arrangement.spacedBy(spacing.md),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(state.weeks, key = { it.weekStartDate.toString() }) { week ->
-                    WeekPlanningCard(week)
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val cardsPerRow = if (maxWidth < COMPACT_GRID_BREAKPOINT) 1 else 2
+                val weekRows = remember(state.weeks, cardsPerRow) { state.weeks.chunked(cardsPerRow) }
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(weekRows, key = { row -> row.joinToString("|") { it.weekStartDate.toString() } }) { weekRow ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            weekRow.forEach { week ->
+                                WeekPlanningCard(
+                                    week = week,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                )
+                            }
+                            if (weekRow.size < cardsPerRow) {
+                                repeat(cardsPerRow - weekRow.size) {
+                                    Spacer(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

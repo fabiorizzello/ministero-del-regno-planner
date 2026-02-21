@@ -1,5 +1,6 @@
 package org.example.project.ui.planning
 
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,13 +14,21 @@ import org.example.project.feature.planning.application.PlanningWeekStatus
 import org.example.project.feature.planning.domain.PlanningAlert
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
-import java.time.LocalDate
 
-private const val DASHBOARD_WEEKS = 8
 private const val ALERT_WEEKS = 4
+
+internal enum class PlanningHorizonOption(
+    val label: String,
+    val weeks: Int,
+) {
+    ONE_MONTH("1 mese", 4),
+    TWO_MONTHS("2 mesi", 8),
+    THREE_MONTHS("3 mesi", 12),
+}
 
 internal data class PlanningDashboardUiState(
     val currentMonday: LocalDate = SharedWeekState.currentMonday(),
+    val horizon: PlanningHorizonOption = PlanningHorizonOption.TWO_MONTHS,
     val isLoading: Boolean = true,
     val weeks: List<PlanningWeekStatus> = emptyList(),
     val plannedThrough: LocalDate? = null,
@@ -50,6 +59,12 @@ internal class PlanningDashboardViewModel(
         loadOverview()
     }
 
+    fun setHorizon(option: PlanningHorizonOption) {
+        if (option == _state.value.horizon) return
+        _state.update { it.copy(horizon = option) }
+        loadOverview()
+    }
+
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
     }
@@ -60,7 +75,7 @@ internal class PlanningDashboardViewModel(
             _state.update { it.copy(isLoading = true) }
             runCatching {
                 val snapshot = _state.value
-                caricaPanoramica(snapshot.currentMonday, DASHBOARD_WEEKS, alertWeeks = ALERT_WEEKS)
+                caricaPanoramica(snapshot.currentMonday, snapshot.horizon.weeks, alertWeeks = ALERT_WEEKS)
             }.onSuccess { overview ->
                 val plannedThroughDate = overview.progress.plannedThroughWeekKey?.let { LocalDate.parse(it) }
                 _state.update {
