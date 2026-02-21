@@ -6,6 +6,9 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,12 +22,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import java.nio.file.Files
+import java.nio.file.Path
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
@@ -34,6 +42,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.jetbrains.skia.Image
 
 // Column width constants for suggestion table
 private val WEEKS_COLUMN_WIDTH = 120.dp
@@ -431,12 +440,20 @@ internal fun PersonPickerDialog(
 }
 
 @Composable
-internal fun OutputPartsDialog(
+internal fun OutputWizardDialog(
     parts: List<WeeklyPart>,
     selectedPartIds: Set<WeeklyPartId>,
     onTogglePart: (WeeklyPart) -> Unit,
     onSelectAll: () -> Unit,
     onClearAll: () -> Unit,
+    onGenerate: () -> Unit,
+    onExportZip: () -> Unit,
+    generatedPdfPath: Path?,
+    generatedImagePaths: List<Path>,
+    generatedZipPath: Path?,
+    isGeneratingOutput: Boolean,
+    isExportingZip: Boolean,
+    outputStatus: String?,
     onDismiss: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
@@ -445,7 +462,7 @@ internal fun OutputPartsDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.6f),
+            modifier = Modifier.fillMaxWidth(0.82f),
             shape = RoundedCornerShape(spacing.cardRadius),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         ) {
@@ -453,7 +470,12 @@ internal fun OutputPartsDialog(
                 modifier = Modifier.fillMaxWidth().padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
-                Text("Seleziona parti da includere", style = MaterialTheme.typography.titleMedium)
+                Text("Wizard output assegnazioni", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "1) Seleziona parti  2) Genera PDF + immagini  3) Esporta ZIP",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -482,6 +504,7 @@ internal fun OutputPartsDialog(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                         OutlinedButton(onClick = onSelectAll, modifier = Modifier.handCursorOnHover()) {
@@ -491,13 +514,120 @@ internal fun OutputPartsDialog(
                             Text("Nessuna")
                         }
                     }
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.handCursorOnHover()) {
-                        Text("Chiudi")
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        Button(
+                            onClick = onGenerate,
+                            enabled = selectedPartIds.isNotEmpty() && !isGeneratingOutput,
+                            modifier = Modifier.handCursorOnHover(enabled = selectedPartIds.isNotEmpty() && !isGeneratingOutput),
+                        ) {
+                            Text(if (isGeneratingOutput) "Generazione..." else "Genera output")
+                        }
+                        OutlinedButton(
+                            onClick = onExportZip,
+                            enabled = generatedImagePaths.isNotEmpty() && !isExportingZip,
+                            modifier = Modifier.handCursorOnHover(enabled = generatedImagePaths.isNotEmpty() && !isExportingZip),
+                        ) {
+                            Text(if (isExportingZip) "ZIP..." else "Esporta ZIP")
+                        }
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.handCursorOnHover()) {
+                            Text("Chiudi")
+                        }
+                    }
+                }
+
+                if (!outputStatus.isNullOrBlank()) {
+                    Text(
+                        outputStatus,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (generatedPdfPath != null) {
+                    Text(
+                        "PDF: ${generatedPdfPath.fileName}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (generatedZipPath != null) {
+                    Text(
+                        "ZIP: ${generatedZipPath.fileName}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                if (generatedImagePaths.isNotEmpty()) {
+                    HorizontalDivider()
+                    Text("Preview immagini", style = MaterialTheme.typography.titleSmall)
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 170.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.md),
+                    ) {
+                        items(generatedImagePaths, key = { it.fileName.toString() }) { imagePath ->
+                            OutputImagePreviewCard(imagePath)
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun OutputImagePreviewCard(
+    imagePath: Path,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    val bitmap = remember(imagePath) { loadImageBitmap(imagePath) }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = imagePath.fileName.toString(),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Text(
+                        "Preview non disponibile",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(
+                text = imagePath.fileName.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun loadImageBitmap(path: Path): ImageBitmap? {
+    if (!Files.exists(path) || !Files.isRegularFile(path)) return null
+    return runCatching {
+        val bytes = Files.readAllBytes(path)
+        Image.makeFromEncoded(bytes).toComposeImageBitmap()
+    }.getOrNull()
 }
 
 @Composable

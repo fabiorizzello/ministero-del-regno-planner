@@ -1,14 +1,25 @@
 package org.example.project.ui.assignments
 
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
@@ -31,7 +42,8 @@ import org.example.project.ui.components.WeekCompletionStatus
 import org.example.project.ui.components.WeekTimeIndicator
 import org.example.project.ui.components.computeWeekIndicator
 import org.example.project.ui.components.sundayOf
-import java.time.LocalDate
+
+private val ZIP_TIMESTAMP_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
 private data class WeekLoadResult(
     val weekPlan: WeekPlan?,
@@ -48,7 +60,6 @@ internal data class AssignmentsUiState(
     val assignments: List<AssignmentWithPerson> = emptyList(),
     val isLoading: Boolean = true,
     val notice: FeedbackBannerModel? = null,
-    // Dialog state
     val pickerWeeklyPartId: WeeklyPartId? = null,
     val pickerSlot: Int? = null,
     val pickerSearchTerm: String = "",
@@ -61,8 +72,11 @@ internal data class AssignmentsUiState(
     val nextWeekStatus: WeekCompletionStatus? = null,
     val isOutputDialogOpen: Boolean = false,
     val outputSelectedPartIds: Set<WeeklyPartId> = emptySet(),
-    val isGeneratingPdf: Boolean = false,
-    val isGeneratingImages: Boolean = false,
+    val isGeneratingOutput: Boolean = false,
+    val isExportingImagesZip: Boolean = false,
+    val generatedPdfPath: java.nio.file.Path? = null,
+    val generatedImagePaths: List<java.nio.file.Path> = emptyList(),
+    val generatedZipPath: java.nio.file.Path? = null,
     val outputStatus: String? = null,
 ) {
     val isPickerOpen: Boolean get() = pickerWeeklyPartId != null
@@ -208,6 +222,10 @@ internal class AssignmentsViewModel(
             it.copy(
                 isOutputDialogOpen = true,
                 outputSelectedPartIds = if (it.outputSelectedPartIds.isEmpty()) partIds else it.outputSelectedPartIds,
+                generatedPdfPath = null,
+                generatedImagePaths = emptyList(),
+                generatedZipPath = null,
+                outputStatus = null,
             )
         }
     }
@@ -234,59 +252,80 @@ internal class AssignmentsViewModel(
         _state.update { it.copy(outputSelectedPartIds = emptySet()) }
     }
 
-    fun generatePdf() {
-        if (_state.value.isGeneratingPdf) return
+    fun generateOutput() {
+        if (_state.value.isGeneratingOutput) return
         val weekPlan = _state.value.weekPlan ?: return
         val selectedIds = _state.value.outputSelectedPartIds
             .ifEmpty { weekPlan.parts.map { it.id }.toSet() }
+
         scope.launch {
-            _state.update { it.copy(isGeneratingPdf = true, outputStatus = "Generazione PDF in corso...") }
+            _state.update {
+                it.copy(
+                    isGeneratingOutput = true,
+                    outputStatus = "Generazione output in corso...",
+                    generatedPdfPath = null,
+                    generatedImagePaths = emptyList(),
+                    generatedZipPath = null,
+                )
+            }
             runCatching {
-                generaPdfAssegnazioni(weekPlan.weekStartDate, selectedIds)
-            }.onSuccess { path ->
+                val pdfPath = generaPdfAssegnazioni(weekPlan.weekStartDate, selectedIds)
+                val imagePaths = generaImmaginiAssegnazioni(weekPlan.weekStartDate, selectedIds)
+                pdfPath to imagePaths
+            }.onSuccess { (pdfPath, imagePaths) ->
+                val imagesSummary = if (imagePaths.isEmpty()) {
+                    "Nessuna immagine generata"
+                } else {
+                    "${imagePaths.size} immagini pronte"
+                }
                 _state.update {
                     it.copy(
-                        isGeneratingPdf = false,
-                        outputStatus = "PDF creato: ${path.fileName}",
-                        notice = FeedbackBannerModel("PDF creato: ${path.fileName}", FeedbackBannerKind.SUCCESS),
+                        isGeneratingOutput = false,
+                        generatedPdfPath = pdfPath,
+                        generatedImagePaths = imagePaths,
+                        outputStatus = "PDF ${pdfPath.fileName} creato, $imagesSummary",
+                        notice = FeedbackBannerModel("Output creato: ${pdfPath.fileName} + ${imagePaths.size} immagini", FeedbackBannerKind.SUCCESS),
                     )
                 }
             }.onFailure { error ->
                 _state.update {
                     it.copy(
-                        isGeneratingPdf = false,
-                        outputStatus = "Errore PDF: ${error.message}",
-                        notice = FeedbackBannerModel("Generazione PDF non riuscita: ${error.message}", FeedbackBannerKind.ERROR),
+                        isGeneratingOutput = false,
+                        outputStatus = "Errore output: ${error.message}",
+                        notice = FeedbackBannerModel("Generazione output non riuscita: ${error.message}", FeedbackBannerKind.ERROR),
                     )
                 }
             }
         }
     }
 
-    fun generateImages() {
-        if (_state.value.isGeneratingImages) return
-        val weekPlan = _state.value.weekPlan ?: return
-        val selectedIds = _state.value.outputSelectedPartIds
-            .ifEmpty { weekPlan.parts.map { it.id }.toSet() }
+    fun exportImagesZip() {
+        val snapshot = _state.value
+        if (snapshot.isExportingImagesZip) return
+        if (snapshot.generatedImagePaths.isEmpty()) return
+
         scope.launch {
-            _state.update { it.copy(isGeneratingImages = true, outputStatus = "Generazione immagini in corso...") }
+            _state.update { it.copy(isExportingImagesZip = true) }
             runCatching {
-                generaImmaginiAssegnazioni(weekPlan.weekStartDate, selectedIds)
-            }.onSuccess { paths ->
-                val summary = if (paths.isEmpty()) "Nessuna immagine generata" else "${paths.size} immagini create"
+                buildImagesZip(
+                    weekStartDate = snapshot.currentMonday,
+                    images = snapshot.generatedImagePaths,
+                )
+            }.onSuccess { zipPath ->
                 _state.update {
                     it.copy(
-                        isGeneratingImages = false,
-                        outputStatus = summary,
-                        notice = FeedbackBannerModel(summary, FeedbackBannerKind.SUCCESS),
+                        isExportingImagesZip = false,
+                        generatedZipPath = zipPath,
+                        outputStatus = "ZIP creato: ${zipPath.fileName}",
+                        notice = FeedbackBannerModel("ZIP creato: ${zipPath.fileName}", FeedbackBannerKind.SUCCESS),
                     )
                 }
             }.onFailure { error ->
                 _state.update {
                     it.copy(
-                        isGeneratingImages = false,
-                        outputStatus = "Errore immagini: ${error.message}",
-                        notice = FeedbackBannerModel("Generazione immagini non riuscita: ${error.message}", FeedbackBannerKind.ERROR),
+                        isExportingImagesZip = false,
+                        outputStatus = "Errore ZIP: ${error.message}",
+                        notice = FeedbackBannerModel("Export ZIP non riuscito: ${error.message}", FeedbackBannerKind.ERROR),
                     )
                 }
             }
@@ -314,7 +353,6 @@ internal class AssignmentsViewModel(
                 val prevMonday = monday.minusWeeks(1)
                 val nextMonday = monday.plusWeeks(1)
 
-                // Load current + adjacent weeks in parallel
                 val (weekPlan, assignments, prevPlan, prevAssignments, nextPlan, nextAssignments) = coroutineScope {
                     val curPlan = async { caricaSettimana(monday) }
                     val curAssign = async { caricaAssegnazioni(monday) }
@@ -391,5 +429,38 @@ internal class AssignmentsViewModel(
         if (selected.isEmpty()) return availableIds
         val filtered = selected.intersect(availableIds)
         return if (filtered.isEmpty()) availableIds else filtered
+    }
+
+    private suspend fun buildImagesZip(
+        weekStartDate: LocalDate,
+        images: List<java.nio.file.Path>,
+    ): java.nio.file.Path = withContext(Dispatchers.IO) {
+        val weekEnd = sundayOf(weekStartDate)
+        val outputDir = Files.createDirectories(images.first().parent)
+        val timestamp = LocalDateTime.now().format(ZIP_TIMESTAMP_FORMATTER)
+        val zipPath = outputDir.resolve("assegnazioni-${weekStartDate}-${weekEnd}-$timestamp.zip")
+
+        ZipOutputStream(
+            BufferedOutputStream(
+                Files.newOutputStream(
+                    zipPath,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE,
+                ),
+            ),
+        ).use { zip ->
+            images.forEach { imagePath ->
+                if (!Files.exists(imagePath) || !Files.isRegularFile(imagePath)) return@forEach
+                val entry = ZipEntry(imagePath.fileName.toString())
+                zip.putNextEntry(entry)
+                BufferedInputStream(Files.newInputStream(imagePath)).use { input ->
+                    input.copyTo(zip)
+                }
+                zip.closeEntry()
+            }
+        }
+
+        zipPath
     }
 }

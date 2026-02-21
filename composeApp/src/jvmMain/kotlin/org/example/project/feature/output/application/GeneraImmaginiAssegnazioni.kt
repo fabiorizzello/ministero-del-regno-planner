@@ -34,7 +34,9 @@ class GeneraImmaginiAssegnazioni(
         val assignments = caricaAssegnazioni(weekStartDate)
         val weekEnd = sundayOf(weekStartDate)
 
-        val selectedParts = weekPlan.parts.filter { selectedPartIds.isEmpty() || selectedPartIds.contains(it.id) }
+        val selectedParts = weekPlan.parts
+            .filter { selectedPartIds.isEmpty() || selectedPartIds.contains(it.id) }
+            .sortedBy { it.sortOrder }
         val partOrderMap = selectedParts.associateBy({ it.id }, { it.sortOrder })
 
         val assignmentsByPerson = assignments
@@ -62,22 +64,45 @@ class GeneraImmaginiAssegnazioni(
             }
 
             val baseName = buildImageBaseName(weekStartDate, weekEnd, personName)
-            val pdfPath = outputDir.resolve("$baseName.pdf")
+            val pdfPath = outputDir.resolve("$baseName-tmp.pdf")
             val pngPath = outputDir.resolve("$baseName.png")
 
-            renderer.renderPersonSheetPdf(
-                PdfAssignmentsRenderer.PersonSheet(
-                    fullName = personName,
-                    weekStart = weekStartDate,
-                    weekEnd = weekEnd,
-                    assignments = assignmentsLabels,
-                ),
-                pdfPath,
-            )
-
-            renderPdfToPng(pdfPath, pngPath)
-            outputs.add(pngPath)
-            logger.info("Immagine creata: {}", pngPath.toAbsolutePath())
+            try {
+                renderer.renderPersonSheetPdf(
+                    PdfAssignmentsRenderer.PersonSheet(
+                        fullName = personName,
+                        weekStart = weekStartDate,
+                        weekEnd = weekEnd,
+                        assignments = assignmentsLabels,
+                    ),
+                    pdfPath,
+                )
+                renderPdfToPng(pdfPath, pngPath)
+                outputs.add(pngPath)
+                logger.info("Immagine creata: {}", pngPath.toAbsolutePath())
+            } catch (error: Exception) {
+                logger.error(
+                    "Generazione immagine fallita per {} (pdf={}, png={}): {}",
+                    personName,
+                    pdfPath.toAbsolutePath(),
+                    pngPath.toAbsolutePath(),
+                    error.message,
+                    error,
+                )
+                throw IllegalStateException(
+                    "Errore generando immagine per $personName (pdf=$pdfPath, png=$pngPath): ${error.message}",
+                    error,
+                )
+            } finally {
+                runCatching { java.nio.file.Files.deleteIfExists(pdfPath) }
+                    .onFailure { cleanupError ->
+                        logger.warn(
+                            "Cleanup PDF temporaneo non riuscito ({}): {}",
+                            pdfPath.toAbsolutePath(),
+                            cleanupError.message,
+                        )
+                    }
+            }
         }
 
         outputs

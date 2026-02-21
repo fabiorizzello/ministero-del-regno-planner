@@ -69,12 +69,20 @@ fun AssignmentsScreen() {
 
     if (state.isOutputDialogOpen) {
         val parts = state.weekPlan?.parts ?: emptyList()
-        OutputPartsDialog(
+        OutputWizardDialog(
             parts = parts,
             selectedPartIds = state.outputSelectedPartIds,
             onTogglePart = { viewModel.toggleOutputPart(it.id) },
             onSelectAll = { viewModel.selectAllOutputParts() },
             onClearAll = { viewModel.clearOutputPartsSelection() },
+            onGenerate = { viewModel.generateOutput() },
+            onExportZip = { viewModel.exportImagesZip() },
+            generatedPdfPath = state.generatedPdfPath,
+            generatedImagePaths = state.generatedImagePaths,
+            generatedZipPath = state.generatedZipPath,
+            isGeneratingOutput = state.isGeneratingOutput,
+            isExportingZip = state.isExportingImagesZip,
+            outputStatus = state.outputStatus,
             onDismiss = { viewModel.closeOutputDialog() },
         )
     }
@@ -143,21 +151,7 @@ fun AssignmentsScreen() {
                         onClick = { viewModel.openOutputDialog() },
                         modifier = Modifier.handCursorOnHover(),
                     ) {
-                        Text("Seleziona parti")
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.generatePdf() },
-                        enabled = !state.isGeneratingPdf,
-                        modifier = Modifier.handCursorOnHover(),
-                    ) {
-                        Text(if (state.isGeneratingPdf) "PDF in corso..." else "Genera PDF")
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.generateImages() },
-                        enabled = !state.isGeneratingImages,
-                        modifier = Modifier.handCursorOnHover(),
-                    ) {
-                        Text(if (state.isGeneratingImages) "Immagini in corso..." else "Genera immagini")
+                        Text("Genera output")
                     }
                 }
                 if (!state.outputStatus.isNullOrBlank()) {
