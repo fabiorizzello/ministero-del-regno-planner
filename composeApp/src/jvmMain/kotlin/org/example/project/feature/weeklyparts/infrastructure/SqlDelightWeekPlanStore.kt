@@ -5,6 +5,7 @@ import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
@@ -108,5 +109,59 @@ class SqlDelightWeekPlanStore(
                 )
             }
         }
+    }
+
+    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: String, status: WeekPlanStatus) {
+        database.ministeroDatabaseQueries.insertWeekPlanWithProgram(
+            id = weekPlan.id.value,
+            week_start_date = weekPlan.weekStartDate.toString(),
+            program_id = programId,
+            status = status.name,
+        )
+    }
+
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+        val row = database.ministeroDatabaseQueries
+            .findWeekPlanByDateAndProgram(weekStartDate.toString(), programId)
+            .executeAsOneOrNull() ?: return null
+
+        val parts = database.ministeroDatabaseQueries
+            .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
+            .executeAsList()
+
+        val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
+        return WeekPlan(
+            id = WeekPlanId(row.id),
+            weekStartDate = LocalDate.parse(row.week_start_date),
+            parts = parts,
+            programId = row.program_id,
+            status = status,
+        )
+    }
+
+    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+        return database.ministeroDatabaseQueries
+            .listWeekPlansByProgram(programId)
+            .executeAsList()
+            .map { row ->
+                val parts = database.ministeroDatabaseQueries
+                    .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
+                    .executeAsList()
+                val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
+                WeekPlan(
+                    id = WeekPlanId(row.id),
+                    weekStartDate = LocalDate.parse(row.week_start_date),
+                    parts = parts,
+                    programId = row.program_id,
+                    status = status,
+                )
+            }
+    }
+
+    override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {
+        database.ministeroDatabaseQueries.updateWeekPlanStatus(
+            status = status.name,
+            id = weekPlanId.value,
+        )
     }
 }

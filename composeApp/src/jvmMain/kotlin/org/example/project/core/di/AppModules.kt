@@ -58,12 +58,23 @@ import org.example.project.feature.updates.application.UpdateScheduler
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
 import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
+import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
+import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
+import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
+import org.example.project.feature.programs.application.ProgramStore
+import org.example.project.feature.programs.infrastructure.SqlDelightProgramStore
+import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
+import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
+import org.example.project.feature.schemas.application.SchemaTemplateStore
+import org.example.project.feature.schemas.infrastructure.GitHubSchemaCatalogDataSource
+import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaTemplateStore
 import org.example.project.ui.assignments.AssignmentsViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.planning.PlanningDashboardViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
 import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
+import org.example.project.ui.workspace.ProgramWorkspaceViewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -88,6 +99,21 @@ val appModule = module {
     single { ImpostaStatoProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get(), get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }
+
+    // Programs (monthly)
+    single<ProgramStore> { SqlDelightProgramStore(get()) }
+    single { CreaProssimoProgrammaUseCase(get()) }
+    single { CaricaProgrammiAttiviUseCase(get()) }
+    single { EliminaProgrammaFuturoUseCase(get()) }
+
+    // Local schema templates
+    single<SchemaTemplateStore> { SqlDelightSchemaTemplateStore(get()) }
+    single<SchemaCatalogRemoteSource> {
+        GitHubSchemaCatalogDataSource(
+            schemasCatalogUrl = RemoteConfig.SCHEMAS_CATALOG_URL,
+        )
+    }
+    single { AggiornaSchemiUseCase(get(), get(), get(), get()) }
 
     // Weekly parts
     single<PartTypeStore> { SqlDelightPartTypeStore(get()) }
@@ -176,6 +202,19 @@ val appModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             sharedWeekState = get(),
             caricaPanoramica = get(),
+        )
+    }
+    single {
+        ProgramWorkspaceViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            sharedWeekState = get(),
+            caricaProgrammiAttivi = get(),
+            creaProssimoProgramma = get(),
+            eliminaProgrammaFuturo = get(),
+            generaSettimaneProgramma = get(),
+            aggiornaSchemi = get(),
+            schemaTemplateStore = get(),
+            weekPlanStore = get(),
         )
     }
     single {

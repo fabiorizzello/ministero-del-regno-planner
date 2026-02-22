@@ -42,4 +42,14 @@ class SqlDelightPartTypeStore(
             }
         }
     }
+
+    override suspend fun deactivateMissingCodes(codes: Set<String>) {
+        database.ministeroDatabaseQueries.transaction {
+            if (codes.isEmpty()) {
+                database.ministeroDatabaseQueries.deactivateAllPartTypes()
+            } else {
+                database.ministeroDatabaseQueries.deactivatePartTypesMissingCodes(codes.toList())
+            }
+        }
+    }
 }

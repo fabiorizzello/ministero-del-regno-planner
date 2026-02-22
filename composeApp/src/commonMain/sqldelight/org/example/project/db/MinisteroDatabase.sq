@@ -4,7 +4,11 @@ CREATE TABLE person (
     last_name TEXT NOT NULL,
     sex TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1,
-    CHECK(active IN (0, 1))
+    suspended INTEGER NOT NULL DEFAULT 0,
+    can_assist INTEGER NOT NULL DEFAULT 0,
+    CHECK(active IN (0, 1)),
+    CHECK(suspended IN (0, 1)),
+    CHECK(can_assist IN (0, 1))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS person_unique_full_name_nocase
@@ -17,23 +21,110 @@ CREATE TABLE part_type (
     people_count INTEGER NOT NULL,
     sex_rule TEXT NOT NULL,
     fixed INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    current_revision_id TEXT DEFAULT NULL,
+    CHECK(people_count >= 1),
+    CHECK(fixed IN (0, 1)),
+    CHECK(active IN (0, 1))
+);
+
+CREATE TABLE part_type_revision (
+    id TEXT NOT NULL PRIMARY KEY,
+    part_type_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    people_count INTEGER NOT NULL,
+    sex_rule TEXT NOT NULL,
+    fixed INTEGER NOT NULL DEFAULT 0,
+    revision_number INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE CASCADE,
     CHECK(people_count >= 1),
     CHECK(fixed IN (0, 1))
 );
 
-CREATE TABLE week_plan (
+CREATE INDEX IF NOT EXISTS part_type_revision_part_type_id_idx
+ON part_type_revision(part_type_id, revision_number DESC);
+
+CREATE TABLE program_monthly (
+    id TEXT NOT NULL PRIMARY KEY,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    template_applied_at TEXT DEFAULT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(year, month)
+);
+
+CREATE TABLE schema_week (
     id TEXT NOT NULL PRIMARY KEY,
     week_start_date TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE schema_week_part (
+    id TEXT NOT NULL PRIMARY KEY,
+    schema_week_id TEXT NOT NULL,
+    part_type_id TEXT NOT NULL,
+    sort_order INTEGER NOT NULL,
+    FOREIGN KEY (schema_week_id) REFERENCES schema_week(id) ON DELETE CASCADE,
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS schema_week_part_week_id_idx
+ON schema_week_part(schema_week_id);
+
+CREATE TABLE person_part_type_eligibility (
+    id TEXT NOT NULL PRIMARY KEY,
+    person_id TEXT NOT NULL,
+    part_type_id TEXT NOT NULL,
+    can_lead INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE,
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE CASCADE,
+    CHECK(can_lead IN (0, 1)),
+    UNIQUE(person_id, part_type_id)
+);
+
+CREATE TABLE assignment_settings (
+    id TEXT NOT NULL PRIMARY KEY,
+    strict_cooldown INTEGER NOT NULL DEFAULT 1,
+    lead_weight INTEGER NOT NULL DEFAULT 2,
+    assist_weight INTEGER NOT NULL DEFAULT 1,
+    lead_cooldown_weeks INTEGER NOT NULL DEFAULT 4,
+    assist_cooldown_weeks INTEGER NOT NULL DEFAULT 2,
+    CHECK(strict_cooldown IN (0, 1))
+);
+
+CREATE TABLE schema_update_anomaly (
+    id TEXT NOT NULL PRIMARY KEY,
+    person_id TEXT NOT NULL,
+    part_type_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    schema_version TEXT DEFAULT NULL,
+    created_at TEXT NOT NULL,
+    dismissed INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE,
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE CASCADE,
+    CHECK(dismissed IN (0, 1))
+);
+
+CREATE TABLE week_plan (
+    id TEXT NOT NULL PRIMARY KEY,
+    week_start_date TEXT NOT NULL UNIQUE,
+    program_id TEXT DEFAULT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL
 );
 
 CREATE TABLE weekly_part (
     id TEXT NOT NULL PRIMARY KEY,
     week_plan_id TEXT NOT NULL,
     part_type_id TEXT NOT NULL,
+    part_type_revision_id TEXT DEFAULT NULL,
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE,
-    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT,
+    FOREIGN KEY (part_type_revision_id) REFERENCES part_type_revision(id) ON DELETE SET NULL
 );
 
 CREATE TABLE assignment (
@@ -130,7 +221,8 @@ ON CONFLICT(code) DO UPDATE SET
     people_count = excluded.people_count,
     sex_rule = excluded.sex_rule,
     fixed = excluded.fixed,
-    sort_order = excluded.sort_order;
+    sort_order = excluded.sort_order,
+    active = 1;
 
 -- Week plan queries
 findWeekPlanByDate:
@@ -314,3 +406,235 @@ WHERE wpl.week_start_date < ?;
 deleteWeekPlansBeforeDate:
 DELETE FROM week_plan
 WHERE week_start_date < ?;
+
+-- Monthly programs (new)
+listProgramsCurrentAndFuture:
+SELECT id, year, month, start_date, end_date, template_applied_at, created_at
+FROM program_monthly
+WHERE end_date >= ?
+ORDER BY start_date;
+
+findProgramByYearMonth:
+SELECT id, year, month, start_date, end_date, template_applied_at, created_at
+FROM program_monthly
+WHERE year = ? AND month = ?;
+
+findProgramById:
+SELECT id, year, month, start_date, end_date, template_applied_at, created_at
+FROM program_monthly
+WHERE id = ?;
+
+insertProgramMonthly:
+INSERT INTO program_monthly(id, year, month, start_date, end_date, template_applied_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteProgramMonthly:
+DELETE FROM program_monthly
+WHERE id = ?;
+
+-- Week plan extended (new)
+insertWeekPlanWithProgram:
+INSERT INTO week_plan(id, week_start_date, program_id, status)
+VALUES (?, ?, ?, ?);
+
+listWeekPlansByProgram:
+SELECT id, week_start_date, program_id, status
+FROM week_plan
+WHERE program_id = ?
+ORDER BY week_start_date;
+
+findWeekPlanByDateAndProgram:
+SELECT id, week_start_date, program_id, status
+FROM week_plan
+WHERE week_start_date = ? AND program_id = ?;
+
+updateWeekPlanStatus:
+UPDATE week_plan
+SET status = ?
+WHERE id = ?;
+
+-- Schema templates (new)
+deleteAllSchemaWeekParts:
+DELETE FROM schema_week_part;
+
+deleteAllSchemaWeeks:
+DELETE FROM schema_week;
+
+insertSchemaWeek:
+INSERT INTO schema_week(id, week_start_date)
+VALUES (?, ?);
+
+insertSchemaWeekPart:
+INSERT INTO schema_week_part(id, schema_week_id, part_type_id, sort_order)
+VALUES (?, ?, ?, ?);
+
+findSchemaWeekByDate:
+SELECT id, week_start_date
+FROM schema_week
+WHERE week_start_date = ?;
+
+countSchemaWeeks:
+SELECT COUNT(*)
+FROM schema_week;
+
+schemaPartsByWeek:
+SELECT
+    swp.id,
+    swp.schema_week_id,
+    swp.part_type_id,
+    swp.sort_order,
+    pt.code AS part_type_code,
+    pt.label AS part_type_label,
+    pt.people_count AS part_type_people_count,
+    pt.sex_rule AS part_type_sex_rule,
+    pt.fixed AS part_type_fixed,
+    pt.sort_order AS part_type_sort_order
+FROM schema_week_part swp
+JOIN part_type pt ON pt.id = swp.part_type_id
+WHERE swp.schema_week_id = ?
+ORDER BY swp.sort_order;
+
+-- Part type revisions (new)
+findPartTypeById:
+SELECT id, code, label, people_count, sex_rule, fixed, active, sort_order, current_revision_id
+FROM part_type
+WHERE id = ?;
+
+listAllPartTypesExtended:
+SELECT id, code, label, people_count, sex_rule, fixed, active, sort_order, current_revision_id
+FROM part_type
+ORDER BY sort_order, label;
+
+insertPartTypeRevision:
+INSERT INTO part_type_revision(
+    id,
+    part_type_id,
+    label,
+    people_count,
+    sex_rule,
+    fixed,
+    revision_number,
+    created_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+latestPartTypeRevisionByPartType:
+SELECT id, part_type_id, label, people_count, sex_rule, fixed, revision_number, created_at
+FROM part_type_revision
+WHERE part_type_id = ?
+ORDER BY revision_number DESC
+LIMIT 1;
+
+updatePartTypeCurrentRevision:
+UPDATE part_type
+SET
+    current_revision_id = ?,
+    label = ?,
+    people_count = ?,
+    sex_rule = ?,
+    fixed = ?,
+    active = ?,
+    sort_order = ?
+WHERE id = ?;
+
+deactivatePartTypesMissingCodes:
+UPDATE part_type
+SET active = 0
+WHERE code NOT IN ?;
+
+deactivateAllPartTypes:
+UPDATE part_type
+SET active = 0;
+
+-- Eligibility (new)
+upsertPersonPartTypeEligibility:
+INSERT INTO person_part_type_eligibility(id, person_id, part_type_id, can_lead)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(person_id, part_type_id) DO UPDATE SET
+    can_lead = excluded.can_lead;
+
+eligibilityByPerson:
+SELECT id, person_id, part_type_id, can_lead
+FROM person_part_type_eligibility
+WHERE person_id = ?;
+
+deletePersonEligibilityByPartType:
+DELETE FROM person_part_type_eligibility
+WHERE part_type_id = ?;
+
+updatePersonSuspended:
+UPDATE person
+SET suspended = ?
+WHERE id = ?;
+
+updatePersonCanAssist:
+UPDATE person
+SET can_assist = ?
+WHERE id = ?;
+
+countFutureAssignmentsForPersonFromDate:
+SELECT COUNT(*)
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE a.person_id = ?
+  AND wpl.week_start_date >= ?;
+
+futureAssignmentWeeksForPersonFromDate:
+SELECT DISTINCT wpl.week_start_date
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE a.person_id = ?
+  AND wpl.week_start_date >= ?
+ORDER BY wpl.week_start_date;
+
+-- Assignment settings (new)
+findAssignmentSettings:
+SELECT id, strict_cooldown, lead_weight, assist_weight, lead_cooldown_weeks, assist_cooldown_weeks
+FROM assignment_settings
+LIMIT 1;
+
+upsertAssignmentSettings:
+INSERT INTO assignment_settings(
+    id,
+    strict_cooldown,
+    lead_weight,
+    assist_weight,
+    lead_cooldown_weeks,
+    assist_cooldown_weeks
+)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    strict_cooldown = excluded.strict_cooldown,
+    lead_weight = excluded.lead_weight,
+    assist_weight = excluded.assist_weight,
+    lead_cooldown_weeks = excluded.lead_cooldown_weeks,
+    assist_cooldown_weeks = excluded.assist_cooldown_weeks;
+
+-- Schema anomalies (new)
+clearSchemaUpdateAnomalies:
+DELETE FROM schema_update_anomaly;
+
+insertSchemaUpdateAnomaly:
+INSERT INTO schema_update_anomaly(
+    id,
+    person_id,
+    part_type_id,
+    reason,
+    schema_version,
+    created_at,
+    dismissed
+)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+listOpenSchemaUpdateAnomalies:
+SELECT id, person_id, part_type_id, reason, schema_version, created_at, dismissed
+FROM schema_update_anomaly
+WHERE dismissed = 0
+ORDER BY created_at DESC;
+
+dismissAllSchemaUpdateAnomalies:
+UPDATE schema_update_anomaly
+SET dismissed = 1
+WHERE dismissed = 0;

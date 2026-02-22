@@ -61,11 +61,11 @@ import cafe.adriel.voyager.navigator.Navigator
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.assignments.AssignmentsScreen
 import org.example.project.ui.diagnostics.DiagnosticsScreen
-import org.example.project.ui.planning.PlanningDashboardScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.weeklyparts.WeeklyPartsScreen
+import org.example.project.ui.workspace.ProgramWorkspaceScreen
 import kotlin.math.roundToInt
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
@@ -368,7 +368,7 @@ private data object AssignmentsSectionScreen : Screen {
 private data object PlanningDashboardSectionScreen : Screen {
     @Composable
     override fun Content() {
-        PlanningDashboardScreen()
+        ProgramWorkspaceScreen()
     }
 }
 

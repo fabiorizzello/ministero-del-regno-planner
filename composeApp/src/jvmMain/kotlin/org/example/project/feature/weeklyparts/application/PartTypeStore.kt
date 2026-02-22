@@ -7,4 +7,5 @@ interface PartTypeStore {
     suspend fun findByCode(code: String): PartType?
     suspend fun findFixed(): PartType?
     suspend fun upsertAll(partTypes: List<PartType>)
+    suspend fun deactivateMissingCodes(codes: Set<String>) {}
 }
