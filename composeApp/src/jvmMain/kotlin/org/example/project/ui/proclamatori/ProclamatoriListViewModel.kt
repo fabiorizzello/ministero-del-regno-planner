@@ -18,11 +18,22 @@ import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
+import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.successNotice
+
+internal data class SchemaUpdateAnomalyUi(
+    val id: String,
+    val personLabel: String,
+    val partTypeLabel: String,
+    val reason: String,
+    val schemaVersion: String?,
+    val createdAt: String,
+)
 
 internal data class ProclamatoriListUiState(
     val searchTerm: String = "",
@@ -39,6 +50,8 @@ internal data class ProclamatoriListUiState(
     val showBatchDeleteConfirm: Boolean = false,
     val isImporting: Boolean = false,
     val isBatchInProgress: Boolean = false,
+    val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
+    val isDismissingSchemaAnomalies: Boolean = false,
 )
 
 internal class ProclamatoriListViewModel(
@@ -48,13 +61,18 @@ internal class ProclamatoriListViewModel(
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
+    private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
+    private val partTypeStore: PartTypeStore,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriListUiState())
     val uiState: StateFlow<ProclamatoriListUiState> = _uiState.asStateFlow()
     private var searchJob: Job? = null
 
     fun onScreenEntered() {
-        refreshList(resetPage = true)
+        scope.launch {
+            refreshListInternal(resetPage = true)
+            refreshSchemaUpdateAnomalies()
+        }
     }
 
     fun refreshList(resetPage: Boolean = false) {
@@ -245,6 +263,31 @@ internal class ProclamatoriListViewModel(
         }
     }
 
+    fun dismissSchemaUpdateAnomalies() {
+        if (_uiState.value.isDismissingSchemaAnomalies) return
+        scope.launch {
+            _uiState.update { it.copy(isDismissingSchemaAnomalies = true) }
+            runCatching { schemaUpdateAnomalyStore.dismissAllOpen() }
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isDismissingSchemaAnomalies = false,
+                            schemaUpdateAnomalies = emptyList(),
+                            notice = successNotice("Pannello anomalie archiviato"),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isDismissingSchemaAnomalies = false,
+                            notice = errorNotice("Archiviazione anomalie non completata: ${error.message}"),
+                        )
+                    }
+                }
+        }
+    }
+
     fun startImportFromJson() {
         if (_uiState.value.isImporting) return
         scope.launch {
@@ -352,5 +395,33 @@ internal class ProclamatoriListViewModel(
                 isLoading = false,
             )
         }
+    }
+
+    private suspend fun refreshSchemaUpdateAnomalies() {
+        val anomalies = schemaUpdateAnomalyStore.listOpen()
+        if (anomalies.isEmpty()) {
+            _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) }
+            return
+        }
+        val peopleById = cerca(null).associateBy { it.id }
+        val partTypesById = partTypeStore.allWithStatus().associateBy { it.partType.id }
+        val mapped = anomalies.map { anomaly ->
+            val person = peopleById[anomaly.personId]
+            val personLabel = if (person == null) {
+                "Proclamatore non trovato"
+            } else {
+                "${person.nome} ${person.cognome}"
+            }
+            val partTypeLabel = partTypesById[anomaly.partTypeId]?.partType?.label ?: "Parte non trovata"
+            SchemaUpdateAnomalyUi(
+                id = anomaly.id,
+                personLabel = personLabel,
+                partTypeLabel = partTypeLabel,
+                reason = anomaly.reason,
+                schemaVersion = anomaly.schemaVersion,
+                createdAt = anomaly.createdAt,
+            )
+        }
+        _uiState.update { it.copy(schemaUpdateAnomalies = mapped) }
     }
 }

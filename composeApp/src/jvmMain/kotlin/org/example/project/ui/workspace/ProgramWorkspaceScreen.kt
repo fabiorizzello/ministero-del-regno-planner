@@ -15,7 +15,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,6 +97,16 @@ fun ProgramWorkspaceScreen() {
         }
 
         ProgramHeader(state = state, onSelectProgram = { viewModel.selectProgram(it) })
+        AssignmentEngineSettingsCard(
+            state = state.assignmentSettings,
+            isSaving = state.isSavingAssignmentSettings,
+            onStrictCooldownChange = { viewModel.setStrictCooldown(it) },
+            onLeadWeightChange = { viewModel.setLeadWeight(it) },
+            onAssistWeightChange = { viewModel.setAssistWeight(it) },
+            onLeadCooldownChange = { viewModel.setLeadCooldownWeeks(it) },
+            onAssistCooldownChange = { viewModel.setAssistCooldownWeeks(it) },
+            onSave = { viewModel.saveAssignmentSettings() },
+        )
 
         if (state.autoAssignUnresolved.isNotEmpty()) {
             Card(
@@ -158,6 +170,96 @@ fun ProgramWorkspaceScreen() {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssignmentEngineSettingsCard(
+    state: AssignmentSettingsUiState,
+    isSaving: Boolean,
+    onStrictCooldownChange: (Boolean) -> Unit,
+    onLeadWeightChange: (String) -> Unit,
+    onAssistWeightChange: (String) -> Unit,
+    onLeadCooldownChange: (String) -> Unit,
+    onAssistCooldownChange: (String) -> Unit,
+    onSave: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Text("Impostazioni assegnatore", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Switch(
+                    checked = state.strictCooldown,
+                    onCheckedChange = onStrictCooldownChange,
+                )
+                Text("Strict cooldown (default ON)")
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                OutlinedTextField(
+                    value = state.leadWeight,
+                    onValueChange = onLeadWeightChange,
+                    label = { Text("Peso conduzione") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = state.assistWeight,
+                    onValueChange = onAssistWeightChange,
+                    label = { Text("Peso assistenza") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                OutlinedTextField(
+                    value = state.leadCooldownWeeks,
+                    onValueChange = onLeadCooldownChange,
+                    label = { Text("Cooldown conduzione (sett.)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = state.assistCooldownWeeks,
+                    onValueChange = onAssistCooldownChange,
+                    label = { Text("Cooldown assistenza (sett.)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Button(
+                    onClick = onSave,
+                    enabled = !isSaving,
+                    modifier = Modifier.handCursorOnHover(enabled = !isSaving),
+                ) {
+                    Text(if (isSaving) "Salvataggio..." else "Salva impostazioni")
                 }
             }
         }

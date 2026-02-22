@@ -3,20 +3,36 @@ package org.example.project.ui.proclamatori
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
+import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
+import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
+import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.successNotice
+
+internal data class LeadEligibilityOptionUi(
+    val partTypeId: PartTypeId,
+    val label: String,
+    val sexRule: SexRule,
+    val active: Boolean,
+    val checked: Boolean,
+    val canSelect: Boolean,
+)
 
 internal data class ProclamatoreFormUiState(
     val isLoading: Boolean = false,
@@ -28,17 +44,26 @@ internal data class ProclamatoreFormUiState(
     val initialSesso: Sesso = Sesso.M,
     val initialSospeso: Boolean = false,
     val initialPuoAssistere: Boolean = false,
+    val initialLeadEligibilityByPartType: Map<PartTypeId, Boolean> = emptyMap(),
     val nome: String = "",
     val cognome: String = "",
     val sesso: Sesso = Sesso.M,
     val sospeso: Boolean = false,
     val puoAssistere: Boolean = false,
+    val leadEligibilityOptions: List<LeadEligibilityOptionUi> = emptyList(),
     val showFieldErrors: Boolean = false,
 ) {
+    private fun currentLeadEligibilityByPartType(): Map<PartTypeId, Boolean> {
+        return leadEligibilityOptions.associate { option ->
+            option.partTypeId to (option.checked && option.canSelect)
+        }
+    }
+
     fun canSubmitForm(route: ProclamatoriRoute): Boolean {
         val nomeTrim = nome.trim()
         val cognomeTrim = cognome.trim()
         val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
+        val hasEligibilityChanges = currentLeadEligibilityByPartType() != initialLeadEligibilityByPartType
         val hasFormChanges = when (route) {
             ProclamatoriRoute.Nuovo -> requiredFieldsValid || sesso != Sesso.M
             is ProclamatoriRoute.Modifica -> {
@@ -46,7 +71,8 @@ internal data class ProclamatoreFormUiState(
                     cognomeTrim != initialCognome.trim() ||
                     sesso != initialSesso ||
                     sospeso != initialSospeso ||
-                    puoAssistere != initialPuoAssistere
+                    puoAssistere != initialPuoAssistere ||
+                    hasEligibilityChanges
             }
             ProclamatoriRoute.Elenco -> false
         }
@@ -62,14 +88,56 @@ internal data class ProclamatoreFormUiState(
 internal class ProclamatoreFormViewModel(
     private val scope: CoroutineScope,
     private val carica: CaricaProclamatoreUseCase,
+    private val caricaIdoneita: CaricaIdoneitaProclamatoreUseCase,
     private val crea: CreaProclamatoreUseCase,
     private val aggiorna: AggiornaProclamatoreUseCase,
+    private val impostaIdoneitaConduzione: ImpostaIdoneitaConduzioneUseCase,
+    private val partTypeStore: PartTypeStore,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoreFormUiState())
     val uiState: StateFlow<ProclamatoreFormUiState> = _uiState.asStateFlow()
 
     private var duplicateCheckJob: Job? = null
+
+    fun prepareForNew() {
+        scope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    initialNome = "",
+                    initialCognome = "",
+                    initialSesso = Sesso.M,
+                    initialSospeso = false,
+                    initialPuoAssistere = false,
+                    initialLeadEligibilityByPartType = emptyMap(),
+                    nome = "",
+                    cognome = "",
+                    sesso = Sesso.M,
+                    sospeso = false,
+                    puoAssistere = false,
+                    formError = null,
+                    duplicateError = null,
+                    isCheckingDuplicate = false,
+                    showFieldErrors = false,
+                    leadEligibilityOptions = emptyList(),
+                )
+            }
+            val options = buildLeadEligibilityOptions(
+                sesso = Sesso.M,
+                selected = emptyMap(),
+            )
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    leadEligibilityOptions = options,
+                    initialLeadEligibilityByPartType = options.associate { option ->
+                        option.partTypeId to (option.checked && option.canSelect)
+                    },
+                )
+            }
+        }
+    }
 
     fun setNome(value: String) {
         _uiState.update { it.copy(nome = value) }
@@ -80,7 +148,18 @@ internal class ProclamatoreFormViewModel(
     }
 
     fun setSesso(value: Sesso) {
-        _uiState.update { it.copy(sesso = value) }
+        _uiState.update { state ->
+            state.copy(
+                sesso = value,
+                leadEligibilityOptions = state.leadEligibilityOptions.map { option ->
+                    val canSelect = canLeadForSex(value, option.sexRule)
+                    option.copy(
+                        canSelect = canSelect,
+                        checked = if (canSelect) option.checked else false,
+                    )
+                },
+            )
+        }
     }
 
     fun setSospeso(value: Boolean) {
@@ -89,6 +168,20 @@ internal class ProclamatoreFormViewModel(
 
     fun setPuoAssistere(value: Boolean) {
         _uiState.update { it.copy(puoAssistere = value) }
+    }
+
+    fun setLeadEligibility(partTypeId: PartTypeId, value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                leadEligibilityOptions = state.leadEligibilityOptions.map { option ->
+                    if (option.partTypeId == partTypeId && option.canSelect) {
+                        option.copy(checked = value)
+                    } else {
+                        option
+                    }
+                },
+            )
+        }
     }
 
     fun clearForm() {
@@ -100,6 +193,7 @@ internal class ProclamatoreFormViewModel(
                 initialSesso = Sesso.M,
                 initialSospeso = false,
                 initialPuoAssistere = false,
+                initialLeadEligibilityByPartType = emptyMap(),
                 nome = "",
                 cognome = "",
                 sesso = Sesso.M,
@@ -109,6 +203,7 @@ internal class ProclamatoreFormViewModel(
                 duplicateError = null,
                 isCheckingDuplicate = false,
                 showFieldErrors = false,
+                leadEligibilityOptions = emptyList(),
             )
         }
     }
@@ -122,6 +217,14 @@ internal class ProclamatoreFormViewModel(
                 onNotFound()
                 return@launch
             }
+            val eligibilityByPartType = caricaIdoneita(id)
+                .associate { eligibility ->
+                    eligibility.partTypeId to eligibility.canLead
+                }
+            val options = buildLeadEligibilityOptions(
+                sesso = loaded.sesso,
+                selected = eligibilityByPartType,
+            )
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -130,11 +233,15 @@ internal class ProclamatoreFormViewModel(
                     initialSesso = loaded.sesso,
                     initialSospeso = loaded.sospeso,
                     initialPuoAssistere = loaded.puoAssistere,
+                    initialLeadEligibilityByPartType = options.associate { option ->
+                        option.partTypeId to (option.checked && option.canSelect)
+                    },
                     nome = loaded.nome,
                     cognome = loaded.cognome,
                     sesso = loaded.sesso,
                     sospeso = loaded.sospeso,
                     puoAssistere = loaded.puoAssistere,
+                    leadEligibilityOptions = options,
                     formError = null,
                     duplicateError = null,
                     isCheckingDuplicate = false,
@@ -190,7 +297,18 @@ internal class ProclamatoreFormViewModel(
                         )
                     }
                 },
-                ifRight = {
+                ifRight = { person ->
+                    val eligibilityError = persistLeadEligibility(person, state.leadEligibilityOptions)
+                    if (eligibilityError != null) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                formError = eligibilityError,
+                            )
+                        }
+                        return@fold
+                    }
+
                     val operation = if (route == ProclamatoriRoute.Nuovo) {
                         "Proclamatore aggiunto"
                     } else {
@@ -229,6 +347,68 @@ internal class ProclamatoreFormViewModel(
                     isCheckingDuplicate = false,
                 )
             }
+        }
+    }
+
+    private suspend fun buildLeadEligibilityOptions(
+        sesso: Sesso,
+        selected: Map<PartTypeId, Boolean>,
+    ): List<LeadEligibilityOptionUi> {
+        val partTypes = partTypeStore.allWithStatus()
+        return partTypes.map { typeWithStatus ->
+            toLeadEligibilityOption(
+                typeWithStatus = typeWithStatus,
+                sesso = sesso,
+                selected = selected,
+            )
+        }
+    }
+
+    private fun toLeadEligibilityOption(
+        typeWithStatus: PartTypeWithStatus,
+        sesso: Sesso,
+        selected: Map<PartTypeId, Boolean>,
+    ): LeadEligibilityOptionUi {
+        val partType = typeWithStatus.partType
+        val canSelect = canLeadForSex(sesso, partType.sexRule)
+        return LeadEligibilityOptionUi(
+            partTypeId = partType.id,
+            label = partType.label,
+            sexRule = partType.sexRule,
+            active = typeWithStatus.active,
+            checked = if (canSelect) selected[partType.id] == true else false,
+            canSelect = canSelect,
+        )
+    }
+
+    private suspend fun persistLeadEligibility(
+        person: Proclamatore,
+        options: List<LeadEligibilityOptionUi>,
+    ): String? {
+        options.forEach { option ->
+            val canLead = option.checked && option.canSelect
+            val saveResult = impostaIdoneitaConduzione(
+                personId = person.id,
+                partTypeId = option.partTypeId,
+                canLead = canLead,
+            )
+            var maybeError: String? = null
+            saveResult.fold(
+                ifLeft = { error ->
+                    maybeError = (error as? DomainError.Validation)?.message
+                        ?: "Salvataggio idoneita non completato"
+                },
+                ifRight = {},
+            )
+            if (maybeError != null) return maybeError
+        }
+        return null
+    }
+
+    private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean {
+        return when (sexRule) {
+            SexRule.UOMO -> sesso == Sesso.M
+            SexRule.LIBERO -> true
         }
     }
 }

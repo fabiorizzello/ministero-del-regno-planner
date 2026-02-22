@@ -103,8 +103,8 @@ fun ProclamatoriScreen() {
     fun goToNuovo() {
         listVm.dismissNotice()
         listVm.clearSelection()
-        formVm.clearForm()
         route = ProclamatoriRoute.Nuovo
+        formVm.prepareForNew()
     }
 
     fun submitAndNavigate() {
@@ -185,6 +185,7 @@ fun ProclamatoriScreen() {
                 onClearSelection = { listVm.clearSelection() },
                 onGoNuovo = { goToNuovo() },
                 onImportJson = { listVm.startImportFromJson() },
+                onDismissSchemaAnomalies = { listVm.dismissSchemaUpdateAnomalies() },
                 onEdit = { id ->
                     formVm.loadForEdit(
                         id = id,
@@ -221,6 +222,10 @@ fun ProclamatoriScreen() {
             onSospesoChange = { formVm.setSospeso(it) },
             puoAssistere = formState.puoAssistere,
             onPuoAssistereChange = { formVm.setPuoAssistere(it) },
+            leadEligibilityOptions = formState.leadEligibilityOptions,
+            onLeadEligibilityChange = { partTypeId, checked ->
+                formVm.setLeadEligibility(partTypeId, checked)
+            },
             nomeTrim = formState.nome.trim(),
             cognomeTrim = formState.cognome.trim(),
             showFieldErrors = formState.showFieldErrors,

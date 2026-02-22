@@ -4,20 +4,25 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeParseException
 
 data class AggiornaSchemiResult(
     val version: String?,
     val partTypesImported: Int,
     val weekTemplatesImported: Int,
+    val eligibilityAnomalies: Int,
 )
 
 class AggiornaSchemiUseCase(
     private val remoteSource: SchemaCatalogRemoteSource,
     private val partTypeStore: PartTypeStore,
+    private val eligibilityStore: EligibilityStore,
     private val schemaTemplateStore: SchemaTemplateStore,
+    private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
@@ -36,7 +41,28 @@ class AggiornaSchemiUseCase(
             )
         }
 
+        val missingPartTypes = partTypeStore.all().filter { it.code !in availableCodes }
+        val missingPartTypeIds = missingPartTypes.map { it.id }.toSet()
+
+        val eligibilityCleanupCandidates = eligibilityStore
+            .listLeadEligibilityCandidatesForPartTypes(missingPartTypeIds)
+
         transactionRunner.runInTransaction {
+            if (eligibilityCleanupCandidates.isNotEmpty()) {
+                eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
+                schemaUpdateAnomalyStore.append(
+                    eligibilityCleanupCandidates.map { candidate ->
+                        SchemaUpdateAnomalyDraft(
+                            personId = candidate.personId,
+                            partTypeId = candidate.partTypeId,
+                            reason = "Idoneita conduzione rimossa dopo aggiornamento schemi",
+                            schemaVersion = catalog.version,
+                            createdAt = LocalDateTime.now().toString(),
+                        )
+                    },
+                )
+            }
+
             partTypeStore.upsertAll(catalog.partTypes)
             partTypeStore.deactivateMissingCodes(availableCodes)
 
@@ -63,6 +89,7 @@ class AggiornaSchemiUseCase(
             version = catalog.version,
             partTypesImported = catalog.partTypes.size,
             weekTemplatesImported = catalog.weeks.size,
+            eligibilityAnomalies = eligibilityCleanupCandidates.size,
         )
     }
 }

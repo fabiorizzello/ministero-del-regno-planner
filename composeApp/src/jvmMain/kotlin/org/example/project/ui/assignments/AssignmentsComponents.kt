@@ -46,6 +46,7 @@ import org.jetbrains.skia.Image
 
 // Column width constants for suggestion table
 private val WEEKS_COLUMN_WIDTH = 120.dp
+private val COOLDOWN_COLUMN_WIDTH = 130.dp
 private val BUTTON_COLUMN_WIDTH = 132.dp
 private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
 private val ASSIGNED_PERSON_CHIP_MAX_WIDTH = 420.dp
@@ -657,6 +658,11 @@ private fun SuggestionHeaderRow() {
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
+        Text(
+            text = "Cooldown",
+            modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
+            style = MaterialTheme.typography.labelMedium,
+        )
         Spacer(Modifier.width(BUTTON_COLUMN_WIDTH))
     }
 }
@@ -692,6 +698,21 @@ private fun SuggestionRow(
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val cooldownLabel = if (suggestion.inCooldown) {
+            "${suggestion.cooldownRemainingWeeks} sett."
+        } else {
+            "-"
+        }
+        Text(
+            text = cooldownLabel,
+            modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (suggestion.inCooldown) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
         )
         Button(
             onClick = onAssign,

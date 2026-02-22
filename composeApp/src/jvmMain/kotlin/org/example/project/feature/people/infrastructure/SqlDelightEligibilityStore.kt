@@ -1,6 +1,7 @@
 package org.example.project.feature.people.infrastructure
 
 import org.example.project.db.MinisteroDatabase
+import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.LeadEligibility
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -44,6 +45,24 @@ class SqlDelightEligibilityStore(
                     canLead = row.can_lead == 1L,
                 )
             }
+    }
+
+    override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> {
+        if (partTypeIds.isEmpty()) return emptyList()
+        return database.ministeroDatabaseQueries
+            .leadEligibilityCandidatesByPartTypes(partTypeIds.map { it.value })
+            .executeAsList()
+            .map { row ->
+                EligibilityCleanupCandidate(
+                    personId = ProclamatoreId(row.person_id),
+                    partTypeId = PartTypeId(row.part_type_id),
+                )
+            }
+    }
+
+    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {
+        if (partTypeIds.isEmpty()) return
+        database.ministeroDatabaseQueries.deleteLeadEligibilityByPartTypes(partTypeIds.map { it.value })
     }
 
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> {

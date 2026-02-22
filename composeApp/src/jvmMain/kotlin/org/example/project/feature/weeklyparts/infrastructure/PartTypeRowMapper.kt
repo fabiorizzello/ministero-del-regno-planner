@@ -23,3 +23,35 @@ internal fun mapPartTypeRow(
         sortOrder = sort_order.toInt(),
     )
 }
+
+internal fun mapPartTypeExtendedRow(
+    id: String,
+    code: String,
+    label: String,
+    people_count: Long,
+    sex_rule: String,
+    fixed: Long,
+    active: Long,
+    sort_order: Long,
+    current_revision_id: String?,
+): PartTypeExtendedRecord {
+    return PartTypeExtendedRecord(
+        partType = mapPartTypeRow(
+            id = id,
+            code = code,
+            label = label,
+            people_count = people_count,
+            sex_rule = sex_rule,
+            fixed = fixed,
+            sort_order = sort_order,
+        ),
+        active = active == 1L,
+        currentRevisionId = current_revision_id,
+    )
+}
+
+internal data class PartTypeExtendedRecord(
+    val partType: PartType,
+    val active: Boolean,
+    val currentRevisionId: String?,
+)

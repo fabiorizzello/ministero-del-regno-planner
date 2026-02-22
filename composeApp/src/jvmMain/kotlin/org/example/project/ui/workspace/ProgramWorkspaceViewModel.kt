@@ -11,6 +11,8 @@ import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
+import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
+import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
@@ -26,6 +28,14 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import java.time.LocalDate
 
+data class AssignmentSettingsUiState(
+    val strictCooldown: Boolean = true,
+    val leadWeight: String = "2",
+    val assistWeight: String = "1",
+    val leadCooldownWeeks: String = "4",
+    val assistCooldownWeeks: String = "2",
+)
+
 data class ProgramWorkspaceUiState(
     val today: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
@@ -38,6 +48,8 @@ data class ProgramWorkspaceUiState(
     val isDeletingFutureProgram: Boolean = false,
     val isAutoAssigning: Boolean = false,
     val isPrintingProgram: Boolean = false,
+    val isSavingAssignmentSettings: Boolean = false,
+    val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
     val notice: FeedbackBannerModel? = null,
 ) {
@@ -56,6 +68,8 @@ class ProgramWorkspaceViewModel(
     private val aggiornaSchemi: AggiornaSchemiUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val weekPlanStore: WeekPlanStore,
+    private val caricaImpostazioniAssegnatore: CaricaImpostazioniAssegnatoreUseCase,
+    private val salvaImpostazioniAssegnatore: SalvaImpostazioniAssegnatoreUseCase,
 ) {
     private val _state = MutableStateFlow(ProgramWorkspaceUiState())
     val state: StateFlow<ProgramWorkspaceUiState> = _state.asStateFlow()
@@ -72,6 +86,69 @@ class ProgramWorkspaceViewModel(
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
+    }
+
+    fun setStrictCooldown(value: Boolean) {
+        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(strictCooldown = value)) }
+    }
+
+    fun setLeadWeight(value: String) {
+        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadWeight = value)) }
+    }
+
+    fun setAssistWeight(value: String) {
+        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(assistWeight = value)) }
+    }
+
+    fun setLeadCooldownWeeks(value: String) {
+        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadCooldownWeeks = value)) }
+    }
+
+    fun setAssistCooldownWeeks(value: String) {
+        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(assistCooldownWeeks = value)) }
+    }
+
+    fun saveAssignmentSettings() {
+        if (_state.value.isSavingAssignmentSettings) return
+        val parsed = parseAssignmentSettings(_state.value.assignmentSettings)
+        if (parsed == null) {
+            _state.update {
+                it.copy(
+                    notice = FeedbackBannerModel(
+                        "Impostazioni non valide: usa numeri interi >= 0 (peso >= 1)",
+                        FeedbackBannerKind.ERROR,
+                    ),
+                )
+            }
+            return
+        }
+
+        scope.launch {
+            _state.update { it.copy(isSavingAssignmentSettings = true) }
+            runCatching { salvaImpostazioniAssegnatore(parsed) }
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            isSavingAssignmentSettings = false,
+                            notice = FeedbackBannerModel(
+                                "Impostazioni assegnatore salvate",
+                                FeedbackBannerKind.SUCCESS,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isSavingAssignmentSettings = false,
+                            notice = FeedbackBannerModel(
+                                "Errore salvataggio impostazioni: ${error.message}",
+                                FeedbackBannerKind.ERROR,
+                            ),
+                        )
+                    }
+                }
+        }
     }
 
     fun selectProgram(programId: String) {
@@ -101,7 +178,7 @@ class ProgramWorkspaceViewModel(
                         it.copy(
                             isRefreshingSchemas = false,
                             notice = FeedbackBannerModel(
-                                "Schemi aggiornati: ${result.partTypesImported} tipi, ${result.weekTemplatesImported} settimane",
+                                "Schemi aggiornati: ${result.partTypesImported} tipi, ${result.weekTemplatesImported} settimane, anomalie idoneita: ${result.eligibilityAnomalies}",
                                 FeedbackBannerKind.SUCCESS,
                             ),
                         )
@@ -275,6 +352,7 @@ class ProgramWorkspaceViewModel(
                     else -> snapshot.future?.id?.value
                 }
                 val weeks = selectedProgramId?.let { weekPlanStore.listByProgram(it) }.orEmpty()
+                val assignmentSettings = caricaImpostazioniAssegnatore()
                 ProgramWorkspaceUiState(
                     today = today,
                     isLoading = false,
@@ -282,6 +360,13 @@ class ProgramWorkspaceViewModel(
                     futureProgram = snapshot.future,
                     selectedProgramId = selectedProgramId,
                     selectedProgramWeeks = weeks,
+                    assignmentSettings = AssignmentSettingsUiState(
+                        strictCooldown = assignmentSettings.strictCooldown,
+                        leadWeight = assignmentSettings.leadWeight.toString(),
+                        assistWeight = assignmentSettings.assistWeight.toString(),
+                        leadCooldownWeeks = assignmentSettings.leadCooldownWeeks.toString(),
+                        assistCooldownWeeks = assignmentSettings.assistCooldownWeeks.toString(),
+                    ),
                     autoAssignUnresolved = _state.value.autoAssignUnresolved,
                     notice = _state.value.notice,
                 )
@@ -307,6 +392,21 @@ class ProgramWorkspaceViewModel(
             val weeks = weekPlanStore.listByProgram(selectedProgramId)
             _state.update { it.copy(selectedProgramWeeks = weeks) }
         }
+    }
+
+    private fun parseAssignmentSettings(state: AssignmentSettingsUiState): org.example.project.feature.assignments.application.AssignmentSettings? {
+        val leadWeight = state.leadWeight.trim().toIntOrNull() ?: return null
+        val assistWeight = state.assistWeight.trim().toIntOrNull() ?: return null
+        val leadCooldown = state.leadCooldownWeeks.trim().toIntOrNull() ?: return null
+        val assistCooldown = state.assistCooldownWeeks.trim().toIntOrNull() ?: return null
+        if (leadWeight < 1 || assistWeight < 1 || leadCooldown < 0 || assistCooldown < 0) return null
+        return org.example.project.feature.assignments.application.AssignmentSettings(
+            strictCooldown = state.strictCooldown,
+            leadWeight = leadWeight,
+            assistWeight = assistWeight,
+            leadCooldownWeeks = leadCooldown,
+            assistCooldownWeeks = assistCooldown,
+        )
     }
 }
 

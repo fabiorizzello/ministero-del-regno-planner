@@ -572,9 +572,19 @@ SELECT id, person_id, part_type_id, can_lead
 FROM person_part_type_eligibility
 WHERE person_id = ?;
 
+leadEligibilityCandidatesByPartTypes:
+SELECT person_id, part_type_id
+FROM person_part_type_eligibility
+WHERE can_lead = 1
+  AND part_type_id IN ?;
+
 deletePersonEligibilityByPartType:
 DELETE FROM person_part_type_eligibility
 WHERE part_type_id = ?;
+
+deleteLeadEligibilityByPartTypes:
+DELETE FROM person_part_type_eligibility
+WHERE part_type_id IN ?;
 
 updatePersonSuspended:
 UPDATE person

@@ -2,6 +2,7 @@ package org.example.project.feature.weeklyparts.infrastructure
 
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import java.util.UUID
 
@@ -13,6 +14,18 @@ class SqlDelightPartTypeStore(
         return database.ministeroDatabaseQueries
             .allPartTypes(::mapPartTypeRow)
             .executeAsList()
+    }
+
+    override suspend fun allWithStatus(): List<PartTypeWithStatus> {
+        return database.ministeroDatabaseQueries
+            .listAllPartTypesExtended(::mapPartTypeExtendedRow)
+            .executeAsList()
+            .map { row ->
+                PartTypeWithStatus(
+                    partType = row.partType,
+                    active = row.active,
+                )
+            }
     }
 
     override suspend fun findByCode(code: String): PartType? {

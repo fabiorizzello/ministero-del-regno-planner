@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,6 +70,8 @@ import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.ui.theme.spacing
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.handCursorOnHover
@@ -86,6 +89,7 @@ internal data class ProclamatoriElencoEvents(
     val onClearSelection: () -> Unit,
     val onGoNuovo: () -> Unit,
     val onImportJson: () -> Unit,
+    val onDismissSchemaAnomalies: () -> Unit,
     val onEdit: (ProclamatoreId) -> Unit,
     val onToggleActive: (ProclamatoreId, Boolean) -> Unit,
     val onDelete: (Proclamatore) -> Unit,
@@ -225,6 +229,48 @@ internal fun ColumnScope.ProclamatoriElencoContent(
         model = notice,
         onDismissRequest = events.onDismissNotice,
     )
+
+    if (state.schemaUpdateAnomalies.isNotEmpty()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(spacing.cardRadius),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Anomalie idoneita da aggiornamento schemi",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    OutlinedButton(
+                        onClick = events.onDismissSchemaAnomalies,
+                        enabled = !state.isDismissingSchemaAnomalies,
+                        modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
+                    ) {
+                        Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
+                    }
+                }
+                state.schemaUpdateAnomalies.forEach { anomaly ->
+                    val versionText = anomaly.schemaVersion?.let { " | schema $it" }.orEmpty()
+                    Text(
+                        "• ${anomaly.personLabel} | ${anomaly.partTypeLabel}$versionText | ${anomaly.reason} | ${anomaly.createdAt}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+    }
 
     val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
     val pageItems = sortedItems
@@ -470,6 +516,8 @@ internal fun ProclamatoriFormContent(
     onSospesoChange: (Boolean) -> Unit,
     puoAssistere: Boolean,
     onPuoAssistereChange: (Boolean) -> Unit,
+    leadEligibilityOptions: List<LeadEligibilityOptionUi>,
+    onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -577,6 +625,80 @@ internal fun ProclamatoriFormContent(
                     Text("Può assistere")
                 }
             }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                ),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    Text(
+                        "Idoneita conduzione (ruolo principale)",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    if (leadEligibilityOptions.isEmpty()) {
+                        Text(
+                            "Nessun tipo parte disponibile. Usa Aggiorna schemi.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp),
+                            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                        ) {
+                            items(leadEligibilityOptions, key = { it.partTypeId.value }) { option ->
+                                val enabled = option.canSelect
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        val suffix = when {
+                                            !option.active -> " (non attivo)"
+                                            option.sexRule == SexRule.UOMO -> " (solo uomo)"
+                                            else -> ""
+                                        }
+                                        Text(
+                                            text = option.label + suffix,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (enabled) {
+                                                MaterialTheme.colorScheme.onSurface
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                        )
+                                        if (!enabled) {
+                                            Text(
+                                                "Non disponibile per il sesso selezionato",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    }
+                                    Checkbox(
+                                        checked = option.checked,
+                                        onCheckedChange = { checked ->
+                                            onLeadEligibilityChange(option.partTypeId, checked)
+                                        },
+                                        enabled = enabled,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
@@ -620,6 +742,8 @@ internal fun ProclamatoriFormDialog(
     onSospesoChange: (Boolean) -> Unit,
     puoAssistere: Boolean,
     onPuoAssistereChange: (Boolean) -> Unit,
+    leadEligibilityOptions: List<LeadEligibilityOptionUi>,
+    onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -660,6 +784,8 @@ internal fun ProclamatoriFormDialog(
                     onSospesoChange = onSospesoChange,
                     puoAssistere = puoAssistere,
                     onPuoAssistereChange = onPuoAssistereChange,
+                    leadEligibilityOptions = leadEligibilityOptions,
+                    onLeadEligibilityChange = onLeadEligibilityChange,
                     nomeTrim = nomeTrim,
                     cognomeTrim = cognomeTrim,
                     showFieldErrors = showFieldErrors,

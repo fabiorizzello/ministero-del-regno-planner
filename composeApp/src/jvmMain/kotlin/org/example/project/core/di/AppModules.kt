@@ -47,13 +47,17 @@ import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.application.AssignmentSettingsStore
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
+import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
+import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
+import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentSettingsStore
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.GeneraPdfAssegnazioni
 import org.example.project.feature.output.application.StampaProgrammaUseCase
@@ -75,8 +79,10 @@ import org.example.project.feature.programs.infrastructure.SqlDelightProgramStor
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
 import org.example.project.feature.schemas.application.SchemaTemplateStore
+import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.schemas.infrastructure.GitHubSchemaCatalogDataSource
 import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaTemplateStore
+import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaUpdateAnomalyStore
 import org.example.project.ui.assignments.AssignmentsViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.planning.PlanningDashboardViewModel
@@ -122,12 +128,13 @@ val appModule = module {
 
     // Local schema templates
     single<SchemaTemplateStore> { SqlDelightSchemaTemplateStore(get()) }
+    single<SchemaUpdateAnomalyStore> { SqlDelightSchemaUpdateAnomalyStore(get()) }
     single<SchemaCatalogRemoteSource> {
         GitHubSchemaCatalogDataSource(
             schemasCatalogUrl = RemoteConfig.SCHEMAS_CATALOG_URL,
         )
     }
-    single { AggiornaSchemiUseCase(get(), get(), get(), get()) }
+    single { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get()) }
 
     // Weekly parts
     single<PartTypeStore> { SqlDelightPartTypeStore(get()) }
@@ -149,13 +156,16 @@ val appModule = module {
 
     // Assignments
     single { SqlDelightAssignmentStore(get()) }
+    single<AssignmentSettingsStore> { SqlDelightAssignmentSettingsStore(get()) }
     single<AssignmentRepository> { get<SqlDelightAssignmentStore>() }
     single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
     single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
+    single { CaricaImpostazioniAssegnatoreUseCase(get()) }
+    single { SalvaImpostazioniAssegnatoreUseCase(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
-    single { SuggerisciProclamatoriUseCase(get(), get(), get()) }
+    single { SuggerisciProclamatoriUseCase(get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
 
@@ -234,6 +244,8 @@ val appModule = module {
             aggiornaSchemi = get(),
             schemaTemplateStore = get(),
             weekPlanStore = get(),
+            caricaImpostazioniAssegnatore = get(),
+            salvaImpostazioniAssegnatore = get(),
         )
     }
     single {
@@ -244,6 +256,8 @@ val appModule = module {
             elimina = get(),
             importaDaJson = get(),
             contaAssegnazioni = get(),
+            schemaUpdateAnomalyStore = get(),
+            partTypeStore = get(),
         )
     }
     single {
@@ -260,8 +274,11 @@ val appModule = module {
         ProclamatoreFormViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             carica = get(),
+            caricaIdoneita = get(),
             crea = get(),
             aggiorna = get(),
+            impostaIdoneitaConduzione = get(),
+            partTypeStore = get(),
             verificaDuplicato = get(),
         )
     }
