@@ -68,26 +68,6 @@ fun AssignmentsScreen() {
         }
     }
 
-    if (state.isOutputDialogOpen) {
-        val parts = state.weekPlan?.parts ?: emptyList()
-        OutputWizardDialog(
-            parts = parts,
-            selectedPartIds = state.outputSelectedPartIds,
-            onTogglePart = { viewModel.toggleOutputPart(it.id) },
-            onSelectAll = { viewModel.selectAllOutputParts() },
-            onClearAll = { viewModel.clearOutputPartsSelection() },
-            onGenerate = { viewModel.generateOutput() },
-            onExportZip = { viewModel.exportImagesZip() },
-            generatedPdfPath = state.generatedPdfPath,
-            generatedImagePaths = state.generatedImagePaths,
-            generatedZipPath = state.generatedZipPath,
-            isGeneratingOutput = state.isGeneratingOutput,
-            isExportingZip = state.isExportingImagesZip,
-            outputStatus = state.outputStatus,
-            onDismiss = { viewModel.closeOutputDialog() },
-        )
-    }
-
     Column(
         modifier = Modifier.fillMaxSize().padding(spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
@@ -135,33 +115,6 @@ fun AssignmentsScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = progressColor,
                 )
-            }
-        }
-
-        if (state.weekPlan != null) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.openOutputDialog() },
-                        modifier = Modifier.handCursorOnHover(),
-                    ) {
-                        Text("Genera output")
-                    }
-                }
-                if (!state.outputStatus.isNullOrBlank()) {
-                    Text(
-                        text = state.outputStatus ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
         }
 

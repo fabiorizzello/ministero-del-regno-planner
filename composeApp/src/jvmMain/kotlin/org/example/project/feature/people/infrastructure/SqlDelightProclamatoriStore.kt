@@ -11,7 +11,7 @@ class SqlDelightProclamatoriStore(
 
     override suspend fun load(id: ProclamatoreId): Proclamatore? {
         return database.ministeroDatabaseQueries
-            .findProclaimerById(id.value, ::mapProclamatoreRow)
+            .findProclaimerByIdExtended(id.value, ::mapProclamatoreAssignableRow)
             .executeAsOneOrNull()
     }
 
@@ -30,12 +30,16 @@ class SqlDelightProclamatoriStore(
     private fun persistInternal(aggregateRoot: Proclamatore) {
         val id = aggregateRoot.id.value
         val active = if (aggregateRoot.attivo) 1L else 0L
+        val suspended = if (aggregateRoot.sospeso) 1L else 0L
+        val canAssist = if (aggregateRoot.puoAssistere) 1L else 0L
         database.ministeroDatabaseQueries.upsertProclaimer(
             id,
             aggregateRoot.nome,
             aggregateRoot.cognome,
             aggregateRoot.sesso.name,
             active,
+            suspended,
+            canAssist,
         )
     }
 

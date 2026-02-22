@@ -26,9 +26,13 @@ internal data class ProclamatoreFormUiState(
     val initialNome: String = "",
     val initialCognome: String = "",
     val initialSesso: Sesso = Sesso.M,
+    val initialSospeso: Boolean = false,
+    val initialPuoAssistere: Boolean = false,
     val nome: String = "",
     val cognome: String = "",
     val sesso: Sesso = Sesso.M,
+    val sospeso: Boolean = false,
+    val puoAssistere: Boolean = false,
     val showFieldErrors: Boolean = false,
 ) {
     fun canSubmitForm(route: ProclamatoriRoute): Boolean {
@@ -40,7 +44,9 @@ internal data class ProclamatoreFormUiState(
             is ProclamatoriRoute.Modifica -> {
                 nomeTrim != initialNome.trim() ||
                     cognomeTrim != initialCognome.trim() ||
-                    sesso != initialSesso
+                    sesso != initialSesso ||
+                    sospeso != initialSospeso ||
+                    puoAssistere != initialPuoAssistere
             }
             ProclamatoriRoute.Elenco -> false
         }
@@ -77,6 +83,14 @@ internal class ProclamatoreFormViewModel(
         _uiState.update { it.copy(sesso = value) }
     }
 
+    fun setSospeso(value: Boolean) {
+        _uiState.update { it.copy(sospeso = value) }
+    }
+
+    fun setPuoAssistere(value: Boolean) {
+        _uiState.update { it.copy(puoAssistere = value) }
+    }
+
     fun clearForm() {
         _uiState.update {
             it.copy(
@@ -84,9 +98,13 @@ internal class ProclamatoreFormViewModel(
                 initialNome = "",
                 initialCognome = "",
                 initialSesso = Sesso.M,
+                initialSospeso = false,
+                initialPuoAssistere = false,
                 nome = "",
                 cognome = "",
                 sesso = Sesso.M,
+                sospeso = false,
+                puoAssistere = false,
                 formError = null,
                 duplicateError = null,
                 isCheckingDuplicate = false,
@@ -110,9 +128,13 @@ internal class ProclamatoreFormViewModel(
                     initialNome = loaded.nome,
                     initialCognome = loaded.cognome,
                     initialSesso = loaded.sesso,
+                    initialSospeso = loaded.sospeso,
+                    initialPuoAssistere = loaded.puoAssistere,
                     nome = loaded.nome,
                     cognome = loaded.cognome,
                     sesso = loaded.sesso,
+                    sospeso = loaded.sospeso,
+                    puoAssistere = loaded.puoAssistere,
                     formError = null,
                     duplicateError = null,
                     isCheckingDuplicate = false,
@@ -142,6 +164,8 @@ internal class ProclamatoreFormViewModel(
                         nome = state.nome,
                         cognome = state.cognome,
                         sesso = state.sesso,
+                        sospeso = state.sospeso,
+                        puoAssistere = state.puoAssistere,
                     ),
                 )
             } else {
@@ -151,6 +175,8 @@ internal class ProclamatoreFormViewModel(
                         nome = state.nome,
                         cognome = state.cognome,
                         sesso = state.sesso,
+                        sospeso = state.sospeso,
+                        puoAssistere = state.puoAssistere,
                     ),
                 )
             }

@@ -71,6 +71,13 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Text(if (state.isCreatingProgram) "Creazione..." else "Crea prossimo mese")
             }
+            Button(
+                onClick = { viewModel.autoAssignSelectedProgram() },
+                enabled = state.selectedProgramId != null && !state.isAutoAssigning,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text(if (state.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
+            }
             OutlinedButton(
                 onClick = { viewModel.deleteFutureProgram() },
                 enabled = state.futureProgram != null && !state.isDeletingFutureProgram,
@@ -78,9 +85,37 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Text(if (state.isDeletingFutureProgram) "Eliminazione..." else "Elimina futuro")
             }
+            OutlinedButton(
+                onClick = { viewModel.printSelectedProgram() },
+                enabled = state.selectedProgramId != null && !state.isPrintingProgram,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
+            }
         }
 
         ProgramHeader(state = state, onSelectProgram = { viewModel.selectProgram(it) })
+
+        if (state.autoAssignUnresolved.isNotEmpty()) {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                ) {
+                    Text("Slot non assegnati", style = MaterialTheme.typography.titleSmall)
+                    state.autoAssignUnresolved.forEach { unresolved ->
+                        Text(
+                            "• ${unresolved.weekStartDate} | ${unresolved.partLabel} slot ${unresolved.slot}: ${unresolved.reason}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        }
 
         if (state.isLoading) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {

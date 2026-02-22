@@ -9,6 +9,7 @@ import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.people.infrastructure.mapProclamatoreAssignableRow
 import org.example.project.feature.people.infrastructure.mapProclamatoreRow
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -86,7 +87,7 @@ class SqlDelightAssignmentStore(
             }
 
             val allActive = database.ministeroDatabaseQueries
-                .allActiveProclaimers(::mapProclamatoreRow)
+                .allAssignableProclaimers(::mapProclamatoreAssignableRow)
                 .executeAsList()
 
             allActive.map { p ->

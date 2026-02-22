@@ -466,6 +466,10 @@ internal fun ProclamatoriFormContent(
     onCognomeChange: (String) -> Unit,
     sesso: Sesso,
     onSessoChange: (Sesso) -> Unit,
+    sospeso: Boolean,
+    onSospesoChange: (Boolean) -> Unit,
+    puoAssistere: Boolean,
+    onPuoAssistereChange: (Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -549,6 +553,31 @@ internal fun ProclamatoriFormContent(
                 }
             }
             Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = sospeso,
+                        onCheckedChange = onSospesoChange,
+                    )
+                    Text("Sospeso")
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = puoAssistere,
+                        onCheckedChange = onPuoAssistereChange,
+                    )
+                    Text("Può assistere")
+                }
+            }
+            Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -587,6 +616,10 @@ internal fun ProclamatoriFormDialog(
     onCognomeChange: (String) -> Unit,
     sesso: Sesso,
     onSessoChange: (Sesso) -> Unit,
+    sospeso: Boolean,
+    onSospesoChange: (Boolean) -> Unit,
+    puoAssistere: Boolean,
+    onPuoAssistereChange: (Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -623,6 +656,10 @@ internal fun ProclamatoriFormDialog(
                     onCognomeChange = onCognomeChange,
                     sesso = sesso,
                     onSessoChange = onSessoChange,
+                    sospeso = sospeso,
+                    onSospesoChange = onSospesoChange,
+                    puoAssistere = puoAssistere,
+                    onPuoAssistereChange = onPuoAssistereChange,
                     nomeTrim = nomeTrim,
                     cognomeTrim = cognomeTrim,
                     showFieldErrors = showFieldErrors,

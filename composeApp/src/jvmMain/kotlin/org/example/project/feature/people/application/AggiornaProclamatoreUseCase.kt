@@ -16,6 +16,8 @@ class AggiornaProclamatoreUseCase(
         val nome: String,
         val cognome: String,
         val sesso: Sesso,
+        val sospeso: Boolean = false,
+        val puoAssistere: Boolean = false,
     )
 
     suspend operator fun invoke(command: Command): Either<DomainError, Proclamatore> = either {
@@ -37,6 +39,8 @@ class AggiornaProclamatoreUseCase(
             nome = nome,
             cognome = cognome,
             sesso = command.sesso,
+            sospeso = command.sospeso,
+            puoAssistere = command.puoAssistere,
         )
         store.persist(aggiornato)
         aggiornato

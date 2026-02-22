@@ -17,9 +17,15 @@ import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
+import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
+import org.example.project.feature.people.application.EligibilityStore
+import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
+import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
+import org.example.project.feature.people.application.ImpostaSospesoUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
+import org.example.project.feature.people.infrastructure.SqlDelightEligibilityStore
 import org.example.project.feature.people.infrastructure.SqlDelightProclamatoriQuery
 import org.example.project.feature.people.infrastructure.SqlDelightProclamatoriStore
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
@@ -41,6 +47,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
@@ -49,6 +56,8 @@ import org.example.project.feature.assignments.application.SuggerisciProclamator
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.GeneraPdfAssegnazioni
+import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.planning.application.CalcolaProgressoPianificazione
 import org.example.project.feature.planning.application.CaricaPanoramicaPianificazioneFutura
@@ -90,6 +99,7 @@ val appModule = module {
 
     single<ProclamatoriQuery> { SqlDelightProclamatoriQuery(get()) }
     single<ProclamatoriAggregateStore> { SqlDelightProclamatoriStore(get()) }
+    single<EligibilityStore> { SqlDelightEligibilityStore(get()) }
 
     single { CercaProclamatoriUseCase(get()) }
     single { CaricaProclamatoreUseCase(get()) }
@@ -97,6 +107,10 @@ val appModule = module {
     single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
     single { AggiornaProclamatoreUseCase(get(), get()) }
     single { ImpostaStatoProclamatoreUseCase(get()) }
+    single { ImpostaSospesoUseCase(get()) }
+    single { ImpostaIdoneitaAssistenzaUseCase(get()) }
+    single { ImpostaIdoneitaConduzioneUseCase(get()) }
+    single { CaricaIdoneitaProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get(), get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }
 
@@ -141,13 +155,16 @@ val appModule = module {
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
-    single { SuggerisciProclamatoriUseCase(get(), get()) }
+    single { SuggerisciProclamatoriUseCase(get(), get(), get()) }
+    single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
 
     // Output
     single { PdfAssignmentsRenderer() }
+    single { PdfProgramRenderer() }
     single { GeneraPdfAssegnazioni(get(), get(), get()) }
     single { GeneraImmaginiAssegnazioni(get(), get(), get()) }
+    single { StampaProgrammaUseCase(get(), get(), get(), get()) }
 
     // Updates
     single { UpdateStatusStore() }
@@ -212,6 +229,8 @@ val appModule = module {
             creaProssimoProgramma = get(),
             eliminaProgrammaFuturo = get(),
             generaSettimaneProgramma = get(),
+            autoAssegnaProgramma = get(),
+            stampaProgramma = get(),
             aggiornaSchemi = get(),
             schemaTemplateStore = get(),
             weekPlanStore = get(),

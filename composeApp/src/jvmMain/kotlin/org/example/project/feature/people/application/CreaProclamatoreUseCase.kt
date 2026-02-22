@@ -16,6 +16,8 @@ class CreaProclamatoreUseCase(
         val nome: String,
         val cognome: String,
         val sesso: Sesso,
+        val sospeso: Boolean = false,
+        val puoAssistere: Boolean = false,
     )
 
     suspend operator fun invoke(command: Command): Either<DomainError, Proclamatore> = either {
@@ -36,6 +38,8 @@ class CreaProclamatoreUseCase(
             cognome = cognome,
             sesso = command.sesso,
             attivo = true,
+            sospeso = command.sospeso,
+            puoAssistere = command.puoAssistere,
         )
         store.persist(nuovo)
         nuovo

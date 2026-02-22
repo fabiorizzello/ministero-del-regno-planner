@@ -154,6 +154,13 @@ FROM person
 WHERE active = 1
 ORDER BY last_name, first_name;
 
+allAssignableProclaimers:
+SELECT id, first_name, last_name, sex, active, suspended, can_assist
+FROM person
+WHERE active = 1
+  AND suspended = 0
+ORDER BY last_name, first_name;
+
 searchProclaimers:
 SELECT id, first_name, last_name, sex, active
 FROM person
@@ -167,6 +174,11 @@ ORDER BY last_name, first_name;
 
 findProclaimerById:
 SELECT id, first_name, last_name, sex, active
+FROM person
+WHERE id = ?;
+
+findProclaimerByIdExtended:
+SELECT id, first_name, last_name, sex, active, suspended, can_assist
 FROM person
 WHERE id = ?;
 
@@ -184,13 +196,15 @@ WHERE first_name = ? COLLATE NOCASE
   AND id != ?;
 
 upsertProclaimer:
-INSERT INTO person(id, first_name, last_name, sex, active)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO person(id, first_name, last_name, sex, active, suspended, can_assist)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     first_name = excluded.first_name,
     last_name = excluded.last_name,
     sex = excluded.sex,
-    active = excluded.active;
+    active = excluded.active,
+    suspended = excluded.suspended,
+    can_assist = excluded.can_assist;
 
 deleteProclaimerById:
 DELETE FROM person

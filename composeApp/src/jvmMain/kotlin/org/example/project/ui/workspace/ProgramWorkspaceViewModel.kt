@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.toMessage
+import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
+import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
+import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
@@ -33,6 +36,9 @@ data class ProgramWorkspaceUiState(
     val isRefreshingSchemas: Boolean = false,
     val isCreatingProgram: Boolean = false,
     val isDeletingFutureProgram: Boolean = false,
+    val isAutoAssigning: Boolean = false,
+    val isPrintingProgram: Boolean = false,
+    val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
     val notice: FeedbackBannerModel? = null,
 ) {
     val hasPrograms: Boolean get() = currentProgram != null || futureProgram != null
@@ -45,6 +51,8 @@ class ProgramWorkspaceViewModel(
     private val creaProssimoProgramma: CreaProssimoProgrammaUseCase,
     private val eliminaProgrammaFuturo: EliminaProgrammaFuturoUseCase,
     private val generaSettimaneProgramma: GeneraSettimaneProgrammaUseCase,
+    private val autoAssegnaProgramma: AutoAssegnaProgrammaUseCase,
+    private val stampaProgramma: StampaProgrammaUseCase,
     private val aggiornaSchemi: AggiornaSchemiUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val weekPlanStore: WeekPlanStore,
@@ -184,6 +192,76 @@ class ProgramWorkspaceViewModel(
         }
     }
 
+    fun autoAssignSelectedProgram() {
+        val programId = _state.value.selectedProgramId ?: return
+        if (_state.value.isAutoAssigning) return
+        scope.launch {
+            _state.update { it.copy(isAutoAssigning = true) }
+            runCatching {
+                autoAssegnaProgramma(
+                    programId = programId,
+                    referenceDate = _state.value.today,
+                )
+            }.onSuccess { result ->
+                val noticeText = buildString {
+                    append("Autoassegnazione completata: ${result.assignedCount} slot assegnati")
+                    if (result.unresolved.isNotEmpty()) {
+                        append(" | ${result.unresolved.size} slot non assegnati")
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        isAutoAssigning = false,
+                        autoAssignUnresolved = result.unresolved,
+                        notice = FeedbackBannerModel(noticeText, FeedbackBannerKind.SUCCESS),
+                    )
+                }
+                loadWeeksForSelectedProgram()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isAutoAssigning = false,
+                        notice = FeedbackBannerModel(
+                            "Errore autoassegnazione: ${error.message}",
+                            FeedbackBannerKind.ERROR,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    fun printSelectedProgram() {
+        val programId = _state.value.selectedProgramId ?: return
+        if (_state.value.isPrintingProgram) return
+        scope.launch {
+            _state.update { it.copy(isPrintingProgram = true) }
+            runCatching { stampaProgramma(programId) }
+                .onSuccess { path ->
+                    _state.update {
+                        it.copy(
+                            isPrintingProgram = false,
+                            notice = FeedbackBannerModel(
+                                "Programma stampato: ${path.fileName}",
+                                FeedbackBannerKind.SUCCESS,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isPrintingProgram = false,
+                            notice = FeedbackBannerModel(
+                                "Errore stampa programma: ${error.message}",
+                                FeedbackBannerKind.ERROR,
+                            ),
+                        )
+                    }
+                }
+        }
+    }
+
     private fun loadProgramsAndWeeks() {
         loadJob?.cancel()
         loadJob = scope.launch {
@@ -204,6 +282,7 @@ class ProgramWorkspaceViewModel(
                     futureProgram = snapshot.future,
                     selectedProgramId = selectedProgramId,
                     selectedProgramWeeks = weeks,
+                    autoAssignUnresolved = _state.value.autoAssignUnresolved,
                     notice = _state.value.notice,
                 )
             }.onSuccess { state ->
