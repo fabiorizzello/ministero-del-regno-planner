@@ -74,6 +74,7 @@ import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
+import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.infrastructure.SqlDelightProgramStore
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
@@ -125,6 +126,7 @@ val appModule = module {
     single { CreaProssimoProgrammaUseCase(get()) }
     single { CaricaProgrammiAttiviUseCase(get()) }
     single { EliminaProgrammaFuturoUseCase(get()) }
+    single { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }
 
     // Local schema templates
     single<SchemaTemplateStore> { SqlDelightSchemaTemplateStore(get()) }
