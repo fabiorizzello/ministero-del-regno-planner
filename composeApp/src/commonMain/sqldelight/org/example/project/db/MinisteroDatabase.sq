@@ -667,3 +667,23 @@ dismissAllSchemaUpdateAnomalies:
 UPDATE schema_update_anomaly
 SET dismissed = 1
 WHERE dismissed = 0;
+
+deleteAssignmentsByProgramFromDate:
+DELETE FROM assignment
+WHERE weekly_part_id IN (
+    SELECT wp.id FROM weekly_part wp
+    JOIN week_plan w ON wp.week_plan_id = w.id
+    WHERE w.program_id = ?
+    AND w.week_start_date >= ?
+    AND w.status = 'ACTIVE'
+);
+
+countAssignmentsByProgramFromDate:
+SELECT COUNT(*) AS cnt FROM assignment
+WHERE weekly_part_id IN (
+    SELECT wp.id FROM weekly_part wp
+    JOIN week_plan w ON wp.week_plan_id = w.id
+    WHERE w.program_id = ?
+    AND w.week_start_date >= ?
+    AND w.status = 'ACTIVE'
+);

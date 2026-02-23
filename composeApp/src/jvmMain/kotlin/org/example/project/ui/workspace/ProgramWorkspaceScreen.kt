@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
 import org.example.project.ui.components.FeedbackBanner
@@ -93,6 +98,13 @@ fun ProgramWorkspaceScreen() {
                 Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
             }
             OutlinedButton(
+                onClick = { viewModel.requestClearAssignments() },
+                enabled = state.selectedProgramId != null && !state.isClearingAssignments,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text(if (state.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
+            }
+            OutlinedButton(
                 onClick = { viewModel.refreshProgramFromSchemas() },
                 enabled = state.selectedProgramId != null && !state.isRefreshingProgramFromSchemas,
                 modifier = Modifier.handCursorOnHover(),
@@ -124,6 +136,50 @@ fun ProgramWorkspaceScreen() {
             }
         }
 
+        state.clearAssignmentsConfirm?.let { count ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissClearAssignments() },
+                title = { Text("Svuota assegnazioni") },
+                text = {
+                    Text("Verranno rimosse $count assegnazioni dalle settimane correnti e future. Continuare?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.confirmClearAssignments() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Svuota") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissClearAssignments() }) { Text("Annulla") }
+                },
+            )
+        }
+
+        state.schemaRefreshPreview?.let { preview ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissSchemaRefresh() },
+                title = { Text("Conferma aggiornamento da schemi") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                        Text("Settimane da aggiornare: ${preview.weeksUpdated}")
+                        Text("Assegnazioni preservate: ${preview.assignmentsPreserved}")
+                        if (preview.assignmentsRemoved > 0) {
+                            Text(
+                                "Assegnazioni da rimuovere: ${preview.assignmentsRemoved}",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmSchemaRefresh() }) { Text("Aggiorna") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissSchemaRefresh() }) { Text("Annulla") }
+                },
+            )
+        }
+
         if (state.isLoading) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 CircularProgressIndicator()
@@ -131,11 +187,22 @@ fun ProgramWorkspaceScreen() {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
                 items(state.selectedProgramWeeks, key = { it.id.value }) { week ->
+                    val isSkipped = week.status == WeekPlanStatus.SKIPPED
+                    val isPast = week.weekStartDate < state.today
+
                     Card(
                         shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSkipped) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isSkipped) 0.dp else 1.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSkipped)
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            else MaterialTheme.colorScheme.surface,
+                        ),
                     ) {
                         Row(
                             modifier = Modifier
@@ -145,22 +212,44 @@ fun ProgramWorkspaceScreen() {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column {
-                                Text("Settimana ${week.weekStartDate}", style = MaterialTheme.typography.titleMedium)
-                                Text("Stato: ${week.statusLabel}", style = MaterialTheme.typography.bodySmall)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text("Settimana ${week.weekStartDate}", style = MaterialTheme.typography.titleMedium)
+                                    if (isSkipped) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                        ) {
+                                            Text(
+                                                "SALTATA",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            )
+                                        }
+                                    }
+                                }
                                 Text("Parti: ${week.parts.size}", style = MaterialTheme.typography.bodySmall)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                                OutlinedButton(
-                                    onClick = { viewModel.navigateToWeek(week) },
-                                    modifier = Modifier.handCursorOnHover(),
-                                ) {
-                                    Text("Vai")
-                                }
-                                Button(
-                                    onClick = { navigateToSection(AppSection.ASSIGNMENTS) },
-                                    modifier = Modifier.handCursorOnHover(),
-                                ) {
-                                    Text("Assegna")
+                                if (isSkipped) {
+                                    if (!isPast) {
+                                        OutlinedButton(
+                                            onClick = { viewModel.reactivateWeek(week) },
+                                            modifier = Modifier.handCursorOnHover(),
+                                        ) { Text("Riattiva") }
+                                    }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { viewModel.navigateToWeek(week) },
+                                        modifier = Modifier.handCursorOnHover(),
+                                    ) { Text("Vai") }
+                                    Button(
+                                        onClick = { navigateToSection(AppSection.ASSIGNMENTS) },
+                                        modifier = Modifier.handCursorOnHover(),
+                                    ) { Text("Assegna") }
                                 }
                             }
                         }
@@ -213,6 +302,19 @@ private fun ProgramHeader(
                         modifier = Modifier.handCursorOnHover(),
                     ) {
                         Text("Futuro ${it.month}/${it.year}")
+                    }
+                    if (state.futureNeedsSchemaRefresh) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Text(
+                                "Template aggiornato, verificare",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
                     }
                 }
             }

@@ -56,6 +56,7 @@ import org.example.project.feature.assignments.application.ContaAssegnazioniPers
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
+import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentStore
 import org.example.project.feature.assignments.infrastructure.SqlDelightAssignmentSettingsStore
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
@@ -138,7 +139,7 @@ val appModule = module {
             schemasCatalogUrl = RemoteConfig.SCHEMAS_CATALOG_URL,
         )
     }
-    single { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get()) }
+    single { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get(), get()) }
 
     // Weekly parts
     single<PartTypeStore> { SqlDelightPartTypeStore(get()) }
@@ -172,6 +173,7 @@ val appModule = module {
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
+    single { SvuotaAssegnazioniProgrammaUseCase(get()) }
 
     // Output
     single { PdfAssignmentsRenderer() }
@@ -207,12 +209,10 @@ val appModule = module {
             sharedWeekState = get(),
             caricaSettimana = get(),
             creaSettimana = get(),
-            aggiungiParte = get(),
-            rimuoviParte = get(),
-            riordinaParti = get(),
             cercaTipiParte = get(),
             aggiornaDatiRemoti = get(),
             assignmentRepository = get(),
+            weekPlanStore = get(),
         )
     }
     single {
@@ -249,6 +249,8 @@ val appModule = module {
             weekPlanStore = get(),
             caricaImpostazioniAssegnatore = get(),
             salvaImpostazioniAssegnatore = get(),
+            svuotaAssegnazioni = get(),
+            settings = get(),
         )
     }
     single {

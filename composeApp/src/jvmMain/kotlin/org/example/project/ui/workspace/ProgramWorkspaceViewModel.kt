@@ -7,14 +7,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.russhwolf.settings.Settings
 import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
+import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
+import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
@@ -53,6 +56,10 @@ data class ProgramWorkspaceUiState(
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
+    val isClearingAssignments: Boolean = false,
+    val clearAssignmentsConfirm: Int? = null,
+    val schemaRefreshPreview: SchemaRefreshReport? = null,
+    val futureNeedsSchemaRefresh: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 ) {
     val hasPrograms: Boolean get() = currentProgram != null || futureProgram != null
@@ -73,6 +80,8 @@ class ProgramWorkspaceViewModel(
     private val weekPlanStore: WeekPlanStore,
     private val caricaImpostazioniAssegnatore: CaricaImpostazioniAssegnatoreUseCase,
     private val salvaImpostazioniAssegnatore: SalvaImpostazioniAssegnatoreUseCase,
+    private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
+    private val settings: Settings,
 ) {
     private val _state = MutableStateFlow(ProgramWorkspaceUiState())
     val state: StateFlow<ProgramWorkspaceUiState> = _state.asStateFlow()
@@ -161,6 +170,23 @@ class ProgramWorkspaceViewModel(
 
     fun navigateToWeek(week: WeekPlan) {
         sharedWeekState.navigateToWeek(week.weekStartDate)
+    }
+
+    fun reactivateWeek(week: WeekPlan) {
+        scope.launch {
+            runCatching {
+                weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.ACTIVE)
+            }.onSuccess {
+                _state.update {
+                    it.copy(notice = FeedbackBannerModel("Settimana ${week.weekStartDate} riattivata", FeedbackBannerKind.SUCCESS))
+                }
+                loadWeeksForSelectedProgram()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.message}", FeedbackBannerKind.ERROR))
+                }
+            }
+        }
     }
 
     fun refreshSchemas() {
@@ -347,10 +373,29 @@ class ProgramWorkspaceViewModel(
         if (_state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
             _state.update { it.copy(isRefreshingProgramFromSchemas = true) }
-            aggiornaProgrammaDaSchemi(
-                programId = programId,
-                referenceDate = _state.value.today,
-            ).fold(
+            aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = true).fold(
+                ifLeft = { error ->
+                    _state.update {
+                        it.copy(
+                            isRefreshingProgramFromSchemas = false,
+                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                        )
+                    }
+                },
+                ifRight = { preview ->
+                    _state.update {
+                        it.copy(isRefreshingProgramFromSchemas = false, schemaRefreshPreview = preview)
+                    }
+                },
+            )
+        }
+    }
+
+    fun confirmSchemaRefresh() {
+        val programId = _state.value.selectedProgramId ?: return
+        scope.launch {
+            _state.update { it.copy(schemaRefreshPreview = null, isRefreshingProgramFromSchemas = true) }
+            aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = false).fold(
                 ifLeft = { error ->
                     _state.update {
                         it.copy(
@@ -364,7 +409,7 @@ class ProgramWorkspaceViewModel(
                         it.copy(
                             isRefreshingProgramFromSchemas = false,
                             notice = FeedbackBannerModel(
-                                "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} assegnazioni preservate, ${report.assignmentsRemoved} rimosse",
+                                "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
                                 FeedbackBannerKind.SUCCESS,
                             ),
                         )
@@ -373,6 +418,61 @@ class ProgramWorkspaceViewModel(
                 },
             )
         }
+    }
+
+    fun dismissSchemaRefresh() {
+        _state.update { it.copy(schemaRefreshPreview = null) }
+    }
+
+    fun requestClearAssignments() {
+        val programId = _state.value.selectedProgramId ?: return
+        if (_state.value.isClearingAssignments) return
+        scope.launch {
+            _state.update { it.copy(isClearingAssignments = true) }
+            runCatching {
+                svuotaAssegnazioni.count(programId, _state.value.today)
+            }.onSuccess { count ->
+                _state.update {
+                    it.copy(isClearingAssignments = false, clearAssignmentsConfirm = count)
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isClearingAssignments = false,
+                        notice = FeedbackBannerModel("Errore conteggio: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
+    fun confirmClearAssignments() {
+        val programId = _state.value.selectedProgramId ?: return
+        scope.launch {
+            _state.update { it.copy(clearAssignmentsConfirm = null, isClearingAssignments = true) }
+            runCatching {
+                svuotaAssegnazioni.execute(programId, _state.value.today)
+            }.onSuccess { count ->
+                _state.update {
+                    it.copy(
+                        isClearingAssignments = false,
+                        notice = FeedbackBannerModel("$count assegnazioni rimosse", FeedbackBannerKind.SUCCESS),
+                    )
+                }
+                loadWeeksForSelectedProgram()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isClearingAssignments = false,
+                        notice = FeedbackBannerModel("Errore svuotamento: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissClearAssignments() {
+        _state.update { it.copy(clearAssignmentsConfirm = null) }
     }
 
     private fun loadProgramsAndWeeks() {
@@ -389,6 +489,10 @@ class ProgramWorkspaceViewModel(
                 }
                 val weeks = selectedProgramId?.let { weekPlanStore.listByProgram(it) }.orEmpty()
                 val assignmentSettings = caricaImpostazioniAssegnatore()
+                val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
+                    ?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
+                val futureNeedsRefresh = snapshot.future != null && lastSchemaImport != null &&
+                    (snapshot.future.templateAppliedAt == null || snapshot.future.templateAppliedAt < lastSchemaImport)
                 ProgramWorkspaceUiState(
                     today = today,
                     isLoading = false,
@@ -396,6 +500,7 @@ class ProgramWorkspaceViewModel(
                     futureProgram = snapshot.future,
                     selectedProgramId = selectedProgramId,
                     selectedProgramWeeks = weeks,
+                    futureNeedsSchemaRefresh = futureNeedsRefresh,
                     assignmentSettings = AssignmentSettingsUiState(
                         strictCooldown = assignmentSettings.strictCooldown,
                         leadWeight = assignmentSettings.leadWeight.toString(),

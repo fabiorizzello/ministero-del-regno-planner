@@ -2,6 +2,7 @@ package org.example.project.feature.schemas.application
 
 import arrow.core.Either
 import arrow.core.raise.either
+import com.russhwolf.settings.Settings
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.application.EligibilityStore
@@ -24,6 +25,7 @@ class AggiornaSchemiUseCase(
     private val schemaTemplateStore: SchemaTemplateStore,
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val transactionRunner: TransactionRunner,
+    private val settings: Settings,
 ) {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
         val catalog = runCatching { remoteSource.fetchCatalog() }
@@ -84,6 +86,8 @@ class AggiornaSchemiUseCase(
             }
             schemaTemplateStore.replaceAll(storedTemplates)
         }
+
+        settings.putString("last_schema_import_at", LocalDateTime.now().toString())
 
         AggiornaSchemiResult(
             version = catalog.version,

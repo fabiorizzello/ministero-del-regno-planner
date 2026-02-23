@@ -16,6 +16,8 @@ interface AssignmentRepository {
     suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean
     suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int
     suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int>
+    suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int
+    suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int
 }
 
 interface AssignmentRanking {

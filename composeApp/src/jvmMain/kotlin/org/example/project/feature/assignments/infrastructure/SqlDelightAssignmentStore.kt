@@ -102,6 +102,12 @@ class SqlDelightAssignmentStore(
                     lastForPartTypeWeeks = lastPartDate?.let {
                         ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
                     },
+                    lastGlobalDays = lastGlobalDate?.let {
+                        ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
+                    },
+                    lastForPartTypeDays = lastPartDate?.let {
+                        ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
+                    },
                 )
             }
         }
@@ -132,5 +138,20 @@ class SqlDelightAssignmentStore(
 
     override suspend fun removeAllForPerson(personId: ProclamatoreId) {
         database.ministeroDatabaseQueries.deleteAssignmentsForPerson(personId.value)
+    }
+
+    override suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int {
+        val count = database.ministeroDatabaseQueries
+            .countAssignmentsByProgramFromDate(programId, fromDate.toString())
+            .executeAsOne().toInt()
+        database.ministeroDatabaseQueries
+            .deleteAssignmentsByProgramFromDate(programId, fromDate.toString())
+        return count
+    }
+
+    override suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int {
+        return database.ministeroDatabaseQueries
+            .countAssignmentsByProgramFromDate(programId, fromDate.toString())
+            .executeAsOne().toInt()
     }
 }

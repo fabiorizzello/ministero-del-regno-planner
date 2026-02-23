@@ -89,7 +89,7 @@ fun WeeklyPartsScreen() {
 
     // Remove part confirmation dialog
     state.removePartCandidate?.let { partId ->
-        val partLabel = state.weekPlan?.parts?.find { it.id == partId }?.partType?.label ?: ""
+        val partLabel = (state.editingParts ?: state.weekPlan?.parts)?.find { it.id == partId }?.partType?.label ?: ""
         AlertDialog(
             onDismissRequest = { viewModel.dismissRemovePart() },
             title = { Text("Rimuovi parte") },
@@ -106,6 +106,24 @@ fun WeeklyPartsScreen() {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissRemovePart() }) { Text("Annulla") }
+            },
+        )
+    }
+
+    // Dirty prompt dialog
+    if (state.showDirtyPrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelNavigation() },
+            title = { Text("Modifiche non salvate") },
+            text = { Text("Hai modifiche non salvate. Cosa vuoi fare?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.saveAndNavigate() }) { Text("Salva") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.sm)) {
+                    TextButton(onClick = { viewModel.discardChanges() }) { Text("Scarta") }
+                    TextButton(onClick = { viewModel.cancelNavigation() }) { Text("Annulla") }
+                }
             },
         )
     }
@@ -151,6 +169,25 @@ fun WeeklyPartsScreen() {
             onDismissRequest = { viewModel.dismissNotice() },
         )
 
+        // Save / Discard bar when dirty
+        if (state.isDirty) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Button(
+                    onClick = { viewModel.saveChanges() },
+                    enabled = !state.isSaving,
+                    modifier = Modifier.handCursorOnHover(),
+                ) { Text(if (state.isSaving) "Salvataggio..." else "Salva modifiche") }
+                OutlinedButton(
+                    onClick = { viewModel.discardChanges() },
+                    enabled = !state.isSaving,
+                    modifier = Modifier.handCursorOnHover(),
+                ) { Text("Scarta") }
+            }
+        }
+
         // Week navigator
         WeekNavigator(
             monday = state.currentMonday,
@@ -175,7 +212,7 @@ fun WeeklyPartsScreen() {
                 onCreate = { viewModel.createWeek() },
             )
         } else {
-            val parts = state.weekPlan?.parts ?: emptyList()
+            val parts = state.editingParts ?: state.weekPlan?.parts ?: emptyList()
             PartsCard(
                 parts = parts,
                 isImporting = state.isImporting,

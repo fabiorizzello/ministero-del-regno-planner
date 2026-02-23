@@ -488,13 +488,13 @@ private fun SuggestionRow(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = formatWeeksAgo(suggestion.lastGlobalWeeks),
+            text = formatRecency(suggestion.lastGlobalDays, suggestion.lastGlobalWeeks),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = formatWeeksAgo(suggestion.lastForPartTypeWeeks),
+            text = formatRecency(suggestion.lastForPartTypeDays, suggestion.lastForPartTypeWeeks),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -536,9 +536,9 @@ private fun SuggestionRow(
     }
 }
 
-private fun formatWeeksAgo(weeks: Int?): String = when (weeks) {
-    null -> "Mai assegnato"
-    0 -> "Questa settimana"
-    1 -> "1 settimana fa"
-    else -> "$weeks settimane fa"
+private fun formatRecency(days: Int?, weeks: Int?): String = when {
+    days == null -> "Mai assegnato"
+    days == 0 -> "Oggi"
+    days < 14 -> "$days giorni fa"
+    else -> "${weeks ?: (days / 7)} settimane fa"
 }

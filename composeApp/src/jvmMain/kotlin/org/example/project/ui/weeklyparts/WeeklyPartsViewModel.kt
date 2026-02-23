@@ -11,17 +11,16 @@ import org.example.project.core.application.SharedWeekState
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.assignments.application.AssignmentRepository
-import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.AggiornaDatiRemotiUseCase
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
-import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
-import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.application.RemoteWeekSchema
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -41,6 +40,11 @@ internal data class WeeklyPartsUiState(
     val removePartCandidate: WeeklyPartId? = null,
     val partTypesLoadFailed: Boolean = false,
     val overwriteAssignmentCounts: Map<String, Int> = emptyMap(),
+    val editingParts: List<WeeklyPart>? = null,
+    val isDirty: Boolean = false,
+    val showDirtyPrompt: Boolean = false,
+    val pendingNavigation: (() -> Unit)? = null,
+    val isSaving: Boolean = false,
 ) {
     val weekIndicator: WeekTimeIndicator get() = computeWeekIndicator(currentMonday)
 
@@ -52,12 +56,10 @@ internal class WeeklyPartsViewModel(
     private val sharedWeekState: SharedWeekState,
     private val caricaSettimana: CaricaSettimanaUseCase,
     private val creaSettimana: CreaSettimanaUseCase,
-    private val aggiungiParte: AggiungiParteUseCase,
-    private val rimuoviParte: RimuoviParteUseCase,
-    private val riordinaParti: RiordinaPartiUseCase,
     private val cercaTipiParte: CercaTipiParteUseCase,
     private val aggiornaDatiRemoti: AggiornaDatiRemotiUseCase,
     private val assignmentRepository: AssignmentRepository,
+    private val weekPlanStore: WeekPlanStore,
 ) {
     private val _state = MutableStateFlow(WeeklyPartsUiState())
     val state: StateFlow<WeeklyPartsUiState> = _state.asStateFlow()
@@ -66,7 +68,13 @@ internal class WeeklyPartsViewModel(
     init {
         scope.launch {
             sharedWeekState.currentMonday.collect { monday ->
-                _state.update { it.copy(currentMonday = monday) }
+                val current = _state.value
+                if (current.isDirty && monday != current.currentMonday) {
+                    // External navigation while dirty — discard local edits to avoid silent data loss
+                    _state.update { it.copy(editingParts = null, isDirty = false, currentMonday = monday) }
+                } else {
+                    _state.update { it.copy(currentMonday = monday) }
+                }
                 try {
                     loadWeek()
                 } catch (e: Exception) {
@@ -88,14 +96,26 @@ internal class WeeklyPartsViewModel(
     }
 
     fun navigateToPreviousWeek() {
+        if (_state.value.isDirty) {
+            _state.update { it.copy(showDirtyPrompt = true, pendingNavigation = { sharedWeekState.navigateToPreviousWeek() }) }
+            return
+        }
         sharedWeekState.navigateToPreviousWeek()
     }
 
     fun navigateToNextWeek() {
+        if (_state.value.isDirty) {
+            _state.update { it.copy(showDirtyPrompt = true, pendingNavigation = { sharedWeekState.navigateToNextWeek() }) }
+            return
+        }
         sharedWeekState.navigateToNextWeek()
     }
 
     fun navigateToCurrentWeek() {
+        if (_state.value.isDirty) {
+            _state.update { it.copy(showDirtyPrompt = true, pendingNavigation = { sharedWeekState.navigateToCurrentWeek() }) }
+            return
+        }
         sharedWeekState.navigateToCurrentWeek()
     }
 
@@ -110,12 +130,16 @@ internal class WeeklyPartsViewModel(
     }
 
     fun addPart(partTypeId: PartTypeId) {
-        scope.launch {
-            aggiungiParte(_state.value.currentMonday, partTypeId).fold(
-                ifLeft = { error -> showError(error) },
-                ifRight = { weekPlan -> _state.update { it.copy(weekPlan = weekPlan) } },
-            )
-        }
+        val weekPlan = _state.value.weekPlan ?: return
+        val partType = _state.value.partTypes.find { it.id == partTypeId } ?: return
+        val currentParts = _state.value.editingParts ?: weekPlan.parts
+        val newPart = WeeklyPart(
+            id = WeeklyPartId(java.util.UUID.randomUUID().toString()),
+            partType = partType,
+            sortOrder = currentParts.size,
+        )
+        val updated = currentParts + newPart
+        _state.update { it.copy(editingParts = updated, isDirty = true) }
     }
 
     fun requestRemovePart(weeklyPartId: WeeklyPartId) {
@@ -124,36 +148,71 @@ internal class WeeklyPartsViewModel(
 
     fun confirmRemovePart() {
         val partId = _state.value.removePartCandidate ?: return
-        _state.update { it.copy(removePartCandidate = null) }
-        scope.launch {
-            rimuoviParte(_state.value.currentMonday, partId).fold(
-                ifLeft = { error -> showError(error) },
-                ifRight = { weekPlan -> _state.update { it.copy(weekPlan = weekPlan) } },
-            )
-        }
+        val weekPlan = _state.value.weekPlan ?: return
+        val currentParts = _state.value.editingParts ?: weekPlan.parts
+        val updated = currentParts
+            .filter { it.id != partId }
+            .mapIndexed { i, p -> p.copy(sortOrder = i) }
+        _state.update { it.copy(removePartCandidate = null, editingParts = updated, isDirty = true) }
     }
 
     fun dismissRemovePart() {
         _state.update { it.copy(removePartCandidate = null) }
     }
 
+    fun saveChanges() {
+        performSave { loadWeek() }
+    }
+
+    fun saveAndNavigate() {
+        val pendingNav = _state.value.pendingNavigation
+        performSave { pendingNav?.invoke() }
+    }
+
+    private fun performSave(onSuccess: () -> Unit) {
+        val weekPlan = _state.value.weekPlan ?: return
+        val editingParts = _state.value.editingParts ?: return
+        scope.launch {
+            _state.update { it.copy(isSaving = true, showDirtyPrompt = false) }
+            runCatching {
+                weekPlanStore.replaceAllParts(
+                    weekPlan.id,
+                    editingParts.sortedBy { it.sortOrder }.map { it.partType.id },
+                )
+            }.onSuccess {
+                _state.update {
+                    it.copy(editingParts = null, isDirty = false, isSaving = false, pendingNavigation = null)
+                }
+                onSuccess()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        notice = FeedbackBannerModel("Errore salvataggio: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
+    fun discardChanges() {
+        val pendingNav = _state.value.pendingNavigation
+        _state.update { it.copy(editingParts = null, isDirty = false, showDirtyPrompt = false, pendingNavigation = null) }
+        pendingNav?.invoke()
+    }
+
+    fun cancelNavigation() {
+        _state.update { it.copy(showDirtyPrompt = false, pendingNavigation = null) }
+    }
+
     fun movePart(fromIndex: Int, toIndex: Int) {
-        val currentPlan = _state.value.weekPlan ?: return
-        val parts = currentPlan.parts.toMutableList()
+        val weekPlan = _state.value.weekPlan ?: return
+        val parts = (_state.value.editingParts ?: weekPlan.parts).toMutableList()
         if (fromIndex !in parts.indices || toIndex !in parts.indices) return
         val moved = parts.removeAt(fromIndex)
         parts.add(toIndex, moved)
         val reordered = parts.mapIndexed { i, p -> p.copy(sortOrder = i) }
-        _state.update { it.copy(weekPlan = currentPlan.copy(parts = reordered)) }
-        scope.launch {
-            riordinaParti(reordered.map { it.id }).fold(
-                ifLeft = { error ->
-                    _state.update { it.copy(weekPlan = currentPlan) }
-                    showError(error)
-                },
-                ifRight = { /* optimistic update already applied */ },
-            )
-        }
+        _state.update { it.copy(editingParts = reordered, isDirty = true) }
     }
 
     fun syncRemoteData() {
@@ -242,7 +301,7 @@ internal class WeeklyPartsViewModel(
             _state.update { it.copy(isLoading = true) }
             try {
                 val weekPlan = caricaSettimana(_state.value.currentMonday)
-                _state.update { it.copy(isLoading = false, weekPlan = weekPlan) }
+                _state.update { it.copy(isLoading = false, weekPlan = weekPlan, editingParts = null, isDirty = false) }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
