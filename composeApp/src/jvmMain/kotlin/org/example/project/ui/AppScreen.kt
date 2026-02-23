@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material3.DropdownMenu
@@ -62,6 +63,7 @@ import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.assignments.AssignmentsScreen
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
+import org.example.project.ui.settings.AssignmentEngineSettingsScreen
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.weeklyparts.WeeklyPartsScreen
@@ -80,10 +82,11 @@ internal enum class AppSection(
     val icon: ImageVector,
     val screen: Screen,
 ) {
-    PLANNING("Cruscotto", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
+    PLANNING("Programma", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
     WEEKLY_PARTS("Schemi", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
     ASSIGNMENTS("Assegnazioni", Icons.Filled.Checklist, AssignmentsSectionScreen),
+    ASSIGNMENT_SETTINGS("Impostazioni", Icons.Filled.Settings, AssignmentEngineSettingsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
 
@@ -115,7 +118,12 @@ fun AppScreen(
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
                 ?: AppSection.PLANNING
             val primarySections = remember {
-                AppSection.entries.filter { it != AppSection.DIAGNOSTICS }
+                AppSection.entries.filter {
+                    it != AppSection.DIAGNOSTICS &&
+                        it != AppSection.ASSIGNMENT_SETTINGS &&
+                        it != AppSection.WEEKLY_PARTS &&
+                        it != AppSection.ASSIGNMENTS
+                }
             }
 
             CompositionLocalProvider(
@@ -169,6 +177,17 @@ fun AppScreen(
                                         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
+                                        IconButton(
+                                            onClick = { navigateToSection(AppSection.ASSIGNMENT_SETTINGS) },
+                                            modifier = Modifier.handCursorOnHover(),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Settings,
+                                                contentDescription = "Impostazioni assegnazione",
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        }
+
                                         IconButton(
                                             onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
                                             modifier = Modifier.handCursorOnHover(),
@@ -376,6 +395,13 @@ private data object DiagnosticsSectionScreen : Screen {
     @Composable
     override fun Content() {
         DiagnosticsScreen()
+    }
+}
+
+private data object AssignmentEngineSettingsSectionScreen : Screen {
+    @Composable
+    override fun Content() {
+        AssignmentEngineSettingsScreen()
     }
 }
 
