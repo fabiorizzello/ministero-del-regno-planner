@@ -1,5 +1,6 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
+import org.example.project.core.util.enumByName
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -129,7 +130,7 @@ class SqlDelightWeekPlanStore(
             .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
             .executeAsList()
 
-        val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
+        val status = enumByName(row.status, WeekPlanStatus.ACTIVE)
         return WeekPlan(
             id = WeekPlanId(row.id),
             weekStartDate = LocalDate.parse(row.week_start_date),
@@ -140,19 +141,36 @@ class SqlDelightWeekPlanStore(
     }
 
     override suspend fun listByProgram(programId: String): List<WeekPlan> {
-        return database.ministeroDatabaseQueries
-            .listWeekPlansByProgram(programId)
+        val rows = database.ministeroDatabaseQueries
+            .weekPlansWithPartsByProgram(programId)
             .executeAsList()
-            .map { row ->
-                val parts = database.ministeroDatabaseQueries
-                    .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
-                    .executeAsList()
-                val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
+
+        return rows
+            .groupBy { it.week_plan_id }
+            .map { (weekPlanId, group) ->
+                val first = group.first()
+                val parts = group.mapNotNull { row ->
+                    val wpId = row.weekly_part_id ?: return@mapNotNull null
+                    val ptId = row.part_type_id ?: return@mapNotNull null
+                    mapWeeklyPartWithTypeRow(
+                        id = wpId,
+                        _weekPlanId = weekPlanId,
+                        part_type_id = ptId,
+                        sort_order = row.part_sort_order ?: 0L,
+                        part_type_code = row.part_type_code.orEmpty(),
+                        part_type_label = row.part_type_label.orEmpty(),
+                        part_type_people_count = row.part_type_people_count ?: 1L,
+                        part_type_sex_rule = row.part_type_sex_rule.orEmpty(),
+                        part_type_fixed = row.part_type_fixed ?: 0L,
+                        part_type_sort_order = row.part_type_sort_order ?: 0L,
+                    )
+                }
+                val status = enumByName(first.status, WeekPlanStatus.ACTIVE)
                 WeekPlan(
-                    id = WeekPlanId(row.id),
-                    weekStartDate = LocalDate.parse(row.week_start_date),
+                    id = WeekPlanId(weekPlanId),
+                    weekStartDate = LocalDate.parse(first.week_start_date),
                     parts = parts,
-                    programId = row.program_id,
+                    programId = first.program_id,
                     status = status,
                 )
             }

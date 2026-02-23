@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.example.project.core.domain.RemoteParsingException
 import org.example.project.feature.schemas.application.RemoteSchemaCatalog
 import org.example.project.feature.schemas.application.RemoteWeekSchemaTemplate
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
@@ -51,12 +52,12 @@ class GitHubSchemaCatalogDataSource(
         return arr.mapIndexed { index, element ->
             val obj = element.jsonObject
             val weekStartDate = obj["weekStartDate"]?.jsonPrimitive?.content
-                ?: error("weeks[$index]: campo 'weekStartDate' mancante")
+                ?: throw RemoteParsingException("weeks[$index]: campo 'weekStartDate' mancante")
             val partsArr = obj["parts"]?.jsonArray
-                ?: error("weeks[$index]: campo 'parts' mancante")
+                ?: throw RemoteParsingException("weeks[$index]: campo 'parts' mancante")
             val codes = partsArr.mapIndexed { pIdx, partEl ->
                 partEl.jsonObject["partTypeCode"]?.jsonPrimitive?.content
-                    ?: error("weeks[$index].parts[$pIdx]: campo 'partTypeCode' mancante")
+                    ?: throw RemoteParsingException("weeks[$index].parts[$pIdx]: campo 'partTypeCode' mancante")
             }
             RemoteWeekSchemaTemplate(
                 weekStartDate = weekStartDate,

@@ -3,6 +3,7 @@ package org.example.project.core.config
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import com.russhwolf.settings.Settings
+import org.example.project.core.util.enumByName
 
 data class WindowSettings(
     val widthDp: Int = 1400,
@@ -22,9 +23,7 @@ class WindowSettingsStore(
     fun load(): WindowSettings {
         val width = settings.getInt(KEY_WIDTH_DP, 1400).coerceIn(800, 4000)
         val height = settings.getInt(KEY_HEIGHT_DP, 900).coerceIn(600, 2400)
-        val placement = settings.getString(KEY_PLACEMENT, WindowPlacement.Floating.name)
-            .let { runCatching { WindowPlacement.valueOf(it) }.getOrNull() }
-            ?: WindowPlacement.Floating
+        val placement = enumByName(settings.getString(KEY_PLACEMENT, WindowPlacement.Floating.name), WindowPlacement.Floating)
         val posX = settings.getInt(KEY_POSITION_X, WindowSettings.POSITION_UNSET)
         val posY = settings.getInt(KEY_POSITION_Y, WindowSettings.POSITION_UNSET)
 

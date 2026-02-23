@@ -85,6 +85,9 @@ CREATE TABLE person_part_type_eligibility (
     UNIQUE(person_id, part_type_id)
 );
 
+CREATE INDEX IF NOT EXISTS eligibility_part_type_id_idx
+ON person_part_type_eligibility(part_type_id);
+
 CREATE TABLE assignment_settings (
     id TEXT NOT NULL PRIMARY KEY,
     strict_cooldown INTEGER NOT NULL DEFAULT 1,
@@ -108,6 +111,9 @@ CREATE TABLE schema_update_anomaly (
     CHECK(dismissed IN (0, 1))
 );
 
+CREATE INDEX IF NOT EXISTS schema_anomaly_dismissed_idx
+ON schema_update_anomaly(dismissed);
+
 CREATE TABLE week_plan (
     id TEXT NOT NULL PRIMARY KEY,
     week_start_date TEXT NOT NULL UNIQUE,
@@ -115,6 +121,9 @@ CREATE TABLE week_plan (
     status TEXT NOT NULL DEFAULT 'ACTIVE',
     FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL
 );
+
+CREATE INDEX IF NOT EXISTS week_plan_program_id_idx
+ON week_plan(program_id);
 
 CREATE TABLE weekly_part (
     id TEXT NOT NULL PRIMARY KEY,
@@ -141,11 +150,11 @@ CREATE TABLE assignment (
 CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx
 ON weekly_part(week_plan_id);
 
+CREATE INDEX IF NOT EXISTS weekly_part_part_type_id_idx
+ON weekly_part(part_type_id);
+
 CREATE INDEX IF NOT EXISTS assignment_person_id_idx
 ON assignment(person_id);
-
-CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
-ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
 allActiveProclaimers:
@@ -462,6 +471,27 @@ FROM week_plan
 WHERE program_id = ?
 ORDER BY week_start_date;
 
+weekPlansWithPartsByProgram:
+SELECT
+    wpl.id AS week_plan_id,
+    wpl.week_start_date,
+    wpl.program_id,
+    wpl.status,
+    wp.id AS weekly_part_id,
+    wp.part_type_id,
+    wp.sort_order AS part_sort_order,
+    pt.code AS part_type_code,
+    pt.label AS part_type_label,
+    pt.people_count AS part_type_people_count,
+    pt.sex_rule AS part_type_sex_rule,
+    pt.fixed AS part_type_fixed,
+    pt.sort_order AS part_type_sort_order
+FROM week_plan wpl
+LEFT JOIN weekly_part wp ON wp.week_plan_id = wpl.id
+LEFT JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE wpl.program_id = ?
+ORDER BY wpl.week_start_date, wp.sort_order;
+
 findWeekPlanByDateAndProgram:
 SELECT id, week_start_date, program_id, status
 FROM week_plan
@@ -556,6 +586,8 @@ SET
     sort_order = ?
 WHERE id = ?;
 
+-- WARNING: NON chiamare con lista vuota; NOT IN () disattiva TUTTE le righe.
+-- Il guard è in SqlDelightPartTypeStore.deactivateMissingCodes().
 deactivatePartTypesMissingCodes:
 UPDATE part_type
 SET active = 0

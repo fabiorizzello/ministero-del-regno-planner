@@ -511,8 +511,13 @@ class ProgramWorkspaceViewModel(
                     autoAssignUnresolved = _state.value.autoAssignUnresolved,
                     notice = _state.value.notice,
                 )
-            }.onSuccess { state ->
-                _state.value = state
+            }.onSuccess { loadedState ->
+                _state.update { current ->
+                    loadedState.copy(
+                        autoAssignUnresolved = current.autoAssignUnresolved,
+                        notice = current.notice,
+                    )
+                }
             }.onFailure { error ->
                 _state.update {
                     it.copy(

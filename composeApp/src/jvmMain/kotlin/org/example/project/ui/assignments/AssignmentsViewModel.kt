@@ -86,13 +86,13 @@ internal class AssignmentsViewModel(
         scope.launch {
             sharedWeekState.currentMonday.collect { monday ->
                 _state.update { it.copy(currentMonday = monday) }
-                loadWeekData()
+                loadWeekData(monday)
             }
         }
     }
 
     fun onScreenEntered() {
-        loadWeekData()
+        loadWeekData(_state.value.currentMonday)
     }
 
     fun navigateToPreviousWeek() {
@@ -159,7 +159,7 @@ internal class AssignmentsViewModel(
                     ifLeft = { error -> showError(error) },
                     ifRight = {
                         closePersonPicker()
-                        loadWeekData()
+                        loadWeekData(s.currentMonday)
                     },
                 )
             } finally {
@@ -170,6 +170,7 @@ internal class AssignmentsViewModel(
 
     fun removeAssignment(assignmentId: AssignmentId) {
         if (_state.value.isRemoving) return
+        val monday = _state.value.currentMonday
         scope.launch {
             _state.update { it.copy(isRemoving = true) }
             try {
@@ -179,7 +180,7 @@ internal class AssignmentsViewModel(
                         _state.update {
                             it.copy(notice = FeedbackBannerModel("Assegnazione rimossa", FeedbackBannerKind.SUCCESS))
                         }
-                        loadWeekData()
+                        loadWeekData(monday)
                     },
                 )
             } finally {
@@ -204,12 +205,11 @@ internal class AssignmentsViewModel(
         }
     }
 
-    private fun loadWeekData() {
+    private fun loadWeekData(monday: LocalDate) {
         loadJob?.cancel()
         loadJob = scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val monday = _state.value.currentMonday
                 val prevMonday = monday.minusWeeks(1)
                 val nextMonday = monday.plusWeeks(1)
 

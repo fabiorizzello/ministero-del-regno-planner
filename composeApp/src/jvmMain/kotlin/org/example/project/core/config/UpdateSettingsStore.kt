@@ -2,6 +2,7 @@ package org.example.project.core.config
 
 import com.russhwolf.settings.Settings
 import java.time.Instant
+import org.example.project.core.util.enumByName
 import org.example.project.feature.updates.application.UpdateChannel
 
 class UpdateSettingsStore(
@@ -9,7 +10,7 @@ class UpdateSettingsStore(
 ) {
     fun loadChannel(): UpdateChannel {
         val raw = settings.getString(KEY_CHANNEL, UpdateChannel.STABLE.name)
-        return runCatching { UpdateChannel.valueOf(raw) }.getOrDefault(UpdateChannel.STABLE)
+        return enumByName(raw, UpdateChannel.STABLE)
     }
 
     fun saveChannel(channel: UpdateChannel) {

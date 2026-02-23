@@ -3,6 +3,7 @@ package org.example.project.feature.assignments.infrastructure
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.core.util.enumByName
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 
@@ -23,7 +24,7 @@ internal fun mapAssignmentWithPersonRow(
         slot = slot.toInt(),
         firstName = first_name,
         lastName = last_name,
-        sex = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
+        sex = enumByName(sex, Sesso.M),
         active = active == 1L,
     )
 }

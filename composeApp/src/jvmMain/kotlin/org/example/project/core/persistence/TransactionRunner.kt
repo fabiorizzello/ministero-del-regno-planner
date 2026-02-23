@@ -1,12 +1,19 @@
 package org.example.project.core.persistence
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.example.project.db.MinisteroDatabase
 
 interface TransactionRunner {
     /**
-     * Runs the given block within a database transaction.
-     * The block can call suspend store methods — they're synchronous JDBC
-     * calls under the hood with the same shared SQLite connection.
+     * Runs the given [block] within a database transaction.
+     *
+     * [block] should only call synchronous JDBC-backed store methods.
+     * Although it is declared `suspend`, the body is executed inside
+     * [kotlinx.coroutines.runBlocking] so that SQLDelight's
+     * `TransactionWithoutReturn` callback (a non-suspend lambda) can
+     * invoke it.  Calling real suspending I/O (network, delay, channel)
+     * inside [block] will block the thread and may deadlock.
      */
     suspend fun <T> runInTransaction(block: suspend () -> T): T
 }
@@ -15,20 +22,21 @@ class SqlDelightTransactionRunner(
     private val database: MinisteroDatabase,
 ) : TransactionRunner {
     override suspend fun <T> runInTransaction(block: suspend () -> T): T {
-        var result: T? = null
-        var thrown: Throwable? = null
-        database.ministeroDatabaseQueries.transaction {
-            try {
-                // Safe: store methods declared suspend but are synchronous JDBC calls
-                @Suppress("BlockingMethodInNonBlockingContext")
-                result = kotlinx.coroutines.runBlocking { block() }
-            } catch (e: Throwable) {
-                thrown = e
-                rollback()
+        return withContext(Dispatchers.IO) {
+            var result: T? = null
+            var thrown: Throwable? = null
+            database.ministeroDatabaseQueries.transaction {
+                try {
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    result = kotlinx.coroutines.runBlocking { block() }
+                } catch (e: Throwable) {
+                    thrown = e
+                    rollback()
+                }
             }
+            thrown?.let { throw it }
+            @Suppress("UNCHECKED_CAST")
+            result as T
         }
-        thrown?.let { throw it }
-        @Suppress("UNCHECKED_CAST")
-        return result as T
     }
 }

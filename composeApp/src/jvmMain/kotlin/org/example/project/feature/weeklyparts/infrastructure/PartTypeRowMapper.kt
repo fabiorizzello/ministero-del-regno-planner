@@ -1,5 +1,6 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
+import org.example.project.core.util.enumByName
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
@@ -18,7 +19,7 @@ internal fun mapPartTypeRow(
         code = code,
         label = label,
         peopleCount = people_count.toInt(),
-        sexRule = runCatching { SexRule.valueOf(sex_rule) }.getOrDefault(SexRule.LIBERO),
+        sexRule = enumByName(sex_rule, SexRule.LIBERO),
         fixed = fixed == 1L,
         sortOrder = sort_order.toInt(),
     )
