@@ -41,9 +41,7 @@ import org.example.project.core.application.SharedWeekState
 import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
 /** Offset added to sortOrder for user-facing part numbers (meeting program convention). */
 const val DISPLAY_NUMBER_OFFSET = 3
@@ -68,7 +66,7 @@ fun computeWeekIndicator(currentMonday: LocalDate): WeekTimeIndicator {
 fun formatWeekIndicatorLabel(monday: LocalDate): String {
     val d = computeWeekDistance(monday)
     return when {
-        d == 0 -> "Corrente"
+        d == 0 -> "Corrente ${formatMonthYearLabel(monday.monthValue, monday.year)}"
         d == 1 -> "tra 1 sett"
         d > 1 -> "tra $d sett"
         d == -1 -> "1 sett fa"
@@ -77,8 +75,6 @@ fun formatWeekIndicatorLabel(monday: LocalDate): String {
 }
 
 fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)
-
-internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
 
 @Composable
 private fun CompletionDot(status: WeekCompletionStatus) {
@@ -153,7 +149,7 @@ fun WeekNavigator(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Settimana ${monday.format(dateFormatter)} - ${sunday.format(dateFormatter)}",
+                    text = "Settimana ${formatWeekRangeLabel(monday, sunday)}",
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

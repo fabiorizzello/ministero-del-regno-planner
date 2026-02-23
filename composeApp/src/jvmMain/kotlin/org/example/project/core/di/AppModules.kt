@@ -86,12 +86,10 @@ import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.schemas.infrastructure.GitHubSchemaCatalogDataSource
 import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaTemplateStore
 import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaUpdateAnomalyStore
-import org.example.project.ui.assignments.AssignmentsViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.planning.PlanningDashboardViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
-import org.example.project.ui.weeklyparts.WeeklyPartsViewModel
 import org.example.project.ui.workspace.ProgramWorkspaceViewModel
 import org.koin.dsl.module
 
@@ -202,41 +200,17 @@ val appModule = module {
     // Shared state
     single { SharedWeekState() }
 
-    // ViewModels — singleton so they survive tab switches
-    single {
-        WeeklyPartsViewModel(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            sharedWeekState = get(),
-            caricaSettimana = get(),
-            creaSettimana = get(),
-            cercaTipiParte = get(),
-            aggiornaDatiRemoti = get(),
-            assignmentRepository = get(),
-            weekPlanStore = get(),
-        )
-    }
-    single {
-        AssignmentsViewModel(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            sharedWeekState = get(),
-            caricaSettimana = get(),
-            caricaAssegnazioni = get(),
-            assegnaPersona = get(),
-            rimuoviAssegnazione = get(),
-            suggerisciProclamatori = get(),
-        )
-    }
-    single {
+    // ViewModels — factory: screen-local state, data always reloaded from DB
+    factory {
         PlanningDashboardViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             sharedWeekState = get(),
             caricaPanoramica = get(),
         )
     }
-    single {
+    factory {
         ProgramWorkspaceViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            sharedWeekState = get(),
             caricaProgrammiAttivi = get(),
             creaProssimoProgramma = get(),
             eliminaProgrammaFuturo = get(),
@@ -247,13 +221,18 @@ val appModule = module {
             aggiornaProgrammaDaSchemi = get(),
             schemaTemplateStore = get(),
             weekPlanStore = get(),
+            cercaTipiParte = get(),
+            caricaAssegnazioni = get(),
+            assegnaPersona = get(),
+            rimuoviAssegnazione = get(),
+            suggerisciProclamatori = get(),
             caricaImpostazioniAssegnatore = get(),
             salvaImpostazioniAssegnatore = get(),
             svuotaAssegnazioni = get(),
             settings = get(),
         )
     }
-    single {
+    factory {
         ProclamatoriListViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             cerca = get(),
@@ -265,7 +244,7 @@ val appModule = module {
             partTypeStore = get(),
         )
     }
-    single {
+    factory {
         DiagnosticsViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             database = get(),

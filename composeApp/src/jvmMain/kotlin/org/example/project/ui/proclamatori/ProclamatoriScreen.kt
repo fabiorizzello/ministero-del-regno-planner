@@ -156,21 +156,6 @@ fun ProclamatoriScreen() {
             },
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
     ) {
-        val currentModificaLabel = if (route is ProclamatoriRoute.Modifica) {
-            listOf(formState.nome.trim(), formState.cognome.trim())
-                .filter { it.isNotEmpty() }
-                .joinToString(" ")
-                .ifBlank { "Modifica" }
-        } else {
-            null
-        }
-
-        Breadcrumbs(
-            route = route,
-            currentModificaLabel = currentModificaLabel,
-            onGoList = { goToListManual() },
-        )
-
         val elencoEvents = remember(listVm, formVm) {
             ProclamatoriElencoEvents(
                 onSearchTermChange = { value -> listVm.setSearchTerm(value) },

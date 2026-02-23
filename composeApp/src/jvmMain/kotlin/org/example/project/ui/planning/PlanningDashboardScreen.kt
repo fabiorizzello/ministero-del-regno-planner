@@ -200,7 +200,7 @@ fun PlanningDashboardScreen() {
                                     week = week,
                                     onOpenAssignments = {
                                         viewModel.navigateToWeek(week.weekStartDate)
-                                        navigateToSection(AppSection.ASSIGNMENTS)
+                                        navigateToSection(AppSection.PLANNING)
                                     },
                                     modifier = Modifier
                                         .weight(1f)

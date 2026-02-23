@@ -1,11 +1,8 @@
 package org.example.project.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,12 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -48,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -60,17 +56,19 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.assignments.AssignmentsScreen
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.settings.AssignmentEngineSettingsScreen
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
-import org.example.project.ui.weeklyparts.WeeklyPartsScreen
 import org.example.project.ui.workspace.ProgramWorkspaceScreen
 import kotlin.math.roundToInt
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
+internal data class PlanningToolbarActions(
+    val onRefreshSchemas: (() -> Unit)? = null,
+)
+internal val LocalPlanningToolbarActions = staticCompositionLocalOf<(PlanningToolbarActions) -> Unit> { {} }
 private const val UI_SCALE_MIN = 0.85f
 private const val UI_SCALE_MAX = 1.25f
 private const val UI_SCALE_STEP_PERCENT = 5
@@ -84,8 +82,6 @@ internal enum class AppSection(
 ) {
     PLANNING("Programma", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
-    WEEKLY_PARTS("Schemi", Icons.Filled.ViewWeek, WeeklyPartsSectionScreen),
-    ASSIGNMENTS("Assegnazioni", Icons.Filled.Checklist, AssignmentsSectionScreen),
     ASSIGNMENT_SETTINGS("Impostazioni", Icons.Filled.Settings, AssignmentEngineSettingsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
@@ -103,6 +99,7 @@ fun AppScreen(
         }
         var draftUiScale by remember { mutableFloatStateOf(uiScale) }
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
+        var planningToolbarActions by remember { mutableStateOf(PlanningToolbarActions()) }
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
             Density(
@@ -117,13 +114,8 @@ fun AppScreen(
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
                 ?: AppSection.PLANNING
-            val primarySections = remember {
-                AppSection.entries.filter {
-                    it != AppSection.DIAGNOSTICS &&
-                        it != AppSection.ASSIGNMENT_SETTINGS &&
-                        it != AppSection.WEEKLY_PARTS &&
-                        it != AppSection.ASSIGNMENTS
-                }
+            val navigationSections = remember {
+                listOf(AppSection.PLANNING, AppSection.PROCLAMATORI)
             }
 
             CompositionLocalProvider(
@@ -131,6 +123,9 @@ fun AppScreen(
                     if (currentSection != section) {
                         navigator.replaceAll(section.screen)
                     }
+                },
+                LocalPlanningToolbarActions provides { actions ->
+                    planningToolbarActions = actions
                 },
                 LocalDensity provides scaledDensity,
             ) {
@@ -141,8 +136,9 @@ fun AppScreen(
                         .background(
                             brush = Brush.verticalGradient(
                                 listOf(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
                                     MaterialTheme.colorScheme.background,
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.16f),
                                 ),
                             ),
                         ),
@@ -153,19 +149,20 @@ fun AppScreen(
                             TopAppBar(
                                 title = {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState()),
+                                        modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        primarySections.forEach { section ->
-                                            TopBarSectionButton(
-                                                selected = currentSection == section,
-                                                onClick = { navigateToSection(section) },
-                                                section = section,
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = currentSection.icon,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                        Text(
+                                            text = currentSection.label,
+                                            style = MaterialTheme.typography.titleMedium,
+                                        )
                                     }
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(
@@ -177,6 +174,27 @@ fun AppScreen(
                                         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
+                                        navigationSections.forEach { section ->
+                                            TopBarSectionIconButton(
+                                                selected = currentSection == section,
+                                                onClick = { navigateToSection(section) },
+                                                section = section,
+                                            )
+                                        }
+
+                                        if (currentSection == AppSection.PLANNING && planningToolbarActions.onRefreshSchemas != null) {
+                                            IconButton(
+                                                onClick = { planningToolbarActions.onRefreshSchemas?.invoke() },
+                                                modifier = Modifier.handCursorOnHover(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Refresh,
+                                                    contentDescription = "Aggiorna schemi",
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
+                                        }
+
                                         IconButton(
                                             onClick = { navigateToSection(AppSection.ASSIGNMENT_SETTINGS) },
                                             modifier = Modifier.handCursorOnHover(),
@@ -308,57 +326,42 @@ fun AppScreen(
 }
 
 @Composable
-private fun TopBarSectionButton(
+private fun TopBarSectionIconButton(
     selected: Boolean,
     onClick: () -> Unit,
     section: AppSection,
 ) {
-    val spacing = MaterialTheme.spacing
-    val shape = RoundedCornerShape(999.dp)
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    val containerColor = when {
-        selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isHovered) 0.95f else 0.82f)
-        isHovered -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+    val shape = RoundedCornerShape(10.dp)
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
     }
-    val borderColor = when {
-        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-        isHovered -> MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
     }
     val contentColor = if (selected) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    Row(
+    Surface(
         modifier = Modifier
             .handCursorOnHover()
-            .clip(shape)
-            .background(containerColor, shape)
-            .border(width = 1.dp, color = borderColor, shape = shape)
-            .hoverable(interactionSource = interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = spacing.lg, vertical = spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            .clickable(onClick = onClick)
+            .size(36.dp),
+        shape = shape,
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
     ) {
         Icon(
             imageVector = section.icon,
-            contentDescription = null,
+            contentDescription = section.label,
             tint = contentColor,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = section.label,
-            color = contentColor,
-            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(8.dp).size(18.dp),
         )
     }
 }
@@ -367,20 +370,6 @@ private data object ProclamatoriSectionScreen : Screen {
     @Composable
     override fun Content() {
         ProclamatoriScreen()
-    }
-}
-
-private data object WeeklyPartsSectionScreen : Screen {
-    @Composable
-    override fun Content() {
-        WeeklyPartsScreen()
-    }
-}
-
-private data object AssignmentsSectionScreen : Screen {
-    @Composable
-    override fun Content() {
-        AssignmentsScreen()
     }
 }
 

@@ -70,7 +70,7 @@ fun DiagnosticsScreen() {
                 Text(
                     "Eliminare i dati precedenti a ${formatCutoffDate(state.selectedRetention)}?\n" +
                         "Settimane: ${preview.weekPlans}, Parti: ${preview.weeklyParts}, Assegnazioni: ${preview.assignments}.\n" +
-                        "Vengono eliminati solo programmi settimanali storici e relativi collegamenti.",
+                        "Vengono eliminate solo settimane programma storiche e relativi collegamenti.",
                 )
             },
             confirmButton = {

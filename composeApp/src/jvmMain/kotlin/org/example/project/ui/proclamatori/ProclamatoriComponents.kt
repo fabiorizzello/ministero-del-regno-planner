@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -98,27 +99,6 @@ internal data class ProclamatoriElencoEvents(
 )
 
 private const val NAME_MAX_LENGTH = 100
-
-@Composable
-internal fun Breadcrumbs(
-    route: ProclamatoriRoute,
-    currentModificaLabel: String?,
-    onGoList: () -> Unit,
-) {
-    val spacing = MaterialTheme.spacing
-    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(
-            modifier = Modifier.handCursorOnHover(),
-            onClick = onGoList,
-        ) { Text("Proclamatori") }
-        Text("/")
-        when (route) {
-            ProclamatoriRoute.Elenco -> SelectionContainer { Text("Elenco") }
-            ProclamatoriRoute.Nuovo -> SelectionContainer { Text("Nuovo") }
-            is ProclamatoriRoute.Modifica -> SelectionContainer { Text(currentModificaLabel ?: "Modifica") }
-        }
-    }
-}
 
 @Composable
 internal fun ConfirmDeleteDialog(
@@ -614,17 +594,8 @@ internal fun ProclamatoriFormContent(
                     )
                     Text("Sospeso")
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = puoAssistere,
-                        onCheckedChange = onPuoAssistereChange,
-                    )
-                    Text("Può assistere")
-                }
             }
+            val eligibilityListState = rememberLazyListState()
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -640,8 +611,34 @@ internal fun ProclamatoriFormContent(
                     verticalArrangement = Arrangement.spacedBy(spacing.sm),
                 ) {
                     Text(
-                        "Idoneita conduzione (ruolo principale)",
+                        "Idoneita",
                         style = MaterialTheme.typography.titleSmall,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = puoAssistere,
+                                onCheckedChange = onPuoAssistereChange,
+                            )
+                            Text("Assistenza")
+                        }
+                        Text(
+                            "Ruoli principali (${leadEligibilityOptions.size})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "Tipi parte dal database locale",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (leadEligibilityOptions.isEmpty()) {
                         Text(
@@ -650,51 +647,63 @@ internal fun ProclamatoriFormContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
-                        LazyColumn(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 220.dp),
-                            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                .height(260.dp)
+                                .padding(end = spacing.sm),
                         ) {
-                            items(leadEligibilityOptions, key = { it.partTypeId.value }) { option ->
-                                val enabled = option.canSelect
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        val suffix = when {
-                                            !option.active -> " (non attivo)"
-                                            option.sexRule == SexRule.UOMO -> " (solo uomo)"
-                                            else -> ""
-                                        }
-                                        Text(
-                                            text = option.label + suffix,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = if (enabled) {
-                                                MaterialTheme.colorScheme.onSurface
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                        )
-                                        if (!enabled) {
+                            LazyColumn(
+                                state = eligibilityListState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                            ) {
+                                items(leadEligibilityOptions, key = { it.partTypeId.value }) { option ->
+                                    val enabled = option.canSelect
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            val suffix = when {
+                                                !option.active -> " (non attivo)"
+                                                option.sexRule == SexRule.UOMO -> " (solo uomo)"
+                                                else -> ""
+                                            }
                                             Text(
-                                                "Non disponibile per il sesso selezionato",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.error,
+                                                text = option.label + suffix,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (enabled) {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
                                             )
+                                            if (!enabled) {
+                                                Text(
+                                                    "Non disponibile per il sesso selezionato",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.error,
+                                                )
+                                            }
                                         }
+                                        Checkbox(
+                                            checked = option.checked,
+                                            onCheckedChange = { checked ->
+                                                onLeadEligibilityChange(option.partTypeId, checked)
+                                            },
+                                            enabled = enabled,
+                                        )
                                     }
-                                    Checkbox(
-                                        checked = option.checked,
-                                        onCheckedChange = { checked ->
-                                            onLeadEligibilityChange(option.partTypeId, checked)
-                                        },
-                                        enabled = enabled,
-                                    )
                                 }
                             }
+                            VerticalScrollbar(
+                                adapter = rememberScrollbarAdapter(eligibilityListState),
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight(),
+                            )
                         }
                     }
                 }

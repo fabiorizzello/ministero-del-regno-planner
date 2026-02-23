@@ -43,11 +43,12 @@ private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
 private val ASSIGNED_PERSON_CHIP_MAX_WIDTH = 420.dp
 
 @Composable
-internal fun PartAssignmentCard(
+fun PartAssignmentCard(
     part: WeeklyPart,
     assignments: List<AssignmentWithPerson>,
     displayNumber: Int,
     readOnly: Boolean,
+    showSexRuleChip: Boolean = true,
     onAssignSlot: (slot: Int) -> Unit,
     onRemoveAssignment: (AssignmentId) -> Unit,
     modifier: Modifier = Modifier,
@@ -75,7 +76,9 @@ internal fun PartAssignmentCard(
                     text = "$displayNumber. ${part.partType.label}",
                     style = MaterialTheme.typography.titleSmall,
                 )
-                SexRuleChip(part.partType.sexRule)
+                if (showSexRuleChip) {
+                    SexRuleChip(part.partType.sexRule)
+                }
             }
 
             // Content
@@ -232,12 +235,27 @@ private fun MissingAssignmentChip(
 ) {
     val spacing = MaterialTheme.spacing
     val shape = RoundedCornerShape(999.dp)
+    val containerColor = if (readOnly) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+    }
+    val borderColor = if (readOnly) {
+        MaterialTheme.colorScheme.outlineVariant
+    } else {
+        MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+    }
+    val contentColor = if (readOnly) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
 
     Row(
         modifier = modifier
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface, shape)
-            .border(ASSIGNMENT_CHIP_BORDER_WIDTH, MaterialTheme.colorScheme.outline, shape)
+            .background(containerColor, shape)
+            .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -247,7 +265,7 @@ private fun MissingAssignmentChip(
             Icons.Filled.PersonAdd,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = contentColor,
         )
         Text(
             text = if (readOnly) "Non assegnato" else "Assegna",
@@ -256,7 +274,7 @@ private fun MissingAssignmentChip(
             } else {
                 MaterialTheme.typography.titleSmall
             },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = contentColor,
         )
     }
 }
@@ -264,7 +282,7 @@ private fun MissingAssignmentChip(
 // --- Person Picker Dialog ---
 
 @Composable
-internal fun PersonPickerDialog(
+fun PersonPickerDialog(
     partLabel: String,
     slotLabel: String?,
     searchTerm: String,
