@@ -3,12 +3,16 @@ package org.example.project.feature.programs.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.programs.domain.ProgramTimelineStatus
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import java.time.LocalDate
 
 class EliminaProgrammaFuturoUseCase(
     private val programStore: ProgramStore,
+    private val weekPlanStore: WeekPlanStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         programId: ProgramMonthId,
@@ -21,6 +25,12 @@ class EliminaProgrammaFuturoUseCase(
             raise(DomainError.Validation("Puoi eliminare solo programmi futuri"))
         }
 
-        programStore.delete(programId)
+        transactionRunner.runInTransaction {
+            // Delete week plans first — CASCADE will remove parts and assignments
+            weekPlanStore.listByProgram(programId.value).forEach { week ->
+                weekPlanStore.delete(week.id)
+            }
+            programStore.delete(programId)
+        }
     }
 }

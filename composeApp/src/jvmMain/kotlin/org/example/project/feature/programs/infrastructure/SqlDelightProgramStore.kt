@@ -41,6 +41,13 @@ class SqlDelightProgramStore(
         )
     }
 
+    override suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime) {
+        database.ministeroDatabaseQueries.updateProgramTemplateAppliedAt(
+            template_applied_at = templateAppliedAt.toString(),
+            id = id.value,
+        )
+    }
+
     override suspend fun delete(id: ProgramMonthId) {
         database.ministeroDatabaseQueries.deleteProgramMonthly(id.value)
     }

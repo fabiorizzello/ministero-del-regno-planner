@@ -92,6 +92,13 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
             }
+            OutlinedButton(
+                onClick = { viewModel.refreshProgramFromSchemas() },
+                enabled = state.selectedProgramId != null && !state.isRefreshingProgramFromSchemas,
+                modifier = Modifier.handCursorOnHover(),
+            ) {
+                Text(if (state.isRefreshingProgramFromSchemas) "Aggiornamento..." else "Aggiorna da schemi")
+            }
         }
 
         ProgramHeader(state = state, onSelectProgram = { viewModel.selectProgram(it) })

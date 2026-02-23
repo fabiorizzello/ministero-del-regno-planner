@@ -71,6 +71,7 @@ import org.example.project.feature.updates.application.UpdateScheduler
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
 import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
+import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
@@ -125,8 +126,9 @@ val appModule = module {
     single<ProgramStore> { SqlDelightProgramStore(get()) }
     single { CreaProssimoProgrammaUseCase(get()) }
     single { CaricaProgrammiAttiviUseCase(get()) }
-    single { EliminaProgrammaFuturoUseCase(get()) }
+    single { EliminaProgrammaFuturoUseCase(get(), get(), get()) }
     single { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }
+    single { AggiornaProgrammaDaSchemiUseCase(get(), get(), get(), get(), get()) }
 
     // Local schema templates
     single<SchemaTemplateStore> { SqlDelightSchemaTemplateStore(get()) }
@@ -222,8 +224,6 @@ val appModule = module {
             assegnaPersona = get(),
             rimuoviAssegnazione = get(),
             suggerisciProclamatori = get(),
-            generaPdfAssegnazioni = get(),
-            generaImmaginiAssegnazioni = get(),
         )
     }
     single {
@@ -244,6 +244,7 @@ val appModule = module {
             autoAssegnaProgramma = get(),
             stampaProgramma = get(),
             aggiornaSchemi = get(),
+            aggiornaProgrammaDaSchemi = get(),
             schemaTemplateStore = get(),
             weekPlanStore = get(),
             caricaImpostazioniAssegnatore = get(),

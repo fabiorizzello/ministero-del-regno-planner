@@ -7,6 +7,7 @@ import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
@@ -29,27 +30,39 @@ class GeneraSettimaneProgrammaUseCase(
 
         val fixedPart = partTypeStore.findFixed()
 
-        transactionRunner.runInTransaction {
-            weekPlanStore.listByProgram(programId).forEach { existing ->
-                weekPlanStore.delete(existing.id)
-            }
+        // Pre-compute part type IDs per week BEFORE the transaction
+        // so we can raise() in the either context if validation fails
+        data class WeekSpec(val weekStartDate: LocalDate, val partTypeIds: List<PartTypeId>, val status: WeekPlanStatus)
 
+        val weekSpecs = buildList {
             var currentWeek = program.startDate
             while (!currentWeek.isAfter(program.endDate)) {
                 val template = schemaTemplateStore.findByWeekStartDate(currentWeek)
                 val partTypeIds = template?.partTypeIds ?: listOfNotNull(fixedPart?.id)
                 if (partTypeIds.isEmpty()) {
-                    throw IllegalStateException(
-                        "Nessun template e nessuna parte fissa per ${currentWeek}",
-                    )
+                    raise(DomainError.Validation("Nessun template e nessuna parte fissa per $currentWeek"))
                 }
+                add(WeekSpec(
+                    weekStartDate = currentWeek,
+                    partTypeIds = partTypeIds,
+                    status = if (currentWeek in skippedWeeks) WeekPlanStatus.SKIPPED else WeekPlanStatus.ACTIVE,
+                ))
+                currentWeek = currentWeek.plusWeeks(1)
+            }
+        }
 
+        transactionRunner.runInTransaction {
+            weekPlanStore.listByProgram(programId).forEach { existing ->
+                weekPlanStore.delete(existing.id)
+            }
+
+            for (spec in weekSpecs) {
                 val weekPlan = WeekPlan(
                     id = WeekPlanId(UUID.randomUUID().toString()),
-                    weekStartDate = currentWeek,
+                    weekStartDate = spec.weekStartDate,
                     parts = emptyList(),
                     programId = programId,
-                    status = if (currentWeek in skippedWeeks) WeekPlanStatus.SKIPPED else WeekPlanStatus.ACTIVE,
+                    status = spec.status,
                 )
 
                 weekPlanStore.saveWithProgram(
@@ -57,9 +70,7 @@ class GeneraSettimaneProgrammaUseCase(
                     programId = programId,
                     status = weekPlan.status,
                 )
-                weekPlanStore.replaceAllParts(weekPlan.id, partTypeIds)
-
-                currentWeek = currentWeek.plusWeeks(1)
+                weekPlanStore.replaceAllParts(weekPlan.id, spec.partTypeIds)
             }
         }
     }

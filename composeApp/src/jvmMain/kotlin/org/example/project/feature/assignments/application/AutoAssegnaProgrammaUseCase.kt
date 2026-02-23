@@ -1,5 +1,6 @@
 package org.example.project.feature.assignments.application
 
+import kotlinx.coroutines.sync.Mutex
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
@@ -23,7 +24,23 @@ class AutoAssegnaProgrammaUseCase(
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
     private val assegnaPersona: AssegnaPersonaUseCase,
 ) {
+    private val mutex = Mutex()
+
     suspend operator fun invoke(
+        programId: String,
+        referenceDate: LocalDate,
+    ): AutoAssignProgramResult {
+        if (!mutex.tryLock()) {
+            return AutoAssignProgramResult(assignedCount = 0, unresolved = emptyList())
+        }
+        try {
+            return doAssign(programId, referenceDate)
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    private suspend fun doAssign(
         programId: String,
         referenceDate: LocalDate,
     ): AutoAssignProgramResult {

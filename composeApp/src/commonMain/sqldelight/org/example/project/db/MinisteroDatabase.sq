@@ -442,6 +442,11 @@ insertProgramMonthly:
 INSERT INTO program_monthly(id, year, month, start_date, end_date, template_applied_at, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
+updateProgramTemplateAppliedAt:
+UPDATE program_monthly
+SET template_applied_at = ?
+WHERE id = ?;
+
 deleteProgramMonthly:
 DELETE FROM program_monthly
 WHERE id = ?;

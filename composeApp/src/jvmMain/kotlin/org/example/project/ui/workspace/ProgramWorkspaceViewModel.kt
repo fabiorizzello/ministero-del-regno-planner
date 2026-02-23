@@ -14,6 +14,7 @@ import org.example.project.feature.assignments.application.AutoAssignUnresolvedS
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
@@ -48,6 +49,7 @@ data class ProgramWorkspaceUiState(
     val isDeletingFutureProgram: Boolean = false,
     val isAutoAssigning: Boolean = false,
     val isPrintingProgram: Boolean = false,
+    val isRefreshingProgramFromSchemas: Boolean = false,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -66,6 +68,7 @@ class ProgramWorkspaceViewModel(
     private val autoAssegnaProgramma: AutoAssegnaProgrammaUseCase,
     private val stampaProgramma: StampaProgrammaUseCase,
     private val aggiornaSchemi: AggiornaSchemiUseCase,
+    private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val weekPlanStore: WeekPlanStore,
     private val caricaImpostazioniAssegnatore: CaricaImpostazioniAssegnatoreUseCase,
@@ -336,6 +339,39 @@ class ProgramWorkspaceViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    fun refreshProgramFromSchemas() {
+        val programId = _state.value.selectedProgramId ?: return
+        if (_state.value.isRefreshingProgramFromSchemas) return
+        scope.launch {
+            _state.update { it.copy(isRefreshingProgramFromSchemas = true) }
+            aggiornaProgrammaDaSchemi(
+                programId = programId,
+                referenceDate = _state.value.today,
+            ).fold(
+                ifLeft = { error ->
+                    _state.update {
+                        it.copy(
+                            isRefreshingProgramFromSchemas = false,
+                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                        )
+                    }
+                },
+                ifRight = { report ->
+                    _state.update {
+                        it.copy(
+                            isRefreshingProgramFromSchemas = false,
+                            notice = FeedbackBannerModel(
+                                "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} assegnazioni preservate, ${report.assignmentsRemoved} rimosse",
+                                FeedbackBannerKind.SUCCESS,
+                            ),
+                        )
+                    }
+                    loadWeeksForSelectedProgram()
+                },
+            )
         }
     }
 
