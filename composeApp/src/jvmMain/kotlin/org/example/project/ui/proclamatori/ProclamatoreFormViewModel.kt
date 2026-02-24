@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
+import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -52,6 +53,8 @@ internal data class ProclamatoreFormUiState(
     val puoAssistere: Boolean = false,
     val leadEligibilityOptions: List<LeadEligibilityOptionUi> = emptyList(),
     val showFieldErrors: Boolean = false,
+    val assignmentHistory: PersonAssignmentHistory? = null,
+    val isHistoryExpanded: Boolean = false,
 ) {
     private fun currentLeadEligibilityByPartType(): Map<PartTypeId, Boolean> {
         return leadEligibilityOptions.associate { option ->
