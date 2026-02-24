@@ -267,6 +267,33 @@ fun ProgramWorkspaceScreen() {
             )
         }
 
+        state.clearWeekAssignmentsConfirm?.let { (weekId, count) ->
+            val week = state.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
+            if (week != null) {
+                val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
+                AlertDialog(
+                    onDismissRequest = { viewModel.dismissClearWeekAssignments() },
+                    title = { Text("Rimuovi assegnazioni settimana") },
+                    text = {
+                        Text("Verranno rimosse $count assegnazioni dalla settimana $weekLabel. Continuare?")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { viewModel.confirmClearWeekAssignments() },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.handCursorOnHover(),
+                        ) { Text("Rimuovi") }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { viewModel.dismissClearWeekAssignments() },
+                            modifier = Modifier.handCursorOnHover(),
+                        ) { Text("Annulla") }
+                    },
+                )
+            }
+        }
+
         state.schemaRefreshPreview?.let { preview ->
             AlertDialog(
                 onDismissRequest = { viewModel.dismissSchemaRefresh() },
