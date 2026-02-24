@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
+import org.example.project.feature.assignments.application.CaricaStoricoAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
@@ -97,6 +98,7 @@ internal class ProclamatoreFormViewModel(
     private val impostaIdoneitaConduzione: ImpostaIdoneitaConduzioneUseCase,
     private val partTypeStore: PartTypeStore,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
+    private val caricaStoricoAssegnazioni: CaricaStoricoAssegnazioniPersonaUseCase,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoreFormUiState())
     val uiState: StateFlow<ProclamatoreFormUiState> = _uiState.asStateFlow()
@@ -228,6 +230,7 @@ internal class ProclamatoreFormViewModel(
                 sesso = loaded.sesso,
                 selected = eligibilityByPartType,
             )
+            val history = caricaStoricoAssegnazioni(id)
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -245,6 +248,7 @@ internal class ProclamatoreFormViewModel(
                     sospeso = loaded.sospeso,
                     puoAssistere = loaded.puoAssistere,
                     leadEligibilityOptions = options,
+                    assignmentHistory = history,
                     formError = null,
                     duplicateError = null,
                     isCheckingDuplicate = false,

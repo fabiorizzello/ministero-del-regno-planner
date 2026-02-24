@@ -266,6 +266,7 @@ val appModule = module {
             impostaIdoneitaConduzione = get(),
             partTypeStore = get(),
             verificaDuplicato = get(),
+            caricaStoricoAssegnazioni = get(),
         )
     }
 }
