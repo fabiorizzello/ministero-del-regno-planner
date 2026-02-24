@@ -2,6 +2,7 @@ package org.example.project.ui.workspace
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -305,6 +308,180 @@ internal fun ProgramWeekCard(
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PartEditorDialog(
+    weekLabel: String,
+    parts: List<WeeklyPart>,
+    availablePartTypes: List<PartType>,
+    isSaving: Boolean,
+    onAddPart: (PartType) -> Unit,
+    onMovePart: (Int, Int) -> Unit,
+    onRemovePart: (WeeklyPart) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    var menuExpanded by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = listState,
+    ) { from, to ->
+        onMovePart(from.index, to.index)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            tonalElevation = 6.dp,
+            modifier = Modifier.width(780.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                Text("Modifica parti", style = MaterialTheme.typography.titleLarge)
+                Text("Settimana $weekLabel", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Trascina le righe per riordinare le parti",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    FilledTonalButton(
+                        onClick = { menuExpanded = true },
+                        enabled = !isSaving,
+                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Aggiungi parte")
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        availablePartTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type.label) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onAddPart(type)
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .padding(end = 10.dp),
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(spacing.sm),
+                    ) {
+                        items(parts.size, key = { index -> parts[index].id.value }) { index ->
+                            val part = parts[index]
+                            ReorderableItem(
+                                state = reorderableState,
+                                key = part.id.value,
+                            ) { isDragging ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isDragging) {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surface
+                                    },
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isDragging) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                        },
+                                    ),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = spacing.md, vertical = spacing.sm),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.DragIndicator,
+                                            contentDescription = "Trascina per riordinare",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .handCursorOnHover(enabled = !isSaving)
+                                                .draggableHandle(enabled = !isSaving),
+                                        )
+                                        Text("${index + DISPLAY_NUMBER_OFFSET}", style = MaterialTheme.typography.labelLarge)
+                                        Text(
+                                            part.partType.label,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                        )
+                                        Text(
+                                            "${part.partType.peopleCount} persone",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        if (!part.partType.fixed) {
+                                            IconButton(
+                                                onClick = { onRemovePart(part) },
+                                                enabled = !isSaving,
+                                                modifier = Modifier.handCursorOnHover(enabled = !isSaving),
+                                            ) {
+                                                Icon(Icons.Filled.Close, contentDescription = "Rimuovi parte")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    VerticalScrollbar(
+                        adapter = rememberScrollbarAdapter(listState),
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight(),
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Annulla") }
+                    Spacer(Modifier.width(spacing.sm))
+                    Button(
+                        onClick = onSave,
+                        enabled = !isSaving,
+                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
+                    ) {
+                        Text(if (isSaving) "Salvataggio..." else "Salva")
                     }
                 }
             }
