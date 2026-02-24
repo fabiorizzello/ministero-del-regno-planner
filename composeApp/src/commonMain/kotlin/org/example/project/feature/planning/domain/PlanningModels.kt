@@ -2,6 +2,13 @@ package org.example.project.feature.planning.domain
 
 enum class WeekPlanningStatus { DA_ORGANIZZARE, PARZIALE, PIANIFICATA }
 
+enum class AlertType {
+    COVERAGE,
+    COOLDOWN_VIOLATION,
+    DUPLICATE_ASSIGNMENT,
+    INELIGIBLE_ASSIGNMENT
+}
+
 data class WeekCoverageSnapshot(
     val weekKey: String,
     val hasWeekPlan: Boolean,
@@ -23,7 +30,10 @@ data class PlanningProgress(
 )
 
 data class PlanningAlert(
+    val type: AlertType,
     val weekKeys: List<String>,
+    val personName: String? = null,
+    val partTypeName: String? = null,
 )
 
 object PlanningCalculations {
@@ -65,6 +75,6 @@ object PlanningCalculations {
         val window = weeks.take(weeksToCheck)
         val missing = window.filter { it.status != WeekPlanningStatus.PIANIFICATA }
         if (missing.isEmpty()) return emptyList()
-        return listOf(PlanningAlert(missing.map { it.weekKey }))
+        return listOf(PlanningAlert(AlertType.COVERAGE, missing.map { it.weekKey }))
     }
 }
