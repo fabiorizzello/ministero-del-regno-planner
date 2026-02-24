@@ -48,8 +48,12 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
+import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
+import org.example.project.ui.components.successNotice
 import java.time.LocalDate
 import java.util.UUID
 
@@ -179,30 +183,13 @@ class ProgramWorkspaceViewModel(
         }
 
         scope.launch {
-            _state.update { it.copy(isSavingAssignmentSettings = true) }
-            runCatching { salvaImpostazioniAssegnatore(parsed) }
-                .onSuccess {
-                    _state.update {
-                        it.copy(
-                            isSavingAssignmentSettings = false,
-                            notice = FeedbackBannerModel(
-                                "Impostazioni assegnatore salvate",
-                                FeedbackBannerKind.SUCCESS,
-                            ),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isSavingAssignmentSettings = false,
-                            notice = FeedbackBannerModel(
-                                "Errore salvataggio impostazioni: ${error.message}",
-                                FeedbackBannerKind.ERROR,
-                            ),
-                        )
-                    }
-                }
+            _state.executeAsyncOperationWithNotice(
+                loadingUpdate = { it.copy(isSavingAssignmentSettings = true) },
+                noticeUpdate = { state, notice -> state.copy(isSavingAssignmentSettings = false, notice = notice) },
+                successMessage = "Impostazioni assegnatore salvate",
+                errorMessagePrefix = "Errore salvataggio impostazioni",
+                operation = { salvaImpostazioniAssegnatore(parsed) },
+            )
         }
     }
 
@@ -295,30 +282,26 @@ class ProgramWorkspaceViewModel(
         }
 
         scope.launch {
-            _state.update { it.copy(isSavingPartEditor = true) }
-            runCatching {
-                weekPlanStore.replaceAllParts(
-                    WeekPlanId(weekId),
-                    orderedParts.map { it.partType.id },
-                )
-            }.onSuccess {
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperationWithNotice(
+                loadingUpdate = { it.copy(isSavingPartEditor = true) },
+                noticeUpdate = { state, notice ->
+                    state.copy(
                         partEditorWeekId = null,
                         partEditorParts = emptyList(),
                         isSavingPartEditor = false,
-                        notice = FeedbackBannerModel("Parti settimana aggiornate", FeedbackBannerKind.SUCCESS),
+                        notice = notice,
                     )
-                }
-                loadWeeksForSelectedProgram()
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
-                        isSavingPartEditor = false,
-                        notice = FeedbackBannerModel("Errore salvataggio parti: ${error.message}", FeedbackBannerKind.ERROR),
+                },
+                successMessage = "Parti settimana aggiornate",
+                errorMessagePrefix = "Errore salvataggio parti",
+                operation = {
+                    weekPlanStore.replaceAllParts(
+                        WeekPlanId(weekId),
+                        orderedParts.map { it.partType.id },
                     )
-                }
-            }
+                },
+                onSuccess = { loadWeeksForSelectedProgram() },
+            )
         }
     }
 
@@ -424,19 +407,15 @@ class ProgramWorkspaceViewModel(
 
     fun reactivateWeek(week: WeekPlan) {
         scope.launch {
-            runCatching {
-                weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.ACTIVE)
-            }.onSuccess {
-                val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
-                _state.update {
-                    it.copy(notice = FeedbackBannerModel("Settimana $weekLabel riattivata", FeedbackBannerKind.SUCCESS))
-                }
-                loadWeeksForSelectedProgram()
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.message}", FeedbackBannerKind.ERROR))
-                }
-            }
+            val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
+            _state.executeAsyncOperationWithNotice(
+                loadingUpdate = { it },
+                noticeUpdate = { state, notice -> state.copy(notice = notice) },
+                successMessage = "Settimana $weekLabel riattivata",
+                errorMessagePrefix = "Errore riattivazione",
+                operation = { weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.ACTIVE) },
+                onSuccess = { loadWeeksForSelectedProgram() },
+            )
         }
     }
 
@@ -556,37 +535,38 @@ class ProgramWorkspaceViewModel(
         val programId = _state.value.selectedProgramId ?: return
         if (_state.value.isAutoAssigning) return
         scope.launch {
-            _state.update { it.copy(isAutoAssigning = true) }
-            runCatching {
-                autoAssegnaProgramma(
-                    programId = programId,
-                    referenceDate = _state.value.today,
-                )
-            }.onSuccess { result ->
-                val noticeText = buildString {
-                    append("Autoassegnazione completata: ${result.assignedCount} slot assegnati")
-                    if (result.unresolved.isNotEmpty()) {
-                        append(" | ${result.unresolved.size} slot non assegnati")
+            var shouldReload = false
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isAutoAssigning = true) },
+                successUpdate = { state, result ->
+                    shouldReload = true
+                    val noticeText = buildString {
+                        append("Autoassegnazione completata: ${result.assignedCount} slot assegnati")
+                        if (result.unresolved.isNotEmpty()) {
+                            append(" | ${result.unresolved.size} slot non assegnati")
+                        }
                     }
-                }
-                _state.update {
-                    it.copy(
+                    state.copy(
                         isAutoAssigning = false,
                         autoAssignUnresolved = result.unresolved,
-                        notice = FeedbackBannerModel(noticeText, FeedbackBannerKind.SUCCESS),
+                        notice = successNotice(noticeText),
                     )
-                }
-                loadWeeksForSelectedProgram()
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isAutoAssigning = false,
-                        notice = FeedbackBannerModel(
-                            "Errore autoassegnazione: ${error.message}",
-                            FeedbackBannerKind.ERROR,
-                        ),
+                        notice = errorNotice("Errore autoassegnazione: ${error.message}"),
                     )
-                }
+                },
+                operation = {
+                    autoAssegnaProgramma(
+                        programId = programId,
+                        referenceDate = _state.value.today,
+                    )
+                },
+            )
+            if (shouldReload) {
+                loadWeeksForSelectedProgram()
             }
         }
     }
@@ -595,30 +575,22 @@ class ProgramWorkspaceViewModel(
         val programId = _state.value.selectedProgramId ?: return
         if (_state.value.isPrintingProgram) return
         scope.launch {
-            _state.update { it.copy(isPrintingProgram = true) }
-            runCatching { stampaProgramma(programId) }
-                .onSuccess { path ->
-                    _state.update {
-                        it.copy(
-                            isPrintingProgram = false,
-                            notice = FeedbackBannerModel(
-                                "Programma stampato: ${path.fileName}",
-                                FeedbackBannerKind.SUCCESS,
-                            ),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isPrintingProgram = false,
-                            notice = FeedbackBannerModel(
-                                "Errore stampa programma: ${error.message}",
-                                FeedbackBannerKind.ERROR,
-                            ),
-                        )
-                    }
-                }
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isPrintingProgram = true) },
+                successUpdate = { state, path ->
+                    state.copy(
+                        isPrintingProgram = false,
+                        notice = successNotice("Programma stampato: ${path.fileName}"),
+                    )
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isPrintingProgram = false,
+                        notice = errorNotice("Errore stampa programma: ${error.message}"),
+                    )
+                },
+                operation = { stampaProgramma(programId) },
+            )
         }
     }
 
@@ -682,45 +654,46 @@ class ProgramWorkspaceViewModel(
         val programId = _state.value.selectedProgramId ?: return
         if (_state.value.isClearingAssignments) return
         scope.launch {
-            _state.update { it.copy(isClearingAssignments = true) }
-            runCatching {
-                svuotaAssegnazioni.count(programId, _state.value.today)
-            }.onSuccess { count ->
-                _state.update {
-                    it.copy(isClearingAssignments = false, clearAssignmentsConfirm = count)
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isClearingAssignments = true) },
+                successUpdate = { state, count ->
+                    state.copy(isClearingAssignments = false, clearAssignmentsConfirm = count)
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isClearingAssignments = false,
-                        notice = FeedbackBannerModel("Errore conteggio: ${error.message}", FeedbackBannerKind.ERROR),
+                        notice = errorNotice("Errore conteggio: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = { svuotaAssegnazioni.count(programId, _state.value.today) },
+            )
         }
     }
 
     fun confirmClearAssignments() {
         val programId = _state.value.selectedProgramId ?: return
         scope.launch {
-            _state.update { it.copy(clearAssignmentsConfirm = null, isClearingAssignments = true) }
-            runCatching {
-                svuotaAssegnazioni.execute(programId, _state.value.today)
-            }.onSuccess { count ->
-                _state.update {
-                    it.copy(
+            _state.update { it.copy(clearAssignmentsConfirm = null) }
+            var shouldReload = false
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isClearingAssignments = true) },
+                successUpdate = { state, count ->
+                    shouldReload = true
+                    state.copy(
                         isClearingAssignments = false,
-                        notice = FeedbackBannerModel("$count assegnazioni rimosse", FeedbackBannerKind.SUCCESS),
+                        notice = successNotice("$count assegnazioni rimosse"),
                     )
-                }
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isClearingAssignments = false,
+                        notice = errorNotice("Errore svuotamento: ${error.message}"),
+                    )
+                },
+                operation = { svuotaAssegnazioni.execute(programId, _state.value.today) },
+            )
+            if (shouldReload) {
                 loadWeeksForSelectedProgram()
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
-                        isClearingAssignments = false,
-                        notice = FeedbackBannerModel("Errore svuotamento: ${error.message}", FeedbackBannerKind.ERROR),
-                    )
-                }
             }
         }
     }
@@ -733,21 +706,19 @@ class ProgramWorkspaceViewModel(
         if (_state.value.isClearingWeekAssignments) return
         val week = _state.value.selectedProgramWeeks.find { it.id.value == weekId } ?: return
         scope.launch {
-            _state.update { it.copy(isClearingWeekAssignments = true) }
-            runCatching {
-                rimuoviAssegnazioniSettimana.count(week.weekStartDate)
-            }.onSuccess { count ->
-                _state.update {
-                    it.copy(isClearingWeekAssignments = false, clearWeekAssignmentsConfirm = weekId to count)
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isClearingWeekAssignments = true) },
+                successUpdate = { state, count ->
+                    state.copy(isClearingWeekAssignments = false, clearWeekAssignmentsConfirm = weekId to count)
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isClearingWeekAssignments = false,
-                        notice = FeedbackBannerModel("Errore conteggio: ${error.message}", FeedbackBannerKind.ERROR),
+                        notice = errorNotice("Errore conteggio: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = { rimuoviAssegnazioniSettimana.count(week.weekStartDate) },
+            )
         }
     }
 
@@ -789,76 +760,73 @@ class ProgramWorkspaceViewModel(
     private fun loadProgramsAndWeeks() {
         loadJob?.cancel()
         loadJob = scope.launch {
-            _state.update { it.copy(isLoading = true) }
-            runCatching {
-                val today = _state.value.today
-                val snapshot = caricaProgrammiAttivi(today)
-                val selectedProgramId = when {
-                    _state.value.selectedProgramId != null -> _state.value.selectedProgramId
-                    snapshot.current != null -> snapshot.current.id.value
-                    else -> snapshot.future?.id?.value
-                }
-                val weeks = selectedProgramId?.let { weekPlanStore.listByProgram(it) }.orEmpty()
-                val assignmentsByWeek = loadAssignmentsByWeek(weeks)
-                val partTypes = runCatching { cercaTipiParte() }.getOrDefault(emptyList())
-                val assignmentSettings = caricaImpostazioniAssegnatore()
-                val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
-                    ?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
-                val futureNeedsRefresh = snapshot.future != null && lastSchemaImport != null &&
-                    (snapshot.future.templateAppliedAt == null || snapshot.future.templateAppliedAt < lastSchemaImport)
-
-                val validPartEditorWeek = _state.value.partEditorWeekId?.takeIf { id ->
-                    weeks.any { week -> week.id.value == id }
-                }
-                val validPickerPart = _state.value.pickerWeeklyPartId?.takeIf { partId ->
-                    weeks.any { week -> week.parts.any { part -> part.id == partId } }
-                }
-
-                ProgramWorkspaceUiState(
-                    today = today,
-                    isLoading = false,
-                    currentProgram = snapshot.current,
-                    futureProgram = snapshot.future,
-                    selectedProgramId = selectedProgramId,
-                    selectedProgramWeeks = weeks,
-                    selectedProgramAssignments = assignmentsByWeek,
-                    partTypes = partTypes,
-                    futureNeedsSchemaRefresh = futureNeedsRefresh,
-                    assignmentSettings = AssignmentSettingsUiState(
-                        strictCooldown = assignmentSettings.strictCooldown,
-                        leadWeight = assignmentSettings.leadWeight.toString(),
-                        assistWeight = assignmentSettings.assistWeight.toString(),
-                        leadCooldownWeeks = assignmentSettings.leadCooldownWeeks.toString(),
-                        assistCooldownWeeks = assignmentSettings.assistCooldownWeeks.toString(),
-                    ),
-                    autoAssignUnresolved = _state.value.autoAssignUnresolved,
-                    partEditorWeekId = validPartEditorWeek,
-                    partEditorParts = if (validPartEditorWeek != null) _state.value.partEditorParts else emptyList(),
-                    isSavingPartEditor = false,
-                    pickerWeekStartDate = if (validPickerPart != null) _state.value.pickerWeekStartDate else null,
-                    pickerWeeklyPartId = validPickerPart,
-                    pickerSlot = if (validPickerPart != null) _state.value.pickerSlot else null,
-                    pickerSearchTerm = _state.value.pickerSearchTerm,
-                    pickerSortGlobal = _state.value.pickerSortGlobal,
-                    pickerSuggestions = _state.value.pickerSuggestions,
-                    isPickerLoading = _state.value.isPickerLoading,
-                    isAssigning = _state.value.isAssigning,
-                    isRemovingAssignment = _state.value.isRemovingAssignment,
-                    notice = _state.value.notice,
-                )
-            }.onSuccess { state ->
-                _state.value = state
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { _, newState -> newState },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isLoading = false,
-                        notice = FeedbackBannerModel(
-                            "Errore caricamento cruscotto programma: ${error.message}",
-                            FeedbackBannerKind.ERROR,
-                        ),
+                        notice = errorNotice("Errore caricamento cruscotto programma: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = {
+                    val today = _state.value.today
+                    val snapshot = caricaProgrammiAttivi(today)
+                    val selectedProgramId = when {
+                        _state.value.selectedProgramId != null -> _state.value.selectedProgramId
+                        snapshot.current != null -> snapshot.current.id.value
+                        else -> snapshot.future?.id?.value
+                    }
+                    val weeks = selectedProgramId?.let { weekPlanStore.listByProgram(it) }.orEmpty()
+                    val assignmentsByWeek = loadAssignmentsByWeek(weeks)
+                    val partTypes = runCatching { cercaTipiParte() }.getOrDefault(emptyList())
+                    val assignmentSettings = caricaImpostazioniAssegnatore()
+                    val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
+                        ?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
+                    val futureNeedsRefresh = snapshot.future != null && lastSchemaImport != null &&
+                        (snapshot.future.templateAppliedAt == null || snapshot.future.templateAppliedAt < lastSchemaImport)
+
+                    val validPartEditorWeek = _state.value.partEditorWeekId?.takeIf { id ->
+                        weeks.any { week -> week.id.value == id }
+                    }
+                    val validPickerPart = _state.value.pickerWeeklyPartId?.takeIf { partId ->
+                        weeks.any { week -> week.parts.any { part -> part.id == partId } }
+                    }
+
+                    ProgramWorkspaceUiState(
+                        today = today,
+                        isLoading = false,
+                        currentProgram = snapshot.current,
+                        futureProgram = snapshot.future,
+                        selectedProgramId = selectedProgramId,
+                        selectedProgramWeeks = weeks,
+                        selectedProgramAssignments = assignmentsByWeek,
+                        partTypes = partTypes,
+                        futureNeedsSchemaRefresh = futureNeedsRefresh,
+                        assignmentSettings = AssignmentSettingsUiState(
+                            strictCooldown = assignmentSettings.strictCooldown,
+                            leadWeight = assignmentSettings.leadWeight.toString(),
+                            assistWeight = assignmentSettings.assistWeight.toString(),
+                            leadCooldownWeeks = assignmentSettings.leadCooldownWeeks.toString(),
+                            assistCooldownWeeks = assignmentSettings.assistCooldownWeeks.toString(),
+                        ),
+                        autoAssignUnresolved = _state.value.autoAssignUnresolved,
+                        partEditorWeekId = validPartEditorWeek,
+                        partEditorParts = if (validPartEditorWeek != null) _state.value.partEditorParts else emptyList(),
+                        isSavingPartEditor = false,
+                        pickerWeekStartDate = if (validPickerPart != null) _state.value.pickerWeekStartDate else null,
+                        pickerWeeklyPartId = validPickerPart,
+                        pickerSlot = if (validPickerPart != null) _state.value.pickerSlot else null,
+                        pickerSearchTerm = _state.value.pickerSearchTerm,
+                        pickerSortGlobal = _state.value.pickerSortGlobal,
+                        pickerSuggestions = _state.value.pickerSuggestions,
+                        isPickerLoading = _state.value.isPickerLoading,
+                        isAssigning = _state.value.isAssigning,
+                        isRemovingAssignment = _state.value.isRemovingAssignment,
+                        notice = _state.value.notice,
+                    )
+                },
+            )
         }
     }
 
