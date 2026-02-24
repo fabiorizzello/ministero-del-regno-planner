@@ -197,7 +197,7 @@ val appModule = module {
     single { CalcolaProgressoPianificazione() }
     single { GeneraAlertCoperturaSettimane() }
     single { GeneraAlertValidazioneAssegnazioni(get(), get(), get(), get(), get(), get()) }
-    single { CaricaPanoramicaPianificazioneFutura(get(), get(), get(), get()) }
+    single { CaricaPanoramicaPianificazioneFutura(get(), get(), get(), get(), get()) }
 
     // Shared state
     single { SharedWeekState() }
