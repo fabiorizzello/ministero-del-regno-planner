@@ -7,6 +7,7 @@ import org.example.project.feature.assignments.application.PersonAssignmentLifec
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.infrastructure.mapProclamatoreAssignableRow
@@ -153,5 +154,12 @@ class SqlDelightAssignmentStore(
         return database.ministeroDatabaseQueries
             .countAssignmentsByProgramFromDate(programId, fromDate.toString())
             .executeAsOne().toInt()
+    }
+
+    override suspend fun getAssignmentHistoryForPerson(personId: ProclamatoreId): PersonAssignmentHistory {
+        val entries = database.ministeroDatabaseQueries
+            .assignmentHistoryForPerson(personId.value, ::mapAssignmentHistoryRow)
+            .executeAsList()
+        return PersonAssignmentHistory(entries)
     }
 }
