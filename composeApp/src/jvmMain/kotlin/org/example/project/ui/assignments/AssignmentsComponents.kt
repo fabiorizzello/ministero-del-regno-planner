@@ -499,10 +499,20 @@ private fun SuggestionRow(
     onAssign: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val rowInteractionSource = remember { MutableInteractionSource() }
+    val isHovered by rowInteractionSource.collectIsHoveredAsState()
+    val rowBackgroundColor = if (isHovered) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    } else {
+        backgroundColor
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor)
+            .handCursorOnHover()
+            .hoverable(interactionSource = rowInteractionSource)
+            .background(rowBackgroundColor)
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
