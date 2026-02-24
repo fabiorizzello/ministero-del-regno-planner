@@ -1,0 +1,44 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Write(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Edit(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Glob(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Grep(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Read(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/.auto-claude/specs/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Write(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/.auto-claude/specs/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Edit(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/worktrees/tasks/010-extract-proclamatoricomponents-kt-into-form-table-/.auto-claude/specs/010-extract-proclamatoricomponents-kt-into-form-table-/**)",
+      "Read(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/**)",
+      "Write(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/**)",
+      "Edit(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/**)",
+      "Glob(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/**)",
+      "Grep(/home/fabio/dev/ministero-del-regno-planner/.auto-claude/**)",
+      "Read(/home/fabio/dev/ministero-del-regno-planner/.worktrees/**)",
+      "Write(/home/fabio/dev/ministero-del-regno-planner/.worktrees/**)",
+      "Edit(/home/fabio/dev/ministero-del-regno-planner/.worktrees/**)",
+      "Glob(/home/fabio/dev/ministero-del-regno-planner/.worktrees/**)",
+      "Grep(/home/fabio/dev/ministero-del-regno-planner/.worktrees/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__query-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
