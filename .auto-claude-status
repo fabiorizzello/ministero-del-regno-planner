@@ -3,23 +3,23 @@
   "spec": "001-person-assignment-history-panel-in-edit-form",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 3,
     "total": 13,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Domain Model",
+    "current": "Application Layer",
     "id": null,
-    "total": 1
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 5,
     "started_at": "2026-02-24T10:26:06.671239"
   },
-  "last_update": "2026-02-24T10:33:14.639118"
+  "last_update": "2026-02-24T10:37:35.243103"
 }
