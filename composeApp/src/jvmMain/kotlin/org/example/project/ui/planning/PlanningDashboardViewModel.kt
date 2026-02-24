@@ -14,6 +14,7 @@ import org.example.project.feature.planning.application.PlanningWeekStatus
 import org.example.project.feature.planning.domain.PlanningAlert
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.executeAsyncOperation
 
 private const val ALERT_WEEKS = 4
 
@@ -76,28 +77,28 @@ internal class PlanningDashboardViewModel(
     private fun loadOverview() {
         loadJob?.cancel()
         loadJob = scope.launch {
-            _state.update { it.copy(isLoading = true) }
-            runCatching {
-                val snapshot = _state.value
-                caricaPanoramica(snapshot.currentMonday, snapshot.horizon.weeks, alertWeeks = ALERT_WEEKS)
-            }.onSuccess { overview ->
-                val plannedThroughDate = overview.progress.plannedThroughWeekKey?.let { LocalDate.parse(it) }
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { state, overview ->
+                    val plannedThroughDate = overview.progress.plannedThroughWeekKey?.let { LocalDate.parse(it) }
+                    state.copy(
                         isLoading = false,
                         weeks = overview.weeks,
                         plannedThrough = plannedThroughDate,
                         alerts = overview.alerts.distinctBy { alert -> alert.weekKeys.joinToString("|") },
                     )
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isLoading = false,
                         notice = FeedbackBannerModel("Errore nel caricamento cruscotto: ${error.message}", FeedbackBannerKind.ERROR),
                     )
-                }
-            }
+                },
+                operation = {
+                    val snapshot = _state.value
+                    caricaPanoramica(snapshot.currentMonday, snapshot.horizon.weeks, alertWeeks = ALERT_WEEKS)
+                },
+            )
         }
     }
 }
