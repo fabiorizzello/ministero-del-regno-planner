@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "002-assignment-validation-alerts-in-planning-dashboard",
+  "state": "building",
+  "subtasks": {
+    "completed": 1,
+    "total": 7,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Validation Logic Implementation",
+    "id": null,
+    "total": 2
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 3,
+    "started_at": "2026-02-24T10:36:50.863924"
+  },
+  "last_update": "2026-02-24T10:43:06.716843"
+}

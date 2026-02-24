@@ -21,3 +21,6 @@ composeApp/logs/
 .gradle-home/
 .worktrees/
 .automaker
+
+# Auto Claude data directory
+.auto-claude/
