@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -430,9 +432,13 @@ fun PersonPickerDialog(
                             state = listState,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            items(sorted, key = { it.proclamatore.id.value }) { suggestion ->
+                            itemsIndexed(sorted, key = { _, it -> it.proclamatore.id.value }) { index, suggestion ->
+                                val zebraColor = if (index % 2 == 0) Color.Transparent
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+
                                 SuggestionRow(
                                     suggestion = suggestion,
+                                    backgroundColor = zebraColor,
                                     isAssigning = isAssigning,
                                     onAssign = { onAssign(suggestion.proclamatore.id) },
                                 )
@@ -488,13 +494,25 @@ private fun SuggestionHeaderRow() {
 @Composable
 private fun SuggestionRow(
     suggestion: SuggestedProclamatore,
+    backgroundColor: Color,
     isAssigning: Boolean,
     onAssign: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val rowInteractionSource = remember { MutableInteractionSource() }
+    val isHovered by rowInteractionSource.collectIsHoveredAsState()
+    val rowBackgroundColor = if (isHovered) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    } else {
+        backgroundColor
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .handCursorOnHover()
+            .hoverable(interactionSource = rowInteractionSource)
+            .background(rowBackgroundColor)
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
