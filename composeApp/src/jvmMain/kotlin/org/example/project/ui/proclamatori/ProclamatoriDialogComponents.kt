@@ -1,3 +1,9 @@
+/**
+ * Dialog components for Proclamatori screens.
+ *
+ * Contains reusable dialog wrappers for delete confirmation
+ * and form presentation in dialog mode.
+ */
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +29,12 @@ import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 
+/**
+ * Reusable confirmation dialog for delete operations.
+ *
+ * Displays a title, custom content, and Rimuovi/Annulla actions.
+ * Disables interaction while loading.
+ */
 @Composable
 internal fun ConfirmDeleteDialogComponent(
     title: String,
@@ -57,6 +69,13 @@ internal fun ConfirmDeleteDialogComponent(
     }
 }
 
+/**
+ * Dialog wrapper for the Proclamatore form.
+ *
+ * Displays the ProclamatoriFormContent in a centered dialog with
+ * platform-independent width. Delegates all form logic to the
+ * nested ProclamatoriFormContent composable.
+ */
 @Composable
 internal fun ProclamatoriFormDialogComponent(
     route: ProclamatoriRoute,

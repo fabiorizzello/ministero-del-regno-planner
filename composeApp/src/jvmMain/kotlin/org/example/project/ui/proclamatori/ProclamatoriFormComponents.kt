@@ -1,3 +1,9 @@
+/**
+ * Form components for creating and editing Proclamatori.
+ *
+ * Contains form fields for personal data (nome, cognome, sesso, sospeso)
+ * and eligibility settings (assistenza and lead role eligibility).
+ */
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.VerticalScrollbar
@@ -38,8 +44,21 @@ import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 
+/** Maximum length for nome and cognome fields */
 private const val NAME_MAX_LENGTH = 100
 
+/**
+ * Proclamatore form content with input fields and eligibility options.
+ *
+ * Displays fields for:
+ * - Nome and cognome with character limits and validation
+ * - Sesso radio buttons (M/F)
+ * - Sospeso checkbox
+ * - Assistenza checkbox
+ * - Lead role eligibility checklist from database part types
+ *
+ * Includes duplicate checking and validation error display.
+ */
 @Composable
 internal fun ProclamatoriFormContentForm(
     route: ProclamatoriRoute,

@@ -1,3 +1,9 @@
+/**
+ * Table components for the Proclamatori list screen.
+ *
+ * Contains the table UI with data rows, pagination controls, batch actions,
+ * sort headers, and schema anomaly display.
+ */
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.VerticalScrollbar
@@ -63,6 +69,16 @@ import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
 
+/**
+ * Main table content for the Proclamatori list screen.
+ *
+ * Displays a searchable, sortable, paginated table of proclamatori with:
+ * - Search bar and action buttons
+ * - Schema update anomaly alerts (if any)
+ * - Batch selection and actions
+ * - Individual row actions (edit, delete)
+ * - Pagination controls
+ */
 @Composable
 internal fun ColumnScope.ProclamatoriElencoContentTable(
     state: ProclamatoriListUiState,
