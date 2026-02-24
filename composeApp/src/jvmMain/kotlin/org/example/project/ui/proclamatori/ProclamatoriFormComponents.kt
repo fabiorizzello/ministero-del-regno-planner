@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.PartTypeId
-import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 
@@ -190,50 +189,43 @@ internal fun ProclamatoriFormContentForm(
                         "Idoneita",
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .padding(end = spacing.sm),
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically,
+                        LazyColumn(
+                            state = eligibilityListState,
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(spacing.xs),
                         ) {
-                            Checkbox(
-                                checked = puoAssistere,
-                                onCheckedChange = onPuoAssistereChange,
-                            )
-                            Text("Assistenza")
-                        }
-                        Text(
-                            "Ruoli principali (${leadEligibilityOptions.size})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        "Tipi parte dal database locale",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (leadEligibilityOptions.isEmpty()) {
-                        Text(
-                            "Nessun tipo parte disponibile. Usa Aggiorna schemi.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(260.dp)
-                                .padding(end = spacing.sm),
-                        ) {
-                            LazyColumn(
-                                state = eligibilityListState,
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                            ) {
+                            item(key = "assistenza") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        "Assistente",
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Checkbox(
+                                        checked = puoAssistere,
+                                        onCheckedChange = onPuoAssistereChange,
+                                    )
+                                }
+                            }
+                            if (leadEligibilityOptions.isEmpty()) {
+                                item(key = "empty-hint") {
+                                    Text(
+                                        "Nessun ruolo disponibile. Usa Aggiorna schemi.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
                                 items(leadEligibilityOptions, key = { it.partTypeId.value }) { option ->
                                     val enabled = option.canSelect
                                     Row(
@@ -241,29 +233,16 @@ internal fun ProclamatoriFormContentForm(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            val suffix = when {
-                                                !option.active -> " (non attivo)"
-                                                option.sexRule == SexRule.UOMO -> " (solo uomo)"
-                                                else -> ""
-                                            }
-                                            Text(
-                                                text = option.label + suffix,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = if (enabled) {
-                                                    MaterialTheme.colorScheme.onSurface
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                },
-                                            )
-                                            if (!enabled) {
-                                                Text(
-                                                    "Non disponibile per il sesso selezionato",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.error,
-                                                )
-                                            }
-                                        }
+                                        Text(
+                                            text = option.label,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (enabled) {
+                                                MaterialTheme.colorScheme.onSurface
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                        )
                                         Checkbox(
                                             checked = option.checked,
                                             onCheckedChange = { checked ->
@@ -274,13 +253,13 @@ internal fun ProclamatoriFormContentForm(
                                     }
                                 }
                             }
-                            VerticalScrollbar(
-                                adapter = rememberScrollbarAdapter(eligibilityListState),
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .fillMaxHeight(),
-                            )
                         }
+                        VerticalScrollbar(
+                            adapter = rememberScrollbarAdapter(eligibilityListState),
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight(),
+                        )
                     }
                 }
             }

@@ -44,7 +44,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,8 +65,6 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.LocalPlanningToolbarActions
-import org.example.project.ui.PlanningToolbarActions
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 import java.time.DayOfWeek
@@ -80,17 +77,8 @@ fun ProgramWorkspaceScreen() {
     val state by viewModel.state.collectAsState()
     val spacing = MaterialTheme.spacing
     val weekListState = rememberLazyListState()
-    val setPlanningToolbarActions = LocalPlanningToolbarActions.current
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
-    DisposableEffect(viewModel, setPlanningToolbarActions) {
-        setPlanningToolbarActions(
-            PlanningToolbarActions(
-                onRefreshSchemas = { viewModel.refreshSchemasAndProgram() },
-            ),
-        )
-        onDispose { setPlanningToolbarActions(PlanningToolbarActions()) }
-    }
 
     if (state.isPickerOpen) {
         val pickedPart = state.selectedProgramWeeks.firstNotNullOfOrNull { week ->
@@ -213,6 +201,7 @@ fun ProgramWorkspaceScreen() {
             state = state,
             onSelectProgram = { viewModel.selectProgram(it) },
             onCreateNextProgram = { viewModel.createNextProgram() },
+            onRefreshSchemas = { viewModel.refreshSchemasAndProgram() },
         )
 
         if (state.autoAssignUnresolved.isNotEmpty()) {

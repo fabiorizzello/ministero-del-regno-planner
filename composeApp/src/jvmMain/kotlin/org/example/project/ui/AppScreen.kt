@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.DropdownMenu
@@ -65,10 +64,6 @@ import org.example.project.ui.workspace.ProgramWorkspaceScreen
 import kotlin.math.roundToInt
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
-internal data class PlanningToolbarActions(
-    val onRefreshSchemas: (() -> Unit)? = null,
-)
-internal val LocalPlanningToolbarActions = staticCompositionLocalOf<(PlanningToolbarActions) -> Unit> { {} }
 private const val UI_SCALE_MIN = 0.85f
 private const val UI_SCALE_MAX = 1.25f
 private const val UI_SCALE_STEP_PERCENT = 5
@@ -99,7 +94,6 @@ fun AppScreen(
         }
         var draftUiScale by remember { mutableFloatStateOf(uiScale) }
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
-        var planningToolbarActions by remember { mutableStateOf(PlanningToolbarActions()) }
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
             Density(
@@ -123,9 +117,6 @@ fun AppScreen(
                     if (currentSection != section) {
                         navigator.replaceAll(section.screen)
                     }
-                },
-                LocalPlanningToolbarActions provides { actions ->
-                    planningToolbarActions = actions
                 },
                 LocalDensity provides scaledDensity,
             ) {
@@ -180,19 +171,6 @@ fun AppScreen(
                                                 onClick = { navigateToSection(section) },
                                                 section = section,
                                             )
-                                        }
-
-                                        if (currentSection == AppSection.PLANNING && planningToolbarActions.onRefreshSchemas != null) {
-                                            IconButton(
-                                                onClick = { planningToolbarActions.onRefreshSchemas?.invoke() },
-                                                modifier = Modifier.handCursorOnHover(),
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Refresh,
-                                                    contentDescription = "Aggiorna schemi",
-                                                    modifier = Modifier.size(20.dp),
-                                                )
-                                            }
                                         }
 
                                         IconButton(

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -344,10 +346,10 @@ internal fun PartEditorDialog(
         Surface(
             shape = RoundedCornerShape(18.dp),
             tonalElevation = 6.dp,
-            modifier = Modifier.width(780.dp),
+            modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
         ) {
             Column(
-                modifier = Modifier.padding(spacing.xl),
+                modifier = Modifier.fillMaxHeight().padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Modifica parti", style = MaterialTheme.typography.titleLarge)
@@ -388,7 +390,7 @@ internal fun PartEditorDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(360.dp)
+                        .weight(1f)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
                         .padding(end = 10.dp),
                 ) {
@@ -494,6 +496,7 @@ internal fun ProgramHeader(
     state: ProgramWorkspaceUiState,
     onSelectProgram: (String) -> Unit,
     onCreateNextProgram: () -> Unit,
+    onRefreshSchemas: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
     val current = state.currentProgram
@@ -512,14 +515,36 @@ internal fun ProgramHeader(
                 .padding(spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            Text(
-                "Programmi attivi",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Programmi attivi",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                TextButton(
+                    onClick = onRefreshSchemas,
+                    enabled = !state.isRefreshingSchemas,
+                    modifier = Modifier.handCursorOnHover(enabled = !state.isRefreshingSchemas),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(spacing.xs))
+                    Text(if (state.isRefreshingSchemas) "Aggiornamento..." else "Aggiorna Schemi")
+                }
+            }
             if (!state.hasPrograms) {
-                Text("Nessun programma disponibile. Crea il mese successivo.")
-                return@Column
+                Text(
+                    "Nessun programma disponibile. Crea il primo programma.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             Row(
@@ -571,18 +596,20 @@ internal fun ProgramHeader(
                         }
                     }
                 }
-                FilledTonalButton(
-                    onClick = onCreateNextProgram,
-                    enabled = !state.isCreatingProgram,
-                    modifier = Modifier.handCursorOnHover(enabled = !state.isCreatingProgram),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(if (state.isCreatingProgram) "Creazione..." else "Crea prossimo mese")
+                if (state.canCreateProgram) {
+                    FilledTonalButton(
+                        onClick = onCreateNextProgram,
+                        enabled = !state.isCreatingProgram,
+                        modifier = Modifier.handCursorOnHover(enabled = !state.isCreatingProgram),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text(if (state.isCreatingProgram) "Creazione..." else "Crea prossimo mese")
+                    }
                 }
             }
         }
