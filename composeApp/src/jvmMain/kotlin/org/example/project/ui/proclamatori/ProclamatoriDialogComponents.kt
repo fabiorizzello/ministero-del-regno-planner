@@ -119,7 +119,7 @@ internal fun ProclamatoriFormDialogComponent(
                 modifier = Modifier.padding(spacing.xxl),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                ProclamatoriFormContent(
+                ProclamatoriFormContentForm(
                     route = route,
                     nome = nome,
                     onNomeChange = onNomeChange,
