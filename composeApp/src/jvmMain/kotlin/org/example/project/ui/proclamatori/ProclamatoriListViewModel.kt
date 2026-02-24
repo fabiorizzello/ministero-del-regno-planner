@@ -25,6 +25,8 @@ import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.successNotice
+import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperationWithNotice
 
 internal data class SchemaUpdateAnomalyUi(
     val id: String,
@@ -162,30 +164,13 @@ internal class ProclamatoriListViewModel(
     fun confirmDeleteCandidate() {
         val candidate = _uiState.value.deleteCandidate ?: return
         scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val result = elimina(candidate.id)
-            result.fold(
-                ifLeft = { err ->
-                    _uiState.update {
-                        it.copy(
-                            notice = errorNotice(
-                                (err as? DomainError.Validation)?.message ?: "Rimozione non completata",
-                            ),
-                        )
-                    }
-                },
-                ifRight = {
-                    _uiState.update {
-                        it.copy(
-                            notice = successNotice(
-                                details = "Rimosso ${personDetails(candidate.nome, candidate.cognome)}",
-                            ),
-                        )
-                    }
-                    refreshListInternal()
-                },
+            _uiState.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isLoading = true) },
+                noticeUpdate = { state, notice -> state.copy(isLoading = false, deleteCandidate = null, notice = notice) },
+                successMessage = "Rimosso ${personDetails(candidate.nome, candidate.cognome)}",
+                operation = { elimina(candidate.id) },
+                onSuccess = { refreshListInternal() },
             )
-            _uiState.update { it.copy(deleteCandidate = null, isLoading = false) }
         }
     }
 
@@ -236,55 +221,27 @@ internal class ProclamatoriListViewModel(
 
     fun toggleActive(id: ProclamatoreId, next: Boolean) {
         scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val result = impostaStato(id, next)
-            result.fold(
-                ifLeft = { err ->
-                    _uiState.update {
-                        it.copy(
-                            notice = errorNotice(
-                                (err as? DomainError.Validation)?.message ?: "Operazione non completata",
-                            ),
-                        )
-                    }
-                },
-                ifRight = {
-                    _uiState.update {
-                        it.copy(
-                            notice = successNotice(
-                                if (next) "Proclamatore attivato" else "Proclamatore disattivato",
-                            ),
-                        )
-                    }
-                },
+            _uiState.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isLoading = true) },
+                noticeUpdate = { state, notice -> state.copy(isLoading = false, notice = notice) },
+                successMessage = if (next) "Proclamatore attivato" else "Proclamatore disattivato",
+                operation = { impostaStato(id, next) },
+                onSuccess = { refreshListInternal() },
             )
-            refreshListInternal()
-            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
     fun dismissSchemaUpdateAnomalies() {
         if (_uiState.value.isDismissingSchemaAnomalies) return
         scope.launch {
-            _uiState.update { it.copy(isDismissingSchemaAnomalies = true) }
-            runCatching { schemaUpdateAnomalyStore.dismissAllOpen() }
-                .onSuccess {
-                    _uiState.update {
-                        it.copy(
-                            isDismissingSchemaAnomalies = false,
-                            schemaUpdateAnomalies = emptyList(),
-                            notice = successNotice("Pannello anomalie archiviato"),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isDismissingSchemaAnomalies = false,
-                            notice = errorNotice("Archiviazione anomalie non completata: ${error.message}"),
-                        )
-                    }
-                }
+            _uiState.executeAsyncOperationWithNotice(
+                loadingUpdate = { it.copy(isDismissingSchemaAnomalies = true) },
+                noticeUpdate = { state, notice -> state.copy(isDismissingSchemaAnomalies = false, notice = notice) },
+                successMessage = "Pannello anomalie archiviato",
+                errorMessagePrefix = "Archiviazione anomalie non completata",
+                operation = { schemaUpdateAnomalyStore.dismissAllOpen() },
+                onSuccess = { _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) } },
+            )
         }
     }
 
@@ -329,27 +286,18 @@ internal class ProclamatoriListViewModel(
                 return@launch
             }
 
-            val result = withContext(Dispatchers.IO) { importaDaJson(jsonContent) }
-            result.fold(
-                ifLeft = { err ->
+            _uiState.executeEitherOperationWithNotice(
+                loadingUpdate = { it },
+                noticeUpdate = { state, notice -> state.copy(isLoading = false, isImporting = false, notice = notice) },
+                successMessage = null,
+                operation = { withContext(Dispatchers.IO) { importaDaJson(jsonContent) } },
+                onSuccess = { imported ->
                     _uiState.update {
-                        it.copy(
-                            notice = errorNotice(
-                                (err as? DomainError.Validation)?.message ?: "Import non completato",
-                            ),
-                        )
-                    }
-                },
-                ifRight = { imported ->
-                    _uiState.update {
-                        it.copy(
-                            notice = successNotice("Importati ${imported.importati} proclamatori da ${selectedFile.name}"),
-                        )
+                        it.copy(notice = successNotice("Importati ${imported.importati} proclamatori da ${selectedFile.name}"))
                     }
                     refreshListInternal(resetPage = true)
                 },
             )
-            _uiState.update { it.copy(isLoading = false, isImporting = false) }
         }
     }
 
