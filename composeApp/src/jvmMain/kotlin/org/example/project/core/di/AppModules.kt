@@ -69,6 +69,7 @@ import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.planning.application.CalcolaProgressoPianificazione
 import org.example.project.feature.planning.application.CaricaPanoramicaPianificazioneFutura
 import org.example.project.feature.planning.application.GeneraAlertCoperturaSettimane
+import org.example.project.feature.planning.application.GeneraAlertValidazioneAssegnazioni
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateScheduler
 import org.example.project.feature.updates.application.UpdateStatusStore
@@ -199,7 +200,8 @@ val appModule = module {
     // Planning dashboard
     single { CalcolaProgressoPianificazione() }
     single { GeneraAlertCoperturaSettimane() }
-    single { CaricaPanoramicaPianificazioneFutura(get(), get(), get(), get()) }
+    single { GeneraAlertValidazioneAssegnazioni(get(), get(), get(), get(), get(), get()) }
+    single { CaricaPanoramicaPianificazioneFutura(get(), get(), get(), get(), get()) }
 
     // Shared state
     single { SharedWeekState() }

@@ -16,6 +16,7 @@ class CaricaPanoramicaPianificazioneFutura(
     private val assignmentRepository: AssignmentRepository,
     private val calcolaProgressoPianificazione: CalcolaProgressoPianificazione,
     private val generaAlertCoperturaSettimane: GeneraAlertCoperturaSettimane,
+    private val generaAlertValidazioneAssegnazioni: GeneraAlertValidazioneAssegnazioni,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend operator fun invoke(
@@ -55,7 +56,9 @@ class CaricaPanoramicaPianificazioneFutura(
 
         val weekStatuses = snapshots.map { PlanningCalculations.computeWeekStatus(it) }
         val progress = calcolaProgressoPianificazione(weekStatuses)
-        val alerts = generaAlertCoperturaSettimane(weekStatuses, alertWeeks)
+        val coverageAlerts = generaAlertCoperturaSettimane(weekStatuses, alertWeeks)
+        val validationAlerts = generaAlertValidazioneAssegnazioni(startDate, endDate)
+        val alerts = coverageAlerts + validationAlerts
 
         PlanningOverview(
             startDate = startDate,

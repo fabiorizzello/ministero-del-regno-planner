@@ -49,6 +49,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.planning.application.PlanningWeekStatus
+import org.example.project.feature.planning.domain.AlertType
+import org.example.project.feature.planning.domain.PlanningAlert
 import org.example.project.feature.planning.domain.WeekPlanningStatus
 import org.example.project.ui.AppSection
 import org.example.project.ui.LocalSectionNavigator
@@ -73,30 +75,15 @@ fun PlanningDashboardScreen() {
     val navigateToSection = LocalSectionNavigator.current
     val spacing = MaterialTheme.spacing
     val isAlertDialogOpen = remember { mutableStateOf(false) }
-    val missingWeekKeys = remember(state.alerts) { state.alerts.flatMap { it.weekKeys }.distinct() }
-    val missingWeekLabels = remember(missingWeekKeys) {
-        missingWeekKeys.map { key ->
-            val monday = runCatching { java.time.LocalDate.parse(key) }.getOrNull()
-            monday?.format(dateFormatter) ?: key
-        }
+
+    val alertsByType = remember(state.alerts) {
+        state.alerts.groupBy { it.type }
     }
+
     if (isAlertDialogOpen.value) {
-        AlertDialog(
-            onDismissRequest = { isAlertDialogOpen.value = false },
-            title = { Text("Settimane da pianificare") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                    Text("Mancano programmi nelle prossime 4 settimane:")
-                    missingWeekLabels.forEach { label ->
-                        Text("• $label", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { isAlertDialogOpen.value = false }) {
-                    Text("Chiudi")
-                }
-            },
+        AlertsDialog(
+            alertsByType = alertsByType,
+            onDismiss = { isAlertDialogOpen.value = false },
         )
     }
 
@@ -120,7 +107,6 @@ fun PlanningDashboardScreen() {
         ) {
             val plannedWeeks = state.weeks.count { it.status == WeekPlanningStatus.PIANIFICATA }
             val plannedThroughLabel = state.plannedThrough?.format(dateFormatter) ?: "n/d"
-            val missingWeeksCount = missingWeekLabels.size
             Column(
                 modifier = Modifier.fillMaxWidth().padding(spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -138,11 +124,16 @@ fun PlanningDashboardScreen() {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (missingWeeksCount > 0) {
-                        PlanningAlertPill(
-                            missingWeeksCount = missingWeeksCount,
-                            onClick = { isAlertDialogOpen.value = true },
-                        )
+                    if (alertsByType.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                            alertsByType.forEach { (type, alerts) ->
+                                PlanningAlertPill(
+                                    alertType = type,
+                                    alertCount = alerts.size,
+                                    onClick = { isAlertDialogOpen.value = true },
+                                )
+                            }
+                        }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -226,27 +217,40 @@ fun PlanningDashboardScreen() {
 
 @Composable
 private fun PlanningAlertPill(
-    missingWeeksCount: Int,
+    alertType: AlertType,
+    alertCount: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val message = if (missingWeeksCount == 1) {
-        "1 settimana da pianificare"
-    } else {
-        "$missingWeeksCount settimane da pianificare"
+    val (backgroundColor, borderColor) = when (alertType) {
+        AlertType.COVERAGE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f) to
+                MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
+        AlertType.COOLDOWN_VIOLATION -> Color(0xFFFF9800).copy(alpha = 0.25f) to
+                Color(0xFFFF9800).copy(alpha = 0.45f)
+        AlertType.DUPLICATE_ASSIGNMENT -> Color(0xFFFFEB3B).copy(alpha = 0.35f) to
+                Color(0xFFFBC02D).copy(alpha = 0.55f)
+        AlertType.INELIGIBLE_ASSIGNMENT -> Color(0xFFFFC107).copy(alpha = 0.30f) to
+                Color(0xFFFFA000).copy(alpha = 0.50f)
     }
+
+    val label = when (alertType) {
+        AlertType.COVERAGE -> if (alertCount == 1) "1 settimana da pianificare" else "$alertCount settimane da pianificare"
+        AlertType.COOLDOWN_VIOLATION -> if (alertCount == 1) "1 violazione cooldown" else "$alertCount violazioni cooldown"
+        AlertType.DUPLICATE_ASSIGNMENT -> if (alertCount == 1) "1 assegnazione duplicata" else "$alertCount assegnazioni duplicate"
+        AlertType.INELIGIBLE_ASSIGNMENT -> if (alertCount == 1) "1 assegnazione non idonea" else "$alertCount assegnazioni non idonee"
+    }
+
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
             .clickable(onClick = onClick)
             .handCursorOnHover(),
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f)),
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor),
     ) {
         Text(
-            text = message,
+            text = label,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
         )
@@ -509,6 +513,103 @@ private fun WeekMetricTile(
                 text = value,
                 style = MaterialTheme.typography.titleSmall,
             )
+        }
+    }
+}
+
+@Composable
+private fun AlertsDialog(
+    alertsByType: Map<AlertType, List<PlanningAlert>>,
+    onDismiss: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Avvisi pianificazione") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
+                alertsByType.forEach { (type, alerts) ->
+                    AlertTypeSection(alertType = type, alerts = alerts)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Chiudi")
+            }
+        },
+    )
+}
+
+@Composable
+private fun AlertTypeSection(
+    alertType: AlertType,
+    alerts: List<PlanningAlert>,
+) {
+    val spacing = MaterialTheme.spacing
+
+    val (title, color) = when (alertType) {
+        AlertType.COVERAGE -> "Settimane da pianificare" to MaterialTheme.colorScheme.error
+        AlertType.COOLDOWN_VIOLATION -> "Violazioni periodo di riposo" to Color(0xFFFF9800)
+        AlertType.DUPLICATE_ASSIGNMENT -> "Assegnazioni duplicate" to Color(0xFFFBC02D)
+        AlertType.INELIGIBLE_ASSIGNMENT -> "Assegnazioni non idonee" to Color(0xFFFFA000)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color),
+            )
+            Spacer(Modifier.width(spacing.xs))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = color,
+            )
+        }
+
+        alerts.forEach { alert ->
+            val weekLabels = alert.weekKeys.map { key ->
+                val monday = runCatching { java.time.LocalDate.parse(key) }.getOrNull()
+                monday?.format(dateFormatter) ?: key
+            }
+
+            when (alertType) {
+                AlertType.COVERAGE -> {
+                    weekLabels.forEach { label ->
+                        Text("• $label", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                AlertType.COOLDOWN_VIOLATION -> {
+                    val personInfo = alert.personName?.let { " ($it)" } ?: ""
+                    weekLabels.forEach { label ->
+                        Text("• $label$personInfo", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                AlertType.DUPLICATE_ASSIGNMENT -> {
+                    val personInfo = alert.personName?.let { " - $it" } ?: ""
+                    weekLabels.forEach { label ->
+                        Text("• $label$personInfo", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                AlertType.INELIGIBLE_ASSIGNMENT -> {
+                    val details = buildString {
+                        alert.personName?.let { append(it) }
+                        alert.partTypeName?.let {
+                            if (isNotEmpty()) append(" - ")
+                            append(it)
+                        }
+                    }
+                    val detailsInfo = if (details.isNotEmpty()) " ($details)" else ""
+                    weekLabels.forEach { label ->
+                        Text("• $label$detailsInfo", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
     }
 }
