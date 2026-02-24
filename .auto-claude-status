@@ -3,7 +3,7 @@
   "spec": "001-person-assignment-history-panel-in-edit-form",
   "state": "building",
   "subtasks": {
-    "completed": 7,
+    "completed": 8,
     "total": 13,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 9,
+    "number": 10,
     "started_at": "2026-02-24T10:26:06.671239"
   },
-  "last_update": "2026-02-24T10:44:12.799867"
+  "last_update": "2026-02-24T10:46:25.939244"
 }

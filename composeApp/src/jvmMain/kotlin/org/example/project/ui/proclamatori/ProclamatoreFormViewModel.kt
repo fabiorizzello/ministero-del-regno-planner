@@ -189,6 +189,10 @@ internal class ProclamatoreFormViewModel(
         }
     }
 
+    fun toggleHistoryExpanded() {
+        _uiState.update { it.copy(isHistoryExpanded = !it.isHistoryExpanded) }
+    }
+
     fun clearForm() {
         _uiState.update {
             it.copy(
