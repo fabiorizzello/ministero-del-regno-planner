@@ -1,5 +1,6 @@
 package org.example.project.ui.proclamatori
 
+import arrow.core.Either
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,6 +26,9 @@ import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
+import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
 
 internal data class LeadEligibilityOptionUi(
@@ -35,6 +39,16 @@ internal data class LeadEligibilityOptionUi(
     val checked: Boolean,
     val canSelect: Boolean,
 )
+
+private data class LoadedProclamatoreData(
+    val proclamatore: Proclamatore,
+    val options: List<LeadEligibilityOptionUi>,
+    val history: PersonAssignmentHistory,
+)
+
+private class ProclamatoreNotFoundException : Exception("Proclamatore non trovato")
+
+private class SubmitFormDomainError(val domainError: DomainError) : Exception(domainError.toString())
 
 internal data class ProclamatoreFormUiState(
     val isLoading: Boolean = false,
@@ -109,7 +123,6 @@ internal class ProclamatoreFormViewModel(
         scope.launch {
             _uiState.update {
                 it.copy(
-                    isLoading = true,
                     initialNome = "",
                     initialCognome = "",
                     initialSesso = Sesso.M,
@@ -128,19 +141,27 @@ internal class ProclamatoreFormViewModel(
                     leadEligibilityOptions = emptyList(),
                 )
             }
-            val options = buildLeadEligibilityOptions(
-                sesso = Sesso.M,
-                selected = emptyMap(),
+            _uiState.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { state, options: List<LeadEligibilityOptionUi> ->
+                    state.copy(
+                        isLoading = false,
+                        leadEligibilityOptions = options,
+                        initialLeadEligibilityByPartType = options.associate { option ->
+                            option.partTypeId to (option.checked && option.canSelect)
+                        },
+                    )
+                },
+                errorUpdate = { state, error ->
+                    state.copy(isLoading = false, formError = "Errore: ${error.message}")
+                },
+                operation = {
+                    buildLeadEligibilityOptions(
+                        sesso = Sesso.M,
+                        selected = emptyMap(),
+                    )
+                },
             )
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    leadEligibilityOptions = options,
-                    initialLeadEligibilityByPartType = options.associate { option ->
-                        option.partTypeId to (option.checked && option.canSelect)
-                    },
-                )
-            }
         }
     }
 
@@ -219,47 +240,58 @@ internal class ProclamatoreFormViewModel(
 
     fun loadForEdit(id: ProclamatoreId, onNotFound: () -> Unit, onSuccess: () -> Unit) {
         scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val loaded = carica(id)
-            if (loaded == null) {
-                _uiState.update { it.copy(isLoading = false) }
-                onNotFound()
-                return@launch
-            }
-            val eligibilityByPartType = caricaIdoneita(id)
-                .associate { eligibility ->
-                    eligibility.partTypeId to eligibility.canLead
-                }
-            val options = buildLeadEligibilityOptions(
-                sesso = loaded.sesso,
-                selected = eligibilityByPartType,
+            _uiState.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { state, result: LoadedProclamatoreData ->
+                    onSuccess()
+                    state.copy(
+                        isLoading = false,
+                        initialNome = result.proclamatore.nome,
+                        initialCognome = result.proclamatore.cognome,
+                        initialSesso = result.proclamatore.sesso,
+                        initialSospeso = result.proclamatore.sospeso,
+                        initialPuoAssistere = result.proclamatore.puoAssistere,
+                        initialLeadEligibilityByPartType = result.options.associate { option ->
+                            option.partTypeId to (option.checked && option.canSelect)
+                        },
+                        nome = result.proclamatore.nome,
+                        cognome = result.proclamatore.cognome,
+                        sesso = result.proclamatore.sesso,
+                        sospeso = result.proclamatore.sospeso,
+                        puoAssistere = result.proclamatore.puoAssistere,
+                        leadEligibilityOptions = result.options,
+                        assignmentHistory = result.history,
+                        formError = null,
+                        duplicateError = null,
+                        isCheckingDuplicate = false,
+                        showFieldErrors = false,
+                    )
+                },
+                errorUpdate = { state, error ->
+                    if (error is ProclamatoreNotFoundException) {
+                        onNotFound()
+                    }
+                    state.copy(isLoading = false, formError = if (error is ProclamatoreNotFoundException) null else "Errore: ${error.message}")
+                },
+                operation = {
+                    val loaded = carica(id)
+                        ?: throw ProclamatoreNotFoundException()
+                    val eligibilityByPartType = caricaIdoneita(id)
+                        .associate { eligibility ->
+                            eligibility.partTypeId to eligibility.canLead
+                        }
+                    val options = buildLeadEligibilityOptions(
+                        sesso = loaded.sesso,
+                        selected = eligibilityByPartType,
+                    )
+                    val history = caricaStoricoAssegnazioni(id)
+                    LoadedProclamatoreData(
+                        proclamatore = loaded,
+                        options = options,
+                        history = history,
+                    )
+                },
             )
-            val history = caricaStoricoAssegnazioni(id)
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    initialNome = loaded.nome,
-                    initialCognome = loaded.cognome,
-                    initialSesso = loaded.sesso,
-                    initialSospeso = loaded.sospeso,
-                    initialPuoAssistere = loaded.puoAssistere,
-                    initialLeadEligibilityByPartType = options.associate { option ->
-                        option.partTypeId to (option.checked && option.canSelect)
-                    },
-                    nome = loaded.nome,
-                    cognome = loaded.cognome,
-                    sesso = loaded.sesso,
-                    sospeso = loaded.sospeso,
-                    puoAssistere = loaded.puoAssistere,
-                    leadEligibilityOptions = options,
-                    assignmentHistory = history,
-                    formError = null,
-                    duplicateError = null,
-                    isCheckingDuplicate = false,
-                    showFieldErrors = false,
-                )
-            }
-            onSuccess()
         }
     }
 
@@ -274,60 +306,70 @@ internal class ProclamatoreFormViewModel(
         }
 
         scope.launch {
-            _uiState.update { it.copy(showFieldErrors = true, formError = null, isLoading = true) }
+            _uiState.update { it.copy(showFieldErrors = true, formError = null) }
             val state = _uiState.value
-            val result = if (route == ProclamatoriRoute.Nuovo) {
-                crea(
-                    CreaProclamatoreUseCase.Command(
-                        nome = state.nome,
-                        cognome = state.cognome,
-                        sesso = state.sesso,
-                        sospeso = state.sospeso,
-                        puoAssistere = state.puoAssistere,
-                    ),
-                )
-            } else {
-                aggiorna(
-                    AggiornaProclamatoreUseCase.Command(
-                        id = requireNotNull(currentEditId),
-                        nome = state.nome,
-                        cognome = state.cognome,
-                        sesso = state.sesso,
-                        sospeso = state.sospeso,
-                        puoAssistere = state.puoAssistere,
-                    ),
-                )
-            }
+            val capturedRoute = route
+            val capturedOptions = state.leadEligibilityOptions
+            val capturedNome = state.nome
+            val capturedCognome = state.cognome
 
-            result.fold(
-                ifLeft = { err ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            formError = (err as? DomainError.Validation)?.message ?: "Operazione non completata",
-                        )
-                    }
-                },
-                ifRight = { person ->
-                    val eligibilityError = persistLeadEligibility(person, state.leadEligibilityOptions)
-                    if (eligibilityError != null) {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                formError = eligibilityError,
-                            )
-                        }
-                        return@fold
-                    }
-
-                    val operation = if (route == ProclamatoriRoute.Nuovo) {
+            _uiState.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { currentState, _: Unit ->
+                    val operation = if (capturedRoute == ProclamatoriRoute.Nuovo) {
                         "Proclamatore aggiunto"
                     } else {
                         "Proclamatore aggiornato"
                     }
-                    val details = personDetails(state.nome, state.cognome)
+                    val details = personDetails(capturedNome, capturedCognome)
                     clearForm()
                     onSuccess(successNotice("$operation: $details"))
+                    currentState.copy(isLoading = false)
+                },
+                errorUpdate = { currentState, error ->
+                    val errorMessage = when (error) {
+                        is SubmitFormDomainError -> (error.domainError as? DomainError.Validation)?.message
+                            ?: "Operazione non completata"
+                        else -> "Errore: ${error.message}"
+                    }
+                    currentState.copy(
+                        isLoading = false,
+                        formError = errorMessage,
+                    )
+                },
+                operation = {
+                    val saveResult = if (capturedRoute == ProclamatoriRoute.Nuovo) {
+                        crea(
+                            CreaProclamatoreUseCase.Command(
+                                nome = capturedNome,
+                                cognome = capturedCognome,
+                                sesso = state.sesso,
+                                sospeso = state.sospeso,
+                                puoAssistere = state.puoAssistere,
+                            ),
+                        )
+                    } else {
+                        aggiorna(
+                            AggiornaProclamatoreUseCase.Command(
+                                id = requireNotNull(currentEditId),
+                                nome = capturedNome,
+                                cognome = capturedCognome,
+                                sesso = state.sesso,
+                                sospeso = state.sospeso,
+                                puoAssistere = state.puoAssistere,
+                            ),
+                        )
+                    }
+
+                    val person = saveResult.fold(
+                        ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                        ifRight = { it },
+                    )
+
+                    persistLeadEligibilityAsEither(person, capturedOptions).fold(
+                        ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                        ifRight = { },
+                    )
                 },
             )
         }
@@ -390,6 +432,25 @@ internal class ProclamatoreFormViewModel(
             checked = if (canSelect) selected[partType.id] == true else false,
             canSelect = canSelect,
         )
+    }
+
+    private suspend fun persistLeadEligibilityAsEither(
+        person: Proclamatore,
+        options: List<LeadEligibilityOptionUi>,
+    ): Either<DomainError, Unit> {
+        options.forEach { option ->
+            val canLead = option.checked && option.canSelect
+            val saveResult = impostaIdoneitaConduzione(
+                personId = person.id,
+                partTypeId = option.partTypeId,
+                canLead = canLead,
+            )
+            saveResult.fold(
+                ifLeft = { error -> return Either.Left(error) },
+                ifRight = {},
+            )
+        }
+        return Either.Right(Unit)
     }
 
     private suspend fun persistLeadEligibility(

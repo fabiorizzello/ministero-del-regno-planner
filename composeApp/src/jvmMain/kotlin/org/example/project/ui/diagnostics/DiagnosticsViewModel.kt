@@ -41,6 +41,8 @@ import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
+import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.successNotice
 
 private const val LOG_EXPORT_WINDOW_DAYS = 14L
@@ -117,49 +119,45 @@ internal class DiagnosticsViewModel(
 
     fun refreshStorageUsage() {
         scope.launch {
-            _state.update { it.copy(isLoading = true) }
-            runCatching {
-                loadStorageUsage()
-            }.onSuccess { usage ->
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true) },
+                successUpdate = { state, usage ->
+                    state.copy(
                         isLoading = false,
                         dbSizeBytes = usage.dbSizeBytes,
                         logsSizeBytes = usage.logsSizeBytes,
                     )
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isLoading = false,
                         notice = errorNotice("Errore nel calcolo spazio disco: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = { loadStorageUsage() },
+            )
         }
     }
 
     fun exportDiagnosticsBundle() {
         if (_state.value.isExporting) return
         scope.launch {
-            _state.update { it.copy(isExporting = true) }
-            runCatching {
-                createDiagnosticsBundle()
-            }.onSuccess { bundlePath ->
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isExporting = true) },
+                successUpdate = { state, bundlePath ->
+                    state.copy(
                         isExporting = false,
                         notice = successNotice("Bundle creato: ${bundlePath.fileName}"),
                     )
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isExporting = false,
                         notice = errorNotice("Export diagnostica non completato: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = { createDiagnosticsBundle() },
+            )
         }
     }
 
@@ -170,15 +168,14 @@ internal class DiagnosticsViewModel(
 
     fun refreshCleanupPreview() {
         scope.launch {
-            runCatching {
-                loadCleanupPreview(_state.value.selectedRetention.cutoffDate())
-            }.onSuccess { preview ->
-                _state.update { it.copy(cleanupPreview = preview) }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(notice = errorNotice("Errore nel calcolo anteprima pulizia: ${error.message}"))
-                }
-            }
+            _state.executeAsyncOperation(
+                loadingUpdate = { it },
+                successUpdate = { state, preview -> state.copy(cleanupPreview = preview) },
+                errorUpdate = { state, error ->
+                    state.copy(notice = errorNotice("Errore nel calcolo anteprima pulizia: ${error.message}"))
+                },
+                operation = { loadCleanupPreview(_state.value.selectedRetention.cutoffDate()) },
+            )
         }
     }
 
@@ -195,42 +192,42 @@ internal class DiagnosticsViewModel(
         val option = _state.value.selectedRetention
         val cutoffDate = option.cutoffDate()
         scope.launch {
-            _state.update { it.copy(isCleaning = true, showCleanupConfirmDialog = false) }
-            runCatching {
-                val deleted = loadCleanupPreview(cutoffDate)
-                database.ministeroDatabaseQueries.deleteWeekPlansBeforeDate(cutoffDate.toString())
-                val vacuumOk = runVacuum()
-                val updatedUsage = loadStorageUsage()
-                val updatedPreview = loadCleanupPreview(cutoffDate)
-                CleanupExecutionResult(deleted, updatedUsage, updatedPreview, vacuumOk)
-            }.onSuccess { result ->
-                val baseDetails = buildString {
-                    append("Eliminate settimane: ${result.deleted.weekPlans}")
-                    append(" | Parti: ${result.deleted.weeklyParts}")
-                    append(" | Assegnazioni: ${result.deleted.assignments}")
-                }
-                val details = if (result.vacuumExecuted) {
-                    "$baseDetails | Ottimizzazione archivio completata"
-                } else {
-                    "$baseDetails | Ottimizzazione archivio rimandata (file in uso)"
-                }
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isCleaning = true, showCleanupConfirmDialog = false) },
+                successUpdate = { state, result ->
+                    val baseDetails = buildString {
+                        append("Eliminate settimane: ${result.deleted.weekPlans}")
+                        append(" | Parti: ${result.deleted.weeklyParts}")
+                        append(" | Assegnazioni: ${result.deleted.assignments}")
+                    }
+                    val details = if (result.vacuumExecuted) {
+                        "$baseDetails | Ottimizzazione archivio completata"
+                    } else {
+                        "$baseDetails | Ottimizzazione archivio rimandata (file in uso)"
+                    }
+                    state.copy(
                         isCleaning = false,
                         dbSizeBytes = result.usage.dbSizeBytes,
                         logsSizeBytes = result.usage.logsSizeBytes,
                         cleanupPreview = result.preview,
                         notice = successNotice(details),
                     )
-                }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
                         isCleaning = false,
                         notice = errorNotice("Pulizia dati non completata: ${error.message}"),
                     )
-                }
-            }
+                },
+                operation = {
+                    val deleted = loadCleanupPreview(cutoffDate)
+                    database.ministeroDatabaseQueries.deleteWeekPlansBeforeDate(cutoffDate.toString())
+                    val vacuumOk = runVacuum()
+                    val updatedUsage = loadStorageUsage()
+                    val updatedPreview = loadCleanupPreview(cutoffDate)
+                    CleanupExecutionResult(deleted, updatedUsage, updatedPreview, vacuumOk)
+                },
+            )
         }
     }
 
@@ -247,20 +244,20 @@ internal class DiagnosticsViewModel(
     fun checkUpdates() {
         if (_state.value.isCheckingUpdates) return
         scope.launch {
-            _state.update { it.copy(isCheckingUpdates = true) }
-            runCatching { verificaAggiornamenti() }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isCheckingUpdates = false,
-                            notice = errorNotice("Verifica aggiornamenti non riuscita: ${error.message}"),
-                        )
-                    }
-                }
-                .onSuccess { result ->
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isCheckingUpdates = true) },
+                successUpdate = { state, result ->
                     applyUpdateResult(result)
-                    _state.update { it.copy(isCheckingUpdates = false) }
-                }
+                    state.copy(isCheckingUpdates = false)
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isCheckingUpdates = false,
+                        notice = errorNotice("Verifica aggiornamenti non riuscita: ${error.message}"),
+                    )
+                },
+                operation = { verificaAggiornamenti() },
+            )
         }
     }
 
@@ -268,24 +265,22 @@ internal class DiagnosticsViewModel(
         val asset = _state.value.updateAsset ?: return
         if (_state.value.isUpdating) return
         scope.launch {
-            _state.update { it.copy(isUpdating = true) }
-            runCatching { aggiornaApplicazione(asset) }
-                .onSuccess { path ->
-                    _state.update {
-                        it.copy(
-                            isUpdating = false,
-                            notice = successNotice("Installer scaricato: ${path.fileName}"),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isUpdating = false,
-                            notice = errorNotice("Aggiornamento non riuscito: ${error.message}"),
-                        )
-                    }
-                }
+            _state.executeAsyncOperation(
+                loadingUpdate = { it.copy(isUpdating = true) },
+                successUpdate = { state, path ->
+                    state.copy(
+                        isUpdating = false,
+                        notice = successNotice("Installer scaricato: ${path.fileName}"),
+                    )
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isUpdating = false,
+                        notice = errorNotice("Aggiornamento non riuscito: ${error.message}"),
+                    )
+                },
+                operation = { aggiornaApplicazione(asset) },
+            )
         }
     }
 
