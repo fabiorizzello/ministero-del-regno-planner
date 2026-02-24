@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "003-bulk-clear-all-assignments-for-a-week",
+  "state": "building",
+  "subtasks": {
+    "completed": 1,
+    "total": 7,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Implement Week Clear Assignments Feature",
+    "id": null,
+    "total": 7
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 3,
+    "started_at": "2026-02-24T10:36:51.169825"
+  },
+  "last_update": "2026-02-24T10:43:29.212816"
+}

@@ -80,6 +80,8 @@ data class ProgramWorkspaceUiState(
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
     val isClearingAssignments: Boolean = false,
     val clearAssignmentsConfirm: Int? = null,
+    val isClearingWeekAssignments: Boolean = false,
+    val clearWeekAssignmentsConfirm: Pair<String, Int>? = null,
     val schemaRefreshPreview: SchemaRefreshReport? = null,
     val futureNeedsSchemaRefresh: Boolean = false,
     val partEditorWeekId: String? = null,
