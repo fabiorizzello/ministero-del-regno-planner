@@ -370,7 +370,7 @@ fun ProgramWorkspaceScreen() {
                                     assignments = state.selectedProgramAssignments[week.id.value] ?: emptyList(),
                                     onReactivate = { viewModel.reactivateWeek(week) },
                                     onOpenPartEditor = { viewModel.openPartEditor(week) },
-                                    onRequestClearWeekAssignments = { viewModel.requestClearWeekAssignments(week) },
+                                    onRequestClearWeekAssignments = { viewModel.requestClearWeekAssignments(week.id.value) },
                                     onAssignSlot = { partId, slot ->
                                         viewModel.openPersonPicker(week.weekStartDate, partId, slot)
                                     },
