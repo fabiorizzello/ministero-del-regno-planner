@@ -71,3 +71,98 @@ import java.time.temporal.TemporalAdjusters
 
 // Components extracted from ProgramWorkspaceScreen.kt
 // This file contains composables for the Program Workspace UI
+
+@Composable
+internal fun ProgramWeekStickyHeader(
+    week: WeekPlan,
+    isCurrent: Boolean,
+    isPast: Boolean,
+) {
+    val spacing = MaterialTheme.spacing
+    val isSkipped = week.status == WeekPlanStatus.SKIPPED
+    val containerColor = when {
+        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.94f)
+        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.94f)
+        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+    }
+    val borderColor = when {
+        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
+        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.94f))
+            .padding(vertical = spacing.xs),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.sm),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Settimana ${formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))}",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isCurrent) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    ) {
+                        Text(
+                            "Corrente",
+                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                if (isSkipped) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                    ) {
+                        Text(
+                            "Saltata",
+                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                }
+                if (isPast) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ) {
+                        Text(
+                            "Passata",
+                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Text(
+                    "Parti: ${week.parts.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
