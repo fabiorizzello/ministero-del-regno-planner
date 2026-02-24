@@ -343,6 +343,7 @@ fun ProgramWorkspaceScreen() {
                                     assignments = state.selectedProgramAssignments[week.id.value] ?: emptyList(),
                                     onReactivate = { viewModel.reactivateWeek(week) },
                                     onOpenPartEditor = { viewModel.openPartEditor(week) },
+                                    onRequestClearWeekAssignments = { viewModel.requestClearWeekAssignments(week) },
                                     onAssignSlot = { partId, slot ->
                                         viewModel.openPersonPicker(week.weekStartDate, partId, slot)
                                     },
@@ -466,6 +467,7 @@ private fun ProgramWeekCard(
     assignments: List<AssignmentWithPerson>,
     onReactivate: () -> Unit,
     onOpenPartEditor: () -> Unit,
+    onRequestClearWeekAssignments: () -> Unit,
     onAssignSlot: (WeeklyPartId, Int) -> Unit,
     onRemoveAssignment: (AssignmentId) -> Unit,
 ) {
@@ -518,7 +520,7 @@ private fun ProgramWeekCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.lg),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (isSkipped && !isPast) {
@@ -537,6 +539,21 @@ private fun ProgramWeekCard(
                             contentColor = MaterialTheme.colorScheme.primary,
                         ),
                     ) { Text("Modifica parti") }
+                }
+                if (canMutate) {
+                    OutlinedButton(
+                        onClick = onRequestClearWeekAssignments,
+                        modifier = Modifier.handCursorOnHover(),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        ),
+                    ) {
+                        Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Rimuovi assegnazioni")
+                    }
                 }
             }
 
