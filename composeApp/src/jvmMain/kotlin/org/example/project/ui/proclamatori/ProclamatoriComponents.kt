@@ -502,6 +502,9 @@ internal fun ProclamatoriFormContent(
     onPuoAssistereChange: (Boolean) -> Unit,
     leadEligibilityOptions: List<LeadEligibilityOptionUi>,
     onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
+    assignmentHistory: PersonAssignmentHistory?,
+    isHistoryExpanded: Boolean,
+    onToggleHistoryExpanded: () -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -712,6 +715,13 @@ internal fun ProclamatoriFormContent(
                     }
                 }
             }
+            if (!isNew) {
+                AssignmentHistoryPanel(
+                    history = assignmentHistory,
+                    isExpanded = isHistoryExpanded,
+                    onToggleExpanded = onToggleHistoryExpanded,
+                )
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
@@ -757,6 +767,9 @@ internal fun ProclamatoriFormDialog(
     onPuoAssistereChange: (Boolean) -> Unit,
     leadEligibilityOptions: List<LeadEligibilityOptionUi>,
     onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
+    assignmentHistory: PersonAssignmentHistory?,
+    isHistoryExpanded: Boolean,
+    onToggleHistoryExpanded: () -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -799,6 +812,9 @@ internal fun ProclamatoriFormDialog(
                     onPuoAssistereChange = onPuoAssistereChange,
                     leadEligibilityOptions = leadEligibilityOptions,
                     onLeadEligibilityChange = onLeadEligibilityChange,
+                    assignmentHistory = assignmentHistory,
+                    isHistoryExpanded = isHistoryExpanded,
+                    onToggleHistoryExpanded = onToggleHistoryExpanded,
                     nomeTrim = nomeTrim,
                     cognomeTrim = cognomeTrim,
                     showFieldErrors = showFieldErrors,
