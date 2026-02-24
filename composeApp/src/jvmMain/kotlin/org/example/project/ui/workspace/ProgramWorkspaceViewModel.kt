@@ -51,6 +51,8 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperation
+import org.example.project.ui.components.executeEitherOperationWithNotice
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.successNotice
@@ -350,58 +352,37 @@ class ProgramWorkspaceViewModel(
         val pickerWeeklyPartId = _state.value.pickerWeeklyPartId ?: return
         val pickerSlot = _state.value.pickerSlot ?: return
 
-        _state.update { it.copy(isAssigning = true) }
         scope.launch {
-            try {
-                assegnaPersona(
-                    weekStartDate = pickerWeekStartDate,
-                    weeklyPartId = pickerWeeklyPartId,
-                    personId = personId,
-                    slot = pickerSlot,
-                ).fold(
-                    ifLeft = { error ->
-                        _state.update { state ->
-                            state.copy(
-                                notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                            )
-                        }
-                    },
-                    ifRight = {
-                        closePersonPicker()
-                        loadWeeksForSelectedProgram()
-                    },
-                )
-            } finally {
-                _state.update { it.copy(isAssigning = false) }
-            }
+            _state.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isAssigning = true) },
+                noticeUpdate = { state, notice -> state.copy(isAssigning = false, notice = notice) },
+                successMessage = null,
+                operation = {
+                    assegnaPersona(
+                        weekStartDate = pickerWeekStartDate,
+                        weeklyPartId = pickerWeeklyPartId,
+                        personId = personId,
+                        slot = pickerSlot,
+                    )
+                },
+                onSuccess = {
+                    closePersonPicker()
+                    loadWeeksForSelectedProgram()
+                },
+            )
         }
     }
 
     fun removeAssignment(assignmentId: AssignmentId) {
         if (_state.value.isRemovingAssignment) return
         scope.launch {
-            _state.update { it.copy(isRemovingAssignment = true) }
-            try {
-                rimuoviAssegnazione(assignmentId).fold(
-                    ifLeft = { error ->
-                        _state.update {
-                            it.copy(
-                                notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                            )
-                        }
-                    },
-                    ifRight = {
-                        _state.update {
-                            it.copy(
-                                notice = FeedbackBannerModel("Assegnazione rimossa", FeedbackBannerKind.SUCCESS),
-                            )
-                        }
-                        loadWeeksForSelectedProgram()
-                    },
-                )
-            } finally {
-                _state.update { it.copy(isRemovingAssignment = false) }
-            }
+            _state.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isRemovingAssignment = true) },
+                noticeUpdate = { state, notice -> state.copy(isRemovingAssignment = false, notice = notice) },
+                successMessage = "Assegnazione rimossa",
+                operation = { rimuoviAssegnazione(assignmentId) },
+                onSuccess = { loadWeeksForSelectedProgram() },
+            )
         }
     }
 
@@ -422,31 +403,28 @@ class ProgramWorkspaceViewModel(
     fun refreshSchemasAndProgram() {
         if (_state.value.isRefreshingSchemas || _state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
-            _state.update { it.copy(isRefreshingSchemas = true) }
-            aggiornaSchemi().fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isRefreshingSchemas = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
+            _state.executeEitherOperation(
+                loadingUpdate = { it.copy(isRefreshingSchemas = true) },
+                successUpdate = { state, result ->
+                    state.copy(
+                        isRefreshingSchemas = false,
+                        notice = FeedbackBannerModel(
+                            buildSchemaUpdateNotice(result),
+                            FeedbackBannerKind.SUCCESS,
+                        ),
+                    )
                 },
-                ifRight = { result ->
-                    _state.update {
-                        it.copy(
-                            isRefreshingSchemas = false,
-                            notice = FeedbackBannerModel(
-                                buildSchemaUpdateNotice(result),
-                                FeedbackBannerKind.SUCCESS,
-                            ),
-                        )
-                    }
-                    if (_state.value.selectedProgramId != null) {
-                        refreshProgramFromSchemas()
-                    }
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isRefreshingSchemas = false,
+                        notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                    )
                 },
+                operation = { aggiornaSchemi() },
             )
+            if (_state.value.selectedProgramId != null) {
+                refreshProgramFromSchemas()
+            }
         }
     }
 
@@ -465,38 +443,18 @@ class ProgramWorkspaceViewModel(
                 return@launch
             }
 
-            _state.update { it.copy(isCreatingProgram = true) }
-            creaProssimoProgramma().fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isCreatingProgram = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
-                },
-                ifRight = { program ->
-                    generaSettimaneProgramma(program.id.value).fold(
-                        ifLeft = { error ->
-                            _state.update {
-                                it.copy(
-                                    isCreatingProgram = false,
-                                    notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                                )
-                            }
-                        },
-                        ifRight = {
-                            _state.update {
-                                it.copy(
-                                    isCreatingProgram = false,
-                                    notice = FeedbackBannerModel(
-                                        "Programma ${formatMonthYearLabel(program.month, program.year)} creato",
-                                        FeedbackBannerKind.SUCCESS,
-                                    ),
-                                )
-                            }
-                            loadProgramsAndWeeks()
-                        },
+            _state.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isCreatingProgram = true) },
+                noticeUpdate = { state, notice -> state.copy(isCreatingProgram = false, notice = notice) },
+                successMessage = null,
+                operation = { creaProssimoProgramma() },
+                onSuccess = { program ->
+                    _state.executeEitherOperationWithNotice(
+                        loadingUpdate = { it },
+                        noticeUpdate = { state, notice -> state.copy(notice = notice) },
+                        successMessage = "Programma ${formatMonthYearLabel(program.month, program.year)} creato",
+                        operation = { generaSettimaneProgramma(program.id.value) },
+                        onSuccess = { loadProgramsAndWeeks() },
                     )
                 },
             )
@@ -508,25 +466,12 @@ class ProgramWorkspaceViewModel(
         if (_state.value.isDeletingSelectedProgram) return
 
         scope.launch {
-            _state.update { it.copy(isDeletingSelectedProgram = true) }
-            eliminaProgrammaFuturo(ProgramMonthId(selectedProgramId), _state.value.today).fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isDeletingSelectedProgram = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
-                },
-                ifRight = {
-                    _state.update {
-                        it.copy(
-                            isDeletingSelectedProgram = false,
-                            notice = FeedbackBannerModel("Programma selezionato eliminato", FeedbackBannerKind.SUCCESS),
-                        )
-                    }
-                    loadProgramsAndWeeks()
-                },
+            _state.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isDeletingSelectedProgram = true) },
+                noticeUpdate = { state, notice -> state.copy(isDeletingSelectedProgram = false, notice = notice) },
+                successMessage = "Programma selezionato eliminato",
+                operation = { eliminaProgrammaFuturo(ProgramMonthId(selectedProgramId), _state.value.today) },
+                onSuccess = { loadProgramsAndWeeks() },
             )
         }
     }
@@ -598,21 +543,18 @@ class ProgramWorkspaceViewModel(
         val programId = _state.value.selectedProgramId ?: return
         if (_state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
-            _state.update { it.copy(isRefreshingProgramFromSchemas = true) }
-            aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = true).fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isRefreshingProgramFromSchemas = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
+            _state.executeEitherOperation(
+                loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
+                successUpdate = { state, preview ->
+                    state.copy(isRefreshingProgramFromSchemas = false, schemaRefreshPreview = preview)
                 },
-                ifRight = { preview ->
-                    _state.update {
-                        it.copy(isRefreshingProgramFromSchemas = false, schemaRefreshPreview = preview)
-                    }
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isRefreshingProgramFromSchemas = false,
+                        notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                    )
                 },
+                operation = { aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = true) },
             )
         }
     }
@@ -620,29 +562,27 @@ class ProgramWorkspaceViewModel(
     fun confirmSchemaRefresh() {
         val programId = _state.value.selectedProgramId ?: return
         scope.launch {
-            _state.update { it.copy(schemaRefreshPreview = null, isRefreshingProgramFromSchemas = true) }
-            aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = false).fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isRefreshingProgramFromSchemas = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
+            _state.update { it.copy(schemaRefreshPreview = null) }
+            _state.executeEitherOperation(
+                loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
+                successUpdate = { state, report ->
+                    state.copy(
+                        isRefreshingProgramFromSchemas = false,
+                        notice = FeedbackBannerModel(
+                            "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
+                            FeedbackBannerKind.SUCCESS,
+                        ),
+                    )
                 },
-                ifRight = { report ->
-                    _state.update {
-                        it.copy(
-                            isRefreshingProgramFromSchemas = false,
-                            notice = FeedbackBannerModel(
-                                "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
-                                FeedbackBannerKind.SUCCESS,
-                            ),
-                        )
-                    }
-                    loadWeeksForSelectedProgram()
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isRefreshingProgramFromSchemas = false,
+                        notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                    )
                 },
+                operation = { aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = false) },
             )
+            loadWeeksForSelectedProgram()
         }
     }
 
@@ -725,27 +665,15 @@ class ProgramWorkspaceViewModel(
     fun confirmClearWeekAssignments() {
         val (weekId, _) = _state.value.clearWeekAssignmentsConfirm ?: return
         val week = _state.value.selectedProgramWeeks.find { it.id.value == weekId } ?: return
+        val count = _state.value.selectedProgramAssignments[weekId]?.size ?: 0
         scope.launch {
-            _state.update { it.copy(clearWeekAssignmentsConfirm = null, isClearingWeekAssignments = true) }
-            rimuoviAssegnazioniSettimana(week.weekStartDate).fold(
-                ifLeft = { error ->
-                    _state.update {
-                        it.copy(
-                            isClearingWeekAssignments = false,
-                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
-                        )
-                    }
-                },
-                ifRight = {
-                    val count = _state.value.selectedProgramAssignments[weekId]?.size ?: 0
-                    _state.update {
-                        it.copy(
-                            isClearingWeekAssignments = false,
-                            notice = FeedbackBannerModel("$count assegnazioni rimosse", FeedbackBannerKind.SUCCESS),
-                        )
-                    }
-                    loadWeeksForSelectedProgram()
-                },
+            _state.update { it.copy(clearWeekAssignmentsConfirm = null) }
+            _state.executeEitherOperationWithNotice(
+                loadingUpdate = { it.copy(isClearingWeekAssignments = true) },
+                noticeUpdate = { state, notice -> state.copy(isClearingWeekAssignments = false, notice = notice) },
+                successMessage = "$count assegnazioni rimosse",
+                operation = { rimuoviAssegnazioniSettimana(week.weekStartDate) },
+                onSuccess = { loadWeeksForSelectedProgram() },
             )
         }
     }
