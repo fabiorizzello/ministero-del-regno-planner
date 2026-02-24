@@ -17,6 +17,7 @@ import org.example.project.feature.assignments.application.AutoAssignUnresolvedS
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
+import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
@@ -80,6 +81,8 @@ data class ProgramWorkspaceUiState(
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
     val isClearingAssignments: Boolean = false,
     val clearAssignmentsConfirm: Int? = null,
+    val isClearingWeekAssignments: Boolean = false,
+    val clearWeekAssignmentsConfirm: Pair<String, Int>? = null,
     val schemaRefreshPreview: SchemaRefreshReport? = null,
     val futureNeedsSchemaRefresh: Boolean = false,
     val partEditorWeekId: String? = null,
@@ -123,6 +126,7 @@ class ProgramWorkspaceViewModel(
     private val caricaImpostazioniAssegnatore: CaricaImpostazioniAssegnatoreUseCase,
     private val salvaImpostazioniAssegnatore: SalvaImpostazioniAssegnatoreUseCase,
     private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
+    private val rimuoviAssegnazioniSettimana: RimuoviAssegnazioniSettimanaUseCase,
     private val settings: Settings,
 ) {
     private val _state = MutableStateFlow(ProgramWorkspaceUiState())
@@ -723,6 +727,60 @@ class ProgramWorkspaceViewModel(
 
     fun dismissClearAssignments() {
         _state.update { it.copy(clearAssignmentsConfirm = null) }
+    }
+
+    fun requestClearWeekAssignments(weekId: String) {
+        if (_state.value.isClearingWeekAssignments) return
+        val week = _state.value.selectedProgramWeeks.find { it.id.value == weekId } ?: return
+        scope.launch {
+            _state.update { it.copy(isClearingWeekAssignments = true) }
+            runCatching {
+                rimuoviAssegnazioniSettimana.count(week.weekStartDate)
+            }.onSuccess { count ->
+                _state.update {
+                    it.copy(isClearingWeekAssignments = false, clearWeekAssignmentsConfirm = weekId to count)
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isClearingWeekAssignments = false,
+                        notice = FeedbackBannerModel("Errore conteggio: ${error.message}", FeedbackBannerKind.ERROR),
+                    )
+                }
+            }
+        }
+    }
+
+    fun confirmClearWeekAssignments() {
+        val (weekId, _) = _state.value.clearWeekAssignmentsConfirm ?: return
+        val week = _state.value.selectedProgramWeeks.find { it.id.value == weekId } ?: return
+        scope.launch {
+            _state.update { it.copy(clearWeekAssignmentsConfirm = null, isClearingWeekAssignments = true) }
+            rimuoviAssegnazioniSettimana(week.weekStartDate).fold(
+                ifLeft = { error ->
+                    _state.update {
+                        it.copy(
+                            isClearingWeekAssignments = false,
+                            notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
+                        )
+                    }
+                },
+                ifRight = {
+                    val count = _state.value.selectedProgramAssignments[weekId]?.size ?: 0
+                    _state.update {
+                        it.copy(
+                            isClearingWeekAssignments = false,
+                            notice = FeedbackBannerModel("$count assegnazioni rimosse", FeedbackBannerKind.SUCCESS),
+                        )
+                    }
+                    loadWeeksForSelectedProgram()
+                },
+            )
+        }
+    }
+
+    fun dismissClearWeekAssignments() {
+        _state.update { it.copy(clearWeekAssignmentsConfirm = null) }
     }
 
     private fun canMutateWeek(week: WeekPlan): Boolean =

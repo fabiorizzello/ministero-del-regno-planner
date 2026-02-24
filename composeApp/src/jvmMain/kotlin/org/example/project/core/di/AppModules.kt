@@ -55,6 +55,7 @@ import org.example.project.feature.assignments.application.CaricaAssegnazioniUse
 import org.example.project.feature.assignments.application.CaricaStoricoAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
+import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
@@ -169,6 +170,7 @@ val appModule = module {
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get()) }
     single { RimuoviAssegnazioneUseCase(get()) }
+    single { RimuoviAssegnazioniSettimanaUseCase(get(), get(), get()) }
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
@@ -231,6 +233,7 @@ val appModule = module {
             caricaImpostazioniAssegnatore = get(),
             salvaImpostazioniAssegnatore = get(),
             svuotaAssegnazioni = get(),
+            rimuoviAssegnazioniSettimana = get(),
             settings = get(),
         )
     }
