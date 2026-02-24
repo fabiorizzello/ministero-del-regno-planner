@@ -12,6 +12,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.UUID
 
 class GeneraSettimaneProgrammaUseCase(
@@ -51,6 +52,7 @@ class GeneraSettimaneProgrammaUseCase(
             }
         }
 
+        val programMonthId = org.example.project.feature.programs.domain.ProgramMonthId(programId)
         transactionRunner.runInTransaction {
             weekPlanStore.listByProgram(programId).forEach { existing ->
                 weekPlanStore.delete(existing.id)
@@ -73,5 +75,7 @@ class GeneraSettimaneProgrammaUseCase(
                 weekPlanStore.replaceAllParts(weekPlan.id, spec.partTypeIds)
             }
         }
+
+        programStore.updateTemplateAppliedAt(programMonthId, LocalDateTime.now())
     }
 }

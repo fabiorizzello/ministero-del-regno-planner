@@ -106,6 +106,7 @@ data class ProgramWorkspaceUiState(
     val notice: FeedbackBannerModel? = null,
 ) {
     val hasPrograms: Boolean get() = currentProgram != null || futureProgram != null
+    val canCreateProgram: Boolean get() = futureProgram == null
     val canDeleteSelectedProgram: Boolean get() = selectedProgramId != null && selectedProgramId == futureProgram?.id?.value
     val isPickerOpen: Boolean get() = pickerWeekStartDate != null && pickerWeeklyPartId != null && pickerSlot != null
     val isPartEditorOpen: Boolean get() = partEditorWeekId != null

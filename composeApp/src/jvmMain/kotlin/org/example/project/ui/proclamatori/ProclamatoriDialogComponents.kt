@@ -113,7 +113,7 @@ internal fun ProclamatoriFormDialogComponent(
             tonalElevation = 6.dp,
             modifier = Modifier
                 .padding(spacing.lg)
-                .width(680.dp),
+                .width(900.dp),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),
