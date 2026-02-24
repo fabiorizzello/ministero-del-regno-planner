@@ -267,6 +267,33 @@ fun ProgramWorkspaceScreen() {
             )
         }
 
+        state.clearWeekAssignmentsConfirm?.let { (weekId, count) ->
+            val week = state.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
+            if (week != null) {
+                val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
+                AlertDialog(
+                    onDismissRequest = { viewModel.dismissClearWeekAssignments() },
+                    title = { Text("Rimuovi assegnazioni settimana") },
+                    text = {
+                        Text("Verranno rimosse $count assegnazioni dalla settimana $weekLabel. Continuare?")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { viewModel.confirmClearWeekAssignments() },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.handCursorOnHover(),
+                        ) { Text("Rimuovi") }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { viewModel.dismissClearWeekAssignments() },
+                            modifier = Modifier.handCursorOnHover(),
+                        ) { Text("Annulla") }
+                    },
+                )
+            }
+        }
+
         state.schemaRefreshPreview?.let { preview ->
             AlertDialog(
                 onDismissRequest = { viewModel.dismissSchemaRefresh() },
@@ -343,6 +370,7 @@ fun ProgramWorkspaceScreen() {
                                     assignments = state.selectedProgramAssignments[week.id.value] ?: emptyList(),
                                     onReactivate = { viewModel.reactivateWeek(week) },
                                     onOpenPartEditor = { viewModel.openPartEditor(week) },
+                                    onRequestClearWeekAssignments = { viewModel.requestClearWeekAssignments(week.id.value) },
                                     onAssignSlot = { partId, slot ->
                                         viewModel.openPersonPicker(week.weekStartDate, partId, slot)
                                     },
@@ -466,6 +494,7 @@ private fun ProgramWeekCard(
     assignments: List<AssignmentWithPerson>,
     onReactivate: () -> Unit,
     onOpenPartEditor: () -> Unit,
+    onRequestClearWeekAssignments: () -> Unit,
     onAssignSlot: (WeeklyPartId, Int) -> Unit,
     onRemoveAssignment: (AssignmentId) -> Unit,
 ) {
@@ -518,7 +547,7 @@ private fun ProgramWeekCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.lg),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (isSkipped && !isPast) {
@@ -537,6 +566,21 @@ private fun ProgramWeekCard(
                             contentColor = MaterialTheme.colorScheme.primary,
                         ),
                     ) { Text("Modifica parti") }
+                }
+                if (canMutate) {
+                    OutlinedButton(
+                        onClick = onRequestClearWeekAssignments,
+                        modifier = Modifier.handCursorOnHover(),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        ),
+                    ) {
+                        Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(spacing.xs))
+                        Text("Rimuovi assegnazioni")
+                    }
                 }
             }
 

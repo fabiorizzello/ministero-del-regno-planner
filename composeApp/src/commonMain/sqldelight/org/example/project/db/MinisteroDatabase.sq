@@ -351,6 +351,22 @@ SELECT COUNT(*) FROM assignment WHERE person_id = ?;
 deleteAssignmentsForPerson:
 DELETE FROM assignment WHERE person_id = ?;
 
+assignmentHistoryForPerson:
+SELECT
+    a.id,
+    a.weekly_part_id,
+    a.person_id,
+    a.slot,
+    pt.label AS part_type_label,
+    wpl.week_start_date
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+JOIN part_type pt ON wp.part_type_id = pt.id
+WHERE a.person_id = ?
+ORDER BY wpl.week_start_date DESC
+LIMIT 20;
+
 -- Ranking queries (M4)
 lastGlobalAssignmentPerPerson:
 SELECT
