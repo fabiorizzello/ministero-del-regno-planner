@@ -1,25 +1,25 @@
 {
   "active": true,
   "spec": "001-person-assignment-history-panel-in-edit-form",
-  "state": "building",
+  "state": "complete",
   "subtasks": {
-    "completed": 10,
+    "completed": 13,
     "total": 13,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "UI Components",
+    "current": "Integration Testing",
     "id": null,
-    "total": 3
+    "total": 1
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 12,
+    "number": 13,
     "started_at": "2026-02-24T10:26:06.671239"
   },
-  "last_update": "2026-02-24T10:50:13.312932"
+  "last_update": "2026-02-24T10:58:59.018142"
 }
