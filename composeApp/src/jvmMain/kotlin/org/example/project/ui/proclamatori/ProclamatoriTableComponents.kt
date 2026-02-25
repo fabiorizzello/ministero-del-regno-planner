@@ -144,25 +144,33 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             }
         }
 
-        OutlinedTextField(
-            value = searchTerm,
-            onValueChange = events.onSearchTermChange,
-            modifier = Modifier
-                .width(320.dp)
-                .focusRequester(searchFocusRequester),
-            label = { Text("Ricerca") },
-            singleLine = true,
-            trailingIcon = {
-                if (searchTerm.isNotBlank()) {
-                    IconButton(
-                        modifier = Modifier.handCursorOnHover(),
-                        onClick = events.onResetSearch,
-                    ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Reset ricerca")
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                positioning = TooltipAnchorPosition.Above,
+            ),
+            tooltip = { PlainTooltip { Text("Ctrl+F per cercare") } },
+            state = rememberTooltipState(),
+        ) {
+            OutlinedTextField(
+                value = searchTerm,
+                onValueChange = events.onSearchTermChange,
+                modifier = Modifier
+                    .width(320.dp)
+                    .focusRequester(searchFocusRequester),
+                label = { Text("Ricerca") },
+                singleLine = true,
+                trailingIcon = {
+                    if (searchTerm.isNotBlank()) {
+                        IconButton(
+                            modifier = Modifier.handCursorOnHover(),
+                            onClick = events.onResetSearch,
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Reset ricerca")
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     }
 
     FeedbackBanner(
