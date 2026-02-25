@@ -188,22 +188,6 @@ fun ProgramWorkspaceScreen() {
                 Spacer(Modifier.width(spacing.xs))
                 Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
             }
-            if (lifecycleState.canDeleteSelectedProgram) {
-                OutlinedButton(
-                    onClick = { lifecycleVM.deleteSelectedProgram() },
-                    enabled = !lifecycleState.isDeletingSelectedProgram,
-                    modifier = Modifier.handCursorOnHover(),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    ),
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
-                }
-            }
             FilledTonalButton(
                 onClick = {
                     lifecycleState.selectedProgramId?.let { programId ->
@@ -220,6 +204,23 @@ fun ProgramWorkspaceScreen() {
                 Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
                 Text(if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa programma")
+            }
+            Spacer(Modifier.weight(1f))
+            if (lifecycleState.canDeleteSelectedProgram) {
+                OutlinedButton(
+                    onClick = { lifecycleVM.deleteSelectedProgram() },
+                    enabled = !lifecycleState.isDeletingSelectedProgram,
+                    modifier = Modifier.handCursorOnHover(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    ),
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(spacing.xs))
+                    Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
+                }
             }
             OutlinedButton(
                 onClick = {
