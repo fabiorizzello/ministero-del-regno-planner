@@ -248,7 +248,14 @@ fun ProgramWorkspaceScreen() {
         }
 
         ProgramHeader(
-            state = dataState,
+            currentProgram = lifecycleState.currentProgram,
+            futureProgram = lifecycleState.futureProgram,
+            selectedProgramId = lifecycleState.selectedProgramId,
+            hasPrograms = lifecycleState.hasPrograms,
+            canCreateProgram = lifecycleState.canCreateProgram,
+            isCreatingProgram = lifecycleState.isCreatingProgram,
+            isRefreshingSchemas = schemaState.isRefreshingSchemas,
+            futureNeedsSchemaRefresh = schemaState.futureNeedsSchemaRefresh,
             onSelectProgram = { lifecycleVM.selectProgram(it) },
             onCreateNextProgram = { lifecycleVM.createNextProgram() },
             onRefreshSchemas = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
