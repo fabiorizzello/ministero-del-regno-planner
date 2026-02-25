@@ -152,6 +152,20 @@ fun ProgramWorkspaceScreen() {
                 Spacer(Modifier.width(spacing.xs))
                 Text(if (state.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
             }
+            FilledTonalButton(
+                onClick = { viewModel.printSelectedProgram() },
+                enabled = state.selectedProgramId != null && !state.isPrintingProgram,
+                modifier = Modifier.handCursorOnHover(),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                ),
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(spacing.xs))
+                Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
+            }
+            Spacer(Modifier.weight(1f))
             if (state.canDeleteSelectedProgram) {
                 OutlinedButton(
                     onClick = { viewModel.deleteSelectedProgram() },
@@ -167,19 +181,6 @@ fun ProgramWorkspaceScreen() {
                     Spacer(Modifier.width(spacing.xs))
                     Text(if (state.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
                 }
-            }
-            FilledTonalButton(
-                onClick = { viewModel.printSelectedProgram() },
-                enabled = state.selectedProgramId != null && !state.isPrintingProgram,
-                modifier = Modifier.handCursorOnHover(),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                ),
-            ) {
-                Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
             }
             OutlinedButton(
                 onClick = { viewModel.requestClearAssignments() },
