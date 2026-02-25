@@ -65,6 +65,10 @@ data class AssignmentSettingsUiState(
     val assistWeight: String = "1",
     val leadCooldownWeeks: String = "4",
     val assistCooldownWeeks: String = "2",
+    val leadWeightError: String? = null,
+    val assistWeightError: String? = null,
+    val leadCooldownError: String? = null,
+    val assistCooldownError: String? = null,
 )
 
 data class ProgramWorkspaceUiState(
@@ -155,19 +159,51 @@ class ProgramWorkspaceViewModel(
     }
 
     fun setLeadWeight(value: String) {
-        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadWeight = value)) }
+        val error = validateIntegerInput(value, minValue = 1, fieldName = "Peso principale")
+        _state.update {
+            it.copy(
+                assignmentSettings = it.assignmentSettings.copy(
+                    leadWeight = value,
+                    leadWeightError = error
+                )
+            )
+        }
     }
 
     fun setAssistWeight(value: String) {
-        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(assistWeight = value)) }
+        val error = validateIntegerInput(value, minValue = 1, fieldName = "Peso assistente")
+        _state.update {
+            it.copy(
+                assignmentSettings = it.assignmentSettings.copy(
+                    assistWeight = value,
+                    assistWeightError = error
+                )
+            )
+        }
     }
 
     fun setLeadCooldownWeeks(value: String) {
-        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadCooldownWeeks = value)) }
+        val error = validateIntegerInput(value, minValue = 0, fieldName = "Cooldown principale")
+        _state.update {
+            it.copy(
+                assignmentSettings = it.assignmentSettings.copy(
+                    leadCooldownWeeks = value,
+                    leadCooldownError = error
+                )
+            )
+        }
     }
 
     fun setAssistCooldownWeeks(value: String) {
-        _state.update { it.copy(assignmentSettings = it.assignmentSettings.copy(assistCooldownWeeks = value)) }
+        val error = validateIntegerInput(value, minValue = 0, fieldName = "Cooldown assistente")
+        _state.update {
+            it.copy(
+                assignmentSettings = it.assignmentSettings.copy(
+                    assistCooldownWeeks = value,
+                    assistCooldownError = error
+                )
+            )
+        }
     }
 
     fun saveAssignmentSettings() {
@@ -835,6 +871,21 @@ class ProgramWorkspaceViewModel(
                 }
             }
         }
+    }
+
+    private fun validateIntegerInput(value: String, minValue: Int, fieldName: String): String? {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) {
+            return "Campo obbligatorio"
+        }
+        val parsed = trimmed.toIntOrNull()
+        if (parsed == null) {
+            return "Inserisci un numero intero valido"
+        }
+        if (parsed < minValue) {
+            return "Deve essere >= $minValue"
+        }
+        return null
     }
 
     private fun parseAssignmentSettings(state: AssignmentSettingsUiState): org.example.project.feature.assignments.application.AssignmentSettings? {
