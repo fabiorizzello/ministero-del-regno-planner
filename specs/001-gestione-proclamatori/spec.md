@@ -20,8 +20,8 @@ verificare che compaia nell'elenco con i dati corretti.
 **Acceptance Scenarios**:
 
 1. **Given** un archivio vuoto o con proclamatori esistenti, **When** l'utente inserisce
-   nome, cognome e sesso validi e conferma, **Then** il proclamatore viene salvato come
-   attivo e compare nell'elenco.
+   nome, cognome e sesso validi e conferma, **Then** il proclamatore viene salvato
+   (non sospeso, non eliminato) e compare nell'elenco.
 2. **Given** esiste già un proclamatore "Mario Rossi", **When** l'utente tenta di
    aggiungere un altro "Mario Rossi", **Then** il sistema mostra un errore di duplicato
    e non salva.
@@ -54,40 +54,43 @@ verificare che l'elenco mostri il nuovo cognome.
 
 ---
 
-### User Story 3 - Gestione stato attivo/sospeso (Priority: P2)
+### User Story 3 - Gestione sospensione proclamatore (Priority: P2)
 
-L'utente vuole attivare, disattivare o sospendere temporaneamente un proclamatore
-senza eliminarlo dall'archivio, in modo che non venga proposto per le assegnazioni.
+L'utente vuole sospendere temporaneamente un proclamatore senza eliminarlo dall'archivio.
+Un proclamatore sospeso non è visibile nell'elenco principale e non viene proposto
+né considerato per le assegnazioni.
 
-**Why this priority**: La sospensione temporanea e la disattivazione permanente sono
-workflow distinti rispetto all'eliminazione — il proclamatore viene conservato nello
-storico.
+**Why this priority**: La sospensione temporanea è un workflow distinto dall'eliminazione —
+il proclamatore è recuperabile e il suo storico rimane intatto.
 
-**Independent Test**: Impostare un proclamatore come sospeso → aprire la schermata
-assegnazioni → verificare che non compaia tra i candidati suggeriti.
+**Independent Test**: Impostare un proclamatore come sospeso → verificare che non compaia
+nell'elenco proclamatori → aprire la schermata assegnazioni → verificare che non compaia
+tra i candidati suggeriti.
 
 **Acceptance Scenarios**:
 
-1. **Given** un proclamatore attivo, **When** l'utente lo imposta come non-attivo,
-   **Then** il proclamatore non appare nelle liste di candidati per le assegnazioni.
-2. **Given** un proclamatore attivo, **When** l'utente lo imposta come sospeso,
-   **Then** il flag sospeso viene persistito.
-3. **Given** un proclamatore non-attivo, **When** l'utente lo riattiva, **Then** torna
-   disponibile per le assegnazioni.
+1. **Given** un proclamatore visibile in elenco, **When** l'utente lo sospende, **Then**
+   il proclamatore non appare nell'elenco proclamatori e non viene considerato per le
+   assegnazioni.
+2. **Given** un proclamatore sospeso, **When** l'utente rimuove la sospensione, **Then**
+   torna visibile nell'elenco e disponibile per le assegnazioni.
+3. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
+   il proclamatore viene ignorato come i soft-deleted.
 
 ---
 
 ### User Story 4 - Impostazione idoneità conduzione e assistenza (Priority: P2)
 
-L'utente vuole configurare per ogni proclamatore quali tipi di parte è idoneo a
-condurre (idoneità specifica per tipo-parte) e se può fare da assistente in generale.
+L'utente vuole configurare, nel form di creazione/modifica del proclamatore, quali
+tipi di parte è idoneo a condurre e se può fare da assistente. Tutti i campi
+(anagrafica + idoneità) sono in un unico form.
 
 **Why this priority**: L'idoneità determina chi viene proposto per ogni slot — senza
 questa configurazione il suggeritore non funziona correttamente.
 
-**Independent Test**: Impostare un proclamatore come idoneo a condurre il tipo-parte
-"X" → andare all'assegnazione della settimana → verificare che compaia come candidato
-per lo slot 1 della parte "X".
+**Independent Test**: Nel form del proclamatore → abilitare idoneità al tipo-parte "X"
+e `puoAssistere` → salvare → andare all'assegnazione della settimana → verificare che
+compaia come candidato per slot 1 della parte "X" e per slot 2.
 
 **Acceptance Scenarios**:
 
@@ -131,8 +134,10 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 
 - Nome o cognome con solo spazi: deve essere trattato come vuoto e rifiutato.
 - Import con array proclamatori vuoto: errore "nessun proclamatore da importare".
-- Eliminazione di un proclamatore con assegnazioni storiche: comportamento da definire
-  (la spec attuale non specifica; probabile eliminazione logica o blocco).
+- Eliminazione di un proclamatore con assegnazioni storiche: soft delete — il proclamatore
+  viene nascosto dall'archivio attivo ma conservato nel DB. Le assegnazioni storiche
+  rimangono intatte e referenziabili. Non viene mostrato nelle liste di candidati né
+  nell'archivio principale.
 
 ## Requirements *(mandatory)*
 
@@ -146,22 +151,30 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   100 caratteri ciascuno.
 - **FR-004**: Il sistema MUST consentire la modifica di nome, cognome e sesso, con
   ri-verifica del duplicato escludendo il proclamatore stesso.
-- **FR-005**: Il sistema MUST consentire di impostare il flag `attivo` (attivo/non-attivo)
-  e il flag `sospeso` indipendentemente.
+- **FR-005**: Il sistema MUST consentire di sospendere e riattivare un proclamatore.
+  Un proclamatore con `sospeso = true` MUST essere: (1) nascosto dall'elenco proclamatori,
+  (2) escluso da tutti i candidati per le assegnazioni. La sospensione è reversibile.
 - **FR-006**: Il sistema MUST consentire di configurare l'idoneità alla conduzione
-  per ogni proclamatore su base per-tipo-parte.
+  per ogni proclamatore su base per-tipo-parte. Un nuovo proclamatore NON ha idoneità
+  alla conduzione per nessun tipo di parte — deve essere configurata esplicitamente.
 - **FR-007**: Il sistema MUST consentire di impostare il flag `puoAssistere` per
   abilitare il proclamatore come candidato assistente.
 - **FR-008**: Il sistema MUST consentire l'import bulk da JSON con schema `version: 1`
   solo quando l'archivio è vuoto.
 - **FR-009**: Il sistema MUST consentire la ricerca proclamatori per termine testuale
   (nome o cognome); termine null restituisce tutti.
-- **FR-010**: Il sistema MUST consentire l'eliminazione di un proclamatore.
+- **FR-010**: Il sistema MUST implementare l'eliminazione come soft delete: il proclamatore
+  viene contrassegnato come eliminato e nascosto da tutte le viste e candidature, ma il
+  record e le sue assegnazioni storiche vengono conservati nel DB.
 
 ### Key Entities
 
-- **Proclamatore**: id (UUID), nome, cognome, sesso (M/F), attivo, sospeso,
-  puoAssistere. Invariante: nome e cognome non vuoti.
+- **Proclamatore**: id (UUID), nome, cognome, sesso (M/F), sospeso (boolean, default
+  false), puoAssistere (boolean, default false), eliminato (boolean, default false).
+  Il flag `attivo` è rimosso a favore di `sospeso` e `eliminato`.
+  Invariante: nome e cognome non vuoti.
+  Visibilità: un proclamatore appare nell'elenco solo se `sospeso = false` AND
+  `eliminato = false`. Entrambi i flag escludono anche dalle candidature per le assegnazioni.
 - **IdoneitaConduzione**: per-proclamatore per-tipo-parte, flag `canLead`. Determina
   se il proclamatore è candidato allo slot 1 di quel tipo di parte.
 
@@ -183,3 +196,8 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 
 - Q: Le spec sono state reverse-engineered dal codice esistente → A: Confermato dal
   progetto; questa spec documenta il comportamento attuale del codice.
+- Q: Cosa succede all'eliminazione di un proclamatore con assegnazioni storiche? → A: Soft delete — nascosto ma conservato nel DB; storico assegnazioni intatto.
+- Q: Semantica di `sospeso` vs soft delete: visibilità in elenco e candidature? → A: Entrambi nascosti dall'elenco e non considerati per assegnazioni. Sospeso = temporaneo/reversibile; soft delete = permanente ma storico conservato.
+- Q: Ruolo del flag `attivo`: serve o va rimosso? → A: Rimosso — sostituito da `sospeso` (temporaneo) e `eliminato` (soft delete permanente).
+- Q: Idoneità conduzione default per nuovo proclamatore? → A: Nessuna — deve essere configurata esplicitamente per ogni tipo di parte.
+- Q: Dove si configura idoneità nell'UI: form unico o sezione separata? → A: Form unico — anagrafica e idoneità nello stesso form di creazione/modifica.
