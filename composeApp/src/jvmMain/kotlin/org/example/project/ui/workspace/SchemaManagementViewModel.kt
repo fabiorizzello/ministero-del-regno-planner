@@ -147,7 +147,8 @@ internal class SchemaManagementViewModel(
     private fun checkSchemaRefreshNeeded(futureProgram: ProgramMonth?): Boolean {
         val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
             ?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
-        return futureProgram != null && lastSchemaImport != null &&
-            (futureProgram.templateAppliedAt == null || futureProgram.templateAppliedAt < lastSchemaImport)
+        if (futureProgram == null || lastSchemaImport == null) return false
+        val appliedOrCreatedAt = futureProgram.templateAppliedAt ?: futureProgram.createdAt
+        return appliedOrCreatedAt < lastSchemaImport
     }
 }
