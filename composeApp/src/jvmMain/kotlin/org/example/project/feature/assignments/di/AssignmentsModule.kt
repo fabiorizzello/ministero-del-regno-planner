@@ -20,14 +20,12 @@ import org.example.project.feature.assignments.infrastructure.SqlDelightAssignme
 import org.koin.dsl.module
 
 val assignmentsModule = module {
-    // Stores
+    // Assignments
     single { SqlDelightAssignmentStore(get()) }
     single<AssignmentSettingsStore> { SqlDelightAssignmentSettingsStore(get()) }
     single<AssignmentRepository> { get<SqlDelightAssignmentStore>() }
     single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
     single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
-
-    // Use Cases
     single { CaricaImpostazioniAssegnatoreUseCase(get()) }
     single { SalvaImpostazioniAssegnatoreUseCase(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
