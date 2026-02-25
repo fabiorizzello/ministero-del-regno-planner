@@ -14,7 +14,16 @@ import org.example.project.core.bootstrap.AppBootstrap
 import org.example.project.core.config.WindowSettings
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.config.toSettingsSnapshot
-import org.example.project.core.di.appModule
+import org.example.project.core.di.coreModule
+import org.example.project.feature.assignments.di.assignmentsModule
+import org.example.project.feature.output.di.outputModule
+import org.example.project.feature.people.di.peopleModule
+import org.example.project.feature.planning.di.planningModule
+import org.example.project.feature.programs.di.programsModule
+import org.example.project.feature.schemas.di.schemasModule
+import org.example.project.feature.updates.di.updatesModule
+import org.example.project.feature.weeklyparts.di.weeklyPartsModule
+import org.example.project.ui.di.viewModelsModule
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.example.project.ui.AppScreen
 import org.jetbrains.compose.resources.painterResource
@@ -30,7 +39,20 @@ fun main() {
 
     AppBootstrap.initialize()
     if (GlobalContext.getOrNull() == null) {
-        startKoin { modules(appModule) }
+        startKoin {
+            modules(
+                coreModule,
+                peopleModule,
+                programsModule,
+                schemasModule,
+                weeklyPartsModule,
+                assignmentsModule,
+                outputModule,
+                updatesModule,
+                planningModule,
+                viewModelsModule,
+            )
+        }
     }
 
     application {
