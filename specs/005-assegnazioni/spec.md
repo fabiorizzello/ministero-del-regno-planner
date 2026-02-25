@@ -35,6 +35,11 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
    di quel tipo di parte, **Then** errore di validazione.
 7. **Given** si tenta di assegnare per slot >= 2 un proclamatore con `puoAssistere = false`,
    **Then** errore di validazione.
+8. **Given** si tenta di assegnare per uno slot < 1 o > partType.peopleCount, **Then**
+   errore di validazione ("Slot non valido").
+9. **Given** un proclamatore già assegnato in un'altra parte della stessa settimana,
+   **When** si tenta una seconda assegnazione nella stessa settimana, **Then** errore di
+   validazione ("Proclamatore già assegnato in questa settimana").
 
 ---
 
@@ -147,10 +152,15 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 
 - Rimozione assegnazioni di una settimana intera (`RimuoviAssegnazioniSettimana`):
   operazione di reset di tutti gli slot di una settimana.
-- Svuotamento assegnazioni di un programma (`SvuotaAssegnazioniProgramma`): reset
-  di tutte le settimane di un programma (pre-rigenera o reset completo).
+- Svuotamento assegnazioni di un programma (`SvuotaAssegnazioniProgramma`): accetta
+  un parametro `fromDate: LocalDate` — rimuove solo le assegnazioni delle settimane
+  a partire da quella data (non necessariamente l'intero programma). Espone anche
+  `count(programId, fromDate)` per preview del numero di assegnazioni che sarebbero
+  rimosse prima di `execute(programId, fromDate)`.
 - Slot = 1 → ruolo "Conduttore"; slot >= 2 → ruolo "Assistente" (determinato dal
   modello `AssignmentHistoryEntry.role`).
+- Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
+  ci sono più parti nella stessa settimana (`isPersonAssignedInWeek` cross-parte).
 
 ## Requirements *(mandatory)*
 
@@ -164,7 +174,11 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   i due proclamatori DEVONO essere in relazione familiare (CONIUGE o GENITORE_FIGLIO);
   se stesso sesso, nessun vincolo familiare;
   (c) idoneità conduzione per slot 1;
-  (d) `puoAssistere = true` per slot >= 2.
+  (d) `puoAssistere = true` per slot >= 2;
+  (e) slot MUST essere nel range `[1, partType.peopleCount]` — valori fuori range sono
+  rifiutati con errore "Slot non valido";
+  (f) un proclamatore non può essere assegnato due volte nella stessa settimana
+  (constraint cross-parte via `isPersonAssignedInWeek`).
 - **FR-003**: Il sistema MUST sostituire l'assegnazione esistente se lo slot è già
   occupato.
 - **FR-004**: Il sistema MUST suggerire proclamatori idonei ordinati per score
@@ -180,7 +194,9 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - **FR-008**: Il sistema MUST restituire la lista `unresolved` degli slot non
   assegnabili con la motivazione.
 - **FR-009**: Il sistema MUST consentire la rimozione di una singola assegnazione,
-  di tutte le assegnazioni di una settimana, o di tutte le assegnazioni di un programma.
+  di tutte le assegnazioni di una settimana, o delle assegnazioni di un programma a
+  partire da una data (`SvuotaAssegnazioniProgramma(programId, fromDate)`). Il metodo
+  `count(programId, fromDate)` MUST essere disponibile per preview prima di `execute`.
 - **FR-010**: Il sistema MUST consentire il caricamento dello storico assegnazioni
   per proclamatore con riepilogo per tipo-parte.
 - **FR-011**: Il sistema MUST persistere le impostazioni assegnatore (cooldownWeeks,
@@ -194,8 +210,10 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   + inCooldown + cooldownRemainingWeeks.
 - **PersonAssignmentHistory**: lista di AssignmentHistoryEntry con summaryByPartType
   e totalAssignments.
-- **AssignmentSettings**: leadCooldownWeeks, assistCooldownWeeks, leadWeight,
-  assistWeight, strictCooldown.
+- **AssignmentSettings**: `strictCooldown: Boolean = true`, `leadWeight: Int = 2`,
+  `assistWeight: Int = 1`, `leadCooldownWeeks: Int = 4`, `assistCooldownWeeks: Int = 2`.
+  Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown) e 1
+  (pesi). Le impostazioni di default sono applicate se non ancora configurate.
 - **SexRule** (da feature weeklyparts): `UOMO` = solo maschi; `LIBERO` = stesso sesso
   OPPURE sesso diverso solo se CONIUGE o GENITORE_FIGLIO (non "libero" nel senso
   letterale — dipende dalle relazioni familiari definite in gestione-proclamatori).
@@ -225,3 +243,13 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: SexRule.LIBERO significato reale? → A: Non "qualsiasi persona" — stesso sesso OPPURE
   sesso diverso solo se i proclamatori sono CONIUGE o GENITORE_FIGLIO. Aggiornato FR-002
   e FR-005 di conseguenza.
+- Q: Esistono vincoli di validazione slot confermati dal codice? → A: Sì — (1) slot deve
+  essere in [1, partType.peopleCount] (da AssegnaPersonaUseCase); (2) un proclamatore
+  non può essere assegnato due volte nella stessa settimana, nemmeno su parti diverse
+  (isPersonAssignedInWeek cross-parte).
+- Q: SvuotaAssegnazioniProgramma è un reset completo? → A: No — accetta `fromDate:
+  LocalDate` e cancella solo le assegnazioni da quella data in poi. Espone `count()` e
+  `execute()` separati per permettere preview prima dell'operazione.
+- Q: AssignmentSettings default confermati dal codice? → A: strictCooldown=true,
+  leadWeight=2, assistWeight=1, leadCooldownWeeks=4, assistCooldownWeeks=2.
+  Metodo `normalized()` coerces valori negativi.

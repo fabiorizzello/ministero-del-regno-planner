@@ -72,12 +72,15 @@ tra i candidati suggeriti.
 1. **Given** un proclamatore visibile in elenco, **When** l'utente lo sospende, **Then**
    il proclamatore non appare nell'elenco proclamatori e non viene considerato per le
    assegnazioni.
-2. **Given** un proclamatore sospeso, **When** l'utente attiva il filtro "Mostra sospesi"
+2. **Given** un proclamatore con assegnazioni in settimane future, **When** l'utente lo
+   sospende, **Then** il sistema restituisce `SospensioneOutcome` con la lista delle
+   date settimana interessate e la UI mostra un avviso ("assegnato in N settimane future").
+3. **Given** un proclamatore sospeso, **When** l'utente attiva il filtro "Mostra sospesi"
    nell'elenco, **Then** il proclamatore appare con indicatore visivo "sospeso"; l'utente
    può selezionarlo e rimuovere la sospensione, dopodiché torna visibile nell'elenco
    normale e disponibile per le assegnazioni.
-3. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
-   il proclamatore viene ignorato come i soft-deleted.
+4. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
+   il proclamatore viene ignorato.
 
 ---
 
@@ -137,10 +140,17 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - Nome o cognome con solo spazi: deve essere trattato come vuoto e rifiutato.
 - Import con array proclamatori vuoto: errore "nessun proclamatore da importare".
 - Eliminazione di un proclamatore: il sistema MUST mostrare un dialog di conferma con
-  avvertimento esplicito ("questa azione è irreversibile") prima di procedere con il
-  soft delete. Solo dopo conferma esplicita dell'utente il proclamatore viene nascosto.
-  Il record e le assegnazioni storiche sono conservati nel DB. I soft-deleted sono
-  invisibili in qualsiasi vista, incluso il toggle "Mostra sospesi".
+  avvertimento esplicito ("questa azione è irreversibile e cancella tutto lo storico")
+  prima di procedere. Solo dopo conferma esplicita dell'utente viene eseguita la
+  cancellazione definitiva in una transazione: prima vengono rimosse TUTTE le
+  assegnazioni storiche del proclamatore (`removeAllForPerson`), poi il proclamatore
+  stesso (`store.remove`). L'operazione è irreversibile — non è possibile recuperare
+  né il record né lo storico assegnazioni.
+- Sospensione con assegnazioni future: `ImpostaSospesoUseCase` restituisce
+  `SospensioneOutcome(futureWeeksWhereAssigned: List<LocalDate>)`. Se la lista non è
+  vuota, la UI MUST avvisare l'utente che il proclamatore è già assegnato in quelle
+  settimane future (le assegnazioni NON vengono rimosse automaticamente — devono essere
+  gestite manualmente).
 
 ## Requirements *(mandatory)*
 
@@ -159,6 +169,8 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   (2) escluso da tutti i candidati per le assegnazioni. La sospensione è reversibile.
   L'elenco MUST fornire un toggle "Mostra sospesi" che, se attivo, visualizza i
   proclamatori sospesi con un indicatore visivo distinto, permettendone la gestione.
+  Al momento della sospensione il sistema MUST restituire `SospensioneOutcome` con
+  `futureWeeksWhereAssigned` e la UI MUST mostrare l'avviso se la lista non è vuota.
 - **FR-006**: Il sistema MUST consentire di configurare l'idoneità alla conduzione
   per ogni proclamatore su base per-tipo-parte. Un nuovo proclamatore NON ha idoneità
   alla conduzione per nessun tipo di parte — deve essere configurata esplicitamente.
@@ -173,20 +185,25 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   "Relazioni familiari" con ricerca per nome. Queste relazioni sono usate dal suggeritore
   per applicare la regola `SexRule.LIBERO`: slot di sesso diverso sono validi solo se i
   proclamatori assegnati sono in relazione familiare riconosciuta.
-- **FR-010**: Il sistema MUST implementare l'eliminazione come soft delete irreversibile:
-  prima dell'eliminazione MUST essere mostrato un dialog di conferma con avvertimento
-  esplicito. Dopo conferma, il proclamatore viene contrassegnato come eliminato, nascosto
-  da tutte le viste (incluso il toggle "Mostra sospesi") e dalle candidature. Il record
-  e le assegnazioni storiche sono conservati nel DB ma non accessibili né ripristinabili.
+- **FR-010**: Il sistema MUST implementare l'eliminazione come cancellazione definitiva
+  (hard delete): prima dell'eliminazione MUST essere mostrato un dialog di conferma con
+  avvertimento esplicito ("azione irreversibile, cancella tutto lo storico"). Dopo
+  conferma, in una singola transazione vengono rimosse tutte le assegnazioni del
+  proclamatore e poi il proclamatore stesso. L'operazione è completamente irreversibile
+  — nessun dato viene conservato.
 
 ### Key Entities
 
 - **Proclamatore**: id (UUID), nome, cognome, sesso (M/F), sospeso (boolean, default
-  false), puoAssistere (boolean, default false), eliminato (boolean, default false).
-  Il flag `attivo` è rimosso a favore di `sospeso` e `eliminato`.
+  false), puoAssistere (boolean, default false).
+  Il flag `attivo` è rimosso a favore di `sospeso`. Non esiste un flag `eliminato` —
+  l'eliminazione è un hard delete che rimuove il record e lo storico assegnazioni.
   Invariante: nome e cognome non vuoti.
-  Visibilità: un proclamatore appare nell'elenco solo se `sospeso = false` AND
-  `eliminato = false`. Entrambi i flag escludono anche dalle candidature per le assegnazioni.
+  Visibilità: un proclamatore appare nell'elenco solo se `sospeso = false`.
+  `sospeso = true` esclude anche dalle candidature per le assegnazioni.
+- **SospensioneOutcome**: `futureWeeksWhereAssigned: List<LocalDate>` — lista delle
+  date di inizio settimana in cui il proclamatore ha assegnazioni future al momento
+  della sospensione. Informativa; le assegnazioni non vengono rimosse automaticamente.
 - **IdoneitaConduzione**: per-proclamatore per-tipo-parte, flag `canLead`. Determina
   se il proclamatore è candidato allo slot 1 di quel tipo di parte.
 - **RelazioneProclam**: collega due proclamatori con un tipo di relazione familiare.
@@ -219,9 +236,9 @@ Questa regola si applica alla combinazione degli slot, non al singolo proclamato
 
 - Q: Le spec sono state reverse-engineered dal codice esistente → A: Confermato dal
   progetto; questa spec documenta il comportamento attuale del codice.
-- Q: Cosa succede all'eliminazione di un proclamatore con assegnazioni storiche? → A: Soft delete — nascosto ma conservato nel DB; storico assegnazioni intatto.
-- Q: Semantica di `sospeso` vs soft delete: visibilità in elenco e candidature? → A: Entrambi nascosti dall'elenco e non considerati per assegnazioni. Sospeso = temporaneo/reversibile; soft delete = permanente ma storico conservato.
-- Q: Ruolo del flag `attivo`: serve o va rimosso? → A: Rimosso — sostituito da `sospeso` (temporaneo) e `eliminato` (soft delete permanente).
+- Q: Cosa succede all'eliminazione di un proclamatore con assegnazioni storiche? → A: **Correzione**: il codice implementa un hard delete (`store.remove` + `assignmentStore.removeAllForPerson` in transazione) — NON un soft delete. Il record e tutte le assegnazioni storiche vengono eliminati definitivamente. La spec è stata aggiornata per riflettere il comportamento reale del codice.
+- Q: Semantica di `sospeso` vs eliminazione: visibilità in elenco e candidature? → A: Sospeso = nascosto dall'elenco e non considerato per assegnazioni, temporaneo/reversibile. Eliminato = hard delete, il record viene cancellato fisicamente insieme allo storico assegnazioni.
+- Q: Ruolo del flag `attivo`: serve o va rimosso? → A: Rimosso — sostituito da `sospeso` (temporaneo/reversibile). L'eliminazione è un hard delete, non un flag.
 - Q: Idoneità conduzione default per nuovo proclamatore? → A: Nessuna — deve essere configurata esplicitamente per ogni tipo di parte.
 - Q: Dove si configura idoneità nell'UI: form unico o sezione separata? → A: Form unico — anagrafica e idoneità nello stesso form di creazione/modifica.
 - Q: Come accede l'utente ai proclamatori sospesi per rimuovere la sospensione? → A: Toggle "Mostra sospesi" nell'elenco principale; i sospesi appaiono con indicatore visivo.
