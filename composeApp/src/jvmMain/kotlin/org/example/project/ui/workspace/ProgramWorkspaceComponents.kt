@@ -102,7 +102,7 @@ internal fun ProgramWeekStickyHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background.copy(alpha = 0.94f))
-            .padding(vertical = spacing.xs),
+            .padding(vertical = spacing.xxs),
         shape = RoundedCornerShape(12.dp),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
@@ -110,7 +110,7 @@ internal fun ProgramWeekStickyHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                .padding(horizontal = spacing.md, vertical = spacing.xs),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -220,19 +220,19 @@ internal fun ProgramWeekCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(containerColor),
-            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(5.dp)
+                    .height(4.dp)
                     .background(accentColor.copy(alpha = 0.76f)),
             )
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.lg),
+                    .padding(horizontal = spacing.md),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -273,21 +273,21 @@ internal fun ProgramWeekCard(
             if (week.parts.isEmpty()) {
                 Text(
                     "Nessuna parte configurata",
-                    modifier = Modifier.padding(horizontal = spacing.lg, vertical = spacing.md),
+                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Column(
-                    modifier = Modifier.padding(horizontal = spacing.lg, vertical = spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
                 ) {
                     partRows.forEach { rowParts ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(if (rowParts.size > 1) Modifier.height(IntrinsicSize.Min) else Modifier),
-                            horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                             verticalAlignment = Alignment.Top,
                         ) {
                             rowParts.forEach { part ->
