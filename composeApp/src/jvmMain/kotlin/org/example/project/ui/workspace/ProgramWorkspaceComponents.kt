@@ -571,7 +571,7 @@ internal fun ProgramHeader(
                             disabledContentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     ) {
-                        Text("In corso ${formatMonthYearLabel(it.month, it.year)}")
+                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
                     }
                 }
                 future?.let {
@@ -587,7 +587,7 @@ internal fun ProgramHeader(
                             disabledContentColor = MaterialTheme.colorScheme.onTertiary,
                         ),
                     ) {
-                        Text("Prossimo ${formatMonthYearLabel(it.month, it.year)}")
+                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
                     }
                     if (futureNeedsSchemaRefresh) {
                         Surface(
