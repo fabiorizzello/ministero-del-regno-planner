@@ -27,6 +27,10 @@ data class AssignmentSettingsUiState(
     val assistWeight: String = "1",
     val leadCooldownWeeks: String = "4",
     val assistCooldownWeeks: String = "2",
+    val leadWeightError: String? = null,
+    val assistWeightError: String? = null,
+    val leadCooldownError: String? = null,
+    val assistCooldownError: String? = null,
 )
 
 internal data class AssignmentManagementUiState(
