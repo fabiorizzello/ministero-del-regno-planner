@@ -21,6 +21,14 @@ import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.successNotice
 import java.time.LocalDate
 
+data class AssignmentSettingsUiState(
+    val strictCooldown: Boolean = true,
+    val leadWeight: String = "2",
+    val assistWeight: String = "1",
+    val leadCooldownWeeks: String = "4",
+    val assistCooldownWeeks: String = "2",
+)
+
 internal data class AssignmentManagementUiState(
     val isAutoAssigning: Boolean = false,
     val isPrintingProgram: Boolean = false,

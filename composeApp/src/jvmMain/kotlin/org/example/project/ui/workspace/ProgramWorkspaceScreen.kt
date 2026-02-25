@@ -73,10 +73,6 @@ import java.time.temporal.TemporalAdjusters
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProgramWorkspaceScreen() {
-    // Data loading ViewModel (temporary during migration)
-    val dataViewModel = remember { GlobalContext.get().get<ProgramWorkspaceViewModel>() }
-    val dataState by dataViewModel.state.collectAsState()
-
     // New focused ViewModels
     val lifecycleVM = remember { GlobalContext.get().get<ProgramLifecycleViewModel>() }
     val schemaVM = remember { GlobalContext.get().get<SchemaManagementViewModel>() }
@@ -96,7 +92,6 @@ fun ProgramWorkspaceScreen() {
     LaunchedEffect(Unit) {
         lifecycleVM.onScreenEntered()
         assignmentVM.onScreenEntered()
-        dataViewModel.onScreenEntered()
     }
 
     // Keep schema VM in sync with lifecycle VM
@@ -107,11 +102,10 @@ fun ProgramWorkspaceScreen() {
     // Reload callback for operations that modify data
     val reloadData = {
         lifecycleVM.loadProgramsAndWeeks()
-        dataViewModel.onScreenEntered()
     }
 
     if (personPickerState.isPickerOpen) {
-        val pickedPart = dataState.selectedProgramWeeks.firstNotNullOfOrNull { week ->
+        val pickedPart = lifecycleState.selectedProgramWeeks.firstNotNullOfOrNull { week ->
             week.parts.find { it.id == personPickerState.pickerWeeklyPartId }
         }
         if (pickedPart != null) {
@@ -137,7 +131,7 @@ fun ProgramWorkspaceScreen() {
     }
 
     if (partEditorState.isPartEditorOpen) {
-        val editingWeek = dataState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
+        val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
             PartEditorDialog(
                 weekLabel = formatWeekRangeLabel(editingWeek.weekStartDate, editingWeek.weekStartDate.plusDays(6)),
@@ -309,7 +303,7 @@ fun ProgramWorkspaceScreen() {
         }
 
         assignmentState.clearWeekAssignmentsConfirm?.let { (weekId, count) ->
-            val week = dataState.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
+            val week = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
             if (week != null) {
                 val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
                 AlertDialog(
@@ -378,7 +372,7 @@ fun ProgramWorkspaceScreen() {
                         .fillMaxSize()
                         .padding(end = 12.dp),
                 ) {
-                    if (dataState.selectedProgramWeeks.isEmpty()) {
+                    if (lifecycleState.selectedProgramWeeks.isEmpty()) {
                         item(key = "empty-weeks") {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -394,7 +388,7 @@ fun ProgramWorkspaceScreen() {
                             }
                         }
                     } else {
-                        dataState.selectedProgramWeeks.forEach { week ->
+                        lifecycleState.selectedProgramWeeks.forEach { week ->
                             val weekKey = week.id.value
                             val weekIsCurrent = week.weekStartDate == currentMonday
                             val weekIsPast = week.weekStartDate < lifecycleState.today
@@ -410,7 +404,7 @@ fun ProgramWorkspaceScreen() {
                                     week = week,
                                     isCurrent = weekIsCurrent,
                                     today = lifecycleState.today,
-                                    assignments = dataState.selectedProgramAssignments[week.id.value] ?: emptyList(),
+                                    assignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList(),
                                     onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
                                     onOpenPartEditor = { partEditorVM.openPartEditor(week) },
                                     onRequestClearWeekAssignments = {
@@ -421,8 +415,8 @@ fun ProgramWorkspaceScreen() {
                                             weekStartDate = week.weekStartDate,
                                             weeklyPartId = partId,
                                             slot = slot,
-                                            selectedProgramWeeks = dataState.selectedProgramWeeks,
-                                            selectedProgramAssignments = dataState.selectedProgramAssignments
+                                            selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
+                                            selectedProgramAssignments = lifecycleState.selectedProgramAssignments
                                         )
                                     },
                                     onRemoveAssignment = { personPickerVM.removeAssignment(it, onSuccess = reloadData) },

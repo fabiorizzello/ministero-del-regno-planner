@@ -97,7 +97,6 @@ import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.PartEditorViewModel
 import org.example.project.ui.workspace.PersonPickerViewModel
 import org.example.project.ui.workspace.ProgramLifecycleViewModel
-import org.example.project.ui.workspace.ProgramWorkspaceViewModel
 import org.example.project.ui.workspace.SchemaManagementViewModel
 import org.koin.dsl.module
 
@@ -220,31 +219,6 @@ val appModule = module {
         )
     }
     factory {
-        ProgramWorkspaceViewModel(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            caricaProgrammiAttivi = get(),
-            creaProssimoProgramma = get(),
-            eliminaProgrammaFuturo = get(),
-            generaSettimaneProgramma = get(),
-            autoAssegnaProgramma = get(),
-            stampaProgramma = get(),
-            aggiornaSchemi = get(),
-            aggiornaProgrammaDaSchemi = get(),
-            schemaTemplateStore = get(),
-            weekPlanStore = get(),
-            cercaTipiParte = get(),
-            caricaAssegnazioni = get(),
-            assegnaPersona = get(),
-            rimuoviAssegnazione = get(),
-            suggerisciProclamatori = get(),
-            caricaImpostazioniAssegnatore = get(),
-            salvaImpostazioniAssegnatore = get(),
-            svuotaAssegnazioni = get(),
-            rimuoviAssegnazioniSettimana = get(),
-            settings = get(),
-        )
-    }
-    factory {
         ProgramLifecycleViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             caricaProgrammiAttivi = get(),
@@ -252,6 +226,9 @@ val appModule = module {
             eliminaProgrammaFuturo = get(),
             generaSettimaneProgramma = get(),
             schemaTemplateStore = get(),
+            weekPlanStore = get(),
+            caricaAssegnazioni = get(),
+            cercaTipiParte = get(),
         )
     }
     factory {

@@ -3,11 +3,15 @@ package org.example.project.ui.workspace
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
+import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
@@ -15,6 +19,10 @@ import org.example.project.feature.programs.application.GeneraSettimaneProgramma
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
+import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.domain.PartType
+import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
@@ -29,6 +37,9 @@ internal data class ProgramLifecycleUiState(
     val currentProgram: ProgramMonth? = null,
     val futureProgram: ProgramMonth? = null,
     val selectedProgramId: String? = null,
+    val selectedProgramWeeks: List<WeekPlan> = emptyList(),
+    val selectedProgramAssignments: Map<String, List<AssignmentWithPerson>> = emptyMap(),
+    val partTypes: List<PartType> = emptyList(),
     val isCreatingProgram: Boolean = false,
     val isDeletingSelectedProgram: Boolean = false,
     val notice: FeedbackBannerModel? = null,
@@ -45,6 +56,9 @@ internal class ProgramLifecycleViewModel(
     private val eliminaProgrammaFuturo: EliminaProgrammaFuturoUseCase,
     private val generaSettimaneProgramma: GeneraSettimaneProgrammaUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
+    private val weekPlanStore: WeekPlanStore,
+    private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
+    private val cercaTipiParte: CercaTipiParteUseCase,
 ) {
     private val _state = MutableStateFlow(ProgramLifecycleUiState())
     val state: StateFlow<ProgramLifecycleUiState> = _state.asStateFlow()
@@ -53,6 +67,7 @@ internal class ProgramLifecycleViewModel(
 
     fun onScreenEntered() {
         loadProgramsAndWeeks()
+        loadPartTypes()
     }
 
     fun dismissNotice() {
@@ -61,6 +76,14 @@ internal class ProgramLifecycleViewModel(
 
     fun selectProgram(programId: String) {
         _state.update { it.copy(selectedProgramId = programId) }
+        loadWeeksForSelectedProgram()
+    }
+
+    private fun loadPartTypes() {
+        scope.launch {
+            val partTypes = cercaTipiParte()
+            _state.update { it.copy(partTypes = partTypes) }
+        }
     }
 
     fun createNextProgram() {
@@ -140,6 +163,31 @@ internal class ProgramLifecycleViewModel(
                     caricaProgrammiAttivi(today)
                 },
             )
+            loadWeeksForSelectedProgram()
         }
+    }
+
+    private fun loadWeeksForSelectedProgram() {
+        scope.launch {
+            val selectedProgramId = _state.value.selectedProgramId ?: return@launch
+            val weeks = weekPlanStore.listByProgram(selectedProgramId)
+            val assignmentsByWeek = loadAssignmentsByWeek(weeks)
+            _state.update {
+                it.copy(
+                    selectedProgramWeeks = weeks,
+                    selectedProgramAssignments = assignmentsByWeek,
+                )
+            }
+        }
+    }
+
+    private suspend fun loadAssignmentsByWeek(weeks: List<WeekPlan>): Map<String, List<AssignmentWithPerson>> = coroutineScope {
+        if (weeks.isEmpty()) return@coroutineScope emptyMap()
+        val deferredByWeekId = weeks.associate { week ->
+            week.id.value to async {
+                runCatching { caricaAssegnazioni(week.weekStartDate) }.getOrElse { emptyList() }
+            }
+        }
+        deferredByWeekId.mapValues { (_, deferred) -> deferred.await() }
     }
 }
