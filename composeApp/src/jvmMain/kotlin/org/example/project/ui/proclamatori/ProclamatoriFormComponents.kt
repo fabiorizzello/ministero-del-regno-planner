@@ -289,11 +289,19 @@ internal fun ProclamatoriFormContentForm(
                         Text(if (isNew) "Salva" else "Aggiorna")
                     }
                 }
-                TextButton(
-                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                    onClick = onCancel,
-                    enabled = !isLoading,
-                ) { Text("Annulla") }
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                        positioning = TooltipAnchorPosition.Above,
+                    ),
+                    tooltip = { PlainTooltip { Text("Esc per annullare") } },
+                    state = rememberTooltipState(),
+                ) {
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        onClick = onCancel,
+                        enabled = !isLoading,
+                    ) { Text("Annulla") }
+                }
             }
 
             if (formError != null) {
