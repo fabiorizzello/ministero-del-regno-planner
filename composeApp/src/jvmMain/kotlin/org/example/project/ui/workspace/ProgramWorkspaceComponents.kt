@@ -493,14 +493,21 @@ internal fun PartEditorDialog(
 
 @Composable
 internal fun ProgramHeader(
-    state: ProgramWorkspaceUiState,
+    currentProgram: org.example.project.feature.programs.domain.ProgramMonth?,
+    futureProgram: org.example.project.feature.programs.domain.ProgramMonth?,
+    selectedProgramId: String?,
+    hasPrograms: Boolean,
+    canCreateProgram: Boolean,
+    isCreatingProgram: Boolean,
+    isRefreshingSchemas: Boolean,
+    futureNeedsSchemaRefresh: Boolean,
     onSelectProgram: (String) -> Unit,
     onCreateNextProgram: () -> Unit,
     onRefreshSchemas: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
-    val current = state.currentProgram
-    val future = state.futureProgram
+    val current = currentProgram
+    val future = futureProgram
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -527,8 +534,8 @@ internal fun ProgramHeader(
                 )
                 TextButton(
                     onClick = onRefreshSchemas,
-                    enabled = !state.isRefreshingSchemas,
-                    modifier = Modifier.handCursorOnHover(enabled = !state.isRefreshingSchemas),
+                    enabled = !isRefreshingSchemas,
+                    modifier = Modifier.handCursorOnHover(enabled = !isRefreshingSchemas),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Refresh,
@@ -536,10 +543,10 @@ internal fun ProgramHeader(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(spacing.xs))
-                    Text(if (state.isRefreshingSchemas) "Aggiornamento..." else "Aggiorna Schemi")
+                    Text(if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna Schemi")
                 }
             }
-            if (!state.hasPrograms) {
+            if (!hasPrograms) {
                 Text(
                     "Nessun programma disponibile. Crea il primo programma.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -552,7 +559,7 @@ internal fun ProgramHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 current?.let {
-                    val isSelected = state.selectedProgramId == it.id.value
+                    val isSelected = selectedProgramId == it.id.value
                     FilledTonalButton(
                         onClick = { onSelectProgram(it.id.value) },
                         enabled = !isSelected,
@@ -568,7 +575,7 @@ internal fun ProgramHeader(
                     }
                 }
                 future?.let {
-                    val isSelected = state.selectedProgramId == it.id.value
+                    val isSelected = selectedProgramId == it.id.value
                     FilledTonalButton(
                         onClick = { onSelectProgram(it.id.value) },
                         enabled = !isSelected,
@@ -582,7 +589,7 @@ internal fun ProgramHeader(
                     ) {
                         Text("Prossimo ${formatMonthYearLabel(it.month, it.year)}")
                     }
-                    if (state.futureNeedsSchemaRefresh) {
+                    if (futureNeedsSchemaRefresh) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -596,11 +603,11 @@ internal fun ProgramHeader(
                         }
                     }
                 }
-                if (state.canCreateProgram) {
+                if (canCreateProgram) {
                     FilledTonalButton(
                         onClick = onCreateNextProgram,
-                        enabled = !state.isCreatingProgram,
-                        modifier = Modifier.handCursorOnHover(enabled = !state.isCreatingProgram),
+                        enabled = !isCreatingProgram,
+                        modifier = Modifier.handCursorOnHover(enabled = !isCreatingProgram),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -608,7 +615,7 @@ internal fun ProgramHeader(
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(spacing.xs))
-                        Text(if (state.isCreatingProgram) "Creazione..." else "Crea prossimo mese")
+                        Text(if (isCreatingProgram) "Creazione..." else "Crea prossimo mese")
                     }
                 }
             }

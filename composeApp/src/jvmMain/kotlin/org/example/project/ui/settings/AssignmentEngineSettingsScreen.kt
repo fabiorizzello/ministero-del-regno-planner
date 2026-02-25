@@ -26,14 +26,14 @@ import androidx.compose.ui.unit.dp
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.AssignmentSettingsUiState
-import org.example.project.ui.workspace.ProgramWorkspaceViewModel
 import org.koin.core.context.GlobalContext
 
 @Composable
 fun AssignmentEngineSettingsScreen() {
-    val viewModel = remember { GlobalContext.get().get<ProgramWorkspaceViewModel>() }
-    val state by viewModel.state.collectAsState()
+    val viewModel = remember { GlobalContext.get().get<AssignmentManagementViewModel>() }
+    val state by viewModel.uiState.collectAsState()
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
@@ -108,6 +108,14 @@ private fun AssignmentEngineSettingsCard(
                     label = { Text("Peso conduzione") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
+                    isError = state.leadWeightError != null,
+                    supportingText = {
+                        if (state.leadWeightError != null) {
+                            Text(state.leadWeightError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 1")
+                        }
+                    },
                 )
                 OutlinedTextField(
                     value = state.assistWeight,
@@ -115,6 +123,14 @@ private fun AssignmentEngineSettingsCard(
                     label = { Text("Peso assistenza") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
+                    isError = state.assistWeightError != null,
+                    supportingText = {
+                        if (state.assistWeightError != null) {
+                            Text(state.assistWeightError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 1")
+                        }
+                    },
                 )
             }
             Row(
@@ -127,6 +143,14 @@ private fun AssignmentEngineSettingsCard(
                     label = { Text("Cooldown conduzione (sett.)") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
+                    isError = state.leadCooldownError != null,
+                    supportingText = {
+                        if (state.leadCooldownError != null) {
+                            Text(state.leadCooldownError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 0 (settimane)")
+                        }
+                    },
                 )
                 OutlinedTextField(
                     value = state.assistCooldownWeeks,
@@ -134,6 +158,14 @@ private fun AssignmentEngineSettingsCard(
                     label = { Text("Cooldown assistenza (sett.)") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
+                    isError = state.assistCooldownError != null,
+                    supportingText = {
+                        if (state.assistCooldownError != null) {
+                            Text(state.assistCooldownError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 0 (settimane)")
+                        }
+                    },
                 )
             }
             Row(
