@@ -29,11 +29,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +64,7 @@ private const val NAME_MAX_LENGTH = 100
  *
  * Includes duplicate checking and validation error display.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProclamatoriFormContentForm(
     route: ProclamatoriRoute,
@@ -267,12 +274,20 @@ internal fun ProclamatoriFormContentForm(
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = canSubmitForm),
-                    onClick = onSubmit,
-                    enabled = canSubmitForm,
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                        positioning = TooltipAnchorPosition.Above,
+                    ),
+                    tooltip = { PlainTooltip { Text("Invio per salvare") } },
+                    state = rememberTooltipState(),
                 ) {
-                    Text(if (isNew) "Salva" else "Aggiorna")
+                    Button(
+                        modifier = Modifier.handCursorOnHover(enabled = canSubmitForm),
+                        onClick = onSubmit,
+                        enabled = canSubmitForm,
+                    ) {
+                        Text(if (isNew) "Salva" else "Aggiorna")
+                    }
                 }
                 TextButton(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
