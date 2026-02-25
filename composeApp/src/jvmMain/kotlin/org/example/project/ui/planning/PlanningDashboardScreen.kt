@@ -259,22 +259,13 @@ private fun PlanningAlertPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (backgroundColor, borderColor) = when (alertType) {
-        AlertType.COVERAGE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f) to
-                MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
-        AlertType.COOLDOWN_VIOLATION -> Color(0xFFFF9800).copy(alpha = 0.25f) to
-                Color(0xFFFF9800).copy(alpha = 0.45f)
-        AlertType.DUPLICATE_ASSIGNMENT -> Color(0xFFFFEB3B).copy(alpha = 0.35f) to
-                Color(0xFFFBC02D).copy(alpha = 0.55f)
-        AlertType.INELIGIBLE_ASSIGNMENT -> Color(0xFFFFC107).copy(alpha = 0.30f) to
-                Color(0xFFFFA000).copy(alpha = 0.50f)
-    }
-
-    val label = when (alertType) {
-        AlertType.COVERAGE -> if (alertCount == 1) "1 settimana da pianificare" else "$alertCount settimane da pianificare"
-        AlertType.COOLDOWN_VIOLATION -> if (alertCount == 1) "1 violazione cooldown" else "$alertCount violazioni cooldown"
-        AlertType.DUPLICATE_ASSIGNMENT -> if (alertCount == 1) "1 assegnazione duplicata" else "$alertCount assegnazioni duplicate"
-        AlertType.INELIGIBLE_ASSIGNMENT -> if (alertCount == 1) "1 assegnazione non idonea" else "$alertCount assegnazioni non idonee"
+    val uiProps = alertType.toUiProperties()
+    val backgroundColor = uiProps.color.copy(alpha = 0.25f)
+    val borderColor = uiProps.color.copy(alpha = 0.45f)
+    val label = if (alertCount == 1) {
+        "1 ${uiProps.titleSingular}"
+    } else {
+        "$alertCount ${uiProps.titlePlural}"
     }
 
     Surface(
