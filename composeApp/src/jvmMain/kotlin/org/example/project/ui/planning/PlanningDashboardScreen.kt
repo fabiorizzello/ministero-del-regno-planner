@@ -576,13 +576,7 @@ private fun AlertTypeSection(
     alerts: List<PlanningAlert>,
 ) {
     val spacing = MaterialTheme.spacing
-
-    val (title, color) = when (alertType) {
-        AlertType.COVERAGE -> "Settimane da pianificare" to MaterialTheme.colorScheme.error
-        AlertType.COOLDOWN_VIOLATION -> "Violazioni periodo di riposo" to Color(0xFFFF9800)
-        AlertType.DUPLICATE_ASSIGNMENT -> "Assegnazioni duplicate" to Color(0xFFFBC02D)
-        AlertType.INELIGIBLE_ASSIGNMENT -> "Assegnazioni non idonee" to Color(0xFFFFA000)
-    }
+    val uiProps = alertType.toUiProperties()
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -590,13 +584,13 @@ private fun AlertTypeSection(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(color),
+                    .background(uiProps.color),
             )
             Spacer(Modifier.width(spacing.xs))
             Text(
-                text = title,
+                text = uiProps.sectionTitle,
                 style = MaterialTheme.typography.titleSmall,
-                color = color,
+                color = uiProps.color,
             )
         }
 
