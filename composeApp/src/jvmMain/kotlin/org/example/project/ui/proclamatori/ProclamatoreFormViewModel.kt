@@ -453,7 +453,6 @@ internal class ProclamatoreFormViewModel(
         return Either.Right(Unit)
     }
 
-
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean {
         return when (sexRule) {
             SexRule.UOMO -> sesso == Sesso.M
