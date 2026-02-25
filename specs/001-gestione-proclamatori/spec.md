@@ -14,8 +14,8 @@ sesso e le impostazioni iniziali di idoneità e sospensione.
 **Why this priority**: È la funzione fondamentale senza cui nessun'altra feature
 (assegnazioni, programmi) può funzionare.
 
-**Independent Test**: Aprire la schermata proclamatori → aggiungere un proclamatore →
-verificare che compaia nell'elenco con i dati corretti.
+**Independent Test**: Aprire la schermata proclamatori → cliccare "Aggiungi" → compilare
+il dialog → salvare → verificare che il nuovo proclamatore compaia nell'elenco.
 
 **Acceptance Scenarios**:
 
@@ -40,8 +40,8 @@ già presente in archivio.
 **Why this priority**: I dati cambiano (errori di trascrizione, cambi di nome) e devono
 poter essere corretti senza eliminare e ricreare il proclamatore.
 
-**Independent Test**: Selezionare un proclamatore → modificare il cognome → salvare →
-verificare che l'elenco mostri il nuovo cognome.
+**Independent Test**: Cliccare su un proclamatore nell'elenco → si apre il dialog →
+modificare il cognome → salvare → verificare che l'elenco mostri il nuovo cognome.
 
 **Acceptance Scenarios**:
 
@@ -136,10 +136,11 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 
 - Nome o cognome con solo spazi: deve essere trattato come vuoto e rifiutato.
 - Import con array proclamatori vuoto: errore "nessun proclamatore da importare".
-- Eliminazione di un proclamatore con assegnazioni storiche: soft delete irreversibile —
-  il proclamatore viene nascosto dall'archivio e non è ripristinabile dall'UI. Il record
-  e le assegnazioni storiche sono conservati nel DB. Non appare nell'elenco nemmeno con
-  il toggle "Mostra sospesi" (i soft-deleted sono invisibili in qualsiasi vista).
+- Eliminazione di un proclamatore: il sistema MUST mostrare un dialog di conferma con
+  avvertimento esplicito ("questa azione è irreversibile") prima di procedere con il
+  soft delete. Solo dopo conferma esplicita dell'utente il proclamatore viene nascosto.
+  Il record e le assegnazioni storiche sono conservati nel DB. I soft-deleted sono
+  invisibili in qualsiasi vista, incluso il toggle "Mostra sospesi".
 
 ## Requirements *(mandatory)*
 
@@ -167,10 +168,16 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   solo quando l'archivio è vuoto.
 - **FR-009**: Il sistema MUST consentire la ricerca proclamatori per termine testuale
   (nome o cognome); termine null restituisce tutti.
+- **FR-011**: Il sistema MUST consentire di definire relazioni familiari tra proclamatori
+  (CONIUGE e GENITORE_FIGLIO) direttamente nel form del proclamatore tramite una sezione
+  "Relazioni familiari" con ricerca per nome. Queste relazioni sono usate dal suggeritore
+  per applicare la regola `SexRule.LIBERO`: slot di sesso diverso sono validi solo se i
+  proclamatori assegnati sono in relazione familiare riconosciuta.
 - **FR-010**: Il sistema MUST implementare l'eliminazione come soft delete irreversibile:
-  il proclamatore viene contrassegnato come eliminato, nascosto da tutte le viste
-  (incluso il toggle "Mostra sospesi") e dalle candidature. Il record e le assegnazioni
-  storiche sono conservati nel DB ma non accessibili né ripristinabili dall'UI.
+  prima dell'eliminazione MUST essere mostrato un dialog di conferma con avvertimento
+  esplicito. Dopo conferma, il proclamatore viene contrassegnato come eliminato, nascosto
+  da tutte le viste (incluso il toggle "Mostra sospesi") e dalle candidature. Il record
+  e le assegnazioni storiche sono conservati nel DB ma non accessibili né ripristinabili.
 
 ### Key Entities
 
@@ -182,6 +189,17 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   `eliminato = false`. Entrambi i flag escludono anche dalle candidature per le assegnazioni.
 - **IdoneitaConduzione**: per-proclamatore per-tipo-parte, flag `canLead`. Determina
   se il proclamatore è candidato allo slot 1 di quel tipo di parte.
+- **RelazioneProclam**: collega due proclamatori con un tipo di relazione familiare.
+  Tipi supportati: `CONIUGE` e `GENITORE_FIGLIO`. Entrambi i tipi sono simmetrici:
+  se A è legato a B, B è legato ad A. La relazione non impone ruoli — entrambi i
+  proclamatori possono essere assegnati come conduttore (slot 1) o assistente (slot ≥ 2).
+  Usata dal suggeritore per applicare la regola `SexRule.LIBERO`.
+
+**Regola dominio critica — SexRule.LIBERO reinterpretata**:
+`SexRule.LIBERO` NON significa "qualsiasi persona". Significa: i proclamatori assegnati
+agli slot di quella parte DEVONO essere dello stesso sesso OPPURE, se di sesso diverso,
+DEVONO essere legati da una relazione familiare riconosciuta (coniugi o genitore/figlio).
+Questa regola si applica alla combinazione degli slot, non al singolo proclamatore.
 
 ## Success Criteria *(mandatory)*
 
@@ -208,3 +226,9 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - Q: Dove si configura idoneità nell'UI: form unico o sezione separata? → A: Form unico — anagrafica e idoneità nello stesso form di creazione/modifica.
 - Q: Come accede l'utente ai proclamatori sospesi per rimuovere la sospensione? → A: Toggle "Mostra sospesi" nell'elenco principale; i sospesi appaiono con indicatore visivo.
 - Q: Il soft delete è reversibile dall'UI? → A: No — irreversibile; i soft-deleted sono invisibili in qualsiasi vista.
+- Q: Scopo relazioni familiari e reinterpretazione SexRule.LIBERO? → A: SexRule.LIBERO = stesso sesso OPPURE sesso diverso solo se coniugi o genitore/figlio. Le relazioni familiari sono necessarie per applicare questa regola nel suggeritore.
+- Q: Tipi di relazione familiare da modellare? → A: Entrambi — CONIUGE (simmetrica) e GENITORE_FIGLIO (direzionale).
+- Q: Dove si gestiscono le relazioni familiari nell'UI? → A: Nel form del proclamatore — sezione "Relazioni familiari" con ricerca per nome.
+- Q: GENITORE_FIGLIO è direzionale? → A: No, simmetrica come CONIUGE. Nessuna gerarchia di ruoli — entrambi possono fare conduttore o assistente.
+- Q: Navigazione UI elenco → form proclamatore? → A: Dialog/modal — click sulla riga apre un dialog con il form completo.
+- Q: Conferma prima del soft delete? → A: Sì — dialog di conferma con avvertimento "azione irreversibile".
