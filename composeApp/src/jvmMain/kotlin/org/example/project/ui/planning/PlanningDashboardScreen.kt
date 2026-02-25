@@ -68,6 +68,43 @@ private val COMPACT_GRID_BREAKPOINT = 900.dp
 private val WIDE_GRID_BREAKPOINT = 1360.dp
 private val WEEK_CARD_MIN_HEIGHT = 228.dp
 
+private data class AlertTypeUiProperties(
+    val color: Color,
+    val titleSingular: String,
+    val titlePlural: String,
+    val sectionTitle: String,
+)
+
+@Composable
+private fun AlertType.toUiProperties(): AlertTypeUiProperties {
+    return when (this) {
+        AlertType.COVERAGE -> AlertTypeUiProperties(
+            color = MaterialTheme.colorScheme.error,
+            titleSingular = "settimana da pianificare",
+            titlePlural = "settimane da pianificare",
+            sectionTitle = "Settimane da pianificare",
+        )
+        AlertType.COOLDOWN_VIOLATION -> AlertTypeUiProperties(
+            color = SemanticColors.orange,
+            titleSingular = "violazione cooldown",
+            titlePlural = "violazioni cooldown",
+            sectionTitle = "Violazioni periodo di riposo",
+        )
+        AlertType.DUPLICATE_ASSIGNMENT -> AlertTypeUiProperties(
+            color = SemanticColors.yellow,
+            titleSingular = "assegnazione duplicata",
+            titlePlural = "assegnazioni duplicate",
+            sectionTitle = "Assegnazioni duplicate",
+        )
+        AlertType.INELIGIBLE_ASSIGNMENT -> AlertTypeUiProperties(
+            color = SemanticColors.orangeDeep,
+            titleSingular = "assegnazione non idonea",
+            titlePlural = "assegnazioni non idonee",
+            sectionTitle = "Assegnazioni non idonee",
+        )
+    }
+}
+
 @Composable
 fun PlanningDashboardScreen() {
     val viewModel = GlobalContext.get().get<PlanningDashboardViewModel>()
