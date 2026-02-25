@@ -46,12 +46,10 @@ internal fun mapPartTypeExtendedRow(
             sort_order = sort_order,
         ),
         active = active == 1L,
-        currentRevisionId = current_revision_id,
     )
 }
 
 internal data class PartTypeExtendedRecord(
     val partType: PartType,
     val active: Boolean,
-    val currentRevisionId: String?,
 )

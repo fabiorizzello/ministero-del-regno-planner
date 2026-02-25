@@ -21,6 +21,9 @@ composeApp/logs/
 .gradle-home/
 .worktrees/
 
+# Spec Kit - avoid leaking agent credentials/tokens
+.claude/settings.local.json
+
 # Auto Claude data directory
 .auto-claude/
 
