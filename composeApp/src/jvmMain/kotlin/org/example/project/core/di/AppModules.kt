@@ -93,7 +93,11 @@ import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.planning.PlanningDashboardViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
-import org.example.project.ui.workspace.ProgramWorkspaceViewModel
+import org.example.project.ui.workspace.AssignmentManagementViewModel
+import org.example.project.ui.workspace.PartEditorViewModel
+import org.example.project.ui.workspace.PersonPickerViewModel
+import org.example.project.ui.workspace.ProgramLifecycleViewModel
+import org.example.project.ui.workspace.SchemaManagementViewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -215,28 +219,52 @@ val appModule = module {
         )
     }
     factory {
-        ProgramWorkspaceViewModel(
+        ProgramLifecycleViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             caricaProgrammiAttivi = get(),
             creaProssimoProgramma = get(),
             eliminaProgrammaFuturo = get(),
             generaSettimaneProgramma = get(),
-            autoAssegnaProgramma = get(),
-            stampaProgramma = get(),
+            schemaTemplateStore = get(),
+            weekPlanStore = get(),
+            caricaAssegnazioni = get(),
+            cercaTipiParte = get(),
+        )
+    }
+    factory {
+        SchemaManagementViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             aggiornaSchemi = get(),
             aggiornaProgrammaDaSchemi = get(),
             schemaTemplateStore = get(),
-            weekPlanStore = get(),
-            cercaTipiParte = get(),
-            caricaAssegnazioni = get(),
-            assegnaPersona = get(),
-            rimuoviAssegnazione = get(),
-            suggerisciProclamatori = get(),
+            settings = get(),
+        )
+    }
+    factory {
+        AssignmentManagementViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            autoAssegnaProgramma = get(),
             caricaImpostazioniAssegnatore = get(),
             salvaImpostazioniAssegnatore = get(),
             svuotaAssegnazioni = get(),
             rimuoviAssegnazioniSettimana = get(),
-            settings = get(),
+            stampaProgramma = get(),
+        )
+    }
+    factory {
+        PersonPickerViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            assegnaPersona = get(),
+            rimuoviAssegnazione = get(),
+            suggerisciProclamatori = get(),
+            caricaAssegnazioni = get(),
+        )
+    }
+    factory {
+        PartEditorViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            weekPlanStore = get(),
+            cercaTipiParte = get(),
         )
     }
     factory {

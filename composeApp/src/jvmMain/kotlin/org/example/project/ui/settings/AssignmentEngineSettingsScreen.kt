@@ -26,14 +26,14 @@ import androidx.compose.ui.unit.dp
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.AssignmentSettingsUiState
-import org.example.project.ui.workspace.ProgramWorkspaceViewModel
 import org.koin.core.context.GlobalContext
 
 @Composable
 fun AssignmentEngineSettingsScreen() {
-    val viewModel = remember { GlobalContext.get().get<ProgramWorkspaceViewModel>() }
-    val state by viewModel.state.collectAsState()
+    val viewModel = remember { GlobalContext.get().get<AssignmentManagementViewModel>() }
+    val state by viewModel.uiState.collectAsState()
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }

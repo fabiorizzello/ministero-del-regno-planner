@@ -73,52 +73,76 @@ import java.time.temporal.TemporalAdjusters
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProgramWorkspaceScreen() {
-    val viewModel = remember { GlobalContext.get().get<ProgramWorkspaceViewModel>() }
-    val state by viewModel.state.collectAsState()
+    // New focused ViewModels
+    val lifecycleVM = remember { GlobalContext.get().get<ProgramLifecycleViewModel>() }
+    val schemaVM = remember { GlobalContext.get().get<SchemaManagementViewModel>() }
+    val assignmentVM = remember { GlobalContext.get().get<AssignmentManagementViewModel>() }
+    val personPickerVM = remember { GlobalContext.get().get<PersonPickerViewModel>() }
+    val partEditorVM = remember { GlobalContext.get().get<PartEditorViewModel>() }
+
+    val lifecycleState by lifecycleVM.state.collectAsState()
+    val schemaState by schemaVM.state.collectAsState()
+    val assignmentState by assignmentVM.uiState.collectAsState()
+    val personPickerState by personPickerVM.state.collectAsState()
+    val partEditorState by partEditorVM.state.collectAsState()
+
     val spacing = MaterialTheme.spacing
     val weekListState = rememberLazyListState()
 
-    LaunchedEffect(Unit) { viewModel.onScreenEntered() }
+    LaunchedEffect(Unit) {
+        lifecycleVM.onScreenEntered()
+        assignmentVM.onScreenEntered()
+    }
 
-    if (state.isPickerOpen) {
-        val pickedPart = state.selectedProgramWeeks.firstNotNullOfOrNull { week ->
-            week.parts.find { it.id == state.pickerWeeklyPartId }
+    // Keep schema VM in sync with lifecycle VM
+    LaunchedEffect(lifecycleState.selectedProgramId, lifecycleState.futureProgram) {
+        schemaVM.updateSelection(lifecycleState.selectedProgramId, lifecycleState.futureProgram)
+    }
+
+    // Reload callback for operations that modify data
+    val reloadData = {
+        lifecycleVM.loadProgramsAndWeeks()
+    }
+
+    if (personPickerState.isPickerOpen) {
+        val pickedPart = lifecycleState.selectedProgramWeeks.firstNotNullOfOrNull { week ->
+            week.parts.find { it.id == personPickerState.pickerWeeklyPartId }
         }
         if (pickedPart != null) {
             val slotLabel = if (pickedPart.partType.peopleCount > 1) {
-                if (state.pickerSlot == 1) "Proclamatore" else "Assistente"
+                if (personPickerState.pickerSlot == 1) "Proclamatore" else "Assistente"
             } else {
                 null
             }
             PersonPickerDialog(
                 partLabel = pickedPart.partType.label,
                 slotLabel = slotLabel,
-                searchTerm = state.pickerSearchTerm,
-                sortGlobal = state.pickerSortGlobal,
-                suggestions = state.pickerSuggestions,
-                isLoading = state.isPickerLoading,
-                isAssigning = state.isAssigning,
-                onSearchChange = { viewModel.setPickerSearchTerm(it) },
-                onToggleSort = { viewModel.togglePickerSort() },
-                onAssign = { viewModel.confirmAssignment(it) },
-                onDismiss = { viewModel.closePersonPicker() },
+                searchTerm = personPickerState.pickerSearchTerm,
+                sortGlobal = personPickerState.pickerSortGlobal,
+                suggestions = personPickerState.pickerSuggestions,
+                isLoading = personPickerState.isPickerLoading,
+                isAssigning = personPickerState.isAssigning,
+                onSearchChange = { personPickerVM.setPickerSearchTerm(it) },
+                onToggleSort = { personPickerVM.togglePickerSort() },
+                onAssign = { personPickerVM.confirmAssignment(it, onSuccess = reloadData) },
+                onDismiss = { personPickerVM.closePersonPicker() },
             )
         }
     }
 
-    if (state.isPartEditorOpen) {
-        val editingWeek = state.selectedProgramWeeks.firstOrNull { it.id.value == state.partEditorWeekId }
+    if (partEditorState.isPartEditorOpen) {
+        val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
             PartEditorDialog(
                 weekLabel = formatWeekRangeLabel(editingWeek.weekStartDate, editingWeek.weekStartDate.plusDays(6)),
-                parts = state.partEditorParts,
-                availablePartTypes = state.editablePartTypes,
-                isSaving = state.isSavingPartEditor,
-                onAddPart = { viewModel.addPartToEditor(it.id) },
-                onMovePart = { fromIndex, toIndex -> viewModel.movePartInEditor(fromIndex, toIndex) },
-                onRemovePart = { viewModel.removePartFromEditor(it.id) },
-                onSave = { viewModel.savePartEditor() },
-                onDismiss = { viewModel.dismissPartEditor() },
+                parts = partEditorState.partEditorParts,
+                availablePartTypes = partEditorState.editablePartTypes,
+                isSaving = partEditorState.isSavingPartEditor,
+                onAddPart = { partEditorVM.addPartToEditor(it.id) },
+                onMovePart = { fromIndex, toIndex -> partEditorVM.movePartInEditor(fromIndex, toIndex) },
+                onRemovePart = { partEditorVM.removePartFromEditor(it.id) },
+                onSave = { partEditorVM.savePartEditor(onSuccess = reloadData) },
+                onDismiss = { partEditorVM.dismissPartEditor() },
             )
         }
     }
@@ -129,9 +153,17 @@ fun ProgramWorkspaceScreen() {
             .padding(spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
+        // Show notice from any ViewModel (first non-null wins)
+        val currentNotice = lifecycleState.notice ?: schemaState.notice ?: assignmentState.notice ?: personPickerState.notice ?: partEditorState.notice
         FeedbackBanner(
-            model = state.notice,
-            onDismissRequest = { viewModel.dismissNotice() },
+            model = currentNotice,
+            onDismissRequest = {
+                lifecycleVM.dismissNotice()
+                schemaVM.dismissNotice()
+                assignmentVM.dismissNotice()
+                personPickerVM.dismissNotice()
+                partEditorVM.dismissNotice()
+            },
         )
 
         Row(
@@ -140,8 +172,12 @@ fun ProgramWorkspaceScreen() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Button(
-                onClick = { viewModel.autoAssignSelectedProgram() },
-                enabled = state.selectedProgramId != null && !state.isAutoAssigning,
+                onClick = {
+                    lifecycleState.selectedProgramId?.let { programId ->
+                        assignmentVM.autoAssignSelectedProgram(programId, lifecycleState.today, onSuccess = reloadData)
+                    }
+                },
+                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
                 modifier = Modifier.handCursorOnHover(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary,
@@ -150,11 +186,15 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
-                Text(if (state.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
+                Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
             }
             FilledTonalButton(
-                onClick = { viewModel.printSelectedProgram() },
-                enabled = state.selectedProgramId != null && !state.isPrintingProgram,
+                onClick = {
+                    lifecycleState.selectedProgramId?.let { programId ->
+                        assignmentVM.printSelectedProgram(programId)
+                    }
+                },
+                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isPrintingProgram,
                 modifier = Modifier.handCursorOnHover(),
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -163,13 +203,13 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
-                Text(if (state.isPrintingProgram) "Stampa..." else "Stampa programma")
+                Text(if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa programma")
             }
             Spacer(Modifier.weight(1f))
-            if (state.canDeleteSelectedProgram) {
+            if (lifecycleState.canDeleteSelectedProgram) {
                 OutlinedButton(
-                    onClick = { viewModel.deleteSelectedProgram() },
-                    enabled = !state.isDeletingSelectedProgram,
+                    onClick = { lifecycleVM.deleteSelectedProgram() },
+                    enabled = !lifecycleState.isDeletingSelectedProgram,
                     modifier = Modifier.handCursorOnHover(),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -179,12 +219,16 @@ fun ProgramWorkspaceScreen() {
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(spacing.xs))
-                    Text(if (state.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
+                    Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
                 }
             }
             OutlinedButton(
-                onClick = { viewModel.requestClearAssignments() },
-                enabled = state.selectedProgramId != null && !state.isClearingAssignments,
+                onClick = {
+                    lifecycleState.selectedProgramId?.let { programId ->
+                        assignmentVM.requestClearAssignments(programId, lifecycleState.today)
+                    }
+                },
+                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
                 modifier = Modifier.handCursorOnHover(),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -194,18 +238,25 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
-                Text(if (state.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
+                Text(if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
             }
         }
 
         ProgramHeader(
-            state = state,
-            onSelectProgram = { viewModel.selectProgram(it) },
-            onCreateNextProgram = { viewModel.createNextProgram() },
-            onRefreshSchemas = { viewModel.refreshSchemasAndProgram() },
+            currentProgram = lifecycleState.currentProgram,
+            futureProgram = lifecycleState.futureProgram,
+            selectedProgramId = lifecycleState.selectedProgramId,
+            hasPrograms = lifecycleState.hasPrograms,
+            canCreateProgram = lifecycleState.canCreateProgram,
+            isCreatingProgram = lifecycleState.isCreatingProgram,
+            isRefreshingSchemas = schemaState.isRefreshingSchemas,
+            futureNeedsSchemaRefresh = schemaState.futureNeedsSchemaRefresh,
+            onSelectProgram = { lifecycleVM.selectProgram(it) },
+            onCreateNextProgram = { lifecycleVM.createNextProgram() },
+            onRefreshSchemas = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
         )
 
-        if (state.autoAssignUnresolved.isNotEmpty()) {
+        if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
@@ -218,7 +269,7 @@ fun ProgramWorkspaceScreen() {
                     verticalArrangement = Arrangement.spacedBy(spacing.xs),
                 ) {
                     Text("Slot non assegnati", style = MaterialTheme.typography.titleSmall)
-                    state.autoAssignUnresolved.forEach { unresolved ->
+                    assignmentState.autoAssignUnresolved.forEach { unresolved ->
                         val weekLabel = formatWeekRangeLabel(unresolved.weekStartDate, unresolved.weekStartDate.plusDays(6))
                         Text(
                             "• $weekLabel | ${unresolved.partLabel} slot ${unresolved.slot}: ${unresolved.reason}",
@@ -229,45 +280,51 @@ fun ProgramWorkspaceScreen() {
             }
         }
 
-        state.clearAssignmentsConfirm?.let { count ->
+        assignmentState.clearAssignmentsConfirm?.let { count ->
             AlertDialog(
-                onDismissRequest = { viewModel.dismissClearAssignments() },
+                onDismissRequest = { assignmentVM.dismissClearAssignments() },
                 title = { Text("Svuota assegnazioni") },
                 text = {
                     Text("Verranno rimosse $count assegnazioni dalle settimane correnti e successive. Continuare?")
                 },
                 confirmButton = {
                     TextButton(
-                        onClick = { viewModel.confirmClearAssignments() },
+                        onClick = {
+                            lifecycleState.selectedProgramId?.let { programId ->
+                                assignmentVM.confirmClearAssignments(programId, lifecycleState.today, onSuccess = reloadData)
+                            }
+                        },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     ) { Text("Svuota") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { viewModel.dismissClearAssignments() }) { Text("Annulla") }
+                    TextButton(onClick = { assignmentVM.dismissClearAssignments() }) { Text("Annulla") }
                 },
             )
         }
 
-        state.clearWeekAssignmentsConfirm?.let { (weekId, count) ->
-            val week = state.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
+        assignmentState.clearWeekAssignmentsConfirm?.let { (weekId, count) ->
+            val week = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == weekId }
             if (week != null) {
                 val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
                 AlertDialog(
-                    onDismissRequest = { viewModel.dismissClearWeekAssignments() },
+                    onDismissRequest = { assignmentVM.dismissClearWeekAssignments() },
                     title = { Text("Rimuovi assegnazioni settimana") },
                     text = {
                         Text("Verranno rimosse $count assegnazioni dalla settimana $weekLabel. Continuare?")
                     },
                     confirmButton = {
                         TextButton(
-                            onClick = { viewModel.confirmClearWeekAssignments() },
+                            onClick = {
+                                assignmentVM.confirmClearWeekAssignments(week.weekStartDate, count, onSuccess = reloadData)
+                            },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.handCursorOnHover(),
                         ) { Text("Rimuovi") }
                     },
                     dismissButton = {
                         TextButton(
-                            onClick = { viewModel.dismissClearWeekAssignments() },
+                            onClick = { assignmentVM.dismissClearWeekAssignments() },
                             modifier = Modifier.handCursorOnHover(),
                         ) { Text("Annulla") }
                     },
@@ -275,9 +332,9 @@ fun ProgramWorkspaceScreen() {
             }
         }
 
-        state.schemaRefreshPreview?.let { preview ->
+        schemaState.schemaRefreshPreview?.let { preview ->
             AlertDialog(
-                onDismissRequest = { viewModel.dismissSchemaRefresh() },
+                onDismissRequest = { schemaVM.dismissSchemaRefresh() },
                 title = { Text("Conferma aggiornamento schemi") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
@@ -292,21 +349,21 @@ fun ProgramWorkspaceScreen() {
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.confirmSchemaRefresh() }) { Text("Aggiorna") }
+                    TextButton(onClick = { schemaVM.confirmSchemaRefresh(onComplete = reloadData) }) { Text("Aggiorna") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { viewModel.dismissSchemaRefresh() }) { Text("Annulla") }
+                    TextButton(onClick = { schemaVM.dismissSchemaRefresh() }) { Text("Annulla") }
                 },
             )
         }
 
-        if (state.isLoading) {
+        if (lifecycleState.isLoading) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 CircularProgressIndicator()
             }
         } else {
-            val currentMonday = remember(state.today) {
-                state.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val currentMonday = remember(lifecycleState.today) {
+                lifecycleState.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             }
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -316,7 +373,7 @@ fun ProgramWorkspaceScreen() {
                         .fillMaxSize()
                         .padding(end = 12.dp),
                 ) {
-                    if (state.selectedProgramWeeks.isEmpty()) {
+                    if (lifecycleState.selectedProgramWeeks.isEmpty()) {
                         item(key = "empty-weeks") {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -332,10 +389,10 @@ fun ProgramWorkspaceScreen() {
                             }
                         }
                     } else {
-                        state.selectedProgramWeeks.forEach { week ->
+                        lifecycleState.selectedProgramWeeks.forEach { week ->
                             val weekKey = week.id.value
                             val weekIsCurrent = week.weekStartDate == currentMonday
-                            val weekIsPast = week.weekStartDate < state.today
+                            val weekIsPast = week.weekStartDate < lifecycleState.today
                             stickyHeader(key = "week-header-$weekKey") {
                                 ProgramWeekStickyHeader(
                                     week = week,
@@ -347,15 +404,23 @@ fun ProgramWorkspaceScreen() {
                                 ProgramWeekCard(
                                     week = week,
                                     isCurrent = weekIsCurrent,
-                                    today = state.today,
-                                    assignments = state.selectedProgramAssignments[week.id.value] ?: emptyList(),
-                                    onReactivate = { viewModel.reactivateWeek(week) },
-                                    onOpenPartEditor = { viewModel.openPartEditor(week) },
-                                    onRequestClearWeekAssignments = { viewModel.requestClearWeekAssignments(week.id.value) },
-                                    onAssignSlot = { partId, slot ->
-                                        viewModel.openPersonPicker(week.weekStartDate, partId, slot)
+                                    today = lifecycleState.today,
+                                    assignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList(),
+                                    onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
+                                    onOpenPartEditor = { partEditorVM.openPartEditor(week) },
+                                    onRequestClearWeekAssignments = {
+                                        assignmentVM.requestClearWeekAssignments(week.id.value, week.weekStartDate)
                                     },
-                                    onRemoveAssignment = { viewModel.removeAssignment(it) },
+                                    onAssignSlot = { partId, slot ->
+                                        personPickerVM.openPersonPicker(
+                                            weekStartDate = week.weekStartDate,
+                                            weeklyPartId = partId,
+                                            slot = slot,
+                                            selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
+                                            selectedProgramAssignments = lifecycleState.selectedProgramAssignments
+                                        )
+                                    },
+                                    onRemoveAssignment = { personPickerVM.removeAssignment(it, onSuccess = reloadData) },
                                 )
                             }
                         }
