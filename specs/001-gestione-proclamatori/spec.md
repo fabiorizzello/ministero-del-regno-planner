@@ -72,8 +72,10 @@ tra i candidati suggeriti.
 1. **Given** un proclamatore visibile in elenco, **When** l'utente lo sospende, **Then**
    il proclamatore non appare nell'elenco proclamatori e non viene considerato per le
    assegnazioni.
-2. **Given** un proclamatore sospeso, **When** l'utente rimuove la sospensione, **Then**
-   torna visibile nell'elenco e disponibile per le assegnazioni.
+2. **Given** un proclamatore sospeso, **When** l'utente attiva il filtro "Mostra sospesi"
+   nell'elenco, **Then** il proclamatore appare con indicatore visivo "sospeso"; l'utente
+   può selezionarlo e rimuovere la sospensione, dopodiché torna visibile nell'elenco
+   normale e disponibile per le assegnazioni.
 3. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
    il proclamatore viene ignorato come i soft-deleted.
 
@@ -134,10 +136,10 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 
 - Nome o cognome con solo spazi: deve essere trattato come vuoto e rifiutato.
 - Import con array proclamatori vuoto: errore "nessun proclamatore da importare".
-- Eliminazione di un proclamatore con assegnazioni storiche: soft delete — il proclamatore
-  viene nascosto dall'archivio attivo ma conservato nel DB. Le assegnazioni storiche
-  rimangono intatte e referenziabili. Non viene mostrato nelle liste di candidati né
-  nell'archivio principale.
+- Eliminazione di un proclamatore con assegnazioni storiche: soft delete irreversibile —
+  il proclamatore viene nascosto dall'archivio e non è ripristinabile dall'UI. Il record
+  e le assegnazioni storiche sono conservati nel DB. Non appare nell'elenco nemmeno con
+  il toggle "Mostra sospesi" (i soft-deleted sono invisibili in qualsiasi vista).
 
 ## Requirements *(mandatory)*
 
@@ -152,8 +154,10 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - **FR-004**: Il sistema MUST consentire la modifica di nome, cognome e sesso, con
   ri-verifica del duplicato escludendo il proclamatore stesso.
 - **FR-005**: Il sistema MUST consentire di sospendere e riattivare un proclamatore.
-  Un proclamatore con `sospeso = true` MUST essere: (1) nascosto dall'elenco proclamatori,
+  Un proclamatore con `sospeso = true` MUST essere: (1) nascosto dall'elenco per default,
   (2) escluso da tutti i candidati per le assegnazioni. La sospensione è reversibile.
+  L'elenco MUST fornire un toggle "Mostra sospesi" che, se attivo, visualizza i
+  proclamatori sospesi con un indicatore visivo distinto, permettendone la gestione.
 - **FR-006**: Il sistema MUST consentire di configurare l'idoneità alla conduzione
   per ogni proclamatore su base per-tipo-parte. Un nuovo proclamatore NON ha idoneità
   alla conduzione per nessun tipo di parte — deve essere configurata esplicitamente.
@@ -163,9 +167,10 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   solo quando l'archivio è vuoto.
 - **FR-009**: Il sistema MUST consentire la ricerca proclamatori per termine testuale
   (nome o cognome); termine null restituisce tutti.
-- **FR-010**: Il sistema MUST implementare l'eliminazione come soft delete: il proclamatore
-  viene contrassegnato come eliminato e nascosto da tutte le viste e candidature, ma il
-  record e le sue assegnazioni storiche vengono conservati nel DB.
+- **FR-010**: Il sistema MUST implementare l'eliminazione come soft delete irreversibile:
+  il proclamatore viene contrassegnato come eliminato, nascosto da tutte le viste
+  (incluso il toggle "Mostra sospesi") e dalle candidature. Il record e le assegnazioni
+  storiche sono conservati nel DB ma non accessibili né ripristinabili dall'UI.
 
 ### Key Entities
 
@@ -201,3 +206,5 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - Q: Ruolo del flag `attivo`: serve o va rimosso? → A: Rimosso — sostituito da `sospeso` (temporaneo) e `eliminato` (soft delete permanente).
 - Q: Idoneità conduzione default per nuovo proclamatore? → A: Nessuna — deve essere configurata esplicitamente per ogni tipo di parte.
 - Q: Dove si configura idoneità nell'UI: form unico o sezione separata? → A: Form unico — anagrafica e idoneità nello stesso form di creazione/modifica.
+- Q: Come accede l'utente ai proclamatori sospesi per rimuovere la sospensione? → A: Toggle "Mostra sospesi" nell'elenco principale; i sospesi appaiono con indicatore visivo.
+- Q: Il soft delete è reversibile dall'UI? → A: No — irreversibile; i soft-deleted sono invisibili in qualsiasi vista.
