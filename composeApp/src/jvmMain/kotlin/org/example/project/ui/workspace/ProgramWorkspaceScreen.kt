@@ -184,7 +184,7 @@ fun ProgramWorkspaceScreen() {
                     contentColor = MaterialTheme.colorScheme.onSecondary,
                 ),
             ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Autoassegna programma", modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
                 Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
             }
@@ -217,7 +217,7 @@ fun ProgramWorkspaceScreen() {
                         disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     ),
                 ) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Delete, contentDescription = "Elimina", modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(spacing.xs))
                     Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
                 }
@@ -236,7 +236,7 @@ fun ProgramWorkspaceScreen() {
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             ) {
-                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.ClearAll, contentDescription = "Svuota assegnazioni", modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
                 Text(if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
             }

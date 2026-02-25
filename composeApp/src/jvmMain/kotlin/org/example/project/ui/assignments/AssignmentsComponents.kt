@@ -265,7 +265,7 @@ private fun MissingAssignmentChip(
     ) {
         Icon(
             Icons.Filled.PersonAdd,
-            contentDescription = null,
+            contentDescription = "Assegna",
             modifier = Modifier.size(18.dp),
             tint = contentColor,
         )
@@ -558,7 +558,7 @@ private fun SuggestionRow(
                 .height(36.dp)
                 .handCursorOnHover(),
         ) {
-            Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(Icons.Filled.PersonAdd, contentDescription = "Assegna", modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(MaterialTheme.spacing.xs))
             Text(
                 text = "Assegna",
