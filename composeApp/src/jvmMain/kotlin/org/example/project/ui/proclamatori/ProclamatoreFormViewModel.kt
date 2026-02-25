@@ -453,30 +453,6 @@ internal class ProclamatoreFormViewModel(
         return Either.Right(Unit)
     }
 
-    private suspend fun persistLeadEligibility(
-        person: Proclamatore,
-        options: List<LeadEligibilityOptionUi>,
-    ): String? {
-        options.forEach { option ->
-            val canLead = option.checked && option.canSelect
-            val saveResult = impostaIdoneitaConduzione(
-                personId = person.id,
-                partTypeId = option.partTypeId,
-                canLead = canLead,
-            )
-            var maybeError: String? = null
-            saveResult.fold(
-                ifLeft = { error ->
-                    maybeError = (error as? DomainError.Validation)?.message
-                        ?: "Salvataggio idoneita non completato"
-                },
-                ifRight = {},
-            )
-            if (maybeError != null) return maybeError
-        }
-        return null
-    }
-
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean {
         return when (sexRule) {
             SexRule.UOMO -> sesso == Sesso.M
