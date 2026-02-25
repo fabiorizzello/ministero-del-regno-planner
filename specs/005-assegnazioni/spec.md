@@ -23,21 +23,9 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
    valido, **Then** l'assegnazione viene salvata e lo slot risulta occupato.
 2. **Given** uno slot già occupato, **When** si assegna un altro proclamatore allo
    stesso slot, **Then** la vecchia assegnazione viene sostituita.
-3. **Given** una parte con `SexRule.UOMO` e si tenta di assegnare una donna a qualsiasi
-   slot, **Then** errore di validazione.
-4. **Given** una parte con `SexRule.LIBERO`, slot 1 assegnato a un uomo e slot 2 da
-   assegnare a una donna non in relazione familiare con l'uomo, **When** si tenta
-   l'assegnazione, **Then** errore di validazione (sesso diverso senza relazione familiare).
-5. **Given** una parte con `SexRule.LIBERO`, slot 1 assegnato a un uomo e slot 2 da
-   assegnare alla moglie (CONIUGE) o figlia (GENITORE_FIGLIO), **When** si assegna,
-   **Then** l'assegnazione è valida.
-6. **Given** si tenta di assegnare per slot 1 un proclamatore non idoneo alla conduzione
-   di quel tipo di parte, **Then** errore di validazione.
-7. **Given** si tenta di assegnare per slot >= 2 un proclamatore con `puoAssistere = false`,
-   **Then** errore di validazione.
-8. **Given** si tenta di assegnare per uno slot < 1 o > partType.peopleCount, **Then**
+3. **Given** si tenta di assegnare per uno slot < 1 o > partType.peopleCount, **Then**
    errore di validazione ("Slot non valido").
-9. **Given** un proclamatore già assegnato in un'altra parte della stessa settimana,
+4. **Given** un proclamatore già assegnato in un'altra parte della stessa settimana,
    **When** si tenta una seconda assegnazione nella stessa settimana, **Then** errore di
    validazione ("Proclamatore già assegnato in questa settimana").
 
@@ -46,10 +34,9 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 ### User Story 2 - Suggerimento automatico dei candidati (Priority: P1)
 
 Per ogni slot di ogni parte, il sistema suggerisce una lista ordinata di proclamatori
-idonei, tenendo conto di: sesso, compatibilità familiare (per parti LIBERO con slot
-già assegnati di sesso diverso), idoneità, cooldown dall'ultima assegnazione globale
-e specifica per quel tipo di parte, e parametri configurabili (peso ruolo, settimane
-cooldown).
+idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `LIBERO` non filtrante),
+idoneità, stato sospeso/attivo, cooldown dall'ultima assegnazione globale e specifica
+per quel tipo di parte, e parametri configurabili (peso ruolo, settimane cooldown).
 
 **Why this priority**: Il suggerimento è il cuore del valore aggiunto dell'app —
 riduce drasticamente il tempo di pianificazione manuale.
@@ -61,8 +48,8 @@ dall'ultima assegnazione decrescenti.
 **Acceptance Scenarios**:
 
 1. **Given** proclamatori con storie di assegnazione diverse, **When** si richiedono
-   suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso,
-   compatibilità familiare se necessaria, idoneità) ordinati per score
+   suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso quando
+   applicabile, idoneità, non sospesi/non inattivi) ordinati per score
    (globale × peso + tipo-parte − penalità cooldown).
 2. **Given** un proclamatore in cooldown e `strictCooldown = true`, **When** si
    richiedono suggerimenti, **Then** il proclamatore in cooldown non appare.
@@ -169,24 +156,18 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - **FR-001**: Il sistema MUST consentire l'assegnazione di un proclamatore a uno slot
   specifico (weeklyPartId, slot) di una settimana.
 - **FR-002**: Il sistema MUST validare ogni assegnazione rispetto a:
-  (a) `SexRule.UOMO`: solo proclamatori maschi per qualsiasi slot;
-  (b) `SexRule.LIBERO`: se uno slot già assegnato ha sesso diverso da quello da assegnare,
-  i due proclamatori DEVONO essere in relazione familiare (CONIUGE o GENITORE_FIGLIO);
-  se stesso sesso, nessun vincolo familiare;
-  (c) idoneità conduzione per slot 1;
-  (d) `puoAssistere = true` per slot >= 2;
-  (e) slot MUST essere nel range `[1, partType.peopleCount]` — valori fuori range sono
+  (a) slot MUST essere nel range `[1, partType.peopleCount]` — valori fuori range sono
   rifiutati con errore "Slot non valido";
-  (f) un proclamatore non può essere assegnato due volte nella stessa settimana
+  (b) un proclamatore non può essere assegnato due volte nella stessa settimana
   (constraint cross-parte via `isPersonAssignedInWeek`).
 - **FR-003**: Il sistema MUST sostituire l'assegnazione esistente se lo slot è già
   occupato.
 - **FR-004**: Il sistema MUST suggerire proclamatori idonei ordinati per score
   (settimane_globali × peso_ruolo + settimane_tipo_parte − penalità_cooldown).
-- **FR-005**: Il sistema MUST filtrare i suggerimenti per: sesso, compatibilità
-  familiare (per parti LIBERO quando gli altri slot sono già assegnati a sesso diverso —
-  solo proclamatori in relazione CONIUGE o GENITORE_FIGLIO con chi è già assegnato),
-  idoneità, esclusione dei già assegnati nella stessa settimana.
+- **FR-005**: Il sistema MUST filtrare i suggerimenti per: sesso (`SexRule.UOMO`),
+  idoneità (slot 1 con lead eligibility, slot >= 2 con `puoAssistere = true`),
+  esclusione dei già assegnati nella stessa settimana (set `alreadyAssignedIds`),
+  e stato assegnabile (solo proclamatori attivi e non sospesi).
 - **FR-006**: Il sistema MUST supportare cooldown rigido (esclusione totale) e morbido
   (penalità) configurabile.
 - **FR-007**: Il sistema MUST auto-assegnare tutti gli slot liberi di un programma
@@ -214,12 +195,8 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   `assistWeight: Int = 1`, `leadCooldownWeeks: Int = 4`, `assistCooldownWeeks: Int = 2`.
   Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown) e 1
   (pesi). Le impostazioni di default sono applicate se non ancora configurate.
-- **SexRule** (da feature weeklyparts): `UOMO` = solo maschi; `LIBERO` = stesso sesso
-  OPPURE sesso diverso solo se CONIUGE o GENITORE_FIGLIO (non "libero" nel senso
-  letterale — dipende dalle relazioni familiari definite in gestione-proclamatori).
-- **RelazioneProclam** (da feature gestione-proclamatori): relazione simmetrica tra
-  due proclamatori. Tipi: CONIUGE, GENITORE_FIGLIO. Il suggeritore la consulta per
-  validare combinazioni di sesso diverso su parti LIBERO.
+- **SexRule** (da feature weeklyparts): `UOMO` = filtro su soli proclamatori maschi;
+  `LIBERO` = nessun filtro di sesso nella logica di suggerimento attuale.
 
 ## Success Criteria *(mandatory)*
 
@@ -240,9 +217,9 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
   → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
   dove cooldownPenalty = 10.000 se in cooldown.
-- Q: SexRule.LIBERO significato reale? → A: Non "qualsiasi persona" — stesso sesso OPPURE
-  sesso diverso solo se i proclamatori sono CONIUGE o GENITORE_FIGLIO. Aggiornato FR-002
-  e FR-005 di conseguenza.
+- Q: SexRule.LIBERO significato reale? → A: Nello stato attuale del codice è non
+  filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
+  applicato solo su `SexRule.UOMO`.
 - Q: Esistono vincoli di validazione slot confermati dal codice? → A: Sì — (1) slot deve
   essere in [1, partType.peopleCount] (da AssegnaPersonaUseCase); (2) un proclamatore
   non può essere assegnato due volte nella stessa settimana, nemmeno su parti diverse
