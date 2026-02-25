@@ -45,14 +45,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +85,7 @@ import org.example.project.ui.components.handCursorOnHover
  * - Individual row actions (edit, delete)
  * - Pagination controls
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.ProclamatoriElencoContentTable(
     state: ProclamatoriListUiState,
@@ -107,14 +114,22 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
-            Button(
-                modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                onClick = events.onGoNuovo,
-                enabled = !isLoading,
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                    positioning = TooltipAnchorPosition.Above,
+                ),
+                tooltip = { PlainTooltip { Text("Ctrl+N per aggiungere") } },
+                state = rememberTooltipState(),
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Aggiungi proclamatore")
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Aggiungi")
+                Button(
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                    onClick = events.onGoNuovo,
+                    enabled = !isLoading,
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Aggiungi proclamatore")
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text("Aggiungi")
+                }
             }
             if (canImportInitialJson) {
                 Button(
