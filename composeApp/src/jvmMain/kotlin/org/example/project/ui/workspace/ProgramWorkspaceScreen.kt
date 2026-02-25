@@ -368,7 +368,7 @@ fun ProgramWorkspaceScreen() {
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = weekListState,
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(end = 12.dp),

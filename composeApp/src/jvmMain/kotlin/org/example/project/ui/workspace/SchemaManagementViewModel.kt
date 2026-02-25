@@ -18,6 +18,13 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeEitherOperation
 import java.time.LocalDate
+import java.time.LocalDateTime
+
+internal fun isSchemaRefreshNeeded(lastSchemaImport: LocalDateTime?, futureProgram: ProgramMonth?): Boolean {
+    if (futureProgram == null || lastSchemaImport == null) return false
+    val appliedOrCreatedAt = futureProgram.templateAppliedAt ?: futureProgram.createdAt
+    return appliedOrCreatedAt < lastSchemaImport
+}
 
 internal data class SchemaManagementUiState(
     val today: LocalDate = LocalDate.now(),
@@ -146,8 +153,7 @@ internal class SchemaManagementViewModel(
 
     private fun checkSchemaRefreshNeeded(futureProgram: ProgramMonth?): Boolean {
         val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
-            ?.let { runCatching { java.time.LocalDateTime.parse(it) }.getOrNull() }
-        return futureProgram != null && lastSchemaImport != null &&
-            (futureProgram.templateAppliedAt == null || futureProgram.templateAppliedAt < lastSchemaImport)
+            ?.let { runCatching { LocalDateTime.parse(it) }.getOrNull() }
+        return isSchemaRefreshNeeded(lastSchemaImport, futureProgram)
     }
 }
