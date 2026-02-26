@@ -1,40 +1,51 @@
 package org.example.project.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 
-private val MinisteroLightColorScheme = lightColorScheme(
-    primary = Color(0xFF1C63C7),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFD1E4FF),
-    onPrimaryContainer = Color(0xFF002F62),
-    secondary = Color(0xFF197A66),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFCFEFE5),
-    onSecondaryContainer = Color(0xFF0B3B30),
-    tertiary = Color(0xFF9A5A00),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFFFDDB8),
-    onTertiaryContainer = Color(0xFF321A00),
+private val MinisteroLightColorScheme = darkColorScheme(
+    primary = Color(0xFFF59E0B),
+    onPrimary = Color(0xFF1A1305),
+    primaryContainer = Color(0xFF3B2B10),
+    onPrimaryContainer = Color(0xFFFDE7BF),
+    secondary = Color(0xFF60A5FA),
+    onSecondary = Color(0xFF0E1A2B),
+    secondaryContainer = Color(0xFF1C2A3F),
+    onSecondaryContainer = Color(0xFFD6E6FB),
+    tertiary = Color(0xFF34D399),
+    onTertiary = Color(0xFF072419),
+    tertiaryContainer = Color(0xFF143629),
+    onTertiaryContainer = Color(0xFFC7F6E4),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    background = Color(0xFFEAF1F8),
-    onBackground = Color(0xFF182332),
-    surface = Color(0xFFF5F8FC),
-    onSurface = Color(0xFF1B2430),
-    surfaceVariant = Color(0xFFDCE6F1),
-    onSurfaceVariant = Color(0xFF3F4E61),
-    outline = Color(0xFF748091),
-    outlineVariant = Color(0xFFC6D0DD),
-    inverseSurface = Color(0xFF2A313C),
-    inverseOnSurface = Color(0xFFF0F3F7),
-    inversePrimary = Color(0xFFA3D1FF),
-    surfaceTint = Color(0xFF0F6CBD),
+    errorContainer = Color(0xFF5E1C1A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    background = Color(0xFF0F1722),
+    onBackground = Color(0xFFE8EDF6),
+    surface = Color(0xFF172233),
+    onSurface = Color(0xFFE8EDF6),
+    surfaceVariant = Color(0xFF1D2A3D),
+    onSurfaceVariant = Color(0xFF9FB0C8),
+    outline = Color(0xFF2D3F59),
+    outlineVariant = Color(0xFF2A3A52),
+    inverseSurface = Color(0xFFE8EDF6),
+    inverseOnSurface = Color(0xFF172233),
+    inversePrimary = Color(0xFF8BC0FF),
+    surfaceTint = Color(0xFFF59E0B),
+)
+
+private val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(8.dp),
+    large = RoundedCornerShape(10.dp),
+    extraLarge = RoundedCornerShape(12.dp),
 )
 
 @Composable
@@ -45,6 +56,7 @@ fun AppTheme(
         MaterialTheme(
             colorScheme = MinisteroLightColorScheme,
             typography = AppTypography,
+            shapes = AppShapes,
             content = content,
         )
     }

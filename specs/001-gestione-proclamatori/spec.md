@@ -103,6 +103,9 @@ compaia come candidato per slot 1 della parte "X" e per slot 2.
    i candidati per quello slot, **Then** il proclamatore non appare.
 3. **Given** un proclamatore con `puoAssistere = true`, **When** si cercano candidati
    per uno slot >= 2, **Then** il proclamatore appare tra i candidati assistente.
+4. **Given** il form proclamatore, **When** l'utente usa l'opzione `Seleziona tutto`,
+   **Then** vengono impostati insieme `puoAssistere = true` e tutte le idoneità
+   conducibili selezionabili; disattivando `Seleziona tutto` vengono deselezionate.
 
 ---
 
@@ -183,6 +186,9 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   — nessun dato viene conservato.
 - **FR-011**: Il sistema MUST consentire di attivare/disattivare un proclamatore dalla
   lista tramite `ImpostaStatoProclamatoreUseCase`.
+- **FR-012**: Nel form proclamatori il sistema MUST esporre un controllo `Seleziona tutto`
+  che abilita/disabilita in blocco sia `puoAssistere` sia tutte le idoneità di conduzione
+  selezionabili.
 
 ### Key Entities
 

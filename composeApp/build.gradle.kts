@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.multiplatform.settings)
             implementation(libs.pdfbox)
+            implementation(libs.jsoup)
         }
     }
 }
@@ -78,6 +79,15 @@ tasks.register<JavaExec>("seedDatabase") {
     description = "Popola la tabella part_type con i dati da data/part-types.json"
     group = "application"
     mainClass.set("org.example.project.core.cli.SeedDatabaseKt")
+    classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
+        kotlin.jvm().compilations["main"].output.allOutputs
+    workingDir = rootProject.projectDir
+}
+
+tasks.register<JavaExec>("generateWolEfficaciCatalog") {
+    description = "Genera un catalogo schemi JSON dal selettore settimane WOL (sezione EFFICACI NEL MINISTERO)"
+    group = "application"
+    mainClass.set("org.example.project.core.cli.GenerateWolEfficaciCatalogKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
     workingDir = rootProject.projectDir

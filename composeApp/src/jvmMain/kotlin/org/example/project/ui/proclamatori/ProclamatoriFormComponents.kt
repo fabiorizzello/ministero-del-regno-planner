@@ -80,6 +80,7 @@ internal fun ProclamatoriFormContentForm(
     onPuoAssistereChange: (Boolean) -> Unit,
     leadEligibilityOptions: List<LeadEligibilityOptionUi>,
     onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
+    onSetAllEligibilityChange: (Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -178,6 +179,8 @@ internal fun ProclamatoriFormContentForm(
                 }
             }
             val eligibilityListState = rememberLazyListState()
+            val selectableLeadOptions = leadEligibilityOptions.filter { it.canSelect }
+            val allEligibilitySelected = puoAssistere && selectableLeadOptions.all { it.checked }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -196,6 +199,20 @@ internal fun ProclamatoriFormContentForm(
                         "Idoneita",
                         style = MaterialTheme.typography.titleSmall,
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Seleziona tutto",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Checkbox(
+                            checked = allEligibilitySelected,
+                            onCheckedChange = onSetAllEligibilityChange,
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

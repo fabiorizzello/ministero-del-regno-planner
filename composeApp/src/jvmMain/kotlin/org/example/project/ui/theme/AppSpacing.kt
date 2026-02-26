@@ -15,7 +15,7 @@ data class AppSpacing(
     val lg: Dp = 12.dp,
     val xl: Dp = 16.dp,
     val xxl: Dp = 32.dp,
-    val cardRadius: Dp = 12.dp,
+    val cardRadius: Dp = 8.dp,
 )
 
 val LocalSpacing = staticCompositionLocalOf { AppSpacing() }

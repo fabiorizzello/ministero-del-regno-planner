@@ -28,6 +28,9 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 4. **Given** un proclamatore già assegnato in un'altra parte della stessa settimana,
    **When** si tenta una seconda assegnazione nella stessa settimana, **Then** errore di
    validazione ("Proclamatore già assegnato in questa settimana").
+5. **Given** uno slot già assegnato, **When** l'utente clicca rimozione singola,
+   **Then** il sistema mostra prima un prompt di conferma esplicita; solo dopo conferma
+   esegue la rimozione.
 
 ---
 
@@ -144,6 +147,9 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   a partire da quella data (non necessariamente l'intero programma). Espone anche
   `count(programId, fromDate)` per preview del numero di assegnazioni che sarebbero
   rimosse prima di `execute(programId, fromDate)`.
+- Nel workspace UI, il reset di una singola settimana (`Rimuovi assegnazioni`) è
+  disponibile solo per settimane future; per la settimana corrente non deve essere
+  mostrato.
 - Slot = 1 → ruolo "Conduttore"; slot >= 2 → ruolo "Assistente" (determinato dal
   modello `AssignmentHistoryEntry.role`).
 - Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
@@ -182,6 +188,10 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   per proclamatore con riepilogo per tipo-parte.
 - **FR-011**: Il sistema MUST persistere le impostazioni assegnatore (cooldownWeeks,
   weights, strictCooldown) e applicarle ad ogni esecuzione del suggeritore.
+- **FR-012**: Nel workspace UI, la rimozione di una singola assegnazione MUST richiedere
+  conferma esplicita dell'utente prima dell'esecuzione.
+- **FR-013**: Nel workspace UI, l'azione `Rimuovi assegnazioni` a livello settimana MUST
+  essere mostrata solo per settimane future (mai per la settimana corrente o passata).
 
 ### Key Entities
 

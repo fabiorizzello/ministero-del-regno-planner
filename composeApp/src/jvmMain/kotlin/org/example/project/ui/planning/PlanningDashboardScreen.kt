@@ -66,7 +66,7 @@ import org.koin.core.context.GlobalContext
 
 private val COMPACT_GRID_BREAKPOINT = 900.dp
 private val WIDE_GRID_BREAKPOINT = 1360.dp
-private val WEEK_CARD_MIN_HEIGHT = 228.dp
+private val WEEK_CARD_MIN_HEIGHT = 204.dp
 
 private data class AlertTypeUiProperties(
     val color: Color,
@@ -137,8 +137,8 @@ fun PlanningDashboardScreen() {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            shape = RoundedCornerShape(spacing.cardRadius),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
@@ -340,14 +340,14 @@ private fun PlanningSummaryChip(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -376,9 +376,9 @@ private fun WeekPlanningCard(
 
     Card(
         modifier = modifier.fillMaxWidth().heightIn(min = WEEK_CARD_MIN_HEIGHT),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
@@ -388,7 +388,7 @@ private fun WeekPlanningCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
+                    .height(4.dp)
                     .background(statusColor.copy(alpha = 0.72f)),
             )
             Column(
@@ -492,7 +492,7 @@ private fun WeekStatusBadge(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(999.dp),
+        shape = RoundedCornerShape(6.dp),
         color = statusColor.copy(alpha = 0.12f),
         border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)),
     ) {
@@ -524,8 +524,8 @@ private fun WeekMetricTile(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
     ) {
         Column(

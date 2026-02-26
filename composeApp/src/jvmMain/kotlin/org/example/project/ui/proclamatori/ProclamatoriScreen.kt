@@ -211,6 +211,7 @@ fun ProclamatoriScreen() {
             onLeadEligibilityChange = { partTypeId, checked ->
                 formVm.setLeadEligibility(partTypeId, checked)
             },
+            onSetAllEligibilityChange = { checked -> formVm.setAllEligibility(checked) },
             assignmentHistory = formState.assignmentHistory,
             isHistoryExpanded = formState.isHistoryExpanded,
             onToggleHistoryExpanded = { formVm.toggleHistoryExpanded() },

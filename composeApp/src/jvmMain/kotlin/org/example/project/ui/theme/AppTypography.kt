@@ -6,8 +6,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 private const val BASE_FONT_SP = 14f
-private const val GLOBAL_TEXT_SCALE = 1.1f
-private const val DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.35f
+private const val GLOBAL_TEXT_SCALE = 1.0f
+private const val DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.3f
 
 private fun fontSize(multiplier: Float) = (BASE_FONT_SP * GLOBAL_TEXT_SCALE * multiplier).sp
 

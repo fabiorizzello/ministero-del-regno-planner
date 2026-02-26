@@ -33,3 +33,12 @@ composeApp/logs/
 .claude_settings.json
 .security-key
 logs/security/
+out/
+*.class
+*.jar
+*.log
+.env*
+Thumbs.db
+*.tmp
+*.swp
+.vscode/

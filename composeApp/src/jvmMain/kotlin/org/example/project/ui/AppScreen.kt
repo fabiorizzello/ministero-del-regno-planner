@@ -1,6 +1,5 @@
 package org.example.project.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -44,8 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -108,9 +104,7 @@ fun AppScreen(
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
                 ?: AppSection.PLANNING
-            val navigationSections = remember {
-                listOf(AppSection.PLANNING, AppSection.PROCLAMATORI)
-            }
+            val navigationSections = remember { AppSection.entries.toList() }
 
             CompositionLocalProvider(
                 LocalSectionNavigator provides { section ->
@@ -121,181 +115,131 @@ fun AppScreen(
                 LocalDensity provides scaledDensity,
             ) {
                 val navigateToSection = LocalSectionNavigator.current
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
-                                    MaterialTheme.colorScheme.background,
-                                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.16f),
-                                ),
+                Scaffold(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Efficaci nel Ministero",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                scrolledContainerColor = MaterialTheme.colorScheme.surface,
                             ),
-                        ),
-                ) {
-                    Scaffold(
-                        containerColor = Color.Transparent,
-                        topBar = {
-                            TopAppBar(
-                                title = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(
-                                            imageVector = currentSection.icon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                        Text(
-                                            text = currentSection.label,
-                                            style = MaterialTheme.typography.titleMedium,
+                            actions = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    navigationSections.forEach { section ->
+                                        TopBarSectionButton(
+                                            selected = currentSection == section,
+                                            onClick = { navigateToSection(section) },
+                                            section = section,
                                         )
                                     }
-                                },
-                                colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                                ),
-                                actions = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        navigationSections.forEach { section ->
-                                            TopBarSectionIconButton(
-                                                selected = currentSection == section,
-                                                onClick = { navigateToSection(section) },
-                                                section = section,
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = { navigateToSection(AppSection.ASSIGNMENT_SETTINGS) },
-                                            modifier = Modifier.handCursorOnHover(),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Settings,
-                                                contentDescription = "Impostazioni assegnazione",
-                                                modifier = Modifier.size(20.dp),
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
-                                            modifier = Modifier.handCursorOnHover(),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.BugReport,
-                                                contentDescription = "Diagnostica",
-                                                modifier = Modifier.size(20.dp),
-                                            )
-                                        }
-
-                                        Box {
-                                            fun applyUiScale(value: Float) {
-                                                val updatedScale = snapUiScale(value)
-                                                if (updatedScale != uiScale) {
-                                                    uiScale = updatedScale
-                                                    onUiScaleChange(updatedScale)
-                                                }
-                                                draftUiScale = updatedScale
+                                    Box {
+                                        fun applyUiScale(value: Float) {
+                                            val updatedScale = snapUiScale(value)
+                                            if (updatedScale != uiScale) {
+                                                uiScale = updatedScale
+                                                onUiScaleChange(updatedScale)
                                             }
-                                            IconButton(
-                                                onClick = {
-                                                    draftUiScale = uiScale
-                                                    isSizeMenuExpanded = true
-                                                },
-                                                modifier = Modifier.handCursorOnHover(),
+                                            draftUiScale = updatedScale
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                draftUiScale = uiScale
+                                                isSizeMenuExpanded = true
+                                            },
+                                            modifier = Modifier.handCursorOnHover(),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.TextFields,
+                                                contentDescription = "Dimensione testo",
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = isSizeMenuExpanded,
+                                            onDismissRequest = {
+                                                applyUiScale(draftUiScale)
+                                                isSizeMenuExpanded = false
+                                            },
+                                            properties = PopupProperties(focusable = true),
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .width(300.dp)
+                                                    .padding(spacing.md),
+                                                verticalArrangement = Arrangement.spacedBy(spacing.sm),
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.TextFields,
-                                                    contentDescription = "Dimensione testo",
-                                                    modifier = Modifier.size(20.dp),
+                                                val draftPercentage = draftUiScale.toUiScalePercentage()
+                                                Text("Dimensione testo")
+                                                Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
+                                                Slider(
+                                                    value = draftUiScale,
+                                                    onValueChange = { draftUiScale = snapUiScale(it) },
+                                                    onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                    valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                    steps = UI_SCALE_SLIDER_STEPS,
+                                                    modifier = Modifier.fillMaxWidth(),
                                                 )
-                                            }
-
-                                            DropdownMenu(
-                                                expanded = isSizeMenuExpanded,
-                                                onDismissRequest = {
-                                                    applyUiScale(draftUiScale)
-                                                    isSizeMenuExpanded = false
-                                                },
-                                                properties = PopupProperties(focusable = true),
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .width(300.dp)
-                                                        .padding(spacing.md),
-                                                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
                                                 ) {
-                                                    val draftPercentage = draftUiScale.toUiScalePercentage()
-                                                    Text("Dimensione testo")
-                                                    Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
-                                                    Slider(
-                                                        value = draftUiScale,
-                                                        onValueChange = { draftUiScale = snapUiScale(it) },
-                                                        onValueChangeFinished = { applyUiScale(draftUiScale) },
-                                                        valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                                        steps = UI_SCALE_SLIDER_STEPS,
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                    )
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                    ) {
-                                                        Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                        Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                    }
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .horizontalScroll(rememberScrollState()),
-                                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                                    ) {
-                                                        UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
-                                                            val presetScale = preset.toUiScale()
-                                                            OutlinedButton(
-                                                                onClick = { applyUiScale(presetScale) },
-                                                                enabled = draftPercentage != preset,
-                                                            ) {
-                                                                Text("$preset%")
-                                                            }
+                                                    Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                    Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                }
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .horizontalScroll(rememberScrollState()),
+                                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                ) {
+                                                    UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                        val presetScale = preset.toUiScale()
+                                                        OutlinedButton(
+                                                            onClick = { applyUiScale(presetScale) },
+                                                            enabled = draftPercentage != preset,
+                                                        ) {
+                                                            Text("$preset%")
                                                         }
                                                     }
-                                                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                                                        OutlinedButton(
-                                                            onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                            enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                        ) {
-                                                            Text("-$UI_SCALE_STEP_PERCENT%")
-                                                        }
-                                                        OutlinedButton(
-                                                            onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                            enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
-                                                        ) {
-                                                            Text("+$UI_SCALE_STEP_PERCENT%")
-                                                        }
+                                                }
+                                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                    OutlinedButton(
+                                                        onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                        enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
+                                                    ) {
+                                                        Text("-$UI_SCALE_STEP_PERCENT%")
+                                                    }
+                                                    OutlinedButton(
+                                                        onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                        enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
+                                                    ) {
+                                                        Text("+$UI_SCALE_STEP_PERCENT%")
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                },
-                            )
-                        },
-                    ) { paddingValues ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
-                                .padding(horizontal = spacing.md, vertical = spacing.sm),
-                        ) {
-                            CurrentScreen()
-                        }
+                                }
+                            },
+                        )
+                    },
+                ) { paddingValues ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(horizontal = spacing.md, vertical = spacing.sm),
+                    ) {
+                        CurrentScreen()
                     }
                 }
             }
@@ -304,21 +248,21 @@ fun AppScreen(
 }
 
 @Composable
-private fun TopBarSectionIconButton(
+private fun TopBarSectionButton(
     selected: Boolean,
     onClick: () -> Unit,
     section: AppSection,
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(6.dp)
     val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f)
+        MaterialTheme.colorScheme.primaryContainer
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
+        MaterialTheme.colorScheme.surface
     }
     val borderColor = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
     } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+        MaterialTheme.colorScheme.outlineVariant
     }
     val contentColor = if (selected) {
         MaterialTheme.colorScheme.onPrimaryContainer
@@ -330,17 +274,27 @@ private fun TopBarSectionIconButton(
         modifier = Modifier
             .handCursorOnHover()
             .clickable(onClick = onClick)
-            .size(36.dp),
+            .padding(vertical = 2.dp),
         shape = shape,
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
     ) {
-        Icon(
-            imageVector = section.icon,
-            contentDescription = section.label,
-            tint = contentColor,
-            modifier = Modifier.padding(8.dp).size(18.dp),
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = section.icon,
+                contentDescription = section.label,
+                tint = contentColor,
+            )
+            Text(
+                text = section.label,
+                color = contentColor,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
     }
 }
 
