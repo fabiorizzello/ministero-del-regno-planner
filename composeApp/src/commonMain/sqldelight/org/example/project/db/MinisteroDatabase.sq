@@ -442,7 +442,7 @@ listProgramsCurrentAndFuture:
 SELECT id, year, month, start_date, end_date, template_applied_at, created_at
 FROM program_monthly
 WHERE end_date >= ?
-ORDER BY start_date;
+ORDER BY year, month;
 
 findProgramByYearMonth:
 SELECT id, year, month, start_date, end_date, template_applied_at, created_at
@@ -478,6 +478,10 @@ FROM week_plan
 WHERE program_id = ?
 ORDER BY week_start_date;
 
+deleteWeekPlansByProgram:
+DELETE FROM week_plan
+WHERE program_id = ?;
+
 findWeekPlanByDateAndProgram:
 SELECT id, week_start_date, program_id, status
 FROM week_plan
@@ -507,6 +511,11 @@ findSchemaWeekByDate:
 SELECT id, week_start_date
 FROM schema_week
 WHERE week_start_date = ?;
+
+listSchemaWeeks:
+SELECT id, week_start_date
+FROM schema_week
+ORDER BY week_start_date;
 
 countSchemaWeeks:
 SELECT COUNT(*)
@@ -703,3 +712,15 @@ WHERE weekly_part_id IN (
     AND w.week_start_date >= ?
     AND w.status = 'ACTIVE'
 );
+
+countWeeksByProgram:
+SELECT COUNT(*) AS cnt
+FROM week_plan
+WHERE program_id = ?;
+
+countAssignmentsByProgram:
+SELECT COUNT(*) AS cnt
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan w ON wp.week_plan_id = w.id
+WHERE w.program_id = ?;

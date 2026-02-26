@@ -6,7 +6,7 @@ import java.time.LocalDate
 
 data class ProgramSelectionSnapshot(
     val current: ProgramMonth?,
-    val future: ProgramMonth?,
+    val futures: List<ProgramMonth>,
 )
 
 class CaricaProgrammiAttiviUseCase(
@@ -15,7 +15,12 @@ class CaricaProgrammiAttiviUseCase(
     suspend operator fun invoke(referenceDate: LocalDate): ProgramSelectionSnapshot {
         val programs = programStore.listCurrentAndFuture(referenceDate)
         val current = programs.firstOrNull { it.timelineStatus(referenceDate) == ProgramTimelineStatus.CURRENT }
-        val future = programs.firstOrNull { it.timelineStatus(referenceDate) == ProgramTimelineStatus.FUTURE }
-        return ProgramSelectionSnapshot(current = current, future = future)
+        val futures = programs
+            .filter { it.timelineStatus(referenceDate) == ProgramTimelineStatus.FUTURE }
+            .sortedBy { it.startDate }
+            .take(MAX_FUTURE_PROGRAMS)
+        return ProgramSelectionSnapshot(current = current, futures = futures)
     }
 }
+
+private const val MAX_FUTURE_PROGRAMS = 2

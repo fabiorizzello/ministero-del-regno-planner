@@ -37,7 +37,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,9 +100,9 @@ internal fun ProgramWeekStickyHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.94f))
+            .background(MaterialTheme.colorScheme.background)
             .padding(vertical = spacing.xxs),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
     ) {
@@ -149,7 +148,7 @@ internal fun ProgramWeekStickyHeader(
                         )
                     }
                 }
-                if (isPast) {
+                if (isPast && !isCurrent) {
                     Surface(
                         shape = RoundedCornerShape(999.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -177,6 +176,7 @@ internal fun ProgramWeekCard(
     week: WeekPlan,
     isCurrent: Boolean,
     today: java.time.LocalDate,
+    showClearWeekAssignments: Boolean,
     assignments: List<AssignmentWithPerson>,
     onReactivate: () -> Unit,
     onOpenPartEditor: () -> Unit,
@@ -186,7 +186,7 @@ internal fun ProgramWeekCard(
 ) {
     val spacing = MaterialTheme.spacing
     val isSkipped = week.status == WeekPlanStatus.SKIPPED
-    val isPast = week.weekStartDate < today
+    val isPast = !isCurrent && week.weekStartDate.plusDays(6) < today
     val canMutate = !isSkipped && !isPast
     val assignmentsByPart = remember(assignments) { assignments.groupBy { it.weeklyPartId } }
     val partRows = remember(week.parts) { week.parts.chunked(2) }
@@ -211,9 +211,9 @@ internal fun ProgramWeekCard(
     }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isCurrent) 4.dp else 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(
@@ -253,7 +253,7 @@ internal fun ProgramWeekCard(
                         ),
                     ) { Text("Modifica parti") }
                 }
-                if (canMutate) {
+                if (canMutate && showClearWeekAssignments) {
                     OutlinedButton(
                         onClick = onRequestClearWeekAssignments,
                         modifier = Modifier.handCursorOnHover(),
@@ -344,8 +344,9 @@ internal fun PartEditorDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(spacing.cardRadius),
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
         ) {
             Column(
@@ -361,14 +362,11 @@ internal fun PartEditorDialog(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { menuExpanded = true },
                         enabled = !isSaving,
                         modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(spacing.xs))
@@ -391,7 +389,7 @@ internal fun PartEditorDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                         .padding(end = 10.dp),
                 ) {
                     LazyColumn(
@@ -408,7 +406,7 @@ internal fun PartEditorDialog(
                                 key = part.id.value,
                             ) { isDragging ->
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(6.dp),
                                     color = if (isDragging) {
                                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
                                     } else {
@@ -511,9 +509,9 @@ internal fun ProgramHeader(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -560,15 +558,17 @@ internal fun ProgramHeader(
             ) {
                 current?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    FilledTonalButton(
-                        onClick = { onSelectProgram(it.id.value) },
-                        enabled = !isSelected,
+                    OutlinedButton(
+                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
                         modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary,
-                            disabledContentColor = MaterialTheme.colorScheme.onPrimary,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface,
                         ),
                     ) {
                         Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
@@ -576,15 +576,17 @@ internal fun ProgramHeader(
                 }
                 future?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    FilledTonalButton(
-                        onClick = { onSelectProgram(it.id.value) },
-                        enabled = !isSelected,
+                    OutlinedButton(
+                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
                         modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.tertiary,
-                            disabledContentColor = MaterialTheme.colorScheme.onTertiary,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isSelected) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.onSurface,
                         ),
                     ) {
                         Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
@@ -604,14 +606,11 @@ internal fun ProgramHeader(
                     }
                 }
                 if (canCreateProgram) {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = onCreateNextProgram,
                         enabled = !isCreatingProgram,
                         modifier = Modifier.handCursorOnHover(enabled = !isCreatingProgram),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(spacing.xs))

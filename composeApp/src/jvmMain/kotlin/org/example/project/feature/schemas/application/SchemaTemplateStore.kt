@@ -10,6 +10,7 @@ data class StoredSchemaWeekTemplate(
 
 interface SchemaTemplateStore {
     suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>)
+    suspend fun listAll(): List<StoredSchemaWeekTemplate>
     suspend fun findByWeekStartDate(weekStartDate: LocalDate): StoredSchemaWeekTemplate?
     suspend fun isEmpty(): Boolean
 }

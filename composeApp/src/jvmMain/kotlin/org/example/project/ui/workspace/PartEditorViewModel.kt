@@ -19,8 +19,10 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.formatWeekRangeLabel
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.UUID
+import java.time.temporal.TemporalAdjusters
 
 internal data class PartEditorUiState(
     val today: LocalDate = LocalDate.now(),
@@ -158,8 +160,10 @@ internal class PartEditorViewModel(
         }
     }
 
-    private fun canMutateWeek(week: WeekPlan): Boolean =
-        week.weekStartDate >= _state.value.today && week.status == WeekPlanStatus.ACTIVE
+    private fun canMutateWeek(week: WeekPlan): Boolean {
+        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        return week.weekStartDate >= currentMonday && week.status == WeekPlanStatus.ACTIVE
+    }
 
     private fun loadPartTypes() {
         scope.launch {

@@ -29,13 +29,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,9 +47,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
@@ -65,6 +68,7 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 import java.time.DayOfWeek
@@ -88,6 +92,7 @@ fun ProgramWorkspaceScreen() {
 
     val spacing = MaterialTheme.spacing
     val weekListState = rememberLazyListState()
+    var pendingAssignmentRemoval by remember { mutableStateOf<AssignmentWithPerson?>(null) }
 
     LaunchedEffect(Unit) {
         lifecycleVM.onScreenEntered()
@@ -95,8 +100,16 @@ fun ProgramWorkspaceScreen() {
     }
 
     // Keep schema VM in sync with lifecycle VM
-    LaunchedEffect(lifecycleState.selectedProgramId, lifecycleState.futureProgram) {
-        schemaVM.updateSelection(lifecycleState.selectedProgramId, lifecycleState.futureProgram)
+    LaunchedEffect(
+        lifecycleState.selectedProgramId,
+        lifecycleState.selectedFutureProgram,
+        lifecycleState.futurePrograms,
+    ) {
+        schemaVM.updateSelection(
+            selectedProgramId = lifecycleState.selectedProgramId,
+            selectedFutureProgram = lifecycleState.selectedFutureProgram,
+            futurePrograms = lifecycleState.futurePrograms,
+        )
     }
 
     // Reload callback for operations that modify data
@@ -166,132 +179,21 @@ fun ProgramWorkspaceScreen() {
             },
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = {
-                    lifecycleState.selectedProgramId?.let { programId ->
-                        assignmentVM.autoAssignSelectedProgram(programId, lifecycleState.today, onSuccess = reloadData)
-                    }
-                },
-                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
-                modifier = Modifier.handCursorOnHover(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary,
-                ),
-            ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Autoassegna programma", modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna programma")
-            }
-            FilledTonalButton(
-                onClick = {
-                    lifecycleState.selectedProgramId?.let { programId ->
-                        assignmentVM.printSelectedProgram(programId)
-                    }
-                },
-                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isPrintingProgram,
-                modifier = Modifier.handCursorOnHover(),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                ),
-            ) {
-                Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa programma")
-            }
-            Spacer(Modifier.weight(1f))
-            if (lifecycleState.canDeleteSelectedProgram) {
-                OutlinedButton(
-                    onClick = { lifecycleVM.deleteSelectedProgram() },
-                    enabled = !lifecycleState.isDeletingSelectedProgram,
-                    modifier = Modifier.handCursorOnHover(),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    ),
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Elimina", modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina")
-                }
-            }
-            OutlinedButton(
-                onClick = {
-                    lifecycleState.selectedProgramId?.let { programId ->
-                        assignmentVM.requestClearAssignments(programId, lifecycleState.today)
-                    }
-                },
-                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
-                modifier = Modifier.handCursorOnHover(),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                ),
-            ) {
-                Icon(Icons.Filled.ClearAll, contentDescription = "Svuota assegnazioni", modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
-            }
-        }
-
-        ProgramHeader(
-            currentProgram = lifecycleState.currentProgram,
-            futureProgram = lifecycleState.futureProgram,
-            selectedProgramId = lifecycleState.selectedProgramId,
-            hasPrograms = lifecycleState.hasPrograms,
-            canCreateProgram = lifecycleState.canCreateProgram,
-            isCreatingProgram = lifecycleState.isCreatingProgram,
-            isRefreshingSchemas = schemaState.isRefreshingSchemas,
-            futureNeedsSchemaRefresh = schemaState.futureNeedsSchemaRefresh,
-            onSelectProgram = { lifecycleVM.selectProgram(it) },
-            onCreateNextProgram = { lifecycleVM.createNextProgram() },
-            onRefreshSchemas = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
-        )
-
-        if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                ) {
-                    Text("Slot non assegnati", style = MaterialTheme.typography.titleSmall)
-                    assignmentState.autoAssignUnresolved.forEach { unresolved ->
-                        val weekLabel = formatWeekRangeLabel(unresolved.weekStartDate, unresolved.weekStartDate.plusDays(6))
-                        Text(
-                            "• $weekLabel | ${unresolved.partLabel} slot ${unresolved.slot}: ${unresolved.reason}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-        }
-
         assignmentState.clearAssignmentsConfirm?.let { count ->
+            val fromFutureDate = lifecycleState.today
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .plusWeeks(1)
             AlertDialog(
                 onDismissRequest = { assignmentVM.dismissClearAssignments() },
                 title = { Text("Svuota assegnazioni") },
                 text = {
-                    Text("Verranno rimosse $count assegnazioni dalle settimane correnti e successive. Continuare?")
+                    Text("Verranno rimosse $count assegnazioni dalle settimane future. Continuare?")
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
                             lifecycleState.selectedProgramId?.let { programId ->
-                                assignmentVM.confirmClearAssignments(programId, lifecycleState.today, onSuccess = reloadData)
+                                assignmentVM.confirmClearAssignments(programId, fromFutureDate, onSuccess = reloadData)
                             }
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -332,27 +234,41 @@ fun ProgramWorkspaceScreen() {
             }
         }
 
-        schemaState.schemaRefreshPreview?.let { preview ->
+        pendingAssignmentRemoval?.let { assignment ->
             AlertDialog(
-                onDismissRequest = { schemaVM.dismissSchemaRefresh() },
-                title = { Text("Conferma aggiornamento schemi") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                        Text("Settimane da aggiornare: ${preview.weeksUpdated}")
-                        Text("Assegnazioni preservate: ${preview.assignmentsPreserved}")
-                        if (preview.assignmentsRemoved > 0) {
-                            Text(
-                                "Assegnazioni da rimuovere: ${preview.assignmentsRemoved}",
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                },
+                onDismissRequest = { pendingAssignmentRemoval = null },
+                title = { Text("Rimuovi assegnazione") },
+                text = { Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?") },
                 confirmButton = {
-                    TextButton(onClick = { schemaVM.confirmSchemaRefresh(onComplete = reloadData) }) { Text("Aggiorna") }
+                    TextButton(
+                        onClick = {
+                            pendingAssignmentRemoval = null
+                            personPickerVM.removeAssignment(assignment.id, onSuccess = reloadData)
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Rimuovi") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { schemaVM.dismissSchemaRefresh() }) { Text("Annulla") }
+                    TextButton(onClick = { pendingAssignmentRemoval = null }) { Text("Annulla") }
+                },
+            )
+        }
+
+        lifecycleState.deleteImpactConfirm?.let { impact ->
+            AlertDialog(
+                onDismissRequest = { lifecycleVM.dismissDeleteSelectedProgram() },
+                title = { Text("Elimina mese") },
+                text = {
+                    Text(buildDeleteProgramImpactMessage(impact))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { lifecycleVM.confirmDeleteSelectedProgram() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Elimina") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { lifecycleVM.dismissDeleteSelectedProgram() }) { Text("Annulla") }
                 },
             )
         }
@@ -365,74 +281,375 @@ fun ProgramWorkspaceScreen() {
             val currentMonday = remember(lifecycleState.today) {
                 lifecycleState.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             }
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = weekListState,
-                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+            val selectedProgram = remember(
+                lifecycleState.selectedProgramId,
+                lifecycleState.currentProgram,
+                lifecycleState.futurePrograms,
+            ) {
+                val selectedId = lifecycleState.selectedProgramId
+                when (selectedId) {
+                    lifecycleState.currentProgram?.id?.value -> lifecycleState.currentProgram
+                    else -> {
+                        lifecycleState.futurePrograms.firstOrNull { it.id.value == selectedId }
+                            ?: lifecycleState.currentProgram
+                            ?: lifecycleState.futurePrograms.firstOrNull()
+                    }
+                }
+            }
+            val totalSlots = remember(lifecycleState.selectedProgramWeeks) {
+                lifecycleState.selectedProgramWeeks.sumOf { week ->
+                    week.parts.sumOf { part -> part.partType.peopleCount }
+                }
+            }
+            val totalAssignments = remember(lifecycleState.selectedProgramAssignments) {
+                lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
+            }
+            val assignmentsById = remember(lifecycleState.selectedProgramAssignments) {
+                lifecycleState.selectedProgramAssignments.values
+                    .flatten()
+                    .associateBy { it.id.value }
+            }
+            val hasFutureWeeks = remember(lifecycleState.selectedProgramWeeks, currentMonday) {
+                lifecycleState.selectedProgramWeeks.any { it.weekStartDate > currentMonday }
+            }
+            val fromFutureDate = remember(currentMonday) { currentMonday.plusWeeks(1) }
+
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                Surface(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(end = 12.dp),
+                        .width(260.dp)
+                        .fillMaxHeight(),
+                    shape = RoundedCornerShape(spacing.cardRadius),
+                    border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.72f)),
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
-                    if (lifecycleState.selectedProgramWeeks.isEmpty()) {
-                        item(key = "empty-weeks") {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = SemanticColors.blue.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.5f)),
+                        ) {
+                            Text(
+                                "Mesi",
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = SemanticColors.blue,
+                            )
+                        }
+                        lifecycleState.currentProgram?.let { program ->
+                            val isSelected = lifecycleState.selectedProgramId == program.id.value
+                            OutlinedButton(
+                                onClick = { lifecycleVM.selectProgram(program.id.value) },
+                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                ),
                             ) {
+                                Text(formatMonthYearLabel(program.month, program.year))
+                            }
+                        }
+                        lifecycleState.futurePrograms.forEach { program ->
+                            val isSelected = lifecycleState.selectedProgramId == program.id.value
+                            OutlinedButton(
+                                onClick = { lifecycleVM.selectProgram(program.id.value) },
+                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+                                ),
+                            ) {
+                                Text(formatMonthYearLabel(program.month, program.year))
+                            }
+                            if (program.id.value in schemaState.impactedFutureProgramIds) {
                                 Text(
-                                    "Nessuna settimana disponibile nel programma selezionato",
-                                    modifier = Modifier.padding(horizontal = spacing.lg, vertical = spacing.md),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    "Template aggiornato, verificare",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
-                    } else {
-                        lifecycleState.selectedProgramWeeks.forEach { week ->
-                            val weekKey = week.id.value
-                            val weekIsCurrent = week.weekStartDate == currentMonday
-                            val weekIsPast = week.weekStartDate < lifecycleState.today
-                            stickyHeader(key = "week-header-$weekKey") {
-                                ProgramWeekStickyHeader(
-                                    week = week,
-                                    isCurrent = weekIsCurrent,
-                                    isPast = weekIsPast,
-                                )
+
+                        lifecycleState.creatableTargets.forEach { target ->
+                            val label = formatMonthYearLabel(target.monthValue, target.year)
+                            Button(
+                                onClick = { lifecycleVM.createProgramForTarget(target.year, target.monthValue) },
+                                enabled = !lifecycleState.isCreatingProgram,
+                                modifier = Modifier.fillMaxWidth().handCursorOnHover(enabled = !lifecycleState.isCreatingProgram),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
+                            ) {
+                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(spacing.xs))
+                                Text(if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label")
                             }
-                            item(key = "week-card-$weekKey") {
-                                ProgramWeekCard(
-                                    week = week,
-                                    isCurrent = weekIsCurrent,
-                                    today = lifecycleState.today,
-                                    assignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList(),
-                                    onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
-                                    onOpenPartEditor = { partEditorVM.openPartEditor(week) },
-                                    onRequestClearWeekAssignments = {
-                                        assignmentVM.requestClearWeekAssignments(week.id.value, week.weekStartDate)
-                                    },
-                                    onAssignSlot = { partId, slot ->
-                                        personPickerVM.openPersonPicker(
-                                            weekStartDate = week.weekStartDate,
-                                            weeklyPartId = partId,
-                                            slot = slot,
-                                            selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
-                                            selectedProgramAssignments = lifecycleState.selectedProgramAssignments
+                        }
+
+                        OutlinedButton(
+                            onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
+                            enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
+                            modifier = Modifier.fillMaxWidth().handCursorOnHover(
+                                enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(spacing.xs))
+                            Text(
+                                if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas) {
+                                    "Aggiornamento..."
+                                } else {
+                                    "Aggiorna schemi"
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    shape = RoundedCornerShape(spacing.cardRadius),
+                    border = BorderStroke(1.dp, SemanticColors.amber.copy(alpha = 0.72f)),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Column(modifier = Modifier.fillMaxSize().padding(spacing.md)) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = SemanticColors.amber.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, SemanticColors.amber.copy(alpha = 0.55f)),
+                        ) {
+                            Text(
+                                selectedProgram?.let { "Settimane · ${formatMonthYearLabel(it.month, it.year)}" }
+                                    ?: "Settimane",
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = SemanticColors.amber,
+                            )
+                        }
+                        Spacer(Modifier.height(spacing.sm))
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = weekListState,
+                                verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(end = 12.dp),
+                            ) {
+                                if (lifecycleState.selectedProgramWeeks.isEmpty()) {
+                                    item(key = "empty-weeks") {
+                                        Surface(
+                                            shape = RoundedCornerShape(spacing.cardRadius),
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+                                        ) {
+                                            Text(
+                                                "Nessuna settimana disponibile nel programma selezionato",
+                                                modifier = Modifier.padding(horizontal = spacing.lg, vertical = spacing.md),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    lifecycleState.selectedProgramWeeks.forEach { week ->
+                                        val weekKey = week.id.value
+                                        val weekIsCurrent = week.weekStartDate == currentMonday
+                                        val weekIsPast = week.weekStartDate.plusDays(6) < lifecycleState.today
+                                        stickyHeader(key = "week-header-$weekKey") {
+                                            ProgramWeekStickyHeader(
+                                                week = week,
+                                                isCurrent = weekIsCurrent,
+                                                isPast = weekIsPast,
+                                            )
+                                        }
+                                        item(key = "week-card-$weekKey") {
+                                            ProgramWeekCard(
+                                                week = week,
+                                                isCurrent = weekIsCurrent,
+                                                today = lifecycleState.today,
+                                                showClearWeekAssignments = week.weekStartDate > currentMonday,
+                                                assignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList(),
+                                                onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
+                                                onOpenPartEditor = { partEditorVM.openPartEditor(week) },
+                                                onRequestClearWeekAssignments = {
+                                                    assignmentVM.requestClearWeekAssignments(week.id.value, week.weekStartDate)
+                                                },
+                                                onAssignSlot = { partId, slot ->
+                                                    personPickerVM.openPersonPicker(
+                                                        weekStartDate = week.weekStartDate,
+                                                        weeklyPartId = partId,
+                                                        slot = slot,
+                                                        selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
+                                                        selectedProgramAssignments = lifecycleState.selectedProgramAssignments
+                                                    )
+                                                },
+                                                onRemoveAssignment = { assignmentId ->
+                                                    val assignment = assignmentsById[assignmentId.value]
+                                                    if (assignment != null) {
+                                                        pendingAssignmentRemoval = assignment
+                                                    } else {
+                                                        personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            VerticalScrollbar(
+                                adapter = rememberScrollbarAdapter(weekListState),
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight(),
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .width(320.dp)
+                        .fillMaxHeight(),
+                    shape = RoundedCornerShape(spacing.cardRadius),
+                    border = BorderStroke(1.dp, SemanticColors.green.copy(alpha = 0.72f)),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = SemanticColors.green.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, SemanticColors.green.copy(alpha = 0.52f)),
+                        ) {
+                            Text(
+                                "Azioni",
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = SemanticColors.green,
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                lifecycleState.selectedProgramId?.let { programId ->
+                                    assignmentVM.autoAssignSelectedProgram(programId, fromFutureDate, onSuccess = reloadData)
+                                }
+                            },
+                            enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
+                            modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SemanticColors.green,
+                                contentColor = Color.White,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(spacing.xs))
+                            Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna")
+                        }
+                        Button(
+                            onClick = {
+                                lifecycleState.selectedProgramId?.let { programId ->
+                                    assignmentVM.printSelectedProgram(programId)
+                                }
+                            },
+                            enabled = lifecycleState.selectedProgramId != null && !assignmentState.isPrintingProgram,
+                            modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SemanticColors.blue,
+                                contentColor = Color.White,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(spacing.xs))
+                            Text(if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa")
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.42f)),
+                            color = SemanticColors.blue.copy(alpha = 0.14f),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text("Copertura", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$totalAssignments/$totalSlots slot assegnati", style = MaterialTheme.typography.bodyMedium)
+                                Text("${assignmentState.autoAssignUnresolved.size} slot non assegnati", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+
+                        if (lifecycleState.canDeleteSelectedProgram) {
+                            OutlinedButton(
+                                onClick = { lifecycleVM.requestDeleteSelectedProgram() },
+                                enabled = !lifecycleState.isDeletingSelectedProgram,
+                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            ) {
+                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(spacing.xs))
+                                Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese")
+                            }
+                        }
+                        if (hasFutureWeeks) {
+                            OutlinedButton(
+                                onClick = {
+                                    lifecycleState.selectedProgramId?.let { programId ->
+                                        assignmentVM.requestClearAssignments(programId, fromFutureDate)
+                                    }
+                                },
+                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
+                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            ) {
+                                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(spacing.xs))
+                                Text(if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
+                            }
+                        }
+
+                        if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+                                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                ) {
+                                    Text("Slot non assegnati", style = MaterialTheme.typography.labelMedium)
+                                    assignmentState.autoAssignUnresolved.take(4).forEach { unresolved ->
+                                        val weekLabel = formatWeekRangeLabel(unresolved.weekStartDate, unresolved.weekStartDate.plusDays(6))
+                                        Text(
+                                            "• $weekLabel · ${unresolved.partLabel} (${unresolved.reason})",
+                                            style = MaterialTheme.typography.labelSmall,
                                         )
-                                    },
-                                    onRemoveAssignment = { personPickerVM.removeAssignment(it, onSuccess = reloadData) },
-                                )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                VerticalScrollbar(
-                    adapter = rememberScrollbarAdapter(weekListState),
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxHeight(),
-                )
             }
         }
     }
+}
+
+internal fun buildDeleteProgramImpactMessage(impact: DeleteProgramImpact): String {
+    val monthLabel = formatMonthYearLabel(impact.month, impact.year)
+    return "Confermi eliminazione del mese $monthLabel? " +
+        "Verranno rimosse ${impact.weeksCount} settimane e ${impact.assignmentsCount} assegnazioni."
 }

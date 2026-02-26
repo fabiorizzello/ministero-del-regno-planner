@@ -21,8 +21,8 @@ class EliminaProgrammaFuturoUseCase(
         val program = programStore.findById(programId)
             ?: raise(DomainError.Validation("Programma non trovato"))
 
-        if (program.timelineStatus(referenceDate) != ProgramTimelineStatus.FUTURE) {
-            raise(DomainError.Validation("Puoi eliminare solo programmi futuri"))
+        if (program.timelineStatus(referenceDate) == ProgramTimelineStatus.PAST) {
+            raise(DomainError.Validation("Puoi eliminare solo il programma corrente o futuri"))
         }
 
         transactionRunner.runInTransaction {
