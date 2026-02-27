@@ -43,10 +43,6 @@ class WindowSettingsStore(
             .coerceIn(UI_SCALE_MIN, UI_SCALE_MAX)
     }
 
-    fun loadDarkModeEnabled(): Boolean {
-        return settings.getBoolean(KEY_DARK_MODE_ENABLED, false)
-    }
-
     fun save(windowSettings: WindowSettings) {
         settings.putInt(KEY_WIDTH_DP, windowSettings.widthDp)
         settings.putInt(KEY_HEIGHT_DP, windowSettings.heightDp)
@@ -59,10 +55,6 @@ class WindowSettingsStore(
         settings.putFloat(KEY_UI_SCALE, uiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
     }
 
-    fun saveDarkModeEnabled(enabled: Boolean) {
-        settings.putBoolean(KEY_DARK_MODE_ENABLED, enabled)
-    }
-
     private companion object {
         const val KEY_WIDTH_DP = "window.widthDp"
         const val KEY_HEIGHT_DP = "window.heightDp"
@@ -70,7 +62,6 @@ class WindowSettingsStore(
         const val KEY_POSITION_X = "window.positionXDp"
         const val KEY_POSITION_Y = "window.positionYDp"
         const val KEY_UI_SCALE = "ui.scale"
-        const val KEY_DARK_MODE_ENABLED = "ui.darkModeEnabled"
         const val DEFAULT_UI_SCALE = 1.0f
         const val UI_SCALE_MIN = 0.85f
         const val UI_SCALE_MAX = 1.25f

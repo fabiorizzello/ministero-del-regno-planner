@@ -61,7 +61,6 @@ fun main() {
         val settingsStore = remember { GlobalContext.get().get<WindowSettingsStore>() }
         val initialWindowSettings = remember { settingsStore.load() }
         val initialUiScale = remember { settingsStore.loadUiScale() }
-        val initialDarkMode = remember { settingsStore.loadDarkModeEnabled() }
         val initialPosition = if (
             initialWindowSettings.positionXDp != WindowSettings.POSITION_UNSET &&
             initialWindowSettings.positionYDp != WindowSettings.POSITION_UNSET
@@ -99,8 +98,6 @@ fun main() {
             AppScreen(
                 initialUiScale = initialUiScale,
                 onUiScaleChange = settingsStore::saveUiScale,
-                initialDarkMode = initialDarkMode,
-                onDarkModeChange = settingsStore::saveDarkModeEnabled,
                 isWindowMaximized = windowState.placement == WindowPlacement.Maximized,
                 onRequestMinimize = {
                     window.extendedState = window.extendedState or Frame.ICONIFIED

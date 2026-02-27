@@ -28,6 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.FeedbackBannerKind
+import org.example.project.ui.components.workspace.WorkspacePanel
+import org.example.project.ui.components.workspace.WorkspaceStateKind
+import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -127,7 +131,7 @@ fun ProclamatoriScreen() {
         rootFocusRequester.requestFocus()
     }
 
-    Column(
+    WorkspacePanel(
         modifier = Modifier
             .fillMaxHeight()
             .focusRequester(rootFocusRequester)
@@ -154,44 +158,72 @@ fun ProclamatoriScreen() {
                     else -> false
                 }
             },
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
     ) {
-        val elencoEvents = remember(listVm, formVm) {
-            ProclamatoriElencoEvents(
-                onSearchTermChange = { value -> listVm.setSearchTerm(value) },
-                onResetSearch = { listVm.resetSearch() },
-                onDismissNotice = { listVm.dismissNotice() },
-                onSortChange = { nextSort -> listVm.setSort(nextSort) },
-                onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
-                onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
-                onActivateSelected = { listVm.activateSelected() },
-                onDeactivateSelected = { listVm.deactivateSelected() },
-                onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
-                onClearSelection = { listVm.clearSelection() },
-                onGoNuovo = { goToNuovo() },
-                onImportJson = { listVm.startImportFromJson() },
-                onDismissSchemaAnomalies = { listVm.dismissSchemaUpdateAnomalies() },
-                onEdit = { id ->
-                    formVm.loadForEdit(
-                        id = id,
-                        onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
-                        onSuccess = { route = ProclamatoriRoute.Modifica(id) },
-                    )
-                },
-                onToggleActive = { id, next -> listVm.toggleActive(id, next) },
-                onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
-                onPreviousPage = { listVm.goToPreviousPage() },
-                onNextPage = { listVm.goToNextPage() },
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
+        ) {
+            val showLoadingState = listState.isLoading && listState.allItems.isEmpty()
+            val showErrorState = !listState.isLoading &&
+                listState.allItems.isEmpty() &&
+                listState.notice?.kind == FeedbackBannerKind.ERROR
+            val showEmptyState = !listState.isLoading &&
+                listState.allItems.isEmpty() &&
+                listState.notice == null &&
+                listState.searchTerm.isBlank()
+
+            when {
+                showLoadingState -> WorkspaceStatePane(
+                    kind = WorkspaceStateKind.Loading,
+                    message = "Caricamento proclamatori in corso...",
+                )
+                showErrorState -> WorkspaceStatePane(
+                    kind = WorkspaceStateKind.Error,
+                    message = "Impossibile caricare l'elenco proclamatori.",
+                )
+                showEmptyState -> WorkspaceStatePane(
+                    kind = WorkspaceStateKind.Empty,
+                    message = "Nessun proclamatore disponibile.",
+                )
+            }
+
+            val elencoEvents = remember(listVm, formVm) {
+                ProclamatoriElencoEvents(
+                    onSearchTermChange = { value -> listVm.setSearchTerm(value) },
+                    onResetSearch = { listVm.resetSearch() },
+                    onDismissNotice = { listVm.dismissNotice() },
+                    onSortChange = { nextSort -> listVm.setSort(nextSort) },
+                    onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
+                    onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
+                    onActivateSelected = { listVm.activateSelected() },
+                    onDeactivateSelected = { listVm.deactivateSelected() },
+                    onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
+                    onClearSelection = { listVm.clearSelection() },
+                    onGoNuovo = { goToNuovo() },
+                    onImportJson = { listVm.startImportFromJson() },
+                    onDismissSchemaAnomalies = { listVm.dismissSchemaUpdateAnomalies() },
+                    onEdit = { id ->
+                        formVm.loadForEdit(
+                            id = id,
+                            onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                            onSuccess = { route = ProclamatoriRoute.Modifica(id) },
+                        )
+                    },
+                    onToggleActive = { id, next -> listVm.toggleActive(id, next) },
+                    onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
+                    onPreviousPage = { listVm.goToPreviousPage() },
+                    onNextPage = { listVm.goToNextPage() },
+                )
+            }
+
+            ProclamatoriElencoContent(
+                state = listState,
+                searchFocusRequester = searchFocusRequester,
+                tableListState = tableListState,
+                canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
+                events = elencoEvents,
             )
         }
-
-        ProclamatoriElencoContent(
-            state = listState,
-            searchFocusRequester = searchFocusRequester,
-            tableListState = tableListState,
-            canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
-            events = elencoEvents,
-        )
     }
 
     if (isFormRoute) {
