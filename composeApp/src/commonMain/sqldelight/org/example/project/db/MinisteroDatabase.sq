@@ -724,3 +724,36 @@ FROM assignment a
 JOIN weekly_part wp ON a.weekly_part_id = wp.id
 JOIN week_plan w ON wp.week_plan_id = w.id
 WHERE w.program_id = ?;
+
+-- Seed cleanup helpers (CLI)
+deleteSeedAssignmentsLike:
+DELETE FROM assignment
+WHERE id LIKE ?;
+
+deleteSeedWeeklyPartsLike:
+DELETE FROM weekly_part
+WHERE id LIKE ?;
+
+deleteSeedWeekPlansLike:
+DELETE FROM week_plan
+WHERE id LIKE ?;
+
+deleteSeedProgramsLike:
+DELETE FROM program_monthly
+WHERE id LIKE ?;
+
+deleteSeedSchemaWeekPartsLike:
+DELETE FROM schema_week_part
+WHERE id LIKE ?;
+
+deleteSeedSchemaWeeksLike:
+DELETE FROM schema_week
+WHERE id LIKE ?;
+
+deleteOrphanAssignments:
+DELETE FROM assignment
+WHERE weekly_part_id NOT IN (SELECT id FROM weekly_part);
+
+deleteOrphanWeeklyParts:
+DELETE FROM weekly_part
+WHERE week_plan_id NOT IN (SELECT id FROM week_plan);

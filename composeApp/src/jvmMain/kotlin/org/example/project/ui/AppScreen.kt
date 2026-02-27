@@ -1,36 +1,41 @@
 package org.example.project.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.window.WindowDraggableArea
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FilterNone
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -42,22 +47,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.WindowScope
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
+import kotlin.math.roundToInt
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
-import org.example.project.ui.settings.AssignmentEngineSettingsScreen
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.workspace.ProgramWorkspaceScreen
-import kotlin.math.roundToInt
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
 private const val UI_SCALE_MIN = 0.85f
@@ -73,17 +79,22 @@ internal enum class AppSection(
 ) {
     PLANNING("Programma", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
-    ASSIGNMENT_SETTINGS("Impostazioni", Icons.Filled.Settings, AssignmentEngineSettingsSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-fun AppScreen(
+fun WindowScope.AppScreen(
     initialUiScale: Float = 1f,
     onUiScaleChange: (Float) -> Unit = {},
+    initialDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {},
+    isWindowMaximized: Boolean = false,
+    onRequestMinimize: () -> Unit = {},
+    onRequestToggleMaximize: () -> Unit = {},
+    onRequestClose: () -> Unit = {},
 ) {
-    AppTheme {
+    var darkMode by rememberSaveable(initialDarkMode) { mutableStateOf(initialDarkMode) }
+    AppTheme(darkTheme = darkMode) {
         val spacing = MaterialTheme.spacing
         var uiScale by rememberSaveable(initialUiScale) {
             mutableFloatStateOf(initialUiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
@@ -98,8 +109,6 @@ fun AppScreen(
             )
         }
 
-        // replaceAll is used for all navigation so the back stack never exceeds one
-        // entry, preventing accidental back navigation between sections.
         Navigator(AppSection.PLANNING.screen) { navigator ->
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
@@ -115,22 +124,69 @@ fun AppScreen(
                 LocalDensity provides scaledDensity,
             ) {
                 val navigateToSection = LocalSectionNavigator.current
-                Scaffold(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    text = "Efficaci nel Ministero",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                            ),
-                            actions = {
+                fun applyUiScale(value: Float) {
+                    val updatedScale = snapUiScale(value)
+                    if (updatedScale != uiScale) {
+                        uiScale = updatedScale
+                        onUiScaleChange(updatedScale)
+                    }
+                    draftUiScale = updatedScale
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                                    .padding(horizontal = spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                            ) {
+                                WindowDraggableArea(
+                                    modifier = Modifier
+                                        .width(220.dp)
+                                        .fillMaxHeight(),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = spacing.xs),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(5.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                                        ) {
+                                            Text(
+                                                "S",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+                                        }
+                                        Text(
+                                            text = "Scuola di ministero",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                }
+
                                 Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .horizontalScroll(rememberScrollState()),
                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -141,15 +197,25 @@ fun AppScreen(
                                             section = section,
                                         )
                                     }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            darkMode = !darkMode
+                                            onDarkModeChange(darkMode)
+                                        },
+                                        modifier = Modifier.handCursorOnHover(),
+                                    ) {
+                                        Icon(
+                                            imageVector = if (darkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                                            contentDescription = if (darkMode) "Passa a tema chiaro" else "Passa a tema scuro",
+                                        )
+                                    }
                                     Box {
-                                        fun applyUiScale(value: Float) {
-                                            val updatedScale = snapUiScale(value)
-                                            if (updatedScale != uiScale) {
-                                                uiScale = updatedScale
-                                                onUiScaleChange(updatedScale)
-                                            }
-                                            draftUiScale = updatedScale
-                                        }
                                         IconButton(
                                             onClick = {
                                                 draftUiScale = uiScale
@@ -228,18 +294,34 @@ fun AppScreen(
                                             }
                                         }
                                     }
+
+                                    WindowActionButton(
+                                        onClick = onRequestMinimize,
+                                        icon = Icons.Filled.Remove,
+                                        contentDescription = "Minimizza finestra",
+                                    )
+                                    WindowActionButton(
+                                        onClick = onRequestToggleMaximize,
+                                        icon = if (isWindowMaximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
+                                        contentDescription = if (isWindowMaximized) "Ripristina finestra" else "Massimizza finestra",
+                                    )
+                                    WindowActionButton(
+                                        onClick = onRequestClose,
+                                        icon = Icons.Filled.Close,
+                                        contentDescription = "Chiudi finestra",
+                                        isDestructive = true,
+                                    )
                                 }
-                            },
-                        )
-                    },
-                ) { paddingValues ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .padding(horizontal = spacing.md, vertical = spacing.sm),
-                    ) {
-                        CurrentScreen()
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                        ) {
+                            CurrentScreen()
+                        }
                     }
                 }
             }
@@ -253,19 +335,19 @@ private fun TopBarSectionButton(
     onClick: () -> Unit,
     section: AppSection,
 ) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(4.dp)
     val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     } else {
         MaterialTheme.colorScheme.surface
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
     } else {
-        MaterialTheme.colorScheme.outlineVariant
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
     }
     val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -273,14 +355,13 @@ private fun TopBarSectionButton(
     Surface(
         modifier = Modifier
             .handCursorOnHover()
-            .clickable(onClick = onClick)
-            .padding(vertical = 2.dp),
+            .clickable(onClick = onClick),
         shape = shape,
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -288,12 +369,41 @@ private fun TopBarSectionButton(
                 imageVector = section.icon,
                 contentDescription = section.label,
                 tint = contentColor,
+                modifier = Modifier.width(15.dp),
             )
             Text(
                 text = section.label,
                 color = contentColor,
                 style = MaterialTheme.typography.labelMedium,
             )
+        }
+    }
+}
+
+@Composable
+private fun WindowActionButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    isDestructive: Boolean = false,
+) {
+    val bg = if (isDestructive) {
+        MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
+    } else {
+        Color.Transparent
+    }
+    val tint = if (isDestructive) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = bg,
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.handCursorOnHover()) {
+            Icon(imageVector = icon, contentDescription = contentDescription, tint = tint)
         }
     }
 }
@@ -316,13 +426,6 @@ private data object DiagnosticsSectionScreen : Screen {
     @Composable
     override fun Content() {
         DiagnosticsScreen()
-    }
-}
-
-private data object AssignmentEngineSettingsSectionScreen : Screen {
-    @Composable
-    override fun Content() {
-        AssignmentEngineSettingsScreen()
     }
 }
 

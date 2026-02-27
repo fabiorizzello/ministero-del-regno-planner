@@ -204,11 +204,11 @@ internal class AssignmentManagementViewModel(
             var shouldReload = false
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isClearingAssignments = true) },
-                successUpdate = { state, count ->
+                successUpdate = { state, _ ->
                     shouldReload = true
                     state.copy(
                         isClearingAssignments = false,
-                        notice = successNotice("$count assegnazioni rimosse"),
+                        notice = null,
                     )
                 },
                 errorUpdate = { state, error ->
@@ -248,7 +248,7 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun confirmClearWeekAssignments(weekStartDate: LocalDate, assignmentCount: Int, onSuccess: () -> Unit) {
+    fun confirmClearWeekAssignments(weekStartDate: LocalDate, onSuccess: () -> Unit) {
         scope.launch {
             _uiState.update { it.copy(clearWeekAssignmentsConfirm = null) }
             _uiState.executeAsyncOperation(
@@ -256,7 +256,7 @@ internal class AssignmentManagementViewModel(
                 successUpdate = { state, _ ->
                     state.copy(
                         isClearingWeekAssignments = false,
-                        notice = successNotice("$assignmentCount assegnazioni rimosse"),
+                        notice = null,
                     )
                 },
                 errorUpdate = { state, error ->

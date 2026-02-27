@@ -124,7 +124,7 @@ internal fun ProgramWeekStickyHeader(
             ) {
                 if (isCurrent) {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+                        shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                     ) {
                         Text(
@@ -137,7 +137,7 @@ internal fun ProgramWeekStickyHeader(
                 }
                 if (isSkipped) {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+                        shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
                     ) {
                         Text(
@@ -150,7 +150,7 @@ internal fun ProgramWeekStickyHeader(
                 }
                 if (isPast && !isCurrent) {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+                        shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     ) {
                         Text(
@@ -179,6 +179,7 @@ internal fun ProgramWeekCard(
     showClearWeekAssignments: Boolean,
     assignments: List<AssignmentWithPerson>,
     onReactivate: () -> Unit,
+    onSkipWeek: () -> Unit,
     onOpenPartEditor: () -> Unit,
     onRequestClearWeekAssignments: () -> Unit,
     onAssignSlot: (WeeklyPartId, Int) -> Unit,
@@ -225,8 +226,8 @@ internal fun ProgramWeekCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .background(accentColor.copy(alpha = 0.76f)),
+                    .height(2.dp)
+                    .background(accentColor.copy(alpha = 0.58f)),
             )
 
             Row(
@@ -243,6 +244,7 @@ internal fun ProgramWeekCard(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.secondary,
                         ),
+                        shape = RoundedCornerShape(6.dp),
                     ) { Text("Riattiva") }
                 } else if (!isPast) {
                     OutlinedButton(
@@ -251,7 +253,18 @@ internal fun ProgramWeekCard(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.primary,
                         ),
+                        shape = RoundedCornerShape(6.dp),
                     ) { Text("Modifica parti") }
+                    OutlinedButton(
+                        onClick = onSkipWeek,
+                        modifier = Modifier.handCursorOnHover(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.secondary,
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                    ) {
+                        Text("Salta settimana")
+                    }
                 }
                 if (canMutate && showClearWeekAssignments) {
                     OutlinedButton(
@@ -262,6 +275,7 @@ internal fun ProgramWeekCard(
                             contentColor = MaterialTheme.colorScheme.error,
                             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         ),
+                        shape = RoundedCornerShape(6.dp),
                     ) {
                         Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(spacing.xs))
@@ -286,18 +300,11 @@ internal fun ProgramWeekCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .then(if (rowParts.size > 1) Modifier.height(IntrinsicSize.Min) else Modifier),
+                                .height(IntrinsicSize.Min),
                             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                             verticalAlignment = Alignment.Top,
                         ) {
                             rowParts.forEach { part ->
-                                val partModifier = if (rowParts.size > 1) {
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                } else {
-                                    Modifier.fillMaxWidth()
-                                }
                                 PartAssignmentCard(
                                     part = part,
                                     assignments = assignmentsByPart[part.id] ?: emptyList(),
@@ -306,8 +313,11 @@ internal fun ProgramWeekCard(
                                     showSexRuleChip = false,
                                     onAssignSlot = { slot -> onAssignSlot(part.id, slot) },
                                     onRemoveAssignment = onRemoveAssignment,
-                                    modifier = partModifier,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                 )
+                            }
+                            if (rowParts.size == 1) {
+                                Spacer(Modifier.weight(1f).fillMaxHeight())
                             }
                         }
                     }

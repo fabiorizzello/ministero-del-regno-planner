@@ -270,10 +270,10 @@ private fun PlanningAlertPill(
 
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
             .handCursorOnHover(),
-        shape = RoundedCornerShape(999.dp),
+        shape = RoundedCornerShape(6.dp),
         color = backgroundColor,
         border = BorderStroke(1.dp, borderColor),
     ) {
@@ -464,7 +464,7 @@ private fun WeekPlanningCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
-                            .clip(RoundedCornerShape(999.dp)),
+                            .clip(RoundedCornerShape(6.dp)),
                         color = statusColor,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
                     )

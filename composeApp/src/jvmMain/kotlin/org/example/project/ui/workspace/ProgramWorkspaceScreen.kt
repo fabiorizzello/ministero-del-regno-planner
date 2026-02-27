@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,38 +23,45 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
@@ -64,7 +73,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
-import org.example.project.ui.components.FeedbackBanner
+import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
@@ -72,7 +81,16 @@ import org.example.project.ui.theme.SemanticColors
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 import java.time.DayOfWeek
+import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
+
+private data class ProgramActivityFeedEntry(
+    val id: Long,
+    val kind: FeedbackBannerKind,
+    val message: String,
+    val details: String?,
+    val timestamp: String,
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -93,10 +111,43 @@ fun ProgramWorkspaceScreen() {
     val spacing = MaterialTheme.spacing
     val weekListState = rememberLazyListState()
     var pendingAssignmentRemoval by remember { mutableStateOf<AssignmentWithPerson?>(null) }
+    val activityFeed = remember { mutableStateListOf<ProgramActivityFeedEntry>() }
+    val incomingNotices = listOfNotNull(
+        lifecycleState.notice,
+        schemaState.notice,
+        assignmentState.notice,
+        personPickerState.notice,
+        partEditorState.notice,
+    )
+    val noticeSignature = incomingNotices.joinToString(separator = "|") { "${it.kind}:${it.message}:${it.details.orEmpty()}" }
 
     LaunchedEffect(Unit) {
         lifecycleVM.onScreenEntered()
         assignmentVM.onScreenEntered()
+    }
+
+    LaunchedEffect(noticeSignature) {
+        if (incomingNotices.isEmpty()) return@LaunchedEffect
+        incomingNotices.forEach { notice ->
+            activityFeed.add(
+                0,
+                ProgramActivityFeedEntry(
+                    id = System.nanoTime(),
+                    kind = notice.kind,
+                    message = notice.message,
+                    details = notice.details,
+                    timestamp = LocalTime.now().withNano(0).toString(),
+                ),
+            )
+        }
+        while (activityFeed.size > 50) {
+            activityFeed.removeAt(activityFeed.lastIndex)
+        }
+        lifecycleVM.dismissNotice()
+        schemaVM.dismissNotice()
+        assignmentVM.dismissNotice()
+        personPickerVM.dismissNotice()
+        partEditorVM.dismissNotice()
     }
 
     // Keep schema VM in sync with lifecycle VM
@@ -163,22 +214,9 @@ fun ProgramWorkspaceScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+            .padding(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
-        // Show notice from any ViewModel (first non-null wins)
-        val currentNotice = lifecycleState.notice ?: schemaState.notice ?: assignmentState.notice ?: personPickerState.notice ?: partEditorState.notice
-        FeedbackBanner(
-            model = currentNotice,
-            onDismissRequest = {
-                lifecycleVM.dismissNotice()
-                schemaVM.dismissNotice()
-                assignmentVM.dismissNotice()
-                personPickerVM.dismissNotice()
-                partEditorVM.dismissNotice()
-            },
-        )
-
         assignmentState.clearAssignmentsConfirm?.let { count ->
             val fromFutureDate = lifecycleState.today
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -218,7 +256,7 @@ fun ProgramWorkspaceScreen() {
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                assignmentVM.confirmClearWeekAssignments(week.weekStartDate, count, onSuccess = reloadData)
+                                assignmentVM.confirmClearWeekAssignments(week.weekStartDate, onSuccess = reloadData)
                             },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.handCursorOnHover(),
@@ -320,53 +358,45 @@ fun ProgramWorkspaceScreen() {
             ) {
                 Surface(
                     modifier = Modifier
-                        .width(260.dp)
+                        .width(244.dp)
                         .fillMaxHeight(),
                     shape = RoundedCornerShape(spacing.cardRadius),
-                    border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.72f)),
-                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(spacing.md),
                         verticalArrangement = Arrangement.spacedBy(spacing.sm),
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = SemanticColors.blue.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(5.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
                         ) {
                             Text(
                                 "Mesi",
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = SemanticColors.blue,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                         lifecycleState.currentProgram?.let { program ->
                             val isSelected = lifecycleState.selectedProgramId == program.id.value
-                            OutlinedButton(
+                            ProgramMonthSelectorButton(
+                                label = formatMonthYearLabel(program.month, program.year),
+                                selected = isSelected,
+                                accent = MaterialTheme.colorScheme.primary,
                                 onClick = { lifecycleVM.selectProgram(program.id.value) },
-                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                ),
-                            ) {
-                                Text(formatMonthYearLabel(program.month, program.year))
-                            }
+                            )
                         }
                         lifecycleState.futurePrograms.forEach { program ->
                             val isSelected = lifecycleState.selectedProgramId == program.id.value
-                            OutlinedButton(
+                            ProgramMonthSelectorButton(
+                                label = formatMonthYearLabel(program.month, program.year),
+                                selected = isSelected,
+                                accent = MaterialTheme.colorScheme.secondary,
                                 onClick = { lifecycleVM.selectProgram(program.id.value) },
-                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
-                                ),
-                            ) {
-                                Text(formatMonthYearLabel(program.month, program.year))
-                            }
+                            )
                             if (program.id.value in schemaState.impactedFutureProgramIds) {
                                 Text(
                                     "Template aggiornato, verificare",
@@ -378,38 +408,26 @@ fun ProgramWorkspaceScreen() {
 
                         lifecycleState.creatableTargets.forEach { target ->
                             val label = formatMonthYearLabel(target.monthValue, target.year)
-                            Button(
+                            ProgramPanelActionButton(
+                                label = if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label",
+                                icon = Icons.Filled.Add,
                                 onClick = { lifecycleVM.createProgramForTarget(target.year, target.monthValue) },
                                 enabled = !lifecycleState.isCreatingProgram,
-                                modifier = Modifier.fillMaxWidth().handCursorOnHover(enabled = !lifecycleState.isCreatingProgram),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                ),
-                            ) {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(spacing.xs))
-                                Text(if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label")
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
-                            enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
-                            modifier = Modifier.fillMaxWidth().handCursorOnHover(
-                                enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
-                            ),
-                        ) {
-                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(spacing.xs))
-                            Text(
-                                if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas) {
-                                    "Aggiornamento..."
-                                } else {
-                                    "Aggiorna schemi"
-                                },
+                                tone = ProgramActionTone.Neutral,
                             )
                         }
+
+                        ProgramPanelActionButton(
+                            label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas) {
+                                "Aggiornamento..."
+                            } else {
+                                "Aggiorna schemi"
+                            },
+                            icon = Icons.Filled.Refresh,
+                            onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
+                            enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
+                            tone = ProgramActionTone.Neutral,
+                        )
                     }
                 }
 
@@ -418,23 +436,29 @@ fun ProgramWorkspaceScreen() {
                         .weight(1f)
                         .fillMaxHeight(),
                     shape = RoundedCornerShape(spacing.cardRadius),
-                    border = BorderStroke(1.dp, SemanticColors.amber.copy(alpha = 0.72f)),
-                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
                 ) {
                     Column(modifier = Modifier.fillMaxSize().padding(spacing.md)) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = SemanticColors.amber.copy(alpha = 0.2f),
-                            border = BorderStroke(1.dp, SemanticColors.amber.copy(alpha = 0.55f)),
+                            shape = RoundedCornerShape(5.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
                         ) {
                             Text(
                                 selectedProgram?.let { "Settimane · ${formatMonthYearLabel(it.month, it.year)}" }
                                     ?: "Settimane",
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
                                 style = MaterialTheme.typography.titleSmall,
-                                color = SemanticColors.amber,
+                                color = MaterialTheme.colorScheme.tertiary,
                             )
                         }
+                        Spacer(Modifier.height(spacing.sm))
+                        ProgramMonthTimeline(
+                            weeks = lifecycleState.selectedProgramWeeks,
+                            assignmentsByWeek = lifecycleState.selectedProgramAssignments,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         Spacer(Modifier.height(spacing.sm))
                         Box(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
@@ -479,6 +503,7 @@ fun ProgramWorkspaceScreen() {
                                                 showClearWeekAssignments = week.weekStartDate > currentMonday,
                                                 assignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList(),
                                                 onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
+                                                onSkipWeek = { partEditorVM.skipWeek(week, onSuccess = reloadData) },
                                                 onOpenPartEditor = { partEditorVM.openPartEditor(week) },
                                                 onRequestClearWeekAssignments = {
                                                     assignmentVM.requestClearWeekAssignments(week.id.value, week.weekStartDate)
@@ -517,67 +542,55 @@ fun ProgramWorkspaceScreen() {
 
                 Surface(
                     modifier = Modifier
-                        .width(320.dp)
+                        .width(338.dp)
                         .fillMaxHeight(),
                     shape = RoundedCornerShape(spacing.cardRadius),
-                    border = BorderStroke(1.dp, SemanticColors.green.copy(alpha = 0.72f)),
-                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(spacing.md),
                         verticalArrangement = Arrangement.spacedBy(spacing.sm),
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = SemanticColors.green.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, SemanticColors.green.copy(alpha = 0.52f)),
+                            shape = RoundedCornerShape(5.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
                         ) {
                             Text(
-                                "Azioni",
+                                "Azioni e feed",
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = spacing.xs),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = SemanticColors.green,
+                                color = MaterialTheme.colorScheme.secondary,
                             )
                         }
-                        Button(
+                        ProgramPanelActionButton(
+                            label = if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna",
+                            icon = Icons.Filled.PlayArrow,
                             onClick = {
                                 lifecycleState.selectedProgramId?.let { programId ->
                                     assignmentVM.autoAssignSelectedProgram(programId, fromFutureDate, onSuccess = reloadData)
                                 }
                             },
                             enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
-                            modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SemanticColors.green,
-                                contentColor = Color.White,
-                            ),
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(spacing.xs))
-                            Text(if (assignmentState.isAutoAssigning) "Autoassegnazione..." else "Autoassegna")
-                        }
-                        Button(
+                            tone = ProgramActionTone.Positive,
+                        )
+                        ProgramPanelActionButton(
+                            label = if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa",
+                            icon = Icons.Filled.Print,
                             onClick = {
                                 lifecycleState.selectedProgramId?.let { programId ->
                                     assignmentVM.printSelectedProgram(programId)
                                 }
                             },
                             enabled = lifecycleState.selectedProgramId != null && !assignmentState.isPrintingProgram,
-                            modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SemanticColors.blue,
-                                contentColor = Color.White,
-                            ),
-                        ) {
-                            Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(spacing.xs))
-                            Text(if (assignmentState.isPrintingProgram) "Stampa..." else "Stampa")
-                        }
+                            tone = ProgramActionTone.Primary,
+                        )
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, SemanticColors.blue.copy(alpha = 0.42f)),
-                            color = SemanticColors.blue.copy(alpha = 0.14f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(spacing.sm),
@@ -590,34 +603,26 @@ fun ProgramWorkspaceScreen() {
                         }
 
                         if (lifecycleState.canDeleteSelectedProgram) {
-                            OutlinedButton(
+                            ProgramPanelActionButton(
+                                label = if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese",
+                                icon = Icons.Filled.Delete,
                                 onClick = { lifecycleVM.requestDeleteSelectedProgram() },
                                 enabled = !lifecycleState.isDeletingSelectedProgram,
-                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.75f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            ) {
-                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(spacing.xs))
-                                Text(if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese")
-                            }
+                                tone = ProgramActionTone.DangerOutline,
+                            )
                         }
                         if (hasFutureWeeks) {
-                            OutlinedButton(
+                            ProgramPanelActionButton(
+                                label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni",
+                                icon = Icons.Filled.ClearAll,
                                 onClick = {
                                     lifecycleState.selectedProgramId?.let { programId ->
                                         assignmentVM.requestClearAssignments(programId, fromFutureDate)
                                     }
                                 },
                                 enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
-                                modifier = Modifier.fillMaxWidth().handCursorOnHover(),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            ) {
-                                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(spacing.xs))
-                                Text(if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni")
-                            }
+                                tone = ProgramActionTone.DangerOutline,
+                            )
                         }
 
                         if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
@@ -641,6 +646,24 @@ fun ProgramWorkspaceScreen() {
                                 }
                             }
                         }
+
+                        ProgramInlineAssignmentSettings(
+                            state = assignmentState.assignmentSettings,
+                            isSaving = assignmentState.isSavingAssignmentSettings,
+                            onStrictCooldownChange = assignmentVM::setStrictCooldown,
+                            onLeadWeightChange = assignmentVM::setLeadWeight,
+                            onAssistWeightChange = assignmentVM::setAssistWeight,
+                            onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
+                            onAssistCooldownChange = assignmentVM::setAssistCooldownWeeks,
+                            onSave = assignmentVM::saveAssignmentSettings,
+                        )
+
+                        ProgramActivityFeedPanel(
+                            entries = activityFeed,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        )
                     }
                 }
             }
@@ -652,4 +675,399 @@ internal fun buildDeleteProgramImpactMessage(impact: DeleteProgramImpact): Strin
     val monthLabel = formatMonthYearLabel(impact.month, impact.year)
     return "Confermi eliminazione del mese $monthLabel? " +
         "Verranno rimosse ${impact.weeksCount} settimane e ${impact.assignmentsCount} assegnazioni."
+}
+
+private enum class ProgramActionTone {
+    Primary,
+    Positive,
+    Neutral,
+    DangerOutline,
+}
+
+@Composable
+private fun ProgramMonthSelectorButton(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val border = if (selected) accent.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+    val container = if (selected) accent.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+    val content = if (selected) accent else MaterialTheme.colorScheme.onSurface
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled = enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(7.dp),
+        color = container,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.titleSmall,
+            color = content.copy(alpha = if (enabled) 1f else 0.45f),
+        )
+    }
+}
+
+@Composable
+private fun ProgramPanelActionButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    tone: ProgramActionTone,
+) {
+    val (container, content, border) = when (tone) {
+        ProgramActionTone.Primary -> Triple(
+            SemanticColors.blue,
+            Color.White,
+            SemanticColors.blue.copy(alpha = 0.9f),
+        )
+        ProgramActionTone.Positive -> Triple(
+            SemanticColors.green,
+            Color.White,
+            SemanticColors.green.copy(alpha = 0.9f),
+        )
+        ProgramActionTone.Neutral -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            MaterialTheme.colorScheme.onSurface,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.85f),
+        )
+        ProgramActionTone.DangerOutline -> Triple(
+            Color.Transparent,
+            MaterialTheme.colorScheme.error,
+            MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+        )
+    }
+    val alpha = if (enabled) 1f else 0.45f
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled = enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(7.dp),
+        color = container.copy(alpha = alpha),
+        border = BorderStroke(1.dp, border.copy(alpha = alpha)),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = content.copy(alpha = alpha),
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label,
+                color = content.copy(alpha = alpha),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgramMonthTimeline(
+    weeks: List<WeekPlan>,
+    assignmentsByWeek: Map<String, List<AssignmentWithPerson>>,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(5.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = "Timeline mese",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (weeks.isEmpty()) {
+                Text(
+                    text = "Nessuna settimana disponibile",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                ) {
+                    weeks.forEach { week ->
+                        val weekAssignments = assignmentsByWeek[week.id.value].orEmpty()
+                        val totalSlots = week.parts.sumOf { it.partType.peopleCount }
+                        val assignedSlots = weekAssignments.size
+                        val progress = if (totalSlots == 0) 0f else assignedSlots / totalSlots.toFloat()
+                        val weekEndDate = week.weekStartDate.plusDays(6)
+                        val statusLabel = when (week.status) {
+                            WeekPlanStatus.SKIPPED -> "Saltata"
+                            else -> "$assignedSlots/$totalSlots"
+                        }
+                        val progressColor = when (week.status) {
+                            WeekPlanStatus.SKIPPED -> MaterialTheme.colorScheme.secondary
+                            else -> if (progress >= 1f) SemanticColors.green else SemanticColors.amber
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
+                            color = MaterialTheme.colorScheme.surface,
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .width(132.dp)
+                                    .padding(horizontal = spacing.sm, vertical = spacing.xs),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "${week.weekStartDate.dayOfMonth}-${weekEndDate.dayOfMonth}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                Text(
+                                    text = "Parti ${week.parts.size}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    color = progressColor,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().height(5.dp),
+                                )
+                                Text(
+                                    text = statusLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = progressColor,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgramInlineAssignmentSettings(
+    state: AssignmentSettingsUiState,
+    isSaving: Boolean,
+    onStrictCooldownChange: (Boolean) -> Unit,
+    onLeadWeightChange: (String) -> Unit,
+    onAssistWeightChange: (String) -> Unit,
+    onLeadCooldownChange: (String) -> Unit,
+    onAssistCooldownChange: (String) -> Unit,
+    onSave: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                "Impostazioni assegnatore",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Strict cooldown",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Switch(
+                    checked = state.strictCooldown,
+                    onCheckedChange = onStrictCooldownChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedBorderColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                OutlinedTextField(
+                    value = state.leadWeight,
+                    onValueChange = onLeadWeightChange,
+                    label = { Text("Peso conduzione") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(6.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = state.assistWeight,
+                    onValueChange = onAssistWeightChange,
+                    label = { Text("Peso assistenza") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(6.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                OutlinedTextField(
+                    value = state.leadCooldownWeeks,
+                    onValueChange = onLeadCooldownChange,
+                    label = { Text("Cooldown conduzione") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(6.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = state.assistCooldownWeeks,
+                    onValueChange = onAssistCooldownChange,
+                    label = { Text("Cooldown assistenza") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(6.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                )
+            }
+            OutlinedButton(
+                onClick = onSave,
+                enabled = !isSaving,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .handCursorOnHover(enabled = !isSaving),
+                shape = RoundedCornerShape(6.dp),
+            ) {
+                Text(if (isSaving) "Salvataggio..." else "Salva")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgramActivityFeedPanel(
+    entries: List<ProgramActivityFeedEntry>,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(5.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = "Feed attività",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (entries.isEmpty()) {
+                Text(
+                    text = "Nessun evento registrato",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                ) {
+                    items(entries, key = { it.id }) { item ->
+                        val isError = item.kind == FeedbackBannerKind.ERROR
+                        val borderColor = if (isError) {
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
+                        } else {
+                            SemanticColors.green.copy(alpha = 0.55f)
+                        }
+                        val icon = if (isError) Icons.Filled.ErrorOutline else Icons.Filled.TaskAlt
+                        val iconTint = if (isError) MaterialTheme.colorScheme.error else SemanticColors.green
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            border = BorderStroke(1.dp, borderColor),
+                            color = MaterialTheme.colorScheme.surface,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacing.sm, vertical = spacing.xs),
+                                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = iconTint,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    Text(item.message, style = MaterialTheme.typography.labelMedium)
+                                    if (!item.details.isNullOrBlank()) {
+                                        Text(
+                                            item.details,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                Text(
+                                    item.timestamp,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
