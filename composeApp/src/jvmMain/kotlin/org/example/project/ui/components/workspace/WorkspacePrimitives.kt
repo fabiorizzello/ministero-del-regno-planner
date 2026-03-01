@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.example.project.ui.components.handCursorOnHover
@@ -35,7 +36,7 @@ fun WorkspacePanel(
     borderColor: Color = MaterialTheme.workspaceSketch.lineSoft,
     shape: Shape? = null,
     shadowElevation: Dp = 0.dp,
-    contentPadding: Dp = 10.dp,
+    contentPadding: Dp = 12.dp,
     content: @Composable () -> Unit,
 ) {
     val tokens = MaterialTheme.workspaceTokens
@@ -62,7 +63,7 @@ fun WorkspaceShellBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = sketch.toolbarBackground,
-        border = BorderStroke(1.dp, sketch.lineStrong),
+        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = 0.95f)),
         shadowElevation = 0.dp,
     ) {
         Row(
@@ -80,20 +81,20 @@ fun WorkspaceShellBar(
 fun WorkspacePanelHeader(
     title: String,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
+    color: Color = MaterialTheme.workspaceSketch.inkMuted,
 ) {
     val tokens = MaterialTheme.workspaceTokens
     val sketch = MaterialTheme.workspaceSketch
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.headerRadius),
-        color = sketch.surface,
+        color = sketch.surfaceMuted.copy(alpha = 0.92f),
         border = BorderStroke(tokens.panelBorderWidth, sketch.lineSoft),
     ) {
         Text(
             text = title,
             modifier = Modifier.padding(horizontal = MaterialTheme.spacing.sm, vertical = MaterialTheme.spacing.xs),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = color,
         )
     }
@@ -119,22 +120,22 @@ fun WorkspaceActionButton(
     val sketch = MaterialTheme.workspaceSketch
     val (container, content, border) = when (tone) {
         WorkspaceActionTone.Primary -> Triple(
+            sketch.accent.copy(alpha = 0.2f),
             sketch.accent,
-            Color.White,
-            sketch.accent,
+            sketch.accent.copy(alpha = 0.6f),
         )
         WorkspaceActionTone.Positive -> Triple(
+            sketch.ok.copy(alpha = 0.22f),
             sketch.ok,
-            Color.White,
-            sketch.ok,
+            sketch.ok.copy(alpha = 0.6f),
         )
         WorkspaceActionTone.Neutral -> Triple(
-            sketch.surface,
+            sketch.surfaceMuted,
             sketch.inkSoft,
             sketch.lineSoft,
         )
         WorkspaceActionTone.DangerOutline -> Triple(
-            Color.Transparent,
+            sketch.surfaceMuted,
             MaterialTheme.colorScheme.error,
             MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
         )
@@ -154,7 +155,7 @@ fun WorkspaceActionButton(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.spacing.xs, vertical = 1.dp),
+                .padding(horizontal = MaterialTheme.spacing.xs, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {

@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
@@ -144,11 +145,11 @@ fun WindowScope.AppScreen(
 
                     val windowBackdrop = Brush.radialGradient(
                         colors = listOf(
-                            Color(0xFF59D0FF).copy(alpha = 0.32f),
-                            MaterialTheme.colorScheme.background,
-                            Color(0xFFE8EEFA),
+                            sketch.accent.copy(alpha = 0.2f),
+                            sketch.ok.copy(alpha = 0.08f),
+                            sketch.windowBackground,
                         ),
-                        radius = 1800f,
+                        radius = 1500f,
                     )
 
                     Box(
@@ -167,7 +168,7 @@ fun WindowScope.AppScreen(
                             Column(modifier = Modifier.fillMaxSize()) {
                                 WorkspaceShellBar(
                                     modifier = Modifier
-                                        .height(46.dp)
+                                        .height(48.dp)
                                         .testTag(TAG_TOP_BAR),
                                 ) {
                                     WindowDraggableArea(
@@ -188,8 +189,8 @@ fun WindowScope.AppScreen(
                                         ) {
                                             Surface(
                                                 shape = RoundedCornerShape(workspaceTokens.controlRadius),
-                                                color = sketch.accentSoft,
-                                                border = BorderStroke(1.dp, sketch.lineStrong),
+                                                color = sketch.surface,
+                                                border = BorderStroke(1.dp, sketch.lineSoft),
                                             ) {
                                                 Text(
                                                     text = "S",
@@ -364,12 +365,12 @@ private fun TopBarSectionButton(
     val sketch = MaterialTheme.workspaceSketch
     val shape = RoundedCornerShape(MaterialTheme.workspaceTokens.controlRadius)
     val containerColor = if (selected) {
-        sketch.accent.copy(alpha = 0.12f)
+        sketch.accent.copy(alpha = 0.2f)
     } else {
-        sketch.surface
+        sketch.surface.copy(alpha = 0.6f)
     }
     val borderColor = if (selected) {
-        sketch.accent.copy(alpha = 0.45f)
+        sketch.accent.copy(alpha = 0.6f)
     } else {
         sketch.lineSoft
     }
@@ -402,7 +403,7 @@ private fun TopBarSectionButton(
             Text(
                 text = section.label,
                 color = contentColor,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             )
         }
     }
@@ -463,18 +464,19 @@ private fun ScaleMenuButton(
     label: String,
     enabled: Boolean,
 ) {
+    val sketch = MaterialTheme.workspaceSketch
     val alpha = if (enabled) 1f else 0.45f
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f * alpha)),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
         modifier = Modifier
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Text(
             text = label,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+            color = sketch.inkSoft.copy(alpha = alpha),
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
@@ -493,12 +495,12 @@ private fun ToolbarIconAction(
     val sketch = MaterialTheme.workspaceSketch
     val alpha = if (enabled) 1f else 0.45f
     val bg = if (isDestructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = 0.16f * alpha)
+        sketch.surface
     } else {
         sketch.surface
     }
     val border = if (isDestructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = 0.45f * alpha)
+        MaterialTheme.colorScheme.error.copy(alpha = 0.65f * alpha)
     } else {
         sketch.lineSoft.copy(alpha = alpha)
     }
@@ -508,7 +510,7 @@ private fun ToolbarIconAction(
         sketch.inkSoft
     }
     Surface(
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(6.dp),
         color = bg,
         border = BorderStroke(1.dp, border),
         modifier = modifier

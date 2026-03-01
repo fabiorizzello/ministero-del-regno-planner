@@ -8,13 +8,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 data class WorkspaceTokens(
-    val windowRadius: Dp = 10.dp,
-    val panelRadius: Dp = 8.dp,
-    val headerRadius: Dp = 6.dp,
-    val controlRadius: Dp = 6.dp,
-    val cardRadius: Dp = 8.dp,
+    val windowRadius: Dp = 12.dp,
+    val panelRadius: Dp = 16.dp,
+    val headerRadius: Dp = 10.dp,
+    val controlRadius: Dp = 10.dp,
+    val cardRadius: Dp = 14.dp,
     val panelBorderWidth: Dp = 1.dp,
-    val compactControlHeight: Dp = 34.dp,
+    val compactControlHeight: Dp = 36.dp,
 )
 
 val LocalWorkspaceTokens = staticCompositionLocalOf { WorkspaceTokens() }

@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Program Workspace - Redesign Sketches</title>
+  <style>
+    :root {
+      --bg: #e9f0fb;
+      --paper: #f8fbff;
+      --panel: #ffffff;
+      --line: #d2dcea;
+      --line-strong: #b8c7dd;
+      --ink: #1f2937;
+      --muted: #66758e;
+      --primary: #2f6fd3;
+      --primary-soft: #e4edfb;
+      --status: #c87a13;
+      --status-soft: #f9ebd7;
+      --danger: #bd3e3e;
+      --radius-window: 11px;
+      --radius-panel: 8px;
+      --radius-pill: 999px;
+      --shadow: 0 12px 30px rgba(20, 37, 62, 0.14);
+      --font-ui: "Sora", "Manrope", "Segoe UI", sans-serif;
+      --font-data: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: var(--font-ui);
+      background:
+        radial-gradient(1200px 520px at -10% -15%, #66d6ff 0%, transparent 58%),
+        radial-gradient(1000px 460px at 110% -12%, #b0d7ff 0%, transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      padding: 24px 16px 40px;
+    }
+
+    .page {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .intro {
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 12px;
+      padding: 12px 14px;
+      backdrop-filter: blur(8px);
+    }
+
+    .intro h1 {
+      font-size: 18px;
+      letter-spacing: .01em;
+      margin-bottom: 4px;
+    }
+
+    .intro p {
+      font: 500 13px/1.45 var(--font-data);
+      color: #41536d;
+    }
+
+    .mode {
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.76);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 26px rgba(35, 57, 86, 0.09);
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .mode-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      padding: 2px 4px;
+    }
+
+    .mode-head h2 {
+      font-size: 15px;
+      letter-spacing: .02em;
+    }
+
+    .mode-head p {
+      font: 600 12px var(--font-data);
+      color: var(--muted);
+    }
+
+    .window {
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-window);
+      overflow: hidden;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 180px 1fr 220px;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line-strong);
+      background: #fff;
+      padding: 0 12px;
+      font: 700 11px var(--font-data);
+      color: var(--ink);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: .01em;
+    }
+
+    .badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      border: 1px solid var(--line-strong);
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #42526b;
+      border-radius: 7px;
+      padding: 5px 8px;
+    }
+
+    .tab.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      width: 26px;
+      height: 22px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: #51637d;
+      font-weight: 800;
+      font-family: var(--font-data);
+    }
+
+    .work {
+      min-height: 560px;
+      display: grid;
+      grid-template-columns: 228px minmax(480px, 1fr) 290px;
+      background: var(--paper);
+    }
+
+    .left,
+    .center,
+    .right {
+      padding: 10px;
+      font-family: var(--font-data);
+    }
+
+    .left { border-right: 1px solid var(--line); background: #f5f8fd; }
+    .center { border-right: 1px solid var(--line); background: #f8fbff; }
+    .right { background: #fbfdff; }
+
+    .section-kicker {
+      font: 800 11px var(--font-data);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #6f819b;
+      margin-bottom: 8px;
+    }
+
+    .month-nav {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .month-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+      font: 700 12px var(--font-data);
+      color: #33465f;
+    }
+
+    .ghost-btn {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: #4a5f7b;
+      padding: 6px 8px;
+      font: 700 12px var(--font-data);
+      width: 100%;
+      text-align: left;
+    }
+
+    .board-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .board-title {
+      font: 800 31px/1.05 var(--font-ui);
+      letter-spacing: -.02em;
+      color: var(--ink);
+    }
+
+    .board-sub {
+      margin-top: 3px;
+      font: 600 13px var(--font-data);
+      color: var(--muted);
+    }
+
+    .status-line {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #475b77;
+      font: 800 11px var(--font-data);
+      padding: 5px 8px;
+    }
+
+    .pill.primary {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .pill.status {
+      border-color: var(--status);
+      background: var(--status-soft);
+      color: #a36410;
+    }
+
+    .week-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .week {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .week-head {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      border-bottom: 1px solid #eef3fb;
+      background: linear-gradient(180deg, #f7fbff 0%, #ffffff 65%);
+    }
+
+    .week-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font: 800 13px var(--font-data);
+      color: #30445f;
+    }
+
+    .week-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font: 700 11px var(--font-data);
+      color: #60718b;
+      background: #fff;
+    }
+
+    .mini.status {
+      border-color: var(--status);
+      color: #a36410;
+      background: var(--status-soft);
+    }
+
+    .progress {
+      height: 6px;
+      border-radius: 999px;
+      background: #dfe8f4;
+      overflow: hidden;
+      border: 1px solid #d3deec;
+    }
+
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: var(--w, 68%);
+      background: var(--primary);
+      border-radius: inherit;
+    }
+
+    .rows {
+      display: grid;
+      gap: 6px;
+      padding: 8px 10px 10px;
+    }
+
+    .assign-row {
+      border: 1px solid #e5edf8;
+      border-radius: 7px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .slot-main {
+      font: 700 13px var(--font-data);
+      color: #2f445f;
+    }
+
+    .slot-meta {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      color: #637895;
+      font: 600 12px var(--font-data);
+    }
+
+    .picker {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: #324a68;
+      font: 700 12px var(--font-data);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .picker.empty {
+      border-color: var(--status);
+      background: var(--status-soft);
+      color: #8d520d;
+    }
+
+    .caret { font-size: 10px; color: #5f718d; }
+
+    .row-status {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font: 800 11px var(--font-data);
+      color: #5c6f8a;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    .row-status.pending {
+      border-color: var(--status);
+      color: #a36410;
+      background: var(--status-soft);
+    }
+
+    .details {
+      border-top: 1px dashed #dce6f4;
+      margin-top: 3px;
+      padding-top: 6px;
+      font: 600 12px var(--font-data);
+      color: #60728d;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .inspector-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+
+    .inspector-title {
+      font: 800 11px var(--font-data);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #6f819b;
+      margin-bottom: 7px;
+    }
+
+    .quick-action {
+      width: 100%;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #415976;
+      font: 800 12px var(--font-data);
+      padding: 8px;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+
+    .quick-action.primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .quick-action.status {
+      border-color: var(--status);
+      background: var(--status-soft);
+      color: #8d520d;
+    }
+
+    .quick-action.danger {
+      border-color: var(--danger);
+      background: #fbe8e8;
+      color: #992d2d;
+    }
+
+    .hint {
+      font: 600 12px/1.4 var(--font-data);
+      color: #62758f;
+    }
+
+    .table-lite {
+      width: 100%;
+      border-collapse: collapse;
+      font: 700 12px var(--font-data);
+      color: #364d68;
+    }
+
+    .table-lite td,
+    .table-lite th {
+      border-top: 1px solid #e7eef8;
+      padding: 7px 2px;
+      text-align: left;
+    }
+
+    .table-lite th {
+      border-top: 0;
+      color: #6b7f9b;
+      font-size: 11px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font: 700 11px var(--font-data);
+      background: #fff;
+      color: #596c89;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--status);
+      display: inline-block;
+    }
+
+    .dot.primary { background: var(--primary); }
+    .dot.muted { background: #9cafc8; }
+
+    .mode-notes {
+      border-top: 1px dashed #d6e1ef;
+      margin-top: 6px;
+      padding: 8px 4px 2px;
+      color: #536984;
+      font: 600 12px/1.45 var(--font-data);
+      display: grid;
+      gap: 4px;
+    }
+
+    @media (max-width: 1220px) {
+      .toolbar {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 8px 10px;
+      }
+      .work {
+        grid-template-columns: 1fr;
+      }
+      .left,
+      .center {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .assign-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro">
+      <h1>Redesign Programma - 3 sketch HTML</h1>
+      <p>Focus dichiarato: ridurre carico cognitivo, chiarire affordance, rendere autoassegna piu sicura e inspector davvero contestuale. Qui sotto trovi tre direzioni compatibili con la logica attuale.</p>
+    </section>
+
+    <section class="mode">
+      <header class="mode-head">
+        <h2>Sketch A - Focus Operativo (Default consigliato)</h2>
+        <p>Flusso primario: assegnare slot vuoti rapidamente</p>
+      </header>
+      <div class="window">
+        <div class="toolbar">
+          <div class="brand"><span class="badge">S</span> Scuola di ministero</div>
+          <div class="tabs">
+            <span class="tab active">Programma</span>
+            <span class="tab">Proclamatori</span>
+            <span class="tab">Diagnostica</span>
+          </div>
+          <div class="toolbar-actions">
+            <span class="icon-btn">T</span>
+            <span class="icon-btn">-</span>
+            <span class="icon-btn">[]</span>
+            <span class="icon-btn">x</span>
+          </div>
+        </div>
+        <div class="work">
+          <aside class="left">
+            <div class="section-kicker">Periodo</div>
+            <div class="month-nav">
+              <div class="month-row"><span>febbraio 2026</span><span>&lt;  &gt;</span></div>
+              <button class="ghost-btn">Vai a mese corrente</button>
+              <button class="ghost-btn">Apri cronologia mesi</button>
+            </div>
+            <div class="section-kicker">Azioni tecniche</div>
+            <button class="ghost-btn">Aggiorna schemi (menu avanzato)</button>
+          </aside>
+
+          <section class="center">
+            <header class="board-head">
+              <div>
+                <h3 class="board-title">Programma - febbraio 2026</h3>
+                <p class="board-sub">Quadro completo sempre visibile: tutte le parti e tutte le assegnazioni, senza sezioni collassate.</p>
+              </div>
+              <div class="status-line">
+                <span class="pill primary">33 assegnati</span>
+                <span class="pill status">3 vuoti</span>
+              </div>
+            </header>
+
+            <div class="week-stack">
+              <article class="week">
+                <div class="week-head">
+                  <div class="week-top">
+                    <span>Settimana 2-8 febbraio</span>
+                    <span class="mini status">Parziale</span>
+                  </div>
+                  <div class="week-meta">
+                    <span class="mini">Incarichi: 9</span>
+                    <span class="mini">Vuoti: 2</span>
+                  </div>
+                  <div class="progress" style="--w:78%"><i></i></div>
+                </div>
+                <div class="rows">
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">3. Iniziare una conversazione</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Chiara Ricci</span></div>
+                    </div>
+                    <div class="picker empty">Assistente: Slot vuoto <span class="caret">▾</span></div>
+                    <div class="row-status pending">Da assegnare</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">4. Coltivare l'interesse</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Alessio Longo</span></div>
+                    </div>
+                    <div class="picker empty">Assistente: Slot vuoto <span class="caret">▾</span></div>
+                    <div class="row-status pending">Da assegnare</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">5. Fare discepoli</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Sara Colombo</span></div>
+                    </div>
+                    <div class="picker">Assistente: Giovanni Neri <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">6. Spiegare quello in cui si crede</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Federica Moretti</span></div>
+                    </div>
+                    <div class="picker">Assistente: Francesco Costa <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">7. Discorso</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Marco Rossi</span></div>
+                    </div>
+                    <div class="picker">Slot singolo assegnato <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="week">
+                <div class="week-head">
+                  <div class="week-top">
+                    <span>Settimana 9-15 febbraio</span>
+                    <span class="mini">Completa</span>
+                  </div>
+                  <div class="week-meta">
+                    <span class="mini">Incarichi: 9</span>
+                    <span class="mini">Vuoti: 0</span>
+                  </div>
+                  <div class="progress" style="--w:100%"><i></i></div>
+                </div>
+                <div class="rows">
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">3. Iniziare una conversazione</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Sara Colombo</span></div>
+                    </div>
+                    <div class="picker">Assistente: Luca Bianchi <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">4. Coltivare l'interesse</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Chiara Ricci</span></div>
+                    </div>
+                    <div class="picker">Assistente: Giovanni Neri <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">5. Fare discepoli</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Elena Conti</span></div>
+                    </div>
+                    <div class="picker">Assistente: Francesco Costa <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">6. Spiegare quello in cui si crede</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Paolo Verdi</span></div>
+                    </div>
+                    <div class="picker">Assistente: Andrea Marino <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                  <div class="assign-row">
+                    <div>
+                      <div class="slot-main">7. Discorso</div>
+                      <div class="slot-meta"><span>Conduzione:</span><span>Davide Gallo</span></div>
+                    </div>
+                    <div class="picker">Slot singolo assegnato <span class="caret">▾</span></div>
+                    <div class="row-status">Completa</div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <aside class="right">
+            <div class="inspector-box">
+              <div class="inspector-title">Inspector contestuale</div>
+              <p class="hint">Seleziona una settimana o uno slot per vedere azioni e vincoli specifici.</p>
+            </div>
+            <div class="inspector-box">
+              <div class="inspector-title">Azioni rapide</div>
+              <button class="quick-action">Mostra proposta autoassegna</button>
+              <button class="quick-action primary">Applica proposta selezionata</button>
+              <button class="quick-action">Stampa mese</button>
+              <button class="quick-action danger">Elimina mese</button>
+            </div>
+            <div class="inspector-box">
+              <div class="inspector-title">Copertura coerente</div>
+              <table class="table-lite">
+                <thead>
+                  <tr><th>Metrica</th><th>Valore</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Assegnati</td><td>33</td></tr>
+                  <tr><td>Vuoti</td><td>3</td></tr>
+                  <tr><td>Totale slot</td><td>36</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div class="mode-notes">
+        <div>- Quadro completo: nessuna parte nascosta, tutte le assegnazioni sono sempre visibili.</div>
+        <div>- Affordance chiara: gli elementi assegnabili hanno caret esplicito.</div>
+        <div>- Inspector non piu statico: stato vuoto finche non c'e selezione.</div>
+      </div>
+    </section>
+
+    <section class="mode">
+      <header class="mode-head">
+        <h2>Sketch B - Queue Slot Vuoti</h2>
+        <p>Flusso primario: chiudere backlog slot non assegnati</p>
+      </header>
+      <div class="window">
+        <div class="toolbar">
+          <div class="brand"><span class="badge">S</span> Scuola di ministero</div>
+          <div class="tabs">
+            <span class="tab active">Programma</span>
+            <span class="tab">Proclamatori</span>
+            <span class="tab">Diagnostica</span>
+          </div>
+          <div class="toolbar-actions">
+            <span class="icon-btn">T</span>
+            <span class="icon-btn">-</span>
+            <span class="icon-btn">[]</span>
+            <span class="icon-btn">x</span>
+          </div>
+        </div>
+        <div class="work" style="grid-template-columns: 228px minmax(560px, 1fr) 250px;">
+          <aside class="left">
+            <div class="section-kicker">Mese</div>
+            <div class="month-row"><span>febbraio 2026</span><span>&lt;  &gt;</span></div>
+            <div style="height:8px"></div>
+            <div class="section-kicker">Filtri lavoro</div>
+            <button class="ghost-btn">Solo slot vuoti</button>
+            <button class="ghost-btn">Solo settimane future</button>
+            <button class="ghost-btn">Ordina per priorita</button>
+          </aside>
+
+          <section class="center">
+            <header class="board-head">
+              <div>
+                <h3 class="board-title" style="font-size:27px;">Queue assegnazioni aperte</h3>
+                <p class="board-sub">Un elemento = una decisione. Niente dettagli ripetuti finche non servono.</p>
+              </div>
+              <div class="status-line">
+                <span class="pill primary">3 da assegnare ora</span>
+              </div>
+            </header>
+
+            <div class="week-stack">
+              <article class="week">
+                <div class="rows" style="padding-top:10px;">
+                  <div class="assign-row" style="grid-template-columns: 1.4fr 1fr auto;">
+                    <div>
+                      <div class="slot-main">Settimana 2-8 · 3. Iniziare una conversazione</div>
+                      <div class="slot-meta">Assistente richiesto - cooldown attuale: 2 settimane</div>
+                    </div>
+                    <div class="picker empty">Seleziona persona <span class="caret">▾</span></div>
+                    <div class="row-status pending">Urgente</div>
+                  </div>
+                  <div class="assign-row" style="grid-template-columns: 1.4fr 1fr auto;">
+                    <div>
+                      <div class="slot-main">Settimana 2-8 · 4. Coltivare l'interesse</div>
+                      <div class="slot-meta">Assistente richiesto - cooldown attuale: 1 settimana</div>
+                    </div>
+                    <div class="picker empty">Seleziona persona <span class="caret">▾</span></div>
+                    <div class="row-status pending">Urgente</div>
+                  </div>
+                  <div class="assign-row" style="grid-template-columns: 1.4fr 1fr auto;">
+                    <div>
+                      <div class="slot-main">Settimana 16-22 · 7. Discorso</div>
+                      <div class="slot-meta">Conduzione richiesta - slot futuro</div>
+                    </div>
+                    <div class="picker empty">Seleziona persona <span class="caret">▾</span></div>
+                    <div class="row-status pending">Normale</div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <aside class="right">
+            <div class="inspector-box">
+              <div class="inspector-title">Contesto selezione</div>
+              <p class="hint">Elemento selezionato: 3. Iniziare una conversazione (Assistente).</p>
+              <div style="height:6px"></div>
+              <span class="chip"><i class="dot"></i> cooldown rispettato</span>
+            </div>
+            <div class="inspector-box">
+              <div class="inspector-title">Suggeriti</div>
+              <table class="table-lite">
+                <thead>
+                  <tr><th>Persona</th><th>Ultimo incarico</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Giovanni Neri</td><td>5 settimane fa</td></tr>
+                  <tr><td>Francesco Costa</td><td>7 settimane fa</td></tr>
+                  <tr><td>Marco Rossi</td><td>mai</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="inspector-box">
+              <button class="quick-action primary">Conferma assegnazione</button>
+              <button class="quick-action">Annulla scelta</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div class="mode-notes">
+        <div>- Elimina il rumore: mostra solo le decisioni aperte.</div>
+        <div>- Ottimo quando il task principale e chiudere i vuoti rapidamente.</div>
+      </div>
+    </section>
+
+    <section class="mode">
+      <header class="mode-head">
+        <h2>Sketch C - Autoassegna con Anteprima + Undo</h2>
+        <p>Flusso primario: applicare batch in sicurezza</p>
+      </header>
+      <div class="window">
+        <div class="toolbar">
+          <div class="brand"><span class="badge">S</span> Scuola di ministero</div>
+          <div class="tabs">
+            <span class="tab active">Programma</span>
+            <span class="tab">Proclamatori</span>
+            <span class="tab">Diagnostica</span>
+          </div>
+          <div class="toolbar-actions">
+            <span class="icon-btn">T</span>
+            <span class="icon-btn">-</span>
+            <span class="icon-btn">[]</span>
+            <span class="icon-btn">x</span>
+          </div>
+        </div>
+        <div class="work" style="grid-template-columns: 1fr 320px;">
+          <section class="center" style="border-right:1px solid var(--line)">
+            <header class="board-head">
+              <div>
+                <h3 class="board-title" style="font-size:26px;">Anteprima autoassegna</h3>
+                <p class="board-sub">Passo 1: genera proposta. Passo 2: rivedi differenze. Passo 3: applica e undo.</p>
+              </div>
+              <div class="status-line">
+                <span class="pill status">Ambito: solo settimane future</span>
+              </div>
+            </header>
+
+            <article class="week">
+              <div class="week-head">
+                <div class="week-top">
+                  <span>Diff proposta #18</span>
+                  <span class="mini">3 cambi</span>
+                </div>
+              </div>
+              <div class="rows">
+                <table class="table-lite">
+                  <thead>
+                    <tr>
+                      <th>Settimana</th>
+                      <th>Slot</th>
+                      <th>Prima</th>
+                      <th>Dopo</th>
+                      <th>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>2-8 feb</td>
+                      <td>3 Assistente</td>
+                      <td>-</td>
+                      <td>Giovanni Neri</td>
+                      <td><span class="chip"><i class="dot primary"></i>min cooldown</span></td>
+                    </tr>
+                    <tr>
+                      <td>2-8 feb</td>
+                      <td>4 Assistente</td>
+                      <td>-</td>
+                      <td>Francesco Costa</td>
+                      <td><span class="chip"><i class="dot primary"></i>peso assistenza</span></td>
+                    </tr>
+                    <tr>
+                      <td>16-22 feb</td>
+                      <td>7 Conduzione</td>
+                      <td>-</td>
+                      <td>Marco Rossi</td>
+                      <td><span class="chip"><i class="dot muted"></i>fallback</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <aside class="right">
+            <div class="inspector-box">
+              <div class="inspector-title">Controlli batch</div>
+              <button class="quick-action">Mostra proposta</button>
+              <button class="quick-action primary">Applica proposta</button>
+              <button class="quick-action">Undo ultimo batch</button>
+            </div>
+            <div class="inspector-box">
+              <div class="inspector-title">Regole applicate</div>
+              <div class="hint">Strict cooldown: ON</div>
+              <div class="hint">Peso conduzione: 2</div>
+              <div class="hint">Peso assistenza: 1</div>
+            </div>
+            <div class="inspector-box">
+              <div class="inspector-title">Esito stimato</div>
+              <div class="hint">Assegnati dopo applicazione: 36/36</div>
+              <div class="hint">Conflitti residui: 0</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div class="mode-notes">
+        <div>- Trasforma Autoassegna da azione "cieca" a workflow verificabile.</div>
+        <div>- Riduce rischio click accidentali con passo esplicito proposta -> applica.</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

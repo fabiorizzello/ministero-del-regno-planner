@@ -7,12 +7,14 @@ import androidx.compose.ui.unit.sp
 
 private const val BASE_FONT_SP = 13f
 private const val GLOBAL_TEXT_SCALE = 1.0f
-private const val DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.3f
+private const val DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.24f
 
 private fun fontSize(multiplier: Float) = (BASE_FONT_SP * GLOBAL_TEXT_SCALE * multiplier).sp
 
 private fun lineHeight(multiplier: Float) =
     (BASE_FONT_SP * GLOBAL_TEXT_SCALE * multiplier * DEFAULT_LINE_HEIGHT_MULTIPLIER).sp
+
+private fun tracking(value: Float) = value.sp
 
 val AppTypography = Typography(
     displayLarge = TextStyle(
@@ -31,24 +33,28 @@ val AppTypography = Typography(
         fontWeight = FontWeight.Normal,
     ),
     headlineLarge = TextStyle(
-        fontSize = fontSize(2.3f),
-        lineHeight = lineHeight(2.3f),
-        fontWeight = FontWeight.SemiBold,
+        fontSize = fontSize(2.4f),
+        lineHeight = lineHeight(2.4f),
+        fontWeight = FontWeight.Bold,
+        letterSpacing = tracking(-0.2f),
     ),
     headlineMedium = TextStyle(
-        fontSize = fontSize(2.0f),
-        lineHeight = lineHeight(2.0f),
-        fontWeight = FontWeight.SemiBold,
+        fontSize = fontSize(2.05f),
+        lineHeight = lineHeight(2.05f),
+        fontWeight = FontWeight.Bold,
+        letterSpacing = tracking(-0.15f),
     ),
     headlineSmall = TextStyle(
-        fontSize = fontSize(1.7f),
-        lineHeight = lineHeight(1.7f),
+        fontSize = fontSize(1.72f),
+        lineHeight = lineHeight(1.72f),
         fontWeight = FontWeight.SemiBold,
+        letterSpacing = tracking(-0.1f),
     ),
     titleLarge = TextStyle(
-        fontSize = fontSize(1.57f),
-        lineHeight = lineHeight(1.57f),
+        fontSize = fontSize(1.62f),
+        lineHeight = lineHeight(1.62f),
         fontWeight = FontWeight.SemiBold,
+        letterSpacing = tracking(-0.05f),
     ),
     titleMedium = TextStyle(
         fontSize = fontSize(1.28f),
@@ -78,16 +84,19 @@ val AppTypography = Typography(
     labelLarge = TextStyle(
         fontSize = fontSize(1.0f),
         lineHeight = lineHeight(1.0f),
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = tracking(0.05f),
     ),
     labelMedium = TextStyle(
         fontSize = fontSize(0.92f),
         lineHeight = lineHeight(0.92f),
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = tracking(0.12f),
     ),
     labelSmall = TextStyle(
         fontSize = fontSize(0.84f),
         lineHeight = lineHeight(0.84f),
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = tracking(0.18f),
     ),
 )

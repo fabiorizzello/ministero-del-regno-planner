@@ -39,6 +39,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 
 // Column width constants for suggestion table
 private val WEEKS_COLUMN_WIDTH = 120.dp
@@ -59,6 +60,7 @@ fun PartAssignmentCard(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val requiredSlots = part.partType.peopleCount
     val filledSlots = assignments.size.coerceAtMost(requiredSlots)
     val statusTone = when {
@@ -67,15 +69,11 @@ fun PartAssignmentCard(
         else -> 2
     }
     val borderColor = when (statusTone) {
-        0 -> MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
-        1 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.48f)
+        0 -> sketch.bad.copy(alpha = 0.58f)
+        1 -> sketch.warn.copy(alpha = 0.6f)
+        else -> sketch.ok.copy(alpha = 0.55f)
     }
-    val containerColor = when (statusTone) {
-        0 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.28f)
-        1 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.22f)
-        else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f)
-    }
+    val containerColor = sketch.surface
     val statusLabel = when (statusTone) {
         0 -> "Vuota"
         1 -> "Parziale"
@@ -101,7 +99,8 @@ fun PartAssignmentCard(
             ) {
                 Text(
                     text = "$displayNumber. ${part.partType.label}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = sketch.ink,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
                     if (showSexRuleChip) {
@@ -161,6 +160,7 @@ private fun SlotRow(
     onRemove: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -170,9 +170,9 @@ private fun SlotRow(
         if (label != null) {
             Text(
                 text = "$label:",
-                modifier = Modifier.width(118.dp),
+                modifier = Modifier.width(106.dp),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = sketch.inkSoft,
                 maxLines = 1,
             )
         }
@@ -206,22 +206,23 @@ private fun AssignedPersonChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val shape = RoundedCornerShape(6.dp)
     val chipInteractionSource = remember { MutableInteractionSource() }
     val isHovered by chipInteractionSource.collectIsHoveredAsState()
     val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        sketch.surfaceMuted
     } else if (isHovered) {
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f)
+        sketch.ok.copy(alpha = 0.18f)
     } else {
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.76f)
+        sketch.ok.copy(alpha = 0.12f)
     }
     val borderColor = if (readOnly) {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+        sketch.lineSoft
     } else if (isHovered) {
-        MaterialTheme.colorScheme.secondary.copy(alpha = 0.95f)
+        sketch.ok.copy(alpha = 0.6f)
     } else {
-        MaterialTheme.colorScheme.secondary.copy(alpha = 0.78f)
+        sketch.ok.copy(alpha = 0.5f)
     }
 
     Row(
@@ -249,13 +250,13 @@ private fun AssignedPersonChip(
             imageVector = Icons.Filled.TaskAlt,
             contentDescription = null,
             modifier = Modifier.size(15.dp),
-            tint = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
+            tint = if (readOnly) sketch.inkMuted else sketch.ok,
         )
         Text(
             text = fullName,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = if (readOnly) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer,
+            color = sketch.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -268,7 +269,7 @@ private fun AssignedPersonChip(
                     Icons.Filled.Close,
                     contentDescription = "Rimuovi $fullName",
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = sketch.inkMuted,
                 )
             }
         }
@@ -282,21 +283,22 @@ private fun MissingAssignmentChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val shape = RoundedCornerShape(6.dp)
     val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        sketch.surfaceMuted
     } else {
-        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.86f)
+        sketch.warn.copy(alpha = 0.12f)
     }
     val borderColor = if (readOnly) {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+        sketch.lineSoft
     } else {
-        MaterialTheme.colorScheme.error.copy(alpha = 0.65f)
+        sketch.bad.copy(alpha = 0.55f)
     }
     val contentColor = if (readOnly) {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        sketch.inkMuted
     } else {
-        MaterialTheme.colorScheme.error
+        sketch.bad
     }
 
     Row(
@@ -316,7 +318,7 @@ private fun MissingAssignmentChip(
             tint = contentColor,
         )
         Text(
-            text = if (readOnly) "Slot vuoto" else "Non assegnato · Assegna",
+            text = if (readOnly) "Slot vuoto" else "Assegna slot",
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             color = contentColor,
         )
@@ -372,6 +374,8 @@ fun PersonPickerDialog(
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
+            color = MaterialTheme.workspaceSketch.surface,
+            border = BorderStroke(1.dp, MaterialTheme.workspaceSketch.lineSoft),
             modifier = Modifier.width(900.dp),
         ) {
             Column(

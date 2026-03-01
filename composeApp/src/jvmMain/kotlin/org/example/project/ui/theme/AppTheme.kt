@@ -3,49 +3,49 @@ package org.example.project.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-private val MinisteroLightColorScheme = lightColorScheme(
-    primary = Color(0xFF4F8DD8),
+private val MinisteroColorScheme = darkColorScheme(
+    primary = Color(0xFF6EA8FF),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE5EBF7),
-    onPrimaryContainer = Color(0xFF1E293B),
-    secondary = Color(0xFF2D9A63),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFDDF2E8),
-    onSecondaryContainer = Color(0xFF163A28),
-    tertiary = Color(0xFFCF8A24),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFF6E7CF),
-    onTertiaryContainer = Color(0xFF412A08),
-    error = Color(0xFFBD3E3E),
-    onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFF9E5E5),
-    onErrorContainer = Color(0xFF5A1717),
-    background = Color(0xFFD9E4F8),
-    onBackground = Color(0xFF1E293B),
-    surface = Color(0xFFF7F9FC),
-    onSurface = Color(0xFF1E293B),
-    surfaceVariant = Color(0xFFF4F7FB),
-    onSurfaceVariant = Color(0xFF66758E),
-    outline = Color(0xFFD8E1EE),
-    outlineVariant = Color(0xFFC7D2E3),
-    inverseSurface = Color(0xFF233147),
-    inverseOnSurface = Color(0xFFF3F7FD),
-    inversePrimary = Color(0xFFB9D0EE),
-    surfaceTint = Color(0xFF4F8DD8),
+    primaryContainer = Color(0xFF1B2740),
+    onPrimaryContainer = Color(0xFFD9E8FF),
+    secondary = Color(0xFF35D39A),
+    onSecondary = Color(0xFF052217),
+    secondaryContainer = Color(0xFF123327),
+    onSecondaryContainer = Color(0xFFC7F7E5),
+    tertiary = Color(0xFFFFB020),
+    onTertiary = Color(0xFF2D1B00),
+    tertiaryContainer = Color(0xFF3F2D0D),
+    onTertiaryContainer = Color(0xFFFFE6B8),
+    error = Color(0xFFFF6B7A),
+    onError = Color(0xFF300A11),
+    errorContainer = Color(0xFF45131C),
+    onErrorContainer = Color(0xFFFFD9DF),
+    background = Color(0xFF0B0D12),
+    onBackground = Color(0xFFE8ECFF),
+    surface = Color(0xFF111524),
+    onSurface = Color(0xFFE8ECFF),
+    surfaceVariant = Color(0xFF121A2C),
+    onSurfaceVariant = Color(0xFFA8B2D8),
+    outline = Color(0xFF24304A),
+    outlineVariant = Color(0xFF2F3C59),
+    inverseSurface = Color(0xFFE8ECFF),
+    inverseOnSurface = Color(0xFF111524),
+    inversePrimary = Color(0xFF365988),
+    surfaceTint = Color(0xFF6EA8FF),
 )
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(8.dp),
-    large = RoundedCornerShape(10.dp),
-    extraLarge = RoundedCornerShape(12.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(10.dp),
+    large = RoundedCornerShape(12.dp),
+    extraLarge = RoundedCornerShape(16.dp),
 )
 
 @Composable
@@ -58,7 +58,7 @@ fun AppTheme(
         LocalWorkspaceSketchPalette provides WorkspaceSketchPalette(),
     ) {
         MaterialTheme(
-            colorScheme = MinisteroLightColorScheme,
+            colorScheme = MinisteroColorScheme,
             typography = AppTypography,
             shapes = AppShapes,
             content = content,

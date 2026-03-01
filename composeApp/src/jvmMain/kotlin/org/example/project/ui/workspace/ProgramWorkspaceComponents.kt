@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -66,6 +69,7 @@ import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.DayOfWeek
@@ -81,23 +85,24 @@ internal fun ProgramWeekStickyHeader(
     isPast: Boolean,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val isSkipped = week.status == WeekPlanStatus.SKIPPED
     val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        isCurrent -> sketch.accent.copy(alpha = 0.14f)
+        isSkipped -> sketch.warn.copy(alpha = 0.14f)
+        else -> sketch.surface.copy(alpha = 0.95f)
     }
     val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
-        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+        isCurrent -> sketch.accent.copy(alpha = 0.6f)
+        isSkipped -> sketch.warn.copy(alpha = 0.6f)
+        isPast -> sketch.lineSoft.copy(alpha = 0.7f)
+        else -> sketch.lineSoft
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(sketch.panelMid)
             .padding(vertical = spacing.xxs),
         shape = RoundedCornerShape(spacing.cardRadius),
         color = containerColor,
@@ -113,7 +118,7 @@ internal fun ProgramWeekStickyHeader(
             Text(
                 text = "Settimana ${formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))}",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = sketch.ink,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
@@ -122,46 +127,46 @@ internal fun ProgramWeekStickyHeader(
                 if (isCurrent) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        color = sketch.accent.copy(alpha = 0.2f),
                     ) {
                         Text(
                             "Corrente",
                             modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = sketch.accent,
                         )
                     }
                 }
                 if (isSkipped) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                        color = sketch.warn.copy(alpha = 0.2f),
                     ) {
                         Text(
                             "Saltata",
                             modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = sketch.warn,
                         )
                     }
                 }
                 if (isPast && !isCurrent) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        color = sketch.surfaceMuted,
                     ) {
                         Text(
                             "Passata",
                             modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = sketch.inkMuted,
                         )
                     }
                 }
                 Text(
                     "Parti: ${week.parts.size}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = sketch.inkMuted,
                 )
             }
         }
@@ -185,73 +190,80 @@ internal fun ProgramWeekCard(
     onRemoveAssignment: (AssignmentId) -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val isSkipped = week.status == WeekPlanStatus.SKIPPED
     val isPast = !isCurrent && week.weekStartDate.plusDays(6) < today
     val canMutate = !isSkipped && !isPast
     val assignmentsByPart = remember(assignments) { assignments.groupBy { it.weeklyPartId } }
     val partRows = remember(week.parts) { week.parts.chunked(2) }
-    val progress = if (totalSlots == 0) 0f else assignedSlots / totalSlots.toFloat()
     val missingSlots = (totalSlots - assignedSlots).coerceAtLeast(0)
     val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
 
     val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
-        missingSlots == totalSlots && totalSlots > 0 -> MaterialTheme.colorScheme.error.copy(alpha = 0.52f)
-        missingSlots > 0 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.52f)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+        isCurrent -> sketch.accent.copy(alpha = 0.7f)
+        isSkipped -> sketch.inkMuted.copy(alpha = 0.6f)
+        missingSlots == 0 && totalSlots > 0 -> sketch.ok.copy(alpha = 0.62f)
+        missingSlots == totalSlots && totalSlots > 0 -> sketch.bad.copy(alpha = 0.6f)
+        else -> sketch.warn.copy(alpha = 0.6f)
     }
-    val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-        missingSlots == totalSlots && totalSlots > 0 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-        missingSlots > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f)
-        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
+    val headerTint = when {
+        isCurrent -> sketch.accent.copy(alpha = 0.12f)
+        isSkipped -> sketch.inkMuted.copy(alpha = 0.12f)
+        missingSlots == 0 && totalSlots > 0 -> sketch.ok.copy(alpha = 0.12f)
+        missingSlots == totalSlots && totalSlots > 0 -> sketch.bad.copy(alpha = 0.11f)
+        else -> sketch.warn.copy(alpha = 0.11f)
     }
     val doneColor = when {
-        missingSlots == 0 && totalSlots > 0 -> MaterialTheme.colorScheme.secondary
-        isSkipped -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.primary
+        missingSlots == 0 && totalSlots > 0 -> sketch.ok
+        isSkipped -> sketch.inkMuted
+        else -> sketch.accent
     }
     val pendingColor = when {
-        missingSlots == 0 -> MaterialTheme.colorScheme.outlineVariant
-        missingSlots == totalSlots -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.tertiary
+        missingSlots == 0 -> sketch.lineSoft
+        missingSlots == totalSlots -> sketch.bad
+        else -> sketch.warn
     }
+    val statusTextColor = when {
+        missingSlots == 0 && totalSlots > 0 -> sketch.ok
+        missingSlots == totalSlots && totalSlots > 0 -> sketch.bad
+        else -> sketch.warn
+    }
+    val actionScroll = rememberScrollState()
+    val showActions = (!isPast && !isSkipped) || (isSkipped && !isPast) || (canMutate && showClearWeekAssignments)
 
     Card(
         shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = sketch.surface),
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(containerColor),
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.md, vertical = spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
-                verticalAlignment = Alignment.Top,
+                    .background(headerTint)
+                    .padding(horizontal = spacing.md, vertical = spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Text(
-                        text = "Settimana $weekLabel",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
                     Row(
+                        modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        Text(
+                            text = "Settimana $weekLabel",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = sketch.ink,
+                        )
                         when {
                             isCurrent -> WeekMetaBadge(label = "Corrente", tone = DesktopInlineActionTone.Primary)
                             isSkipped -> WeekMetaBadge(label = "Saltata", tone = DesktopInlineActionTone.Warn)
@@ -259,72 +271,78 @@ internal fun ProgramWeekCard(
                         }
                         WeekMetaBadge(label = "Parti: ${week.parts.size}", tone = DesktopInlineActionTone.Neutral)
                     }
-                    Text(
-                        text = "$assignedSlots/$totalSlots slot assegnati",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = if (missingSlots == 0 && totalSlots > 0) "Completa" else "$missingSlots slot vuoti",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (missingSlots == 0 && totalSlots > 0) {
-                            MaterialTheme.colorScheme.secondary
-                        } else if (missingSlots == totalSlots && totalSlots > 0) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.tertiary
-                        },
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    ) {
-                        if (totalSlots > 0 && assignedSlots > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(assignedSlots.toFloat())
-                                    .fillMaxHeight()
-                                    .background(doneColor),
-                            )
-                        }
-                        if (totalSlots > 0 && missingSlots > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(missingSlots.toFloat())
-                                    .fillMaxHeight()
-                                    .background(pendingColor),
-                            )
-                        }
+                }
+                Text(
+                    text = "$assignedSlots/$totalSlots slot assegnati",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = sketch.inkSoft,
+                )
+                Text(
+                    text = if (missingSlots == 0 && totalSlots > 0) "Completa" else "$missingSlots slot vuoti",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = statusTextColor,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(7.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(sketch.lineSoft.copy(alpha = 0.7f)),
+                ) {
+                    if (totalSlots > 0 && assignedSlots > 0) {
+                        Box(
+                            modifier = Modifier
+                                .weight(assignedSlots.toFloat())
+                                .fillMaxHeight()
+                                .background(doneColor),
+                        )
+                    }
+                    if (totalSlots > 0 && missingSlots > 0) {
+                        Box(
+                            modifier = Modifier
+                                .weight(missingSlots.toFloat())
+                                .fillMaxHeight()
+                                .background(pendingColor),
+                        )
                     }
                 }
-                if (isSkipped && !isPast) {
-                    DesktopInlineAction(
-                        label = "Riattiva",
-                        onClick = onReactivate,
-                        tone = DesktopInlineActionTone.Positive,
-                    )
-                } else if (!isPast) {
-                    DesktopInlineAction(
-                        label = "Modifica parti",
-                        onClick = onOpenPartEditor,
-                        tone = DesktopInlineActionTone.Primary,
-                    )
-                    DesktopInlineAction(
-                        label = "Salta settimana",
-                        onClick = onSkipWeek,
-                        tone = DesktopInlineActionTone.Warn,
-                    )
-                }
-                if (canMutate && showClearWeekAssignments) {
-                    DesktopInlineAction(
-                        label = "Rimuovi assegnazioni",
-                        icon = Icons.Filled.ClearAll,
-                        onClick = onRequestClearWeekAssignments,
-                        tone = DesktopInlineActionTone.Danger,
-                    )
+            }
+
+            if (showActions) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(actionScroll)
+                        .padding(horizontal = spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isSkipped && !isPast) {
+                        DesktopInlineAction(
+                            label = "Riattiva",
+                            onClick = onReactivate,
+                            tone = DesktopInlineActionTone.Positive,
+                        )
+                    } else if (!isPast) {
+                        DesktopInlineAction(
+                            label = "Modifica parti",
+                            onClick = onOpenPartEditor,
+                            tone = DesktopInlineActionTone.Primary,
+                        )
+                        DesktopInlineAction(
+                            label = "Salta settimana",
+                            onClick = onSkipWeek,
+                            tone = DesktopInlineActionTone.Warn,
+                        )
+                    }
+                    if (canMutate && showClearWeekAssignments) {
+                        DesktopInlineAction(
+                            label = "Rimuovi assegnazioni",
+                            icon = Icons.Filled.ClearAll,
+                            onClick = onRequestClearWeekAssignments,
+                            tone = DesktopInlineActionTone.Danger,
+                        )
+                    }
                 }
             }
 
@@ -333,11 +351,11 @@ internal fun ProgramWeekCard(
                     "Nessuna parte configurata",
                     modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = sketch.inkMuted,
                 )
             } else {
                 Column(
-                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
+                    modifier = Modifier.padding(start = spacing.md, end = spacing.md, bottom = spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(spacing.sm),
                 ) {
                     partRows.forEach { rowParts ->
@@ -376,35 +394,36 @@ private fun WeekMetaBadge(
     label: String,
     tone: DesktopInlineActionTone,
 ) {
+    val sketch = MaterialTheme.workspaceSketch
     val (container, border, content) = when (tone) {
         DesktopInlineActionTone.Neutral -> Triple(
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            sketch.surface,
+            sketch.lineSoft,
+            sketch.inkMuted,
         )
         DesktopInlineActionTone.Primary -> Triple(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.primary,
+            sketch.accent.copy(alpha = 0.12f),
+            sketch.accent.copy(alpha = 0.45f),
+            sketch.accent,
         )
         DesktopInlineActionTone.Positive -> Triple(
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.secondary,
+            sketch.ok.copy(alpha = 0.13f),
+            sketch.ok.copy(alpha = 0.45f),
+            sketch.ok,
         )
         DesktopInlineActionTone.Warn -> Triple(
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.tertiary,
+            sketch.warn.copy(alpha = 0.14f),
+            sketch.warn.copy(alpha = 0.45f),
+            sketch.warn,
         )
         DesktopInlineActionTone.Danger -> Triple(
-            MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-            MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.error,
+            sketch.bad.copy(alpha = 0.12f),
+            sketch.bad.copy(alpha = 0.55f),
+            sketch.bad,
         )
     }
     Surface(
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(999.dp),
         color = container,
         border = BorderStroke(1.dp, border),
     ) {
@@ -431,6 +450,7 @@ internal fun PartEditorDialog(
     onDismiss: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     var menuExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(
@@ -446,7 +466,8 @@ internal fun PartEditorDialog(
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 0.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            border = BorderStroke(1.dp, sketch.lineSoft),
+            color = sketch.surface,
             modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
         ) {
             Column(
@@ -458,7 +479,7 @@ internal fun PartEditorDialog(
                 Text(
                     "Trascina le righe per riordinare le parti",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = sketch.inkMuted,
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -486,7 +507,7 @@ internal fun PartEditorDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                        .background(sketch.surfaceMuted.copy(alpha = 0.92f), RoundedCornerShape(10.dp))
                         .padding(end = 10.dp),
                 ) {
                     LazyColumn(
@@ -503,18 +524,18 @@ internal fun PartEditorDialog(
                                 key = part.id.value,
                             ) { isDragging ->
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     color = if (isDragging) {
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                        sketch.accent.copy(alpha = 0.18f)
                                     } else {
-                                        MaterialTheme.colorScheme.surface
+                                        sketch.surface
                                     },
                                     border = BorderStroke(
                                         1.dp,
                                         if (isDragging) {
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                            sketch.accent.copy(alpha = 0.8f)
                                         } else {
-                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                            sketch.lineSoft
                                         },
                                     ),
                                 ) {
@@ -528,7 +549,7 @@ internal fun PartEditorDialog(
                                         Icon(
                                             imageVector = Icons.Filled.DragIndicator,
                                             contentDescription = "Trascina per riordinare",
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = sketch.accent,
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .handCursorOnHover(enabled = !isSaving)
@@ -543,7 +564,7 @@ internal fun PartEditorDialog(
                                         Text(
                                             "${part.partType.peopleCount} persone",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = sketch.inkMuted,
                                         )
                                         if (!part.partType.fixed) {
                                             IconButton(
@@ -712,31 +733,32 @@ private fun DesktopInlineAction(
     tone: DesktopInlineActionTone = DesktopInlineActionTone.Neutral,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val (container, border, content) = when (tone) {
         DesktopInlineActionTone.Neutral -> Triple(
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            sketch.surfaceMuted,
+            sketch.lineSoft,
+            sketch.inkSoft,
         )
         DesktopInlineActionTone.Primary -> Triple(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.primary,
+            sketch.accent.copy(alpha = 0.2f),
+            sketch.accent.copy(alpha = 0.7f),
+            sketch.accent,
         )
         DesktopInlineActionTone.Positive -> Triple(
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.secondary,
+            sketch.ok.copy(alpha = 0.2f),
+            sketch.ok.copy(alpha = 0.7f),
+            sketch.ok,
         )
         DesktopInlineActionTone.Warn -> Triple(
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f),
-            MaterialTheme.colorScheme.tertiary,
+            sketch.warn.copy(alpha = 0.2f),
+            sketch.warn.copy(alpha = 0.7f),
+            sketch.warn,
         )
         DesktopInlineActionTone.Danger -> Triple(
-            MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-            MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.error,
+            sketch.surfaceMuted,
+            sketch.bad.copy(alpha = 0.75f),
+            sketch.bad,
         )
     }
     val alpha = if (enabled) 1f else 0.46f
@@ -744,12 +766,12 @@ private fun DesktopInlineAction(
         modifier = modifier
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(10.dp),
         color = container.copy(alpha = alpha),
         border = BorderStroke(1.dp, border.copy(alpha = alpha)),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = 5.dp),
             horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {

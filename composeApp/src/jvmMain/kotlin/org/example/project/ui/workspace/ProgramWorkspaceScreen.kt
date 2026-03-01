@@ -51,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -360,6 +359,13 @@ fun ProgramWorkspaceScreen() {
             val totalAssignments = remember(lifecycleState.selectedProgramAssignments) {
                 lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
             }
+            val unresolvedPendingSlots = remember(totalSlots, totalAssignments, assignmentState.autoAssignUnresolved) {
+                val remaining = (totalSlots - totalAssignments).coerceAtLeast(0)
+                assignmentState.autoAssignUnresolved.size.coerceIn(0, remaining)
+            }
+            val emptySlots = remember(totalSlots, totalAssignments, unresolvedPendingSlots) {
+                (totalSlots - totalAssignments).coerceAtLeast(0) - unresolvedPendingSlots
+            }
             val assignmentsById = remember(lifecycleState.selectedProgramAssignments) {
                 lifecycleState.selectedProgramAssignments.values
                     .flatten()
@@ -373,28 +379,30 @@ fun ProgramWorkspaceScreen() {
             val sketch = MaterialTheme.workspaceSketch
 
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 WorkspacePanel(
                     modifier = Modifier
-                        .width(220.dp)
+                        .width(280.dp)
                         .fillMaxHeight(),
                     containerColor = sketch.panelLeft,
                     borderColor = sketch.lineSoft,
-                    shape = RectangleShape,
-                    contentPadding = 10.dp,
+                    contentPadding = 12.dp,
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        WorkspacePanelHeader(title = "Mesi", color = MaterialTheme.colorScheme.primary)
+                        WorkspacePanelHeader(title = "Mesi")
                         lifecycleState.currentProgram?.let { program ->
                             val isSelected = lifecycleState.selectedProgramId == program.id.value
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = isSelected,
-                                accent = MaterialTheme.colorScheme.primary,
+                                accent = sketch.accent,
                                 onClick = { lifecycleVM.selectProgram(program.id.value) },
                             )
                         }
@@ -403,14 +411,14 @@ fun ProgramWorkspaceScreen() {
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = isSelected,
-                                accent = MaterialTheme.colorScheme.secondary,
+                                accent = sketch.accent,
                                 onClick = { lifecycleVM.selectProgram(program.id.value) },
                             )
                             if (program.id.value in schemaState.impactedFutureProgramIds) {
                                 Text(
                                     "Template aggiornato, verificare",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = sketch.accent,
                                 )
                             }
                         }
@@ -446,8 +454,7 @@ fun ProgramWorkspaceScreen() {
                         .fillMaxHeight(),
                     containerColor = sketch.panelMid,
                     borderColor = sketch.lineSoft,
-                    shape = RectangleShape,
-                    contentPadding = 10.dp,
+                    contentPadding = 12.dp,
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(
@@ -461,31 +468,30 @@ fun ProgramWorkspaceScreen() {
                                         "Programma · ${formatMonthYearLabel(it.month, it.year)}"
                                     } ?: "Programma",
                                     style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = sketch.ink,
                                 )
                                 Text(
-                                    text = "Board settimane e slot assegnazioni",
+                                    text = "Quadro completo settimane e slot assegnazioni",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = sketch.inkMuted,
                                 )
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 ProgramStatusPill(
                                     label = "$totalAssignments assegnate",
                                     tone = ProgramStatusTone.Good,
                                 )
                                 ProgramStatusPill(
-                                    label = "${(totalSlots - totalAssignments).coerceAtLeast(0)} pending",
+                                    label = "$unresolvedPendingSlots pending",
+                                    tone = ProgramStatusTone.Info,
+                                )
+                                ProgramStatusPill(
+                                    label = "$emptySlots vuoti",
                                     tone = ProgramStatusTone.Warn,
                                 )
                             }
                         }
-                        Spacer(Modifier.height(spacing.sm))
-                        WorkspacePanelHeader(
-                            title = selectedProgram?.let { "Settimane · ${formatMonthYearLabel(it.month, it.year)}" } ?: "Settimane",
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                        Spacer(Modifier.height(spacing.sm))
+                        Spacer(Modifier.height(10.dp))
                         if (lifecycleState.selectedProgramWeeks.isEmpty()) {
                             WorkspaceStatePane(
                                 kind = WorkspaceStateKind.Empty,
@@ -495,10 +501,10 @@ fun ProgramWorkspaceScreen() {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(
                                     state = weekListState,
-                                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(end = 12.dp),
+                                        .padding(end = 8.dp),
                                 ) {
                                     items(
                                         items = lifecycleState.selectedProgramWeeks,
@@ -555,16 +561,15 @@ fun ProgramWorkspaceScreen() {
 
                 WorkspacePanel(
                     modifier = Modifier
-                        .width(246.dp)
+                        .width(360.dp)
                         .fillMaxHeight(),
                     containerColor = sketch.panelRight,
                     borderColor = sketch.lineSoft,
-                    shape = RectangleShape,
-                    contentPadding = 10.dp,
+                    contentPadding = 12.dp,
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         WorkspacePanelHeader(
                             title = "Inspector",
@@ -596,16 +601,55 @@ fun ProgramWorkspaceScreen() {
 
                         InspectorSectionLabel("Copertura")
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, sketch.lineSoft),
-                            color = sketch.surface,
+                            color = sketch.surfaceMuted,
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(spacing.sm),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                Text("$totalAssignments/$totalSlots slot assegnati", style = MaterialTheme.typography.bodyMedium)
-                                Text("${assignmentState.autoAssignUnresolved.size} slot non assegnati", style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    "$totalAssignments/$totalSlots slot assegnati",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = sketch.ink,
+                                )
+                                Text(
+                                    "Vuoti $emptySlots · Pending $unresolvedPendingSlots",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = sketch.inkMuted,
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(7.dp)
+                                        .background(sketch.lineSoft.copy(alpha = 0.7f), RoundedCornerShape(999.dp)),
+                                ) {
+                                    if (totalSlots > 0 && totalAssignments > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(totalAssignments.toFloat())
+                                                .fillMaxHeight()
+                                                .background(sketch.ok, RoundedCornerShape(999.dp)),
+                                        )
+                                    }
+                                    if (totalSlots > 0 && unresolvedPendingSlots > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(unresolvedPendingSlots.toFloat())
+                                                .fillMaxHeight()
+                                                .background(sketch.accent),
+                                        )
+                                    }
+                                    if (totalSlots > 0 && emptySlots > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(emptySlots.toFloat())
+                                                .fillMaxHeight()
+                                                .background(sketch.warn),
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -635,20 +679,25 @@ fun ProgramWorkspaceScreen() {
                         if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
                             InspectorSectionLabel("Issue")
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.6f)),
+                                color = sketch.bad.copy(alpha = 0.12f),
                             ) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(spacing.sm),
                                     verticalArrangement = Arrangement.spacedBy(spacing.xs),
                                 ) {
-                                    Text("Slot non assegnati", style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        "Slot non assegnati",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = sketch.bad,
+                                    )
                                     assignmentState.autoAssignUnresolved.take(4).forEach { unresolved ->
                                         val weekLabel = formatWeekRangeLabel(unresolved.weekStartDate, unresolved.weekStartDate.plusDays(6))
                                         Text(
                                             "• $weekLabel · ${unresolved.partLabel} (${unresolved.reason})",
                                             style = MaterialTheme.typography.labelSmall,
+                                            color = sketch.inkSoft,
                                         )
                                     }
                                 }
@@ -699,8 +748,8 @@ private fun ProgramMonthSelectorButton(
     enabled: Boolean = true,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val border = if (selected) accent.copy(alpha = 0.48f) else sketch.lineSoft
-    val container = if (selected) accent.copy(alpha = 0.12f) else sketch.surface
+    val border = if (selected) accent.copy(alpha = 0.58f) else sketch.lineSoft
+    val container = if (selected) accent.copy(alpha = 0.14f) else sketch.surface
     val content = if (selected) accent else sketch.inkSoft
 
     Surface(
@@ -708,13 +757,13 @@ private fun ProgramMonthSelectorButton(
             .fillMaxWidth()
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(7.dp),
+        shape = RoundedCornerShape(10.dp),
         color = container,
         border = BorderStroke(1.dp, border),
     ) {
         Text(
             text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
             style = MaterialTheme.typography.titleSmall,
             color = content.copy(alpha = if (enabled) 1f else 0.45f),
         )
@@ -723,6 +772,7 @@ private fun ProgramMonthSelectorButton(
 
 private enum class ProgramStatusTone {
     Good,
+    Info,
     Warn,
 }
 
@@ -734,17 +784,18 @@ private fun ProgramStatusPill(
     val sketch = MaterialTheme.workspaceSketch
     val color = when (tone) {
         ProgramStatusTone.Good -> sketch.ok
-        ProgramStatusTone.Warn -> sketch.warn
+        ProgramStatusTone.Info -> sketch.accent
+        ProgramStatusTone.Warn -> sketch.bad
     }
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = color.copy(alpha = 0.12f),
+        color = color.copy(alpha = 0.1f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.42f)),
     ) {
         Text(
             text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
             color = color,
         )
     }
@@ -762,8 +813,8 @@ private fun InspectorSectionLabel(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     Text(
-        text = label.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
         color = sketch.inkMuted,
     )
 }
@@ -779,19 +830,19 @@ private fun ProgramQuickAction(
     val sketch = MaterialTheme.workspaceSketch
     val (container, border, content) = when (tone) {
         ProgramQuickActionTone.Accent -> Triple(
-            sketch.accent.copy(alpha = 0.12f),
-            sketch.accent.copy(alpha = 0.45f),
             sketch.accent,
+            sketch.accent,
+            Color.White,
         )
         ProgramQuickActionTone.Positive -> Triple(
-            sketch.ok.copy(alpha = 0.12f),
-            sketch.ok.copy(alpha = 0.45f),
             sketch.ok,
+            sketch.ok,
+            Color.White,
         )
         ProgramQuickActionTone.Danger -> Triple(
-            MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-            MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.error,
+            sketch.surfaceMuted,
+            sketch.bad.copy(alpha = 0.82f),
+            sketch.bad,
         )
     }
     val alpha = if (enabled) 1f else 0.45f
@@ -800,12 +851,12 @@ private fun ProgramQuickAction(
             .fillMaxWidth()
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(10.dp),
         color = container.copy(alpha = alpha),
         border = BorderStroke(1.dp, border.copy(alpha = alpha)),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -838,9 +889,9 @@ private fun ProgramInlineAssignmentSettings(
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, sketch.lineSoft),
-        color = sketch.surface,
+        color = sketch.surfaceMuted,
     ) {
         Column(
             modifier = Modifier
@@ -922,20 +973,20 @@ private fun DesktopToggle(
     }
     Surface(
         modifier = Modifier
-            .width(34.dp)
-            .height(20.dp)
+            .width(42.dp)
+            .height(24.dp)
             .handCursorOnHover()
             .clickable { onToggle(!checked) },
         shape = RoundedCornerShape(999.dp),
         color = trackColor,
         border = BorderStroke(1.dp, trackColor.copy(alpha = 0.9f)),
     ) {
-        Box(modifier = Modifier.fillMaxSize().padding(2.dp)) {
+        Box(modifier = Modifier.fillMaxSize().padding(3.dp)) {
             Box(
                 modifier = Modifier
-                    .size(14.dp)
+                    .size(18.dp)
                     .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
-                    .background(sketch.surface, RoundedCornerShape(999.dp)),
+                    .background(sketch.ink.copy(alpha = 0.9f), RoundedCornerShape(999.dp)),
             )
         }
     }
@@ -960,8 +1011,8 @@ private fun DesktopNumericField(
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(6.dp),
-            color = sketch.surface,
+            shape = RoundedCornerShape(10.dp),
+            color = sketch.surfaceMuted,
             border = BorderStroke(1.dp, sketch.lineSoft),
         ) {
             BasicTextField(
@@ -993,25 +1044,26 @@ private fun DesktopInlineAction(
     val sketch = MaterialTheme.workspaceSketch
     val alpha = if (enabled) 1f else 0.45f
     val borderColor = if (destructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = 0.85f * alpha)
+        sketch.bad.copy(alpha = 0.85f * alpha)
     } else {
         sketch.lineSoft.copy(alpha = alpha)
     }
     val textColor = if (destructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = alpha)
+        sketch.bad.copy(alpha = alpha)
     } else {
         sketch.inkSoft.copy(alpha = alpha)
     }
     Surface(
         modifier = modifier
+            .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(6.dp),
-        color = sketch.surface,
+        shape = RoundedCornerShape(10.dp),
+        color = sketch.surfaceMuted,
         border = BorderStroke(1.dp, borderColor),
     ) {
         Text(
             text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             style = MaterialTheme.typography.labelMedium,
             color = textColor,
         )
@@ -1027,9 +1079,9 @@ private fun ProgramActivityFeedPanel(
     val sketch = MaterialTheme.workspaceSketch
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, sketch.lineSoft),
-        color = sketch.surface,
+        color = sketch.surfaceMuted,
     ) {
         Column(
             modifier = Modifier
@@ -1051,16 +1103,16 @@ private fun ProgramActivityFeedPanel(
                     items(entries, key = { it.id }) { item ->
                         val isError = item.kind == FeedbackBannerKind.ERROR
                         val borderColor = if (isError) {
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
+                            sketch.bad.copy(alpha = 0.55f)
                         } else {
                             sketch.ok.copy(alpha = 0.55f)
                         }
                         val icon = if (isError) Icons.Filled.ErrorOutline else Icons.Filled.TaskAlt
-                        val iconTint = if (isError) MaterialTheme.colorScheme.error else sketch.ok
+                        val iconTint = if (isError) sketch.bad else sketch.ok
                         Surface(
-                            shape = RoundedCornerShape(5.dp),
+                            shape = RoundedCornerShape(10.dp),
                             border = BorderStroke(1.dp, borderColor),
-                            color = sketch.surface,
+                            color = sketch.surfaceMuted,
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1069,6 +1121,12 @@ private fun ProgramActivityFeedPanel(
                                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                 verticalAlignment = Alignment.Top,
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(34.dp)
+                                        .background(iconTint, RoundedCornerShape(999.dp)),
+                                )
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,

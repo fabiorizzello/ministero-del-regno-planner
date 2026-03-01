@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketch 1 — Board settimanale pulito</title>
+  <style>
+    :root{
+      --bg:#0b0d12;
+      --panel:#111524;
+      --panel2:#0f1320;
+      --card:#121a2c;
+      --line:#24304a;
+      --text:#e8ecff;
+      --muted:#a8b2d8;
+      --accent:#6ea8ff;
+      --ok:#35d39a;
+      --warn:#ffb020;
+      --bad:#ff6b7a;
+      --shadow: 0 14px 35px rgba(0,0,0,.35);
+      --r:16px;
+      --r2:12px;
+      --pad:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background: radial-gradient(1200px 600px at 20% 0%, rgba(110,168,255,.18), transparent 60%),
+                        radial-gradient(900px 500px at 90% 10%, rgba(53,211,154,.12), transparent 55%),
+                        var(--bg);
+      color:var(--text); font: 14px/1.35 var(--sans);
+    }
+    .app{display:grid; grid-template-rows:auto 1fr; height:100vh}
+    header{
+      padding:14px 18px; border-bottom:1px solid rgba(255,255,255,.06);
+      background: rgba(17,21,36,.7); backdrop-filter: blur(10px);
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .title h1{margin:0; font-size:16px; letter-spacing:.2px}
+    .title small{color:var(--muted)}
+    .topbar{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+    }
+    .pill{
+      border:1px solid rgba(255,255,255,.10); background: rgba(18,26,44,.6);
+      padding:8px 10px; border-radius:999px; color:var(--muted); display:flex; gap:8px; align-items:center;
+    }
+    .pill b{color:var(--text); font-weight:600}
+    .search{
+      display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(255,255,255,.10); background: rgba(18,26,44,.6);
+      border-radius:999px; padding:8px 10px; min-width:280px;
+    }
+    .search input{
+      width:100%; background:transparent; border:0; outline:0; color:var(--text);
+    }
+    .btn{
+      border:1px solid rgba(255,255,255,.12); background: rgba(18,26,44,.8);
+      color:var(--text); padding:9px 12px; border-radius:10px; cursor:pointer;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+      display:inline-flex; gap:8px; align-items:center;
+    }
+    .btn:hover{border-color: rgba(110,168,255,.55)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      border-color: rgba(110,168,255,.55);
+      background: linear-gradient(180deg, rgba(110,168,255,.26), rgba(110,168,255,.10));
+    }
+    .btn.danger{
+      border-color: rgba(255,107,122,.55);
+      background: linear-gradient(180deg, rgba(255,107,122,.22), rgba(255,107,122,.08));
+    }
+    .main{
+      display:grid; grid-template-columns: 280px 1fr 360px; gap:14px;
+      padding:14px;
+      min-height:0;
+    }
+    .panel{
+      background: rgba(17,21,36,.72); border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--r); box-shadow: var(--shadow);
+      min-height:0; display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+    .panel h2{
+      margin:0; padding:14px 16px; font-size:13px; letter-spacing:.3px;
+      color: var(--muted); border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .panel .body{padding:12px 12px; overflow:auto; min-height:0}
+    .weeklist{display:flex; flex-direction:column; gap:10px}
+    .week{
+      padding:12px; border-radius:14px; cursor:pointer;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(18,26,44,.55);
+      transition: border-color .15s ease, transform .05s ease;
+    }
+    .week:hover{border-color: rgba(110,168,255,.4)}
+    .week:active{transform: translateY(1px)}
+    .week.active{
+      border-color: rgba(110,168,255,.65);
+      background: linear-gradient(180deg, rgba(110,168,255,.18), rgba(18,26,44,.55));
+    }
+    .week .row{display:flex; justify-content:space-between; align-items:center; gap:10px}
+    .week .name{font-weight:650}
+    .badge{
+      font-size:11px; padding:3px 8px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12); color:var(--muted);
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .dot{width:8px; height:8px; border-radius:99px; background: rgba(255,255,255,.35)}
+    .b-ok .dot{background: var(--ok)}
+    .b-warn .dot{background: var(--warn)}
+    .b-bad .dot{background: var(--bad)}
+    .sub{color:var(--muted); font-size:12px; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap}
+    .sub span{display:inline-flex; gap:6px; align-items:center}
+    .progress{
+      height:8px; background: rgba(255,255,255,.08); border-radius:99px; overflow:hidden; margin-top:10px;
+    }
+    .progress > i{display:block; height:100%; width:70%; background: rgba(110,168,255,.65)}
+    .contentTop{
+      display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:12px 16px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .contentTop .meta{
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .contentTop .meta h3{margin:0; font-size:15px}
+    .contentTop .meta .kpis{display:flex; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px}
+    .contentTop .actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+    .slots{display:flex; flex-direction:column; gap:10px; padding:12px 16px; overflow:auto; min-height:0}
+    .slot{
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(18,26,44,.55);
+      border-radius:14px; padding:12px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .slot .head{display:flex; justify-content:space-between; gap:10px; align-items:center}
+    .slot .head b{font-size:13px}
+    .status{
+      font-size:11px; padding:4px 8px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12); color:var(--muted);
+    }
+    .status.ok{border-color: rgba(53,211,154,.45); color: rgba(189,255,234,.95)}
+    .status.partial{border-color: rgba(255,176,32,.45); color: rgba(255,226,180,.95)}
+    .status.empty{border-color: rgba(255,107,122,.45); color: rgba(255,196,201,.95)}
+    .formrow{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+    }
+    label{font-size:11px; color:var(--muted); display:block; margin-bottom:6px}
+    select{
+      width:100%;
+      padding:9px 10px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(15,19,32,.65);
+      color: var(--text);
+      outline: none;
+    }
+    .inspector .body{padding:14px 14px; display:flex; flex-direction:column; gap:14px}
+    .card{
+      background: rgba(18,26,44,.55);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px; padding:12px;
+    }
+    .card h4{margin:0 0 10px 0; font-size:12px; color:var(--muted); letter-spacing:.3px}
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .num{
+      font-family: var(--mono); font-size:18px; margin:2px 0; letter-spacing:.2px
+    }
+    .help{color:var(--muted); font-size:12px}
+    .toggle{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.08);
+      background: rgba(15,19,32,.55);
+    }
+    .switch{width:42px; height:24px; border-radius:999px; background: rgba(255,255,255,.12); position:relative; cursor:pointer}
+    .switch::after{content:""; width:18px; height:18px; border-radius:999px; background: rgba(255,255,255,.75); position:absolute; top:3px; left:3px; transition:left .15s ease}
+    .switch.on{background: rgba(110,168,255,.35)}
+    .switch.on::after{left:21px; background: rgba(255,255,255,.95)}
+    .toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background: rgba(17,21,36,.88); border:1px solid rgba(255,255,255,.10);
+      padding:10px 12px; border-radius:12px; color:var(--text);
+      display:none; gap:10px; align-items:center; box-shadow: var(--shadow);
+    }
+    .toast.show{display:flex}
+    .link{
+      color: rgba(110,168,255,.95); cursor:pointer; text-decoration:underline; text-decoration-thickness: 1px;
+    }
+    @media (max-width: 1100px){
+      .main{grid-template-columns: 280px 1fr}
+      .inspector{display:none}
+    }
+    @media (max-width: 820px){
+      .main{grid-template-columns: 1fr}
+      .panel.weeks{display:none}
+      .search{min-width: 200px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">
+      <h1>Programma • Febbraio 2026</h1>
+      <small>Assegnazioni per settimane e slot — meno rumore, più azione</small>
+    </div>
+    <div class="topbar">
+      <div class="pill"><b>33/36</b> assegnati <span style="opacity:.7">•</span> Vuoti <b>2</b> <span style="opacity:.7">•</span> Pending <b>3</b></div>
+      <div class="search">
+        <span style="opacity:.75">⌕</span>
+        <input id="q" placeholder="Cerca persona o tema…" />
+      </div>
+      <button class="btn" id="settings">⚙︎ Impostazioni</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- LEFT: Weeks -->
+    <section class="panel weeks">
+      <h2>Settimane <span style="font-weight:600; color:var(--text)">Feb 2026</span></h2>
+      <div class="body">
+        <div class="weeklist" id="weekList"></div>
+      </div>
+    </section>
+
+    <!-- CENTER: Content -->
+    <section class="panel">
+      <div class="contentTop">
+        <div class="meta">
+          <h3 id="weekTitle">Settimana 2–8 Feb</h3>
+          <div class="kpis" id="weekKpis"></div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="preview">✨ Anteprima autoassegna</button>
+          <button class="btn" id="apply" disabled>Applica</button>
+          <button class="btn" id="undo" disabled>↩︎ Undo</button>
+        </div>
+      </div>
+      <div class="slots" id="slots"></div>
+    </section>
+
+    <!-- RIGHT: Inspector -->
+    <aside class="panel inspector">
+      <h2>Inspector <span style="font-weight:600; color:var(--text)" id="inspectorScope">Settimana</span></h2>
+      <div class="body">
+        <div class="card">
+          <h4>Copertura</h4>
+          <div class="grid2">
+            <div>
+              <div class="help">Assegnati</div>
+              <div class="num" id="kAssigned">—</div>
+            </div>
+            <div>
+              <div class="help">Vuoti</div>
+              <div class="num" id="kEmpty">—</div>
+            </div>
+            <div>
+              <div class="help">Pending</div>
+              <div class="num" id="kPending">—</div>
+            </div>
+            <div>
+              <div class="help">Stato</div>
+              <div class="num" style="font-size:14px; font-family:var(--sans); color:var(--muted)" id="kStatus">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Assegnatore</h4>
+          <div class="toggle">
+            <div>
+              <div style="font-weight:650">Strict cooldown</div>
+              <div class="help">Rispetta vincoli senza eccezioni</div>
+            </div>
+            <div class="switch on" id="sw"></div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="grid2">
+            <div>
+              <label>Peso conduzione</label>
+              <select>
+                <option>2</option><option>1</option><option>3</option>
+              </select>
+            </div>
+            <div>
+              <label>Peso assistenza</label>
+              <select>
+                <option>1</option><option>2</option><option>3</option>
+              </select>
+            </div>
+            <div>
+              <label>Cooldown conduzione</label>
+              <select>
+                <option>4</option><option>3</option><option>5</option>
+              </select>
+            </div>
+            <div>
+              <label>Cooldown assistenza</label>
+              <select>
+                <option>2</option><option>1</option><option>3</option>
+              </select>
+            </div>
+          </div>
+          <div style="height:10px"></div>
+          <button class="btn" style="width:100%">💾 Salva impostazioni</button>
+        </div>
+
+        <div class="card">
+          <h4>Attività</h4>
+          <div class="help">Nessun evento registrato. Dopo “Applica” apparirà il log con undo rapido.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast">
+    <span id="toastMsg">—</span>
+    <span class="link" id="toastUndo">Undo</span>
+  </div>
+</div>
+
+<script>
+  const people = [
+    "Chiara Ricci","Alessio Longo","Sara Colombo","Giovanni Neri",
+    "Federica Moretti","Francesco Costa","Marco Rossi","Elena Conti",
+    "Paolo Verdi","Andrea Marino","Luca Bianchi","Davide Gallo"
+  ];
+
+  const data = [
+    {
+      id: "w1",
+      label: "2–8 Feb",
+      assigned: 7, total: 9, pending: 0, empty: 2,
+      slots: [
+        { id:"s3", name:"3. Iniziare una conversazione", status:"partial", procl:"Chiara Ricci", assist:"" },
+        { id:"s4", name:"4. Coltivare l'interesse", status:"partial", procl:"Alessio Longo", assist:"" },
+        { id:"s5", name:"5. Fare discepoli", status:"ok", procl:"Sara Colombo", assist:"Giovanni Neri" },
+        { id:"s6", name:"6. Spiegare quello in cui si crede", status:"ok", procl:"Federica Moretti", assist:"Francesco Costa" },
+        { id:"s7", name:"7. Discorso", status:"ok", procl:"Marco Rossi", assist:"" }
+      ]
+    },
+    {
+      id: "w2",
+      label: "9–15 Feb",
+      assigned: 9, total: 9, pending: 0, empty: 0,
+      slots: [
+        { id:"s3", name:"3. Iniziare una conversazione", status:"ok", procl:"Sara Colombo", assist:"Luca Bianchi" },
+        { id:"s4", name:"4. Coltivare l'interesse", status:"ok", procl:"Chiara Ricci", assist:"Giovanni Neri" },
+        { id:"s5", name:"5. Fare discepoli", status:"ok", procl:"Elena Conti", assist:"Francesco Costa" },
+        { id:"s6", name:"6. Spiegare quello in cui si crede", status:"ok", procl:"Paolo Verdi", assist:"Andrea Marino" },
+        { id:"s7", name:"7. Discorso", status:"ok", procl:"Davide Gallo", assist:"" }
+      ]
+    },
+    {
+      id:"w3",
+      label:"16–22 Feb",
+      assigned: 8, total: 9, pending: 1, empty: 0,
+      slots: [
+        { id:"s3", name:"3. Iniziare una conversazione", status:"ok", procl:"Alessio Longo", assist:"Luca Bianchi" },
+        { id:"s4", name:"4. Coltivare l'interesse", status:"ok", procl:"Chiara Ricci", assist:"Giovanni Neri" },
+        { id:"s5", name:"5. Fare discepoli", status:"ok", procl:"Sara Colombo", assist:"Francesco Costa" },
+        { id:"s6", name:"6. Spiegare quello in cui si crede", status:"ok", procl:"Federica Moretti", assist:"Andrea Marino" },
+        { id:"s7", name:"7. Discorso", status:"partial", procl:"Marco Rossi", assist:"" }
+      ]
+    }
+  ];
+
+  const weekList = document.getElementById("weekList");
+  const weekTitle = document.getElementById("weekTitle");
+  const weekKpis = document.getElementById("weekKpis");
+  const slotsEl = document.getElementById("slots");
+
+  const kAssigned = document.getElementById("kAssigned");
+  const kEmpty = document.getElementById("kEmpty");
+  const kPending = document.getElementById("kPending");
+  const kStatus = document.getElementById("kStatus");
+
+  const btnPreview = document.getElementById("preview");
+  const btnApply = document.getElementById("apply");
+  const btnUndo = document.getElementById("undo");
+
+  const q = document.getElementById("q");
+
+  const toast = document.getElementById("toast");
+  const toastMsg = document.getElementById("toastMsg");
+  const toastUndo = document.getElementById("toastUndo");
+
+  const sw = document.getElementById("sw");
+  sw.addEventListener("click", () => sw.classList.toggle("on"));
+
+  let selectedWeek = data[0];
+  let lastSnapshot = null;
+  let previewed = false;
+
+  function statusFromWeek(w){
+    if (w.empty === 0 && w.pending === 0) return {txt:"Completa", cls:"b-ok"};
+    if (w.empty > 0) return {txt:"Vuoti", cls:"b-bad"};
+    return {txt:"Parziale", cls:"b-warn"};
+  }
+
+  function renderWeeks(){
+    weekList.innerHTML = "";
+    data.forEach(w=>{
+      const s = statusFromWeek(w);
+      const pct = Math.round((w.assigned / w.total) * 100);
+      const el = document.createElement("div");
+      el.className = "week" + (w.id === selectedWeek.id ? " active" : "");
+      el.innerHTML = `
+        <div class="row">
+          <div class="name">Settimana ${w.label}</div>
+          <span class="badge ${s.cls}"><span class="dot"></span>${s.txt}</span>
+        </div>
+        <div class="sub">
+          <span>Assegnati: <b style="color:var(--text)">${w.assigned}/${w.total}</b></span>
+          <span>Vuoti: <b style="color:var(--text)">${w.empty}</b></span>
+          <span>Pending: <b style="color:var(--text)">${w.pending}</b></span>
+        </div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+      `;
+      el.addEventListener("click", ()=>{
+        selectedWeek = w;
+        previewed = false;
+        btnApply.disabled = true;
+        renderWeeks();
+        renderContent();
+      });
+      weekList.appendChild(el);
+    });
+  }
+
+  function selectOptions(current){
+    const opts = ['<option value="">—</option>']
+      .concat(people.map(p => `<option ${p===current?'selected':''} value="${p}">${p}</option>`))
+      .join("");
+    return opts;
+  }
+
+  function renderContent(){
+    const w = selectedWeek;
+    const s = statusFromWeek(w);
+
+    weekTitle.textContent = `Settimana ${w.label}`;
+    weekKpis.innerHTML = `
+      <span>Stato: <b>${s.txt}</b></span>
+      <span>Assegnati: <b>${w.assigned}/${w.total}</b></span>
+      <span>Vuoti: <b>${w.empty}</b></span>
+      <span>Pending: <b>${w.pending}</b></span>
+    `;
+
+    kAssigned.textContent = `${w.assigned}/${w.total}`;
+    kEmpty.textContent = `${w.empty}`;
+    kPending.textContent = `${w.pending}`;
+    kStatus.textContent = s.txt;
+
+    slotsEl.innerHTML = "";
+    w.slots.forEach(slot=>{
+      const el = document.createElement("div");
+      el.className = "slot";
+      el.dataset.slotId = slot.id;
+      el.innerHTML = `
+        <div class="head">
+          <b>${slot.name}</b>
+          <span class="status ${slot.status}">${slot.status === 'ok' ? 'Assegnato' : (slot.status==='partial'?'Parziale':'Vuoto')}</span>
+        </div>
+        <div class="formrow">
+          <div>
+            <label>Proclamatore</label>
+            <select class="sel-procl">
+              ${selectOptions(slot.procl)}
+            </select>
+          </div>
+          <div>
+            <label>Assistente</label>
+            <select class="sel-assist">
+              ${selectOptions(slot.assist)}
+            </select>
+          </div>
+        </div>
+      `;
+      el.querySelector(".sel-procl").addEventListener("change", (e)=>{
+        slot.procl = e.target.value;
+        recomputeWeek(w);
+        renderWeeks();
+        renderContent();
+      });
+      el.querySelector(".sel-assist").addEventListener("change", (e)=>{
+        slot.assist = e.target.value;
+        recomputeWeek(w);
+        renderWeeks();
+        renderContent();
+      });
+      slotsEl.appendChild(el);
+    });
+  }
+
+  function recomputeWeek(w){
+    // Regola semplice: ogni slot conta 1 se procl c'è, +1 se assist c'è dove previsto (qui semplificato).
+    // Mostriamo "empty" come slot con assist/procl mancanti.
+    let assigned = 0;
+    let empty = 0;
+    w.slots.forEach(s=>{
+      const hasProcl = !!s.procl;
+      const hasAssist = (s.name.includes("Discorso") ? true : true); // in demo tutti possono avere assist opzionale
+      const ok = hasProcl && (s.assist || s.name.includes("Discorso"));
+      if (ok){
+        s.status = "ok";
+        assigned += 1;
+      } else if (hasProcl || s.assist){
+        s.status = "partial";
+        empty += 1;
+      } else {
+        s.status = "empty";
+        empty += 1;
+      }
+    });
+    w.total = 9;
+    w.assigned = Math.min(w.slots.filter(s=>s.status==="ok").length + 2, 9); // demo visiva
+    w.empty = Math.max(0, 9 - w.assigned - w.pending);
+  }
+
+  function showToast(msg, withUndo=false){
+    toastMsg.textContent = msg;
+    toastUndo.style.display = withUndo ? "inline" : "none";
+    toast.classList.add("show");
+    setTimeout(()=> toast.classList.remove("show"), 4200);
+  }
+
+  function snapshot(){
+    return JSON.parse(JSON.stringify(data));
+  }
+
+  function restore(snap){
+    for (let i=0;i<data.length;i++){
+      data[i] = snap[i];
+    }
+    // Re-punta selectedWeek sull'oggetto corretto
+    selectedWeek = data.find(w=>w.id===selectedWeek.id) || data[0];
+  }
+
+  btnPreview.addEventListener("click", ()=>{
+    lastSnapshot = snapshot();
+    previewed = true;
+
+    // “Proposta”: riempi i vuoti della settimana selezionata con persone a caso
+    const w = selectedWeek;
+    w.slots.forEach(s=>{
+      if (!s.procl) s.procl = people[Math.floor(Math.random()*people.length)];
+      if (!s.assist && !s.name.includes("Discorso")) s.assist = people[Math.floor(Math.random()*people.length)];
+    });
+    recomputeWeek(w);
+
+    btnApply.disabled = false;
+    btnUndo.disabled = false;
+    showToast("Anteprima generata. Se ti piace, premi “Applica”.", false);
+    renderWeeks(); renderContent();
+  });
+
+  btnApply.addEventListener("click", ()=>{
+    if (!previewed) return;
+    previewed = false;
+    btnApply.disabled = true;
+    showToast("Assegnazioni applicate ✅", true);
+  });
+
+  function doUndo(){
+    if (!lastSnapshot) return;
+    restore(lastSnapshot);
+    lastSnapshot = null;
+    previewed = false;
+    btnApply.disabled = true;
+    btnUndo.disabled = true;
+    showToast("Annullato ↩︎", false);
+    renderWeeks(); renderContent();
+  }
+  btnUndo.addEventListener("click", doUndo);
+  toastUndo.addEventListener("click", doUndo);
+
+  q.addEventListener("input", ()=>{
+    const term = q.value.trim().toLowerCase();
+    document.querySelectorAll(".slot").forEach(el=>{
+      const id = el.dataset.slotId;
+      const slot = selectedWeek.slots.find(s=>s.id===id);
+      const hay = `${slot.name} ${slot.procl} ${slot.assist}`.toLowerCase();
+      el.style.display = (!term || hay.includes(term)) ? "" : "none";
+    });
+  });
+
+  renderWeeks();
+  renderContent();
+</script>
+</body>
+</html>
