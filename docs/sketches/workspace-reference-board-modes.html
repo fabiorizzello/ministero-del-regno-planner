@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workspace Board Modes - Reference Style</title>
+  <style>
+    :root {
+      --radius-window: 10px;
+      --radius-panel: 8px;
+      --radius-card: 8px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 12px 40px rgba(17, 24, 39, 0.18);
+      --line-w: 1px;
+      --font-ui: "Sora", "Manrope", "Segoe UI", sans-serif;
+      --font-data: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --motion: 420ms cubic-bezier(.22, .61, .36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 500px at -10% -20%, #59d0ff 0%, transparent 60%),
+        radial-gradient(1000px 520px at 110% -15%, #ff5dd2 0%, transparent 58%),
+        radial-gradient(900px 400px at 50% 120%, #83e7ff 0%, transparent 72%),
+        #d9e4f8;
+      color: #0f172a;
+      font-family: var(--font-ui);
+      padding: 28px 18px 36px;
+    }
+
+    .page {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+      animation: reveal var(--motion);
+      transform-origin: 50% 0;
+    }
+
+    .intro {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(10px);
+      border: var(--line-w) solid rgba(148, 163, 184, 0.45);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 28px rgba(30, 41, 59, 0.12);
+    }
+
+    .intro h1 {
+      font-size: 18px;
+      letter-spacing: .01em;
+      margin-bottom: 5px;
+    }
+
+    .intro p {
+      font: 500 13px/1.4 var(--font-data);
+      color: #334155;
+    }
+
+    .mode-card {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(10px);
+      border: var(--line-w) solid rgba(148, 163, 184, 0.42);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 8px 28px rgba(30, 41, 59, 0.11);
+    }
+
+    .mode-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+
+    .mode-header h2 {
+      font-size: 16px;
+      letter-spacing: .02em;
+    }
+
+    .mode-header span {
+      font: 500 12px var(--font-data);
+      color: #475569;
+    }
+
+    .window {
+      border-radius: var(--radius-window);
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      border: var(--line-w) solid var(--window-line);
+      background: var(--window-bg);
+    }
+
+    .toolbar {
+      height: 46px;
+      display: grid;
+      grid-template-columns: 180px 1fr 220px;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      border-bottom: var(--line-w) solid var(--line-strong);
+      background: var(--toolbar-bg);
+      color: var(--ink);
+      font: 600 12px var(--font-data);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: .01em;
+    }
+
+    .brand-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      border: var(--line-w) solid var(--line-strong);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tool-strip {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tool {
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: var(--line-w) solid var(--line-soft);
+      background: var(--surface-1);
+      color: var(--ink-soft);
+      font: 600 11px var(--font-data);
+    }
+
+    .tool.active {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface-1));
+    }
+
+    .tool-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .tool-btn {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: var(--line-w) solid var(--line-soft);
+      background: var(--surface-1);
+      color: var(--ink-soft);
+      font: 600 11px var(--font-data);
+    }
+
+    .tool-btn.primary {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent) 18%, var(--surface-1));
+      color: var(--accent);
+    }
+
+    .work {
+      min-height: 560px;
+      display: grid;
+      grid-template-columns: 220px minmax(420px, 1fr) 246px;
+      background: var(--window-bg);
+    }
+
+    .left, .center, .right {
+      padding: 10px;
+    }
+
+    .left {
+      border-right: var(--line-w) solid var(--line-soft);
+      background: var(--panel-left);
+    }
+
+    .center {
+      border-right: var(--line-w) solid var(--line-soft);
+      background: var(--panel-mid);
+    }
+
+    .right {
+      background: var(--panel-right);
+    }
+
+    .sidebar-title {
+      font: 700 11px/1 var(--font-data);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+    }
+
+    .search {
+      height: 32px;
+      border-radius: 6px;
+      border: var(--line-w) solid var(--line-soft);
+      background: var(--surface-1);
+      margin-bottom: 10px;
+    }
+
+    .file-list {
+      display: grid;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .file {
+      padding: 7px 8px;
+      border-radius: 6px;
+      font: 600 12px var(--font-data);
+      color: var(--ink-soft);
+      border: var(--line-w) solid transparent;
+    }
+
+    .file.active {
+      background: color-mix(in srgb, var(--accent) 14%, var(--surface-1));
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 38%, var(--line-soft));
+    }
+
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 8px;
+      font-family: var(--font-data);
+    }
+
+    .board-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--ink);
+    }
+
+    .board-sub {
+      margin-top: 2px;
+      font-size: 13px;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+
+    .status-pills {
+      display: flex;
+      gap: 6px;
+    }
+
+    .status {
+      border-radius: var(--radius-pill);
+      border: var(--line-w) solid var(--line-soft);
+      background: var(--surface-1);
+      padding: 5px 8px;
+      font: 700 11px var(--font-data);
+      color: var(--ink-soft);
+    }
+
+    .status.good {
+      color: var(--ok);
+      border-color: color-mix(in srgb, var(--ok) 42%, var(--line-soft));
+      background: color-mix(in srgb, var(--ok) 12%, var(--surface-1));
+    }
+
+    .status.warn {
+      color: var(--warn);
+      border-color: color-mix(in srgb, var(--warn) 42%, var(--line-soft));
+      background: color-mix(in srgb, var(--warn) 13%, var(--surface-1));
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      border: var(--line-w) solid var(--line-soft);
+      border-radius: var(--radius-card);
+      padding: 10px;
+      background: var(--surface-1);
+      min-height: 130px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .card h4 {
+      font: 700 14px/1.3 var(--font-data);
+      color: var(--ink);
+    }
+
+    .card p {
+      font: 500 12px/1.35 var(--font-data);
+      color: var(--ink-muted);
+    }
+
+    .card .line {
+      height: 5px;
+      border-radius: 999px;
+      background: var(--line-soft);
+      overflow: hidden;
+    }
+
+    .card .line > i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      width: 46%;
+      border-radius: inherit;
+    }
+
+    .card-note {
+      border: var(--line-w) solid color-mix(in srgb, var(--accent) 35%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent) 10%, var(--surface-1));
+    }
+
+    .list {
+      border: var(--line-w) solid var(--line-soft);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      background: var(--surface-1);
+    }
+
+    .list .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      min-height: 38px;
+      padding: 0 10px;
+      border-bottom: var(--line-w) solid var(--line-soft);
+      font: 600 12px var(--font-data);
+      color: var(--ink-soft);
+    }
+
+    .list .row:last-child {
+      border-bottom: 0;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .inspector-title {
+      font: 700 11px/1 var(--font-data);
+      letter-spacing: .05em;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .panel-box {
+      border: var(--line-w) solid var(--line-soft);
+      border-radius: 7px;
+      padding: 8px;
+      background: var(--surface-1);
+      margin-bottom: 8px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      font: 700 11px var(--font-data);
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+
+    .stat {
+      border-radius: 6px;
+      border: var(--line-w) solid var(--line-soft);
+      padding: 6px;
+      text-align: center;
+      background: var(--surface-1);
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font: 600 12px var(--font-data);
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+    }
+
+    .switch {
+      width: 28px;
+      height: 16px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 50%, #8b9bb8);
+      position: relative;
+      border: var(--line-w) solid color-mix(in srgb, var(--accent) 45%, #64748b);
+    }
+
+    .switch::after {
+      content: "";
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      background: #fff;
+    }
+
+    .theme-dark {
+      --window-bg: #2b3139;
+      --window-line: #49505a;
+      --toolbar-bg: #2f353d;
+      --panel-left: #2e353c;
+      --panel-mid: #3b424a;
+      --panel-right: #323840;
+      --surface-1: #454c55;
+      --line-soft: #59616c;
+      --line-strong: #676f7b;
+      --ink: #e4eaf4;
+      --ink-soft: #d4dbea;
+      --ink-muted: #9da7ba;
+      --accent: #3ad0df;
+      --accent-soft: #51606f;
+      --ok: #54d58b;
+      --warn: #ffb14f;
+    }
+
+    .theme-light {
+      --window-bg: #f7f9fc;
+      --window-line: #d7e0ed;
+      --toolbar-bg: #ffffff;
+      --panel-left: #f4f7fb;
+      --panel-mid: #f7f9fc;
+      --panel-right: #f8fbff;
+      --surface-1: #ffffff;
+      --line-soft: #d8e1ee;
+      --line-strong: #c7d2e3;
+      --ink: #1e293b;
+      --ink-soft: #384458;
+      --ink-muted: #66758e;
+      --accent: #4f8dd8;
+      --accent-soft: #e5ebf7;
+      --ok: #2d9a63;
+      --warn: #cf8a24;
+      --shadow-soft: 0 12px 34px rgba(18, 37, 60, 0.14);
+    }
+
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(10px) scale(.994); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 1220px) {
+      .work {
+        grid-template-columns: 1fr;
+      }
+      .left, .center {
+        border-right: 0;
+        border-bottom: var(--line-w) solid var(--line-soft);
+      }
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .toolbar {
+        grid-template-columns: 1fr;
+        height: auto;
+        padding: 10px;
+        gap: 8px;
+      }
+      .tool-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 780px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .board-title {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro">
+      <h1>Direzione: board come reference</h1>
+      <p>Due sketch completi in stile tool/dashboard: prima <strong>dark mode</strong>, poi <strong>light mode</strong>. Layout editoriale con sidebar, board centrale e inspector laterale.</p>
+    </section>
+
+    <section class="mode-card">
+      <div class="mode-header">
+        <h2>Dark Mode</h2>
+        <span>dense, contrasto medio-alto, look moderno da desktop app</span>
+      </div>
+      <div class="window theme-dark">
+        <div class="toolbar">
+          <div class="brand"><span class="brand-badge">E</span> Efficaci Board</div>
+          <div class="tool-strip">
+            <span class="tool">Create</span>
+            <span class="tool">Content</span>
+            <span class="tool active">Programma</span>
+            <span class="tool">Settimane</span>
+            <span class="tool">Azioni</span>
+            <span class="tool">Diagnostica</span>
+          </div>
+          <div class="tool-actions">
+            <button class="tool-btn">Share</button>
+            <button class="tool-btn primary">Publish</button>
+          </div>
+        </div>
+        <div class="work">
+          <aside class="left">
+            <div class="sidebar-title">Pagine</div>
+            <div class="search"></div>
+            <div class="file-list">
+              <div class="file active">Programma.Febbraio</div>
+              <div class="file">Programma.Marzo</div>
+              <div class="file">Schema.Base</div>
+              <div class="file">Template.Settimana</div>
+              <div class="file">Storico.Assegnazioni</div>
+            </div>
+            <div class="sidebar-title">Librerie</div>
+            <div class="file-list">
+              <div class="file">Colori</div>
+              <div class="file">Tipografia</div>
+              <div class="file">Card Parts</div>
+            </div>
+          </aside>
+          <section class="center">
+            <div class="board-header">
+              <div>
+                <div class="board-title">Programma · febbraio 2026</div>
+                <div class="board-sub">Board settimane e slot assegnazioni</div>
+              </div>
+              <div class="status-pills">
+                <span class="status good">11 assegnate</span>
+                <span class="status warn">6 pending</span>
+              </div>
+            </div>
+            <div class="grid">
+              <article class="card">
+                <h4>Settimana 2-8</h4>
+                <p>Lettura biblica, Conversazione, Discorso</p>
+                <div class="line"><i></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 9-15</h4>
+                <p>Coltivare interesse, Fare discepoli</p>
+                <div class="line"><i style="width:58%"></i></div>
+              </article>
+              <article class="card card-note">
+                <h4>Autoassegna Batch #17</h4>
+                <p>Strict cooldown ON. 2 suggerimenti in revisione.</p>
+                <div class="line"><i style="width:36%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 16-22</h4>
+                <p>6 parti. 2 slot non assegnati.</p>
+                <div class="line"><i style="width:74%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 23-29</h4>
+                <p>Bozza pronta per stampa.</p>
+                <div class="line"><i style="width:82%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Alert</h4>
+                <p>1 possibile violazione cooldown.</p>
+                <div class="line"><i style="width:21%"></i></div>
+              </article>
+            </div>
+            <div class="list">
+              <div class="row"><span>Lettura biblica · Settimana 16-22</span><span class="dot"></span></div>
+              <div class="row"><span>Iniziare conversazione · Assistente</span><span class="dot"></span></div>
+              <div class="row"><span>Discorso · Non assegnato</span><span class="dot" style="background:#ffb14f"></span></div>
+              <div class="row"><span>Stampa PDF pianificazione</span><span class="dot" style="background:#54d58b"></span></div>
+            </div>
+          </section>
+          <aside class="right">
+            <div class="inspector-title">Inspector</div>
+            <div class="stats">
+              <div class="stat">17 slot</div>
+              <div class="stat">11 done</div>
+              <div class="stat">6 open</div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Strict cooldown</span><span class="switch"></span></div>
+              <div class="toggle-row"><span>Priorita conduzione</span><span>2x</span></div>
+              <div class="toggle-row"><span>Priorita assistenza</span><span>1x</span></div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Azioni rapide</span><span></span></div>
+              <div class="file-list">
+                <div class="file active">Autoassegna</div>
+                <div class="file">Stampa</div>
+                <div class="file">Svuota future</div>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Issue feed</span><span>3</span></div>
+              <div class="file-list">
+                <div class="file">Discorso senza assegnato</div>
+                <div class="file">Cooldown Mario (2 sett.)</div>
+                <div class="file">Template marzo aggiornato</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="mode-card">
+      <div class="mode-header">
+        <h2>Light Mode</h2>
+        <span>pulito, leggibile, con gerarchia visuale simile al dark</span>
+      </div>
+      <div class="window theme-light">
+        <div class="toolbar">
+          <div class="brand"><span class="brand-badge">E</span> Efficaci Board</div>
+          <div class="tool-strip">
+            <span class="tool">Create</span>
+            <span class="tool">Content</span>
+            <span class="tool active">Programma</span>
+            <span class="tool">Settimane</span>
+            <span class="tool">Azioni</span>
+            <span class="tool">Diagnostica</span>
+          </div>
+          <div class="tool-actions">
+            <button class="tool-btn">Share</button>
+            <button class="tool-btn primary">Publish</button>
+          </div>
+        </div>
+        <div class="work">
+          <aside class="left">
+            <div class="sidebar-title">Pagine</div>
+            <div class="search"></div>
+            <div class="file-list">
+              <div class="file active">Programma.Febbraio</div>
+              <div class="file">Programma.Marzo</div>
+              <div class="file">Schema.Base</div>
+              <div class="file">Template.Settimana</div>
+              <div class="file">Storico.Assegnazioni</div>
+            </div>
+            <div class="sidebar-title">Librerie</div>
+            <div class="file-list">
+              <div class="file">Colori</div>
+              <div class="file">Tipografia</div>
+              <div class="file">Card Parts</div>
+            </div>
+          </aside>
+          <section class="center">
+            <div class="board-header">
+              <div>
+                <div class="board-title">Programma · febbraio 2026</div>
+                <div class="board-sub">Board settimane e slot assegnazioni</div>
+              </div>
+              <div class="status-pills">
+                <span class="status good">11 assegnate</span>
+                <span class="status warn">6 pending</span>
+              </div>
+            </div>
+            <div class="grid">
+              <article class="card">
+                <h4>Settimana 2-8</h4>
+                <p>Lettura biblica, Conversazione, Discorso</p>
+                <div class="line"><i></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 9-15</h4>
+                <p>Coltivare interesse, Fare discepoli</p>
+                <div class="line"><i style="width:58%"></i></div>
+              </article>
+              <article class="card card-note">
+                <h4>Autoassegna Batch #17</h4>
+                <p>Strict cooldown ON. 2 suggerimenti in revisione.</p>
+                <div class="line"><i style="width:36%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 16-22</h4>
+                <p>6 parti. 2 slot non assegnati.</p>
+                <div class="line"><i style="width:74%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Settimana 23-29</h4>
+                <p>Bozza pronta per stampa.</p>
+                <div class="line"><i style="width:82%"></i></div>
+              </article>
+              <article class="card">
+                <h4>Alert</h4>
+                <p>1 possibile violazione cooldown.</p>
+                <div class="line"><i style="width:21%"></i></div>
+              </article>
+            </div>
+            <div class="list">
+              <div class="row"><span>Lettura biblica · Settimana 16-22</span><span class="dot"></span></div>
+              <div class="row"><span>Iniziare conversazione · Assistente</span><span class="dot"></span></div>
+              <div class="row"><span>Discorso · Non assegnato</span><span class="dot" style="background:#cf8a24"></span></div>
+              <div class="row"><span>Stampa PDF pianificazione</span><span class="dot" style="background:#2d9a63"></span></div>
+            </div>
+          </section>
+          <aside class="right">
+            <div class="inspector-title">Inspector</div>
+            <div class="stats">
+              <div class="stat">17 slot</div>
+              <div class="stat">11 done</div>
+              <div class="stat">6 open</div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Strict cooldown</span><span class="switch"></span></div>
+              <div class="toggle-row"><span>Priorita conduzione</span><span>2x</span></div>
+              <div class="toggle-row"><span>Priorita assistenza</span><span>1x</span></div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Azioni rapide</span><span></span></div>
+              <div class="file-list">
+                <div class="file active">Autoassegna</div>
+                <div class="file">Stampa</div>
+                <div class="file">Svuota future</div>
+              </div>
+            </div>
+            <div class="panel-box">
+              <div class="toggle-row"><span>Issue feed</span><span>3</span></div>
+              <div class="file-list">
+                <div class="file">Discorso senza assegnato</div>
+                <div class="file">Cooldown Mario (2 sett.)</div>
+                <div class="file">Template marzo aggiornato</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

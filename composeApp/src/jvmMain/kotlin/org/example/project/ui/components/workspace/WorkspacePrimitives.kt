@@ -15,30 +15,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
 
 @Composable
 fun WorkspacePanel(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+    containerColor: Color = MaterialTheme.workspaceSketch.surface,
+    borderColor: Color = MaterialTheme.workspaceSketch.lineSoft,
+    shape: Shape? = null,
+    shadowElevation: Dp = 0.dp,
+    contentPadding: Dp = 10.dp,
     content: @Composable () -> Unit,
 ) {
     val tokens = MaterialTheme.workspaceTokens
+    val panelShape = shape ?: RoundedCornerShape(tokens.panelRadius)
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(tokens.panelRadius),
+        shape = panelShape,
         border = BorderStroke(tokens.panelBorderWidth, borderColor),
         color = containerColor,
+        shadowElevation = shadowElevation,
     ) {
-        Box(Modifier.padding(MaterialTheme.spacing.md)) {
+        Box(Modifier.padding(contentPadding)) {
             content()
         }
     }
@@ -49,10 +58,12 @@ fun WorkspaceShellBar(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val sketch = MaterialTheme.workspaceSketch
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        color = sketch.toolbarBackground,
+        border = BorderStroke(1.dp, sketch.lineStrong),
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
@@ -72,11 +83,12 @@ fun WorkspacePanelHeader(
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
     val tokens = MaterialTheme.workspaceTokens
+    val sketch = MaterialTheme.workspaceSketch
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.headerRadius),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-        border = BorderStroke(tokens.panelBorderWidth, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
+        color = sketch.surface,
+        border = BorderStroke(tokens.panelBorderWidth, sketch.lineSoft),
     ) {
         Text(
             text = title,
@@ -104,44 +116,45 @@ fun WorkspaceActionButton(
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.workspaceTokens
+    val sketch = MaterialTheme.workspaceSketch
     val (container, content, border) = when (tone) {
         WorkspaceActionTone.Primary -> Triple(
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.onPrimary,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+            sketch.accent,
+            Color.White,
+            sketch.accent,
         )
         WorkspaceActionTone.Positive -> Triple(
-            MaterialTheme.colorScheme.secondary,
-            MaterialTheme.colorScheme.onSecondary,
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+            sketch.ok,
+            Color.White,
+            sketch.ok,
         )
         WorkspaceActionTone.Neutral -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.onSurface,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.85f),
+            sketch.surface,
+            sketch.inkSoft,
+            sketch.lineSoft,
         )
         WorkspaceActionTone.DangerOutline -> Triple(
             Color.Transparent,
             MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+            MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
         )
     }
     val alpha = if (enabled) 1f else 0.45f
-
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .handCursorOnHover(enabled = enabled)
+            .heightIn(min = tokens.compactControlHeight)
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(tokens.controlRadius),
         color = container.copy(alpha = alpha),
         border = BorderStroke(tokens.panelBorderWidth, border.copy(alpha = alpha)),
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = tokens.compactControlHeight)
-                .padding(horizontal = MaterialTheme.spacing.md),
+                .padding(horizontal = MaterialTheme.spacing.xs, vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {

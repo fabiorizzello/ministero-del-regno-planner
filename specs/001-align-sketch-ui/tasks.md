@@ -49,10 +49,10 @@
 ### Implementation for User Story 1
 
 - [X] T013 [US1] Refactor 3-column Program workspace structure in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceScreen.kt
-- [ ] T014 [US1] Restyle Program months/timeline/parts cards using shared primitives in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceComponents.kt
+- [X] T014 [US1] Restyle Program months/timeline/parts cards using shared primitives in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceComponents.kt
 - [X] T015 [US1] Restyle Program action block (autoassegna/stampa/copertura/feed) in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceScreen.kt
 - [X] T016 [US1] Keep assignment settings as right-panel inline controls in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceScreen.kt
-- [ ] T017 [US1] Align assignment chips and part cards visual language in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/assignments/AssignmentsComponents.kt
+- [X] T017 [US1] Align assignment chips and part cards visual language in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/assignments/AssignmentsComponents.kt
 - [X] T018 [US1] Implement explicit loading/error/empty/content states for Program workspace in /home/fabio/IdeaProjects/efficaci-nel-ministero/composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramWorkspaceScreen.kt
 - [ ] T019 [US1] Validate Program smoke flow coverage notes in /home/fabio/IdeaProjects/efficaci-nel-ministero/specs/001-align-sketch-ui/quickstart.md
 

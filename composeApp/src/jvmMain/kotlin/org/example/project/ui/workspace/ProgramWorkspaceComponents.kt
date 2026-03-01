@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +32,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -40,10 +39,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -85,16 +83,15 @@ internal fun ProgramWeekStickyHeader(
     val spacing = MaterialTheme.spacing
     val isSkipped = week.status == WeekPlanStatus.SKIPPED
     val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.94f)
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.94f)
-        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
     }
     val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
-        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
+        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
     }
 
     Surface(
@@ -178,6 +175,8 @@ internal fun ProgramWeekCard(
     today: java.time.LocalDate,
     showClearWeekAssignments: Boolean,
     assignments: List<AssignmentWithPerson>,
+    assignedSlots: Int,
+    totalSlots: Int,
     onReactivate: () -> Unit,
     onSkipWeek: () -> Unit,
     onOpenPartEditor: () -> Unit,
@@ -191,30 +190,40 @@ internal fun ProgramWeekCard(
     val canMutate = !isSkipped && !isPast
     val assignmentsByPart = remember(assignments) { assignments.groupBy { it.weeklyPartId } }
     val partRows = remember(week.parts) { week.parts.chunked(2) }
+    val progress = if (totalSlots == 0) 0f else assignedSlots / totalSlots.toFloat()
+    val missingSlots = (totalSlots - assignedSlots).coerceAtLeast(0)
+    val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
 
     val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f)
-        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+        missingSlots == totalSlots && totalSlots > 0 -> MaterialTheme.colorScheme.error.copy(alpha = 0.52f)
+        missingSlots > 0 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.52f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
     }
     val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.surface
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
-        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-        else -> MaterialTheme.colorScheme.surface
+        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+        missingSlots == totalSlots && totalSlots > 0 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+        missingSlots > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
+        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f)
+        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
     }
-    val accentColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary
+    val doneColor = when {
+        missingSlots == 0 && totalSlots > 0 -> MaterialTheme.colorScheme.secondary
         isSkipped -> MaterialTheme.colorScheme.secondary
-        isPast -> MaterialTheme.colorScheme.outline
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val pendingColor = when {
+        missingSlots == 0 -> MaterialTheme.colorScheme.outlineVariant
+        missingSlots == totalSlots -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.tertiary
     }
 
     Card(
         shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(
@@ -223,64 +232,99 @@ internal fun ProgramWeekCard(
                 .background(containerColor),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(accentColor.copy(alpha = 0.58f)),
-            )
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.md),
+                    .padding(horizontal = spacing.md, vertical = spacing.xs),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
-                if (isSkipped && !isPast) {
-                    OutlinedButton(
-                        onClick = onReactivate,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.secondary,
-                        ),
-                        shape = RoundedCornerShape(6.dp),
-                    ) { Text("Riattiva") }
-                } else if (!isPast) {
-                    OutlinedButton(
-                        onClick = onOpenPartEditor,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        shape = RoundedCornerShape(6.dp),
-                    ) { Text("Modifica parti") }
-                    OutlinedButton(
-                        onClick = onSkipWeek,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.secondary,
-                        ),
-                        shape = RoundedCornerShape(6.dp),
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "Settimana $weekLabel",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Salta settimana")
+                        when {
+                            isCurrent -> WeekMetaBadge(label = "Corrente", tone = DesktopInlineActionTone.Primary)
+                            isSkipped -> WeekMetaBadge(label = "Saltata", tone = DesktopInlineActionTone.Warn)
+                            isPast -> WeekMetaBadge(label = "Passata", tone = DesktopInlineActionTone.Neutral)
+                        }
+                        WeekMetaBadge(label = "Parti: ${week.parts.size}", tone = DesktopInlineActionTone.Neutral)
+                    }
+                    Text(
+                        text = "$assignedSlots/$totalSlots slot assegnati",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = if (missingSlots == 0 && totalSlots > 0) "Completa" else "$missingSlots slot vuoti",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (missingSlots == 0 && totalSlots > 0) {
+                            MaterialTheme.colorScheme.secondary
+                        } else if (missingSlots == totalSlots && totalSlots > 0) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        },
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    ) {
+                        if (totalSlots > 0 && assignedSlots > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(assignedSlots.toFloat())
+                                    .fillMaxHeight()
+                                    .background(doneColor),
+                            )
+                        }
+                        if (totalSlots > 0 && missingSlots > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(missingSlots.toFloat())
+                                    .fillMaxHeight()
+                                    .background(pendingColor),
+                            )
+                        }
                     }
                 }
+                if (isSkipped && !isPast) {
+                    DesktopInlineAction(
+                        label = "Riattiva",
+                        onClick = onReactivate,
+                        tone = DesktopInlineActionTone.Positive,
+                    )
+                } else if (!isPast) {
+                    DesktopInlineAction(
+                        label = "Modifica parti",
+                        onClick = onOpenPartEditor,
+                        tone = DesktopInlineActionTone.Primary,
+                    )
+                    DesktopInlineAction(
+                        label = "Salta settimana",
+                        onClick = onSkipWeek,
+                        tone = DesktopInlineActionTone.Warn,
+                    )
+                }
                 if (canMutate && showClearWeekAssignments) {
-                    OutlinedButton(
+                    DesktopInlineAction(
+                        label = "Rimuovi assegnazioni",
+                        icon = Icons.Filled.ClearAll,
                         onClick = onRequestClearWeekAssignments,
-                        modifier = Modifier.handCursorOnHover(),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        ),
-                        shape = RoundedCornerShape(6.dp),
-                    ) {
-                        Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text("Rimuovi assegnazioni")
-                    }
+                        tone = DesktopInlineActionTone.Danger,
+                    )
                 }
             }
 
@@ -324,6 +368,52 @@ internal fun ProgramWeekCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun WeekMetaBadge(
+    label: String,
+    tone: DesktopInlineActionTone,
+) {
+    val (container, border, content) = when (tone) {
+        DesktopInlineActionTone.Neutral -> Triple(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        DesktopInlineActionTone.Primary -> Triple(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.primary,
+        )
+        DesktopInlineActionTone.Positive -> Triple(
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.secondary,
+        )
+        DesktopInlineActionTone.Warn -> Triple(
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.tertiary,
+        )
+        DesktopInlineActionTone.Danger -> Triple(
+            MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+            MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
+            MaterialTheme.colorScheme.error,
+        )
+    }
+    Surface(
+        shape = RoundedCornerShape(5.dp),
+        color = container,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = content,
+        )
     }
 }
 
@@ -372,16 +462,13 @@ internal fun PartEditorDialog(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    OutlinedButton(
+                    DesktopInlineAction(
+                        label = "Aggiungi parte",
+                        icon = Icons.Filled.Add,
                         onClick = { menuExpanded = true },
                         enabled = !isSaving,
-                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text("Aggiungi parte")
-                    }
+                        tone = DesktopInlineActionTone.Primary,
+                    )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         availablePartTypes.forEach { type ->
                             DropdownMenuItem(
@@ -484,15 +571,19 @@ internal fun PartEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Annulla") }
+                    DesktopInlineAction(
+                        label = "Annulla",
+                        onClick = onDismiss,
+                        enabled = !isSaving,
+                        tone = DesktopInlineActionTone.Neutral,
+                    )
                     Spacer(Modifier.width(spacing.sm))
-                    Button(
+                    DesktopInlineAction(
+                        label = if (isSaving) "Salvataggio..." else "Salva",
                         onClick = onSave,
                         enabled = !isSaving,
-                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                    ) {
-                        Text(if (isSaving) "Salvataggio..." else "Salva")
-                    }
+                        tone = DesktopInlineActionTone.Positive,
+                    )
                 }
             }
         }
@@ -540,19 +631,13 @@ internal fun ProgramHeader(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                TextButton(
+                DesktopInlineAction(
+                    label = if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna schemi",
+                    icon = Icons.Filled.Refresh,
                     onClick = onRefreshSchemas,
                     enabled = !isRefreshingSchemas,
-                    modifier = Modifier.handCursorOnHover(enabled = !isRefreshingSchemas),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna Schemi")
-                }
+                    tone = DesktopInlineActionTone.Neutral,
+                )
             }
             if (!hasPrograms) {
                 Text(
@@ -568,39 +653,19 @@ internal fun ProgramHeader(
             ) {
                 current?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    OutlinedButton(
+                    DesktopInlineAction(
+                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
                         onClick = { if (!isSelected) onSelectProgram(it.id.value) },
-                        modifier = Modifier.handCursorOnHover(),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
-                    }
+                        tone = if (isSelected) DesktopInlineActionTone.Primary else DesktopInlineActionTone.Neutral,
+                    )
                 }
                 future?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    OutlinedButton(
+                    DesktopInlineAction(
+                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
                         onClick = { if (!isSelected) onSelectProgram(it.id.value) },
-                        modifier = Modifier.handCursorOnHover(),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.tertiary
-                            else MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (isSelected) MaterialTheme.colorScheme.tertiary
-                            else MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
-                    }
+                        tone = if (isSelected) DesktopInlineActionTone.Warn else DesktopInlineActionTone.Neutral,
+                    )
                     if (futureNeedsSchemaRefresh) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
@@ -616,18 +681,91 @@ internal fun ProgramHeader(
                     }
                 }
                 if (canCreateProgram) {
-                    OutlinedButton(
+                    DesktopInlineAction(
+                        label = if (isCreatingProgram) "Creazione..." else "Crea prossimo mese",
+                        icon = Icons.Filled.Add,
                         onClick = onCreateNextProgram,
                         enabled = !isCreatingProgram,
-                        modifier = Modifier.handCursorOnHover(enabled = !isCreatingProgram),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text(if (isCreatingProgram) "Creazione..." else "Crea prossimo mese")
-                    }
+                        tone = DesktopInlineActionTone.Primary,
+                    )
                 }
             }
+        }
+    }
+}
+
+private enum class DesktopInlineActionTone {
+    Neutral,
+    Primary,
+    Positive,
+    Warn,
+    Danger,
+}
+
+@Composable
+private fun DesktopInlineAction(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    tone: DesktopInlineActionTone = DesktopInlineActionTone.Neutral,
+) {
+    val spacing = MaterialTheme.spacing
+    val (container, border, content) = when (tone) {
+        DesktopInlineActionTone.Neutral -> Triple(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        DesktopInlineActionTone.Primary -> Triple(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.primary,
+        )
+        DesktopInlineActionTone.Positive -> Triple(
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.secondary,
+        )
+        DesktopInlineActionTone.Warn -> Triple(
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f),
+            MaterialTheme.colorScheme.tertiary,
+        )
+        DesktopInlineActionTone.Danger -> Triple(
+            MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+            MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
+            MaterialTheme.colorScheme.error,
+        )
+    }
+    val alpha = if (enabled) 1f else 0.46f
+    Surface(
+        modifier = modifier
+            .handCursorOnHover(enabled = enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(6.dp),
+        color = container.copy(alpha = alpha),
+        border = BorderStroke(1.dp, border.copy(alpha = alpha)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = content.copy(alpha = alpha),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = content.copy(alpha = alpha),
+            )
         }
     }
 }

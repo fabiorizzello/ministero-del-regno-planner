@@ -10,10 +10,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,13 +59,35 @@ fun PartAssignmentCard(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
+    val requiredSlots = part.partType.peopleCount
+    val filledSlots = assignments.size.coerceAtMost(requiredSlots)
+    val statusTone = when {
+        filledSlots == 0 && requiredSlots > 0 -> 0
+        filledSlots < requiredSlots -> 1
+        else -> 2
+    }
+    val borderColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
+        1 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.48f)
+    }
+    val containerColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.28f)
+        1 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.22f)
+        else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f)
+    }
+    val statusLabel = when (statusTone) {
+        0 -> "Vuota"
+        1 -> "Parziale"
+        else -> "Assegnata"
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(spacing.cardRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(spacing.md),
@@ -79,8 +103,22 @@ fun PartAssignmentCard(
                     text = "$displayNumber. ${part.partType.label}",
                     style = MaterialTheme.typography.titleMedium,
                 )
-                if (showSexRuleChip) {
-                    SexRuleChip(part.partType.sexRule)
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                    if (showSexRuleChip) {
+                        SexRuleChip(part.partType.sexRule)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = borderColor.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, borderColor.copy(alpha = 0.4f)),
+                    ) {
+                        Text(
+                            text = statusLabel,
+                            modifier = Modifier.padding(horizontal = spacing.xs, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = borderColor,
+                        )
+                    }
                 }
             }
 
@@ -132,9 +170,10 @@ private fun SlotRow(
         if (label != null) {
             Text(
                 text = "$label:",
-                modifier = Modifier.width(94.dp),
-                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.width(118.dp),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
             )
         }
 
@@ -167,22 +206,22 @@ private fun AssignedPersonChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
-    val shape = RoundedCornerShape(5.dp)
+    val shape = RoundedCornerShape(6.dp)
     val chipInteractionSource = remember { MutableInteractionSource() }
     val isHovered by chipInteractionSource.collectIsHoveredAsState()
     val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     } else if (isHovered) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f)
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.76f)
     }
     val borderColor = if (readOnly) {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
     } else if (isHovered) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+        MaterialTheme.colorScheme.secondary.copy(alpha = 0.95f)
     } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+        MaterialTheme.colorScheme.secondary.copy(alpha = 0.78f)
     }
 
     Row(
@@ -202,14 +241,21 @@ private fun AssignedPersonChip(
                 indication = LocalIndication.current,
                 onClick = onOpenPicker,
             )
-            .padding(start = spacing.md, end = spacing.xs, top = spacing.xs, bottom = spacing.xs),
+            .padding(start = spacing.md, end = spacing.xs, top = spacing.xxs, bottom = spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
+        Icon(
+            imageVector = Icons.Filled.TaskAlt,
+            contentDescription = null,
+            modifier = Modifier.size(15.dp),
+            tint = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
+        )
         Text(
             text = fullName,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = if (readOnly) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -236,21 +282,21 @@ private fun MissingAssignmentChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
-    val shape = RoundedCornerShape(5.dp)
+    val shape = RoundedCornerShape(6.dp)
     val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.86f)
     }
     val borderColor = if (readOnly) {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
     } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+        MaterialTheme.colorScheme.error.copy(alpha = 0.65f)
     }
     val contentColor = if (readOnly) {
         MaterialTheme.colorScheme.onSurfaceVariant
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MaterialTheme.colorScheme.error
     }
 
     Row(
@@ -259,19 +305,19 @@ private fun MissingAssignmentChip(
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
-            .padding(horizontal = spacing.md, vertical = spacing.xs),
+            .padding(horizontal = spacing.md, vertical = spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
         Icon(
-            if (readOnly) Icons.Filled.Person else Icons.Filled.PersonAdd,
+            if (readOnly) Icons.Filled.Person else Icons.Filled.ErrorOutline,
             contentDescription = "Assegna",
             modifier = Modifier.size(16.dp),
             tint = contentColor,
         )
         Text(
-            text = if (readOnly) "Non assegnato" else "Seleziona",
-            style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+            text = if (readOnly) "Slot vuoto" else "Non assegnato · Assegna",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             color = contentColor,
         )
     }
@@ -349,6 +395,7 @@ fun PersonPickerDialog(
                         Icon(
                             Icons.Filled.Close,
                             contentDescription = "Chiudi",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -359,10 +406,15 @@ fun PersonPickerDialog(
                     onValueChange = onSearchChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Cerca proclamatore...") },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = null)
-                    },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
                 )
 
                 // Sort toggle
@@ -374,26 +426,18 @@ fun PersonPickerDialog(
                         text = "Ordina per:",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    FilterChip(
-                        selected = sortGlobal,
-                        onClick = { if (!sortGlobal) onToggleSort() },
-                        label = { Text("Globale") },
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    )
-                    FilterChip(
-                        selected = !sortGlobal,
-                        onClick = { if (sortGlobal) onToggleSort() },
-                        label = { Text("Per parte") },
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                        SortModeButton(
+                            label = "Globale",
+                            selected = sortGlobal,
+                            onClick = { if (!sortGlobal) onToggleSort() },
+                        )
+                        SortModeButton(
+                            label = "Per parte",
+                            selected = !sortGlobal,
+                            onClick = { if (sortGlobal) onToggleSort() },
+                        )
+                    }
                 }
 
                 // Content
@@ -546,25 +590,77 @@ private fun SuggestionRow(
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
         )
-        Button(
-            onClick = onAssign,
-            enabled = !isAssigning,
+        Surface(
             modifier = Modifier
                 .width(BUTTON_COLUMN_WIDTH)
                 .height(36.dp)
-                .handCursorOnHover(),
+                .handCursorOnHover(enabled = !isAssigning)
+                .clickable(enabled = !isAssigning, onClick = onAssign),
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isAssigning) 0.35f else 0.92f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)),
         ) {
-            Icon(Icons.Filled.PersonAdd, contentDescription = "Assegna", modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(MaterialTheme.spacing.xs))
-            Text(
-                text = "Assegna",
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Clip,
-                textAlign = TextAlign.Center,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = spacing.sm),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Assegna",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(Modifier.width(MaterialTheme.spacing.xs))
+                Text(
+                    text = if (isAssigning) "..." else "Assegna",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SortModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+        )
     }
 }
 

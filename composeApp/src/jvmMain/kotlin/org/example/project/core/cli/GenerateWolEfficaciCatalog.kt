@@ -21,17 +21,16 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.time.temporal.ChronoField
-import java.time.temporal.IsoFields
 import java.util.Locale
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.system.exitProcess
 
 private const val DEFAULT_MEETINGS_ROOT_URL = "https://wol.jw.org/it/wol/meetings/r6/lp-i"
-private const val DEFAULT_OUTPUT_PATH = "data/schemas-catalog.wol.json"
+private const val DEFAULT_OUTPUT_PATH = ".worktrees/efficaci-nel-ministero-data/schemas-catalog.json"
 private const val DEFAULT_MAX_WEEKS = 120
 private const val DEFAULT_COOLDOWN_MIN_MS = 1600L
 private const val DEFAULT_COOLDOWN_MAX_MS = 3200L
+private const val CONSECUTIVE_NO_PROGRAM_STOP_WEEKS = 2
 
 fun main(args: Array<String>) {
     val config = CliConfig.parse(args)
@@ -44,22 +43,39 @@ fun main(args: Array<String>) {
     val currentWeekUrl = resolveCurrentWeekUrl(config, client, cooldown)
     println("Settimana corrente rilevata: $currentWeekUrl")
 
+    val existingCatalog = loadExistingOutputCatalog(config.outputPath)
+    val existingWeekDates = existingCatalog
+        ?.weeks
+        ?.mapNotNull { week -> runCatching { LocalDate.parse(week.weekStartDate) }.getOrNull() }
+        ?.toSet()
+        ?: emptySet()
+    if (existingWeekDates.isNotEmpty()) {
+        println("Modalita incrementale: ${existingWeekDates.size} settimane gia presenti nel file output.")
+    }
+
     val crawlReport = crawlCurrentAndFutureWeeks(
         startWeekUrl = currentWeekUrl,
         config = config,
         client = client,
         cooldown = cooldown,
+        existingWeekDates = existingWeekDates,
     )
     val scrapedWeeks = crawlReport.scrapedWeeks
     println("Settimane elaborate: ${scrapedWeeks.size}")
+    println("Settimane gia presenti saltate: ${crawlReport.alreadyPresentWeeks}")
     printSkippedWeeksReport(crawlReport.skippedWeeks)
 
+    val existingPartTypes = existingCatalog?.partTypes.orEmpty()
     val basePartTypes = loadBasePartTypes(
         baseCatalogUrl = config.baseCatalogUrl,
         client = client,
         cooldown = cooldown,
     )
-    val output = buildCatalog(scrapedWeeks, basePartTypes)
+    val output = buildCatalog(
+        scrapedWeeks = scrapedWeeks,
+        basePartTypes = mergePartTypesByCode(basePartTypes, existingPartTypes),
+    )
+    val finalOutput = mergeCatalogs(existingCatalog, output)
 
     val outputFile = File(config.outputPath).absoluteFile
     outputFile.parentFile?.mkdirs()
@@ -67,11 +83,11 @@ fun main(args: Array<String>) {
         Json {
             prettyPrint = true
             encodeDefaults = true
-        }.encodeToString(output.toJsonObject()),
+        }.encodeToString(finalOutput.toJsonObject()),
     )
 
     println("JSON generato: ${outputFile.path}")
-    println("Part types: ${output.partTypes.size}, settimane: ${output.weeks.size}")
+    println("Part types: ${finalOutput.partTypes.size}, settimane: ${finalOutput.weeks.size}")
 }
 
 private data class CliConfig(
@@ -218,6 +234,7 @@ private data class SkippedWeek(
 private data class CrawlReport(
     val scrapedWeeks: List<ScrapedWeek>,
     val skippedWeeks: List<SkippedWeek>,
+    val alreadyPresentWeeks: Int,
 )
 
 private data class OutputCatalog(
@@ -305,12 +322,15 @@ private fun crawlCurrentAndFutureWeeks(
     config: CliConfig,
     client: HttpClient,
     cooldown: WolRequestCooldown,
+    existingWeekDates: Set<LocalDate>,
 ): CrawlReport {
     val visitedUrls = mutableSetOf<String>()
     val weeks = mutableListOf<ScrapedWeek>()
     val skippedWeeks = mutableListOf<SkippedWeek>()
+    var alreadyPresentWeeks = 0
     var currentUrl: String? = absolutize(startWeekUrl, startWeekUrl)
     var index = 1
+    var consecutiveNoProgramWeeks = 0
 
     while (currentUrl != null && index <= config.maxWeeks) {
         val normalizedUrl = absolutize(currentUrl, currentUrl)
@@ -325,6 +345,7 @@ private fun crawlCurrentAndFutureWeeks(
                 meetingsUrl = normalizedUrl,
                 client = client,
                 cooldown = cooldown,
+                existingWeekDates = existingWeekDates,
             )
         } catch (error: Exception) {
             val reason = "${error::class.simpleName ?: "Errore"}: ${error.message ?: "dettaglio non disponibile"}"
@@ -345,10 +366,41 @@ private fun crawlCurrentAndFutureWeeks(
 
         when (outcome) {
             is WeekProcessOutcome.EndOfPublishedContent -> {
-                println("  Link Vita e ministero non trovato per ${outcome.weekStartDate}, fine scansione.")
-                break
+                consecutiveNoProgramWeeks++
+                val reason = "Programma non disponibile (sezione Vita e ministero assente)"
+                println("  $reason per ${outcome.weekStartDate}, settimana saltata.")
+                skippedWeeks += SkippedWeek(
+                    meetingsUrl = normalizedUrl,
+                    reason = reason,
+                )
+
+                if (consecutiveNoProgramWeeks >= CONSECUTIVE_NO_PROGRAM_STOP_WEEKS) {
+                    println(
+                        "  Trovate $consecutiveNoProgramWeeks settimane consecutive senza programma, fine scansione.",
+                    )
+                    break
+                }
+
+                val nextUrl = outcome.nextWeekUrl ?: nextWeekUrlFromMeetingsUrl(normalizedUrl)
+                if (nextUrl == null) {
+                    println("  Impossibile determinare la settimana successiva dopo ${outcome.weekStartDate}, stop.")
+                    break
+                }
+                currentUrl = nextUrl
+            }
+            is WeekProcessOutcome.AlreadyPresent -> {
+                consecutiveNoProgramWeeks = 0
+                alreadyPresentWeeks++
+                println("  Settimana ${outcome.weekStartDate} gia presente, salto (incrementale).")
+                val nextUrl = outcome.nextWeekUrl ?: nextWeekUrlFromMeetingsUrl(normalizedUrl)
+                if (nextUrl == null) {
+                    println("  Impossibile determinare la settimana successiva dopo ${outcome.weekStartDate}, stop.")
+                    break
+                }
+                currentUrl = nextUrl
             }
             is WeekProcessOutcome.Success -> {
+                consecutiveNoProgramWeeks = 0
                 val week = outcome.week
                 if (week.efficaciParts.isEmpty()) {
                     println("  Nessuna parte EFFICACI trovata per ${week.weekStartDate}")
@@ -366,6 +418,7 @@ private fun crawlCurrentAndFutureWeeks(
     return CrawlReport(
         scrapedWeeks = weeks.sortedBy { it.weekStartDate },
         skippedWeeks = skippedWeeks,
+        alreadyPresentWeeks = alreadyPresentWeeks,
     )
 }
 
@@ -377,6 +430,12 @@ private sealed interface WeekProcessOutcome {
 
     data class EndOfPublishedContent(
         val weekStartDate: LocalDate,
+        val nextWeekUrl: String?,
+    ) : WeekProcessOutcome
+
+    data class AlreadyPresent(
+        val weekStartDate: LocalDate,
+        val nextWeekUrl: String?,
     ) : WeekProcessOutcome
 }
 
@@ -384,13 +443,23 @@ private fun processSingleWeek(
     meetingsUrl: String,
     client: HttpClient,
     cooldown: WolRequestCooldown,
+    existingWeekDates: Set<LocalDate>,
 ): WeekProcessOutcome {
     val meetingsHtml = httpGet(meetingsUrl, client, cooldown)
     val page = WolHtmlParser.parseMeetingsWeekPage(meetingsHtml, meetingsUrl)
         ?: error("Impossibile leggere la data settimana da: $meetingsUrl")
+    if (page.weekStartDate in existingWeekDates) {
+        return WeekProcessOutcome.AlreadyPresent(
+            weekStartDate = page.weekStartDate,
+            nextWeekUrl = page.nextWeekUrl,
+        )
+    }
 
     val vitaMinisteroUrl = page.vitaMinisteroUrl
-        ?: return WeekProcessOutcome.EndOfPublishedContent(weekStartDate = page.weekStartDate)
+        ?: return WeekProcessOutcome.EndOfPublishedContent(
+            weekStartDate = page.weekStartDate,
+            nextWeekUrl = page.nextWeekUrl,
+        )
 
     val articleHtml = httpGet(vitaMinisteroUrl, client, cooldown)
     val efficaci = WolHtmlParser.parseEfficaciSectionParts(articleHtml)
@@ -506,6 +575,81 @@ private fun buildCatalog(
     )
 }
 
+private fun mergePartTypesByCode(
+    first: List<OutputPartType>,
+    second: List<OutputPartType>,
+): List<OutputPartType> {
+    val byCode = linkedMapOf<String, OutputPartType>()
+    first.forEach { byCode[it.code] = it }
+    second.forEach { byCode[it.code] = it }
+    return byCode.values.toList()
+}
+
+private fun mergeCatalogs(
+    existing: OutputCatalog?,
+    generated: OutputCatalog,
+): OutputCatalog {
+    if (existing == null) return generated
+
+    val mergedPartTypes = mergePartTypesByCode(existing.partTypes, generated.partTypes)
+    val mergedWeeksByDate = linkedMapOf<String, OutputWeek>()
+    existing.weeks.forEach { week -> mergedWeeksByDate[week.weekStartDate] = week }
+    generated.weeks.forEach { week -> mergedWeeksByDate[week.weekStartDate] = week }
+    val mergedWeeks = mergedWeeksByDate.values.sortedBy { it.weekStartDate }
+
+    return generated.copy(
+        partTypes = mergedPartTypes,
+        weeks = mergedWeeks,
+    )
+}
+
+private fun loadExistingOutputCatalog(outputPath: String): OutputCatalog? {
+    val file = File(outputPath)
+    if (!file.exists()) return null
+
+    return runCatching {
+        val root = Json.parseToJsonElement(file.readText()).jsonObject
+        val version = root["version"]?.jsonPrimitive?.content ?: LocalDate.now().toString()
+        val updatedAt = root["updated_at"]?.jsonPrimitive?.content ?: OffsetDateTime.now(ZoneOffset.UTC).toString()
+        val partTypes = root["partTypes"]?.jsonArray.orEmpty().mapNotNull { partEl ->
+            val obj = partEl.jsonObject
+            val code = obj["code"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val label = obj["label"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val peopleCount = obj["peopleCount"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2
+            val sexRule = obj["sexRule"]?.jsonPrimitive?.content ?: "LIBERO"
+            val fixed = obj["fixed"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
+            OutputPartType(
+                code = code,
+                label = label,
+                peopleCount = peopleCount,
+                sexRule = sexRule,
+                fixed = fixed,
+            )
+        }
+        val weeks = root["weeks"]?.jsonArray.orEmpty().mapNotNull { weekEl ->
+            val obj = weekEl.jsonObject
+            val weekStartDate = obj["weekStartDate"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val parts = obj["parts"]?.jsonArray.orEmpty().mapNotNull { partEl ->
+                val partTypeCode = partEl.jsonObject["partTypeCode"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                OutputWeekPart(partTypeCode = partTypeCode)
+            }
+            OutputWeek(
+                weekStartDate = weekStartDate,
+                parts = parts,
+            )
+        }
+
+        OutputCatalog(
+            version = version,
+            updatedAt = updatedAt,
+            partTypes = partTypes,
+            weeks = weeks,
+        )
+    }.onFailure {
+        println("Output esistente non leggibile, verra rigenerato da zero: ${it.message}")
+    }.getOrNull()
+}
+
 private fun httpGet(
     url: String,
     client: HttpClient,
@@ -555,29 +699,26 @@ private fun codeFromLabel(value: String): String {
     return if (normalized.isBlank()) "PARTE_EFFICACI" else normalized
 }
 
-private fun nextWeekUrlFromMeetingsUrl(currentUrl: String): String? {
+internal fun nextWeekUrlFromMeetingsUrl(currentUrl: String): String? {
     val uri = runCatching { URI.create(currentUrl) }.getOrNull() ?: return null
     val segments = uri.path.trim('/').split('/').filter { it.isNotBlank() }
     if (segments.size < 2) return null
 
     val year = segments[segments.lastIndex - 1].toIntOrNull() ?: return null
     val week = segments.last().toIntOrNull() ?: return null
+    if (year <= 0 || week <= 0) return null
 
-    val monday = runCatching {
-        LocalDate.now()
-            .with(IsoFields.WEEK_BASED_YEAR, year.toLong())
-            .with(IsoFields.WEEK_OF_WEEK_BASED_YEAR, week.toLong())
-            .with(ChronoField.DAY_OF_WEEK, 1)
-    }.getOrNull() ?: return null
-
-    val nextMonday = monday.plusWeeks(1)
-    val nextYear = nextMonday.get(IsoFields.WEEK_BASED_YEAR)
-    val nextWeek = nextMonday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR).toString().padStart(2, '0')
+    // WOL usa la numerazione settimana del selettore meetings (1..52 per il nostro flusso).
+    val (nextYear, nextWeek) = if (week >= 52) {
+        year + 1 to 1
+    } else {
+        year to (week + 1)
+    }
 
     val nextPath = buildList {
         addAll(segments.dropLast(2))
         add(nextYear.toString())
-        add(nextWeek)
+        add(nextWeek.toString().padStart(2, '0'))
     }.joinToString(separator = "/", prefix = "/")
 
     return URI(
@@ -634,6 +775,7 @@ internal object WolHtmlParser {
     private val partHeadingRegex = Regex("""^(\d+)[\.\)]\s*(.+)$""")
     private val dateRegex = Regex("""(?:\?|&)date=(\d{4}-\d{2}-\d{2})(?:&|$)""")
     private val todayWeekRegex = Regex("""^(\d{4})/(\d{1,2})$""")
+    private val vitaMinisteroTitleRegex = Regex("""\bVITA\s+E\s+MINISTERO\b""", RegexOption.IGNORE_CASE)
 
     fun parseCurrentWeekMeetingsUrl(html: String, baseUrl: String): String? {
         val doc = Jsoup.parse(html, baseUrl)
@@ -657,10 +799,19 @@ internal object WolHtmlParser {
         val dateString = dateRegex.find(shareBaseUrl)?.groupValues?.get(1) ?: return null
         val weekStartDate = LocalDate.parse(dateString)
 
-        val vitaLink = doc.getElementById("materialNav")
-            ?.select("li[class*=pub-mwb] a[href*=/wol/d/], a[href*=/wol/d/]")
-            ?.firstOrNull()
-            ?.absUrl("href")
+        val materialNav = doc.getElementById("materialNav")
+        val hasVitaMinisteroSection = materialNav
+            ?.select("h2")
+            ?.any { vitaMinisteroTitleRegex.containsMatchIn(it.text()) }
+            ?: false
+        val vitaLink = if (hasVitaMinisteroSection) {
+            materialNav
+                .select("li[class*=pub-mwb] a[href*=/wol/d/]")
+                .firstOrNull()
+                ?.absUrl("href")
+        } else {
+            null
+        }
 
         val nextWeekUrl = doc.selectFirst("#footerNextWeek a[href]")?.absUrl("href")
 

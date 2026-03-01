@@ -3,10 +3,10 @@ package org.example.project.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object SemanticColors {
-    val blue = Color(0xFF2F80ED)
-    val green = Color(0xFF2E9E5A)
-    val grey = Color(0xFF8A94A6)
-    val amber = Color(0xFFF59E0B)
+    val blue = Color(0xFF4F8DD8)
+    val green = Color(0xFF2D9A63)
+    val grey = Color(0xFF66758E)
+    val amber = Color(0xFFCF8A24)
 
     // Alert colors
     val orange = Color(0xFFFF9800)

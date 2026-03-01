@@ -7,6 +7,18 @@ import kotlin.test.assertNull
 
 class WolHtmlParserTest {
     @Test
+    fun `next week url rollover from week 52 switches year`() {
+        val next = nextWeekUrlFromMeetingsUrl("https://wol.jw.org/it/wol/meetings/r6/lp-i/2026/52")
+        assertEquals("https://wol.jw.org/it/wol/meetings/r6/lp-i/2027/01", next)
+    }
+
+    @Test
+    fun `next week url increments within same year`() {
+        val next = nextWeekUrlFromMeetingsUrl("https://wol.jw.org/it/wol/meetings/r6/lp-i/2026/09")
+        assertEquals("https://wol.jw.org/it/wol/meetings/r6/lp-i/2026/10", next)
+    }
+
+    @Test
     fun `parse current week meetings url from todayWeek selector`() {
         val html = """
             <html>
@@ -97,6 +109,32 @@ class WolHtmlParserTest {
 
         assertNotNull(page)
         assertEquals("2026-02-23", page.weekStartDate.toString())
+        assertNull(page.vitaMinisteroUrl)
+    }
+
+    @Test
+    fun `parse meetings week page does not use non-mwb links when vita program missing`() {
+        val html = """
+            <html>
+              <body>
+                <input id="shareBaseUrl" value="https://www.jw.org/finder?alias=meetings&amp;date=2026-12-28"/>
+                <div id="materialNav">
+                  <h2>Vita e ministero</h2>
+                  <ul>
+                    <li><a href="/it/wol/d/r6/lp-i/2025685">Torre di Guardia</a></li>
+                  </ul>
+                </div>
+              </body>
+            </html>
+        """.trimIndent()
+
+        val page = WolHtmlParser.parseMeetingsWeekPage(
+            html = html,
+            baseUrl = "https://wol.jw.org/it/wol/meetings/r6/lp-i/2026/52",
+        )
+
+        assertNotNull(page)
+        assertEquals("2026-12-28", page.weekStartDate.toString())
         assertNull(page.vitaMinisteroUrl)
     }
 
