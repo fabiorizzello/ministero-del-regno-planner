@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,7 +51,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -66,8 +70,6 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.workspace.WorkspaceActionButton
-import org.example.project.ui.components.workspace.WorkspaceActionTone
 import org.example.project.ui.components.workspace.WorkspacePanel
 import org.example.project.ui.components.workspace.WorkspacePanelHeader
 import org.example.project.ui.components.workspace.WorkspaceStateKind
@@ -86,6 +88,21 @@ private data class ProgramActivityFeedEntry(
     val details: String?,
     val timestamp: String,
 )
+
+internal enum class WeekSidebarStatus { CURRENT, PAST, COMPLETE, PARTIAL, EMPTY, SKIPPED }
+
+private fun org.example.project.feature.weeklyparts.domain.WeekPlan.sidebarStatus(
+    currentMonday: java.time.LocalDate,
+    assignedSlots: Int,
+    totalSlots: Int,
+): WeekSidebarStatus = when {
+    status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED -> WeekSidebarStatus.SKIPPED
+    weekStartDate == currentMonday -> WeekSidebarStatus.CURRENT
+    weekStartDate < currentMonday -> WeekSidebarStatus.PAST
+    assignedSlots == totalSlots && totalSlots > 0 -> WeekSidebarStatus.COMPLETE
+    assignedSlots > 0 -> WeekSidebarStatus.PARTIAL
+    else -> WeekSidebarStatus.EMPTY
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -378,75 +395,149 @@ fun ProgramWorkspaceScreen() {
             val weekListState = rememberLazyListState()
             val sketch = MaterialTheme.workspaceSketch
 
+            var selectedWeekId by remember { mutableStateOf<String?>(null) }
+            val effectiveSelectedWeekId = remember(selectedWeekId, lifecycleState.selectedProgramWeeks, currentMonday) {
+                val id = selectedWeekId
+                val weeks = lifecycleState.selectedProgramWeeks
+                when {
+                    id != null && weeks.any { it.id.value == id } -> id
+                    else -> weeks.firstOrNull { it.weekStartDate == currentMonday }?.id?.value
+                        ?: weeks.firstOrNull()?.id?.value
+                }
+            }
+            val selectedWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == effectiveSelectedWeekId }
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(14.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                WorkspacePanel(
+                // ── Left sidebar ──────────────────────────────────────────────────────
+                Column(
                     modifier = Modifier
-                        .width(280.dp)
-                        .fillMaxHeight(),
-                    containerColor = sketch.panelLeft,
-                    borderColor = sketch.lineSoft,
-                    contentPadding = 12.dp,
+                        .width(210.dp)
+                        .fillMaxHeight()
+                        .background(sketch.panelLeft),
                 ) {
+                    // Programs (months) section
                     Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
-                        WorkspacePanelHeader(title = "Mesi")
+                        Text(
+                            "PROGRAMMI",
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.7.sp,
+                            ),
+                            color = sketch.inkMuted,
+                        )
                         lifecycleState.currentProgram?.let { program ->
-                            val isSelected = lifecycleState.selectedProgramId == program.id.value
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = isSelected,
+                                selected = lifecycleState.selectedProgramId == program.id.value,
                                 accent = sketch.accent,
-                                onClick = { lifecycleVM.selectProgram(program.id.value) },
+                                onClick = {
+                                    lifecycleVM.selectProgram(program.id.value)
+                                    selectedWeekId = null
+                                },
                             )
                         }
                         lifecycleState.futurePrograms.forEach { program ->
-                            val isSelected = lifecycleState.selectedProgramId == program.id.value
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = isSelected,
+                                selected = lifecycleState.selectedProgramId == program.id.value,
                                 accent = sketch.accent,
-                                onClick = { lifecycleVM.selectProgram(program.id.value) },
+                                onClick = {
+                                    lifecycleVM.selectProgram(program.id.value)
+                                    selectedWeekId = null
+                                },
                             )
-                            if (program.id.value in schemaState.impactedFutureProgramIds) {
+                        }
+                        lifecycleState.creatableTargets.forEach { target ->
+                            val label = formatMonthYearLabel(target.monthValue, target.year)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .handCursorOnHover()
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .clickable(enabled = !lifecycleState.isCreatingProgram) {
+                                        lifecycleVM.createProgramForTarget(target.year, target.monthValue)
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = null,
+                                    tint = sketch.accent.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(12.dp),
+                                )
                                 Text(
-                                    "Template aggiornato, verificare",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = sketch.accent,
+                                    if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    color = sketch.accent.copy(alpha = 0.7f),
                                 )
                             }
                         }
+                    }
 
-                        lifecycleState.creatableTargets.forEach { target ->
-                            val label = formatMonthYearLabel(target.monthValue, target.year)
-                            WorkspaceActionButton(
-                                label = if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label",
-                                icon = Icons.Filled.Add,
-                                onClick = { lifecycleVM.createProgramForTarget(target.year, target.monthValue) },
-                                enabled = !lifecycleState.isCreatingProgram,
-                                tone = WorkspaceActionTone.Neutral,
+                    // Divider
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
+
+                    // Week list
+                    val weeksForMonth = lifecycleState.selectedProgramWeeks
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        item {
+                            Text(
+                                selectedProgram?.let {
+                                    formatMonthYearLabel(it.month, it.year).uppercase()
+                                } ?: "SETTIMANE",
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.6.sp,
+                                ),
+                                color = sketch.inkMuted,
                             )
                         }
+                        items(weeksForMonth, key = { it.id.value }) { week ->
+                            val weekAssignedSlots = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                            val weekTotalSlots = week.parts.sumOf { it.partType.peopleCount }
+                            val weekStatus = week.sidebarStatus(currentMonday, weekAssignedSlots, weekTotalSlots)
+                            val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
+                            WeekSidebarItem(
+                                label = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6)),
+                                status = weekStatus,
+                                fraction = fraction,
+                                selected = effectiveSelectedWeekId == week.id.value,
+                                onClick = { selectedWeekId = week.id.value },
+                            )
+                        }
+                    }
 
-                        WorkspaceActionButton(
-                            label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas) {
-                                "Aggiornamento..."
-                            } else {
-                                "Aggiorna schemi"
-                            },
+                    // Footer
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        SidebarFooterButton(
+                            label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
+                                "Aggiornamento..." else "Aggiorna schemi",
                             icon = Icons.Filled.Refresh,
                             onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
                             enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
-                            tone = WorkspaceActionTone.Neutral,
                         )
                     }
                 }
+                // Sidebar / center divider
+                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
 
                 WorkspacePanel(
                     modifier = Modifier

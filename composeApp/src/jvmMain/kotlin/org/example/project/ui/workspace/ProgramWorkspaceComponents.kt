@@ -5,6 +5,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -52,7 +56,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -787,6 +794,141 @@ private fun DesktopInlineAction(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = content.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun WeekSidebarItem(
+    label: String,
+    status: WeekSidebarStatus,
+    fraction: Float,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+
+    val dotColor = when (status) {
+        WeekSidebarStatus.CURRENT -> sketch.accent
+        WeekSidebarStatus.COMPLETE -> sketch.ok
+        WeekSidebarStatus.PARTIAL -> sketch.warn
+        WeekSidebarStatus.PAST -> sketch.inkMuted
+        WeekSidebarStatus.SKIPPED, WeekSidebarStatus.EMPTY -> sketch.lineSoft
+    }
+    val fillColor = when (status) {
+        WeekSidebarStatus.CURRENT -> sketch.accent
+        WeekSidebarStatus.COMPLETE -> sketch.ok
+        WeekSidebarStatus.PARTIAL -> sketch.warn
+        WeekSidebarStatus.PAST -> sketch.inkMuted
+        else -> Color.Transparent
+    }
+    val bgColor = when {
+        selected -> sketch.accentSoft
+        hovered -> sketch.surface
+        else -> Color.Transparent
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .hoverable(interactionSource)
+            .handCursorOnHover()
+            .clip(RoundedCornerShape(9.dp))
+            .background(bgColor)
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(dotColor))
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                ),
+                color = if (selected) sketch.accent else sketch.ink,
+                maxLines = 1,
+            )
+            when (status) {
+                WeekSidebarStatus.CURRENT -> WeekSidebarTag("CORRENTE", sketch.accent)
+                WeekSidebarStatus.SKIPPED -> WeekSidebarTag("SALTATA", sketch.inkMuted)
+                else -> {}
+            }
+        }
+        if (status != WeekSidebarStatus.SKIPPED) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .padding(bottom = 6.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(sketch.lineSoft.copy(alpha = 0.5f)),
+            ) {
+                if (fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction.coerceAtMost(1f))
+                            .background(fillColor, RoundedCornerShape(999.dp)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekSidebarTag(label: String, color: Color) {
+    Surface(shape = RoundedCornerShape(3.dp), color = color.copy(alpha = 0.14f)) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                letterSpacing = 0.3.sp,
+            ),
+            color = color,
+        )
+    }
+}
+
+@Composable
+internal fun SidebarFooterButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(5.dp),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.lineSoft),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = sketch.inkSoft, modifier = Modifier.size(12.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = sketch.inkSoft,
             )
         }
     }
