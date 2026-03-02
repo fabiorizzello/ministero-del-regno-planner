@@ -910,6 +910,7 @@ internal fun SidebarFooterButton(
     enabled: Boolean = true,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.46f
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -917,18 +918,18 @@ internal fun SidebarFooterButton(
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(5.dp),
         color = sketch.surface,
-        border = BorderStroke(1.dp, sketch.lineSoft),
+        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = sketch.inkSoft, modifier = Modifier.size(12.dp))
+            Icon(icon, contentDescription = null, tint = sketch.inkSoft.copy(alpha = alpha), modifier = Modifier.size(12.dp))
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = sketch.inkSoft,
+                color = sketch.inkSoft.copy(alpha = alpha),
             )
         }
     }
