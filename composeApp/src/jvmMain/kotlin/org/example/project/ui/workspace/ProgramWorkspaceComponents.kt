@@ -32,11 +32,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -899,6 +902,180 @@ private fun WeekSidebarTag(label: String, color: Color) {
             ),
             color = color,
         )
+    }
+}
+
+@Composable
+internal fun WeekDetailHeader(
+    weekLabel: String,
+    monthLabel: String,
+    isCurrent: Boolean,
+    isSkipped: Boolean,
+    canMutate: Boolean,
+    onOpenPartEditor: () -> Unit,
+    onSkipWeek: () -> Unit,
+    onReactivate: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Column(modifier = Modifier.background(sketch.panelLeft)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        weekLabel,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = (-0.3).sp,
+                        ),
+                        color = sketch.ink,
+                    )
+                    when {
+                        isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
+                        isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
+                    }
+                }
+                Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                when {
+                    isSkipped -> WeekHdrButton(
+                        label = "Riattiva",
+                        icon = Icons.Filled.PlayCircle,
+                        fg = sketch.ok,
+                        border = sketch.ok.copy(alpha = 0.45f),
+                        onClick = onReactivate,
+                    )
+                    canMutate -> {
+                        WeekHdrButton(
+                            label = "Modifica parti",
+                            icon = Icons.Filled.Edit,
+                            fg = sketch.inkSoft,
+                            border = sketch.lineSoft,
+                            onClick = onOpenPartEditor,
+                        )
+                        WeekHdrButton(
+                            label = "Salta settimana",
+                            icon = Icons.Filled.Block,
+                            fg = sketch.warn,
+                            border = sketch.warn.copy(alpha = 0.45f),
+                            onClick = onSkipWeek,
+                        )
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft))
+    }
+}
+
+@Composable
+private fun WeekDetailBadge(label: String, color: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                letterSpacing = 0.2.sp,
+            ),
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun WeekHdrButton(
+    label: String,
+    icon: ImageVector,
+    fg: Color,
+    border: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
+        shape = RoundedCornerShape(5.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = fg,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun WeekCoverageStrip(assigned: Int, total: Int, fraction: Float) {
+    val sketch = MaterialTheme.workspaceSketch
+    val fillColor = when {
+        fraction == 1f -> sketch.ok
+        fraction > 0f -> sketch.accent
+        else -> Color.Transparent
+    }
+    val pctColor = when {
+        fraction == 1f -> sketch.ok
+        fraction > 0f -> sketch.accent
+        else -> sketch.inkMuted
+    }
+    Column(modifier = Modifier.background(sketch.panelLeft)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "$assigned / $total slot",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = sketch.inkSoft,
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(sketch.lineSoft),
+            ) {
+                if (fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction.coerceAtMost(1f))
+                            .background(fillColor, RoundedCornerShape(999.dp)),
+                    )
+                }
+            }
+            Text(
+                "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = pctColor,
+            )
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
     }
 }
 

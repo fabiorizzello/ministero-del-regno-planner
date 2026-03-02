@@ -2,13 +2,11 @@ package org.example.project.ui.workspace
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,8 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -391,7 +389,6 @@ fun ProgramWorkspaceScreen() {
                 lifecycleState.selectedProgramWeeks.any { it.weekStartDate > currentMonday }
             }
             val fromFutureDate = remember(currentMonday) { currentMonday.plusWeeks(1) }
-            val weekListState = rememberLazyListState()
             val sketch = MaterialTheme.workspaceSketch
 
             var selectedWeekId by remember { mutableStateOf<String?>(null) }
@@ -538,116 +535,132 @@ fun ProgramWorkspaceScreen() {
                 // Sidebar / center divider
                 Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
 
-                WorkspacePanel(
+                // ── Center — week detail ──────────────────────────────────────────────────────
+                Column(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
-                    containerColor = sketch.panelMid,
-                    borderColor = sketch.lineSoft,
-                    contentPadding = 12.dp,
+                        .fillMaxHeight()
+                        .background(sketch.panelMid),
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    text = selectedProgram?.let {
-                                        "Programma · ${formatMonthYearLabel(it.month, it.year)}"
-                                    } ?: "Programma",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = sketch.ink,
-                                )
-                                Text(
-                                    text = "Quadro completo settimane e slot assegnazioni",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = sketch.inkMuted,
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                ProgramStatusPill(
-                                    label = "$totalAssignments assegnate",
-                                    tone = ProgramStatusTone.Good,
-                                )
-                                ProgramStatusPill(
-                                    label = "$unresolvedPendingSlots pending",
-                                    tone = ProgramStatusTone.Info,
-                                )
-                                ProgramStatusPill(
-                                    label = "$emptySlots vuoti",
-                                    tone = ProgramStatusTone.Warn,
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        if (lifecycleState.selectedProgramWeeks.isEmpty()) {
-                            WorkspaceStatePane(
-                                kind = WorkspaceStateKind.Empty,
-                                message = "Nessuna settimana disponibile nel programma selezionato",
+                    if (selectedWeek == null) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Seleziona una settimana dalla sidebar",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = sketch.inkMuted,
                             )
-                        } else {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    state = weekListState,
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(end = 8.dp),
-                                ) {
-                                    items(
-                                        items = lifecycleState.selectedProgramWeeks,
-                                        key = { it.id.value },
-                                    ) { week ->
-                                        val weekIsCurrent = week.weekStartDate == currentMonday
-                                        val weekAssignments = lifecycleState.selectedProgramAssignments[week.id.value] ?: emptyList()
-                                        val weekTotalSlots = week.parts.sumOf { it.partType.peopleCount }
-                                        val weekAssignedSlots = weekAssignments.size
-                                        ProgramWeekCard(
-                                            week = week,
-                                            isCurrent = weekIsCurrent,
-                                            today = lifecycleState.today,
-                                            showClearWeekAssignments = week.weekStartDate > currentMonday,
-                                            assignments = weekAssignments,
-                                            assignedSlots = weekAssignedSlots,
-                                            totalSlots = weekTotalSlots,
-                                            onReactivate = { partEditorVM.reactivateWeek(week, onSuccess = reloadData) },
-                                            onSkipWeek = { partEditorVM.skipWeek(week, onSuccess = reloadData) },
-                                            onOpenPartEditor = { partEditorVM.openPartEditor(week) },
-                                            onRequestClearWeekAssignments = {
-                                                assignmentVM.requestClearWeekAssignments(week.id.value, week.weekStartDate)
-                                            },
-                                            onAssignSlot = { partId, slot ->
-                                                personPickerVM.openPersonPicker(
-                                                    weekStartDate = week.weekStartDate,
-                                                    weeklyPartId = partId,
-                                                    slot = slot,
-                                                    selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
-                                                    selectedProgramAssignments = lifecycleState.selectedProgramAssignments,
-                                                )
-                                            },
-                                            onRemoveAssignment = { assignmentId ->
-                                                val assignment = assignmentsById[assignmentId.value]
-                                                if (assignment != null) {
-                                                    pendingAssignmentRemoval = assignment
-                                                } else {
-                                                    personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
-                                                }
-                                            },
+                        }
+                    } else {
+                        val weekAssignments = lifecycleState.selectedProgramAssignments[selectedWeek.id.value] ?: emptyList()
+                        val weekTotalSlots = selectedWeek.parts.sumOf { it.partType.peopleCount }
+                        val weekAssignedSlots = weekAssignments.size
+                        val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
+                        val isPast = selectedWeek.weekStartDate < currentMonday
+                        val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
+                        val isCurrent = selectedWeek.weekStartDate == currentMonday
+                        val canMutate = !isPast && !isSkipped
+                        val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
+                        val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
+
+                        WeekDetailHeader(
+                            weekLabel = weekLabel,
+                            monthLabel = monthLabel,
+                            isCurrent = isCurrent,
+                            isSkipped = isSkipped,
+                            canMutate = canMutate,
+                            onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
+                            onSkipWeek = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
+                            onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
+                        )
+
+                        if (!isSkipped && weekTotalSlots > 0) {
+                            WeekCoverageStrip(
+                                assigned = weekAssignedSlots,
+                                total = weekTotalSlots,
+                                fraction = fraction,
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                        ) {
+                            when {
+                                isSkipped -> {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        Text(
+                                            "Settimana saltata",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = sketch.inkSoft,
+                                        )
+                                        Text(
+                                            "Questa settimana è stata esclusa dal programma.\nClicca 'Riattiva' per ripristinarla.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = sketch.inkMuted,
                                         )
                                     }
                                 }
-                                VerticalScrollbar(
-                                    adapter = rememberScrollbarAdapter(weekListState),
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .fillMaxHeight(),
-                                )
+                                selectedWeek.parts.isEmpty() -> {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            "Nessuna parte configurata per questa settimana",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = sketch.inkMuted,
+                                        )
+                                    }
+                                }
+                                else -> {
+                                    val assignmentsByPart = remember(weekAssignments) {
+                                        weekAssignments.groupBy { it.weeklyPartId }
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        selectedWeek.parts.chunked(2).forEach { rowParts ->
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                modifier = Modifier.fillMaxWidth(),
+                                            ) {
+                                                rowParts.forEach { part ->
+                                                    val partAssignments = assignmentsByPart[part.id] ?: emptyList()
+                                                    PartAssignmentCard(
+                                                        part = part,
+                                                        assignments = partAssignments,
+                                                        displayNumber = part.sortOrder + org.example.project.ui.components.DISPLAY_NUMBER_OFFSET,
+                                                        readOnly = !canMutate,
+                                                        showSexRuleChip = false,
+                                                        onAssignSlot = { slot ->
+                                                            personPickerVM.openPersonPicker(
+                                                                weekStartDate = selectedWeek.weekStartDate,
+                                                                weeklyPartId = part.id,
+                                                                slot = slot,
+                                                                selectedProgramWeeks = lifecycleState.selectedProgramWeeks,
+                                                                selectedProgramAssignments = lifecycleState.selectedProgramAssignments,
+                                                            )
+                                                        },
+                                                        onRemoveAssignment = { assignmentId ->
+                                                            val assignment = assignmentsById[assignmentId.value]
+                                                            if (assignment != null) pendingAssignmentRemoval = assignment
+                                                            else personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                        },
+                                                        modifier = Modifier.weight(1f),
+                                                    )
+                                                }
+                                                if (rowParts.size == 1) Spacer(Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                // Center / right panel divider
+                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
 
                 WorkspacePanel(
                     modifier = Modifier
