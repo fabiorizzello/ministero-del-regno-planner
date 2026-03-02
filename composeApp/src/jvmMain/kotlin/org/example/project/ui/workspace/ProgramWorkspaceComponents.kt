@@ -77,7 +77,6 @@ import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.assignments.PartAssignmentCard
-import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
