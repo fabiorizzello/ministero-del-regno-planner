@@ -342,13 +342,6 @@ fun ProgramWorkspaceScreen() {
             val totalAssignments = remember(lifecycleState.selectedProgramAssignments) {
                 lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
             }
-            val unresolvedPendingSlots = remember(totalSlots, totalAssignments, assignmentState.autoAssignUnresolved) {
-                val remaining = (totalSlots - totalAssignments).coerceAtLeast(0)
-                assignmentState.autoAssignUnresolved.size.coerceIn(0, remaining)
-            }
-            val emptySlots = remember(totalSlots, totalAssignments, unresolvedPendingSlots) {
-                (totalSlots - totalAssignments).coerceAtLeast(0) - unresolvedPendingSlots
-            }
             val assignmentsById = remember(lifecycleState.selectedProgramAssignments) {
                 lifecycleState.selectedProgramAssignments.values
                     .flatten()
@@ -455,7 +448,6 @@ fun ProgramWorkspaceScreen() {
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
 
                     // Week list
-                    val weeksForMonth = lifecycleState.selectedProgramWeeks
                     LazyColumn(
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -474,7 +466,7 @@ fun ProgramWorkspaceScreen() {
                                 color = sketch.inkMuted,
                             )
                         }
-                        items(weeksForMonth, key = { it.id.value }) { week ->
+                        items(lifecycleState.selectedProgramWeeks, key = { it.id.value }) { week ->
                             val weekAssignedSlots = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
                             val weekTotalSlots = week.parts.sumOf { it.partType.peopleCount }
                             val weekStatus = week.sidebarStatus(currentMonday, weekAssignedSlots, weekTotalSlots)
@@ -676,26 +668,22 @@ fun ProgramWorkspaceScreen() {
 
                         // Coverage card (month level)
                         if (selectedProgram != null) {
-                            val completeWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
-                                lifecycleState.selectedProgramWeeks.count { week ->
+                            val (completeWeeks, partialWeeks, emptyWeeks) = remember(
+                                lifecycleState.selectedProgramWeeks,
+                                lifecycleState.selectedProgramAssignments,
+                            ) {
+                                var complete = 0; var partial = 0; var empty = 0
+                                lifecycleState.selectedProgramWeeks.forEach { week ->
+                                    if (week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED) return@forEach
                                     val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
                                     val t = week.parts.sumOf { it.partType.peopleCount }
-                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && t > 0 && a == t
+                                    when {
+                                        a == t && t > 0 -> complete++
+                                        a > 0 -> partial++
+                                        else -> empty++
+                                    }
                                 }
-                            }
-                            val partialWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
-                                lifecycleState.selectedProgramWeeks.count { week ->
-                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
-                                    val t = week.parts.sumOf { it.partType.peopleCount }
-                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && a > 0 && a < t
-                                }
-                            }
-                            val emptyWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
-                                lifecycleState.selectedProgramWeeks.count { week ->
-                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
-                                    val t = week.parts.sumOf { it.partType.peopleCount }
-                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && a == 0
-                                }
+                                Triple(complete, partial, empty)
                             }
                             ProgramCoverageCard(
                                 programLabel = formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
@@ -802,111 +790,6 @@ private fun ProgramMonthSelectorButton(
             style = MaterialTheme.typography.titleSmall,
             color = content.copy(alpha = if (enabled) 1f else 0.45f),
         )
-    }
-}
-
-private enum class ProgramStatusTone {
-    Good,
-    Info,
-    Warn,
-}
-
-@Composable
-private fun ProgramStatusPill(
-    label: String,
-    tone: ProgramStatusTone,
-) {
-    val sketch = MaterialTheme.workspaceSketch
-    val color = when (tone) {
-        ProgramStatusTone.Good -> sketch.ok
-        ProgramStatusTone.Info -> sketch.accent
-        ProgramStatusTone.Warn -> sketch.bad
-    }
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = color.copy(alpha = 0.1f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.42f)),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = color,
-        )
-    }
-}
-
-private enum class ProgramQuickActionTone {
-    Accent,
-    Positive,
-    Danger,
-}
-
-@Composable
-private fun InspectorSectionLabel(
-    label: String,
-) {
-    val sketch = MaterialTheme.workspaceSketch
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = sketch.inkMuted,
-    )
-}
-
-@Composable
-private fun ProgramQuickAction(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    enabled: Boolean,
-    tone: ProgramQuickActionTone,
-) {
-    val sketch = MaterialTheme.workspaceSketch
-    val (container, border, content) = when (tone) {
-        ProgramQuickActionTone.Accent -> Triple(
-            sketch.accent,
-            sketch.accent,
-            Color.White,
-        )
-        ProgramQuickActionTone.Positive -> Triple(
-            sketch.ok,
-            sketch.ok,
-            Color.White,
-        )
-        ProgramQuickActionTone.Danger -> Triple(
-            sketch.surfaceMuted,
-            sketch.bad.copy(alpha = 0.82f),
-            sketch.bad,
-        )
-    }
-    val alpha = if (enabled) 1f else 0.45f
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
-        color = container.copy(alpha = alpha),
-        border = BorderStroke(1.dp, border.copy(alpha = alpha)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = content.copy(alpha = alpha),
-                modifier = Modifier.size(16.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = content.copy(alpha = alpha),
-            )
-        }
     }
 }
 

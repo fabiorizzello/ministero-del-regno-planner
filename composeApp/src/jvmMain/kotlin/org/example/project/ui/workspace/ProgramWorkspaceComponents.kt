@@ -41,9 +41,7 @@ import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -1171,7 +1169,6 @@ internal fun ProgramCoverageCard(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val fraction = if (total > 0) assigned.toFloat() / total else 0f
-    val empty = (total - assigned).coerceAtLeast(0)
     val fillColor = if (fraction == 1f) sketch.ok else sketch.accent
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
