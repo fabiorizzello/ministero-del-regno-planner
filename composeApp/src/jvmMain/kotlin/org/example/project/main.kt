@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory
 import java.awt.Frame
 
 fun main() {
+    System.getenv("SKIKO_RENDER_API")?.let { System.setProperty("skiko.renderApi", it) }
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
         val logger = LoggerFactory.getLogger("UncaughtException")
         logger.error("Eccezione non gestita nel thread {}", thread.name, throwable)
