@@ -366,7 +366,8 @@ fun ProgramWorkspaceScreen() {
 
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .padding(14.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -748,6 +749,46 @@ fun ProgramWorkspaceScreen() {
                             )
                         }
                     }
+                }
+            }
+
+            // Status bar
+            if (selectedProgram != null) {
+                val sb = sketch
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .background(sb.accent)
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
+                        color = Color.White.copy(alpha = 0.88f),
+                    )
+                    Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                    if (selectedWeek != null) {
+                        Text(
+                            "Settimana ${formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
+                            color = Color.White.copy(alpha = 0.88f),
+                        )
+                        Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                    }
+                    Text(
+                        "$totalAssignments/$totalSlots slot",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
+                        color = Color.White.copy(alpha = 0.88f),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        lifecycleState.today.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ITALIAN)),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
+                        color = Color.White.copy(alpha = 0.75f),
+                    )
                 }
             }
         }
