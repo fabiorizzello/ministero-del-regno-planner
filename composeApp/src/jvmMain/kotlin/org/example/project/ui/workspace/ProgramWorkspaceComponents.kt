@@ -1,5 +1,6 @@
 package org.example.project.ui.workspace
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
@@ -38,9 +39,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -65,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -1107,6 +1113,310 @@ internal fun SidebarFooterButton(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = sketch.inkSoft.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ProgramRightPanelButton(
+    label: String,
+    icon: ImageVector,
+    isPrimary: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.45f
+    Surface(
+        modifier = modifier
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(5.dp),
+        color = if (isPrimary) sketch.accent.copy(alpha = alpha) else sketch.surfaceMuted.copy(alpha = alpha),
+        border = BorderStroke(
+            1.dp,
+            if (isPrimary) sketch.accent.copy(alpha = 0.7f * alpha) else sketch.lineSoft.copy(alpha = alpha),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.height(30.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+                modifier = Modifier.size(13.dp),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ProgramCoverageCard(
+    programLabel: String,
+    assigned: Int,
+    total: Int,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val fraction = if (total > 0) assigned.toFloat() / total else 0f
+    val empty = (total - assigned).coerceAtLeast(0)
+    val fillColor = if (fraction == 1f) sketch.ok else sketch.accent
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "COPERTURA",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                letterSpacing = 0.7.sp,
+            ),
+            color = sketch.inkMuted,
+        )
+        Surface(
+            shape = RoundedCornerShape(9.dp),
+            color = sketch.surfaceMuted,
+            border = BorderStroke(1.dp, sketch.lineSoft),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "$assigned",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-1.5).sp,
+                        ),
+                        color = sketch.ink,
+                    )
+                    Text(
+                        "/ $total",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = sketch.inkMuted,
+                        modifier = Modifier.padding(bottom = 3.dp),
+                    )
+                }
+                Text(
+                    "slot assegnati · $programLabel",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = sketch.inkMuted,
+                )
+                Spacer(Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(sketch.lineSoft),
+                ) {
+                    if (fraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(fraction.coerceAtMost(1f))
+                                .background(fillColor, RoundedCornerShape(999.dp)),
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CovPill("$assigned assegnati", sketch.ok)
+                    if (empty > 0) CovPill("$empty vuoti", sketch.warn)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CovPill(label: String, color: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = color,
+        )
+    }
+}
+
+@Composable
+internal fun RightPanelCollapsibleSection(
+    title: String,
+    open: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .handCursorOnHover()
+                .clickable(onClick = onToggle)
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.7.sp,
+                ),
+                color = sketch.inkMuted,
+            )
+            Icon(
+                imageVector = if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                tint = sketch.inkMuted,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        AnimatedVisibility(visible = open) {
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
+    val sketch = MaterialTheme.workspaceSketch
+    var open by remember { mutableStateOf(true) }
+    Surface(
+        shape = RoundedCornerShape(9.dp),
+        color = sketch.warn.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.4f)),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .handCursorOnHover()
+                    .clickable { open = !open }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = sketch.warn,
+                    modifier = Modifier.size(12.dp),
+                )
+                Text(
+                    "PROBLEMI",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.5.sp,
+                    ),
+                    color = sketch.warn,
+                )
+                Box(
+                    modifier = Modifier.size(17.dp).clip(CircleShape).background(sketch.warn),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "${issues.size}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.sp,
+                        ),
+                        color = Color.White,
+                    )
+                }
+                Icon(
+                    if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = sketch.warn,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+            AnimatedVisibility(visible = open) {
+                Column {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.warn.copy(alpha = 0.4f)))
+                    issues.take(6).forEach { issue ->
+                        val weekLabel = formatWeekRangeLabel(issue.weekStartDate, issue.weekStartDate.plusDays(6))
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                "${issue.partLabel.uppercase()} · $weekLabel",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.5.sp,
+                                    letterSpacing = 0.4.sp,
+                                ),
+                                color = sketch.warn,
+                            )
+                            Text(
+                                issue.reason,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = sketch.inkSoft,
+                            )
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.warn.copy(alpha = 0.15f)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ProgramDangerButton(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.45f
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(5.dp),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f * alpha)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = sketch.bad.copy(alpha = alpha),
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = sketch.bad.copy(alpha = alpha),
             )
         }
     }
