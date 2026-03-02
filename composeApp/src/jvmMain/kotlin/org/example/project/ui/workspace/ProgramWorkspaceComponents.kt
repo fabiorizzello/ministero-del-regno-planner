@@ -1165,6 +1165,9 @@ internal fun ProgramCoverageCard(
     programLabel: String,
     assigned: Int,
     total: Int,
+    completeWeeks: Int,
+    partialWeeks: Int,
+    emptyWeeks: Int,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val fraction = if (total > 0) assigned.toFloat() / total else 0f
@@ -1233,8 +1236,9 @@ internal fun ProgramCoverageCard(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    CovPill("$assigned assegnati", sketch.ok)
-                    if (empty > 0) CovPill("$empty vuoti", sketch.warn)
+                    if (completeWeeks > 0) CovPill("$completeWeeks complete", sketch.ok)
+                    if (partialWeeks > 0) CovPill("$partialWeeks parziali", sketch.warn)
+                    if (emptyWeeks > 0) CovPill("$emptyWeeks vuote", sketch.bad)
                 }
             }
         }
@@ -1362,7 +1366,7 @@ internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
-                                "${issue.partLabel.uppercase()} · $weekLabel",
+                                "${issue.partLabel.uppercase()} · Slot ${issue.slot} · $weekLabel",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 10.5.sp,

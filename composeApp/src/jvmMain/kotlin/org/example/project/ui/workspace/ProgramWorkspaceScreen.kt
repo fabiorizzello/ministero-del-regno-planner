@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -662,13 +661,13 @@ fun ProgramWorkspaceScreen() {
                                 modifier = Modifier.weight(1f),
                             )
                             ProgramRightPanelButton(
-                                label = if (assignmentState.isPrintingProgram) "..." else "Stampa",
-                                icon = Icons.Filled.Print,
-                                isPrimary = true,
-                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isPrintingProgram,
+                                label = if (assignmentState.isClearingAssignments) "..." else "Svuota da...",
+                                icon = Icons.Filled.ClearAll,
+                                isPrimary = false,
+                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
                                 onClick = {
                                     lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.printSelectedProgram(programId)
+                                        assignmentVM.requestClearAssignments(programId, fromFutureDate)
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -677,10 +676,34 @@ fun ProgramWorkspaceScreen() {
 
                         // Coverage card (month level)
                         if (selectedProgram != null) {
+                            val completeWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
+                                lifecycleState.selectedProgramWeeks.count { week ->
+                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                    val t = week.parts.sumOf { it.partType.peopleCount }
+                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && t > 0 && a == t
+                                }
+                            }
+                            val partialWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
+                                lifecycleState.selectedProgramWeeks.count { week ->
+                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                    val t = week.parts.sumOf { it.partType.peopleCount }
+                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && a > 0 && a < t
+                                }
+                            }
+                            val emptyWeeks = remember(lifecycleState.selectedProgramWeeks, lifecycleState.selectedProgramAssignments) {
+                                lifecycleState.selectedProgramWeeks.count { week ->
+                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                    val t = week.parts.sumOf { it.partType.peopleCount }
+                                    week.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED && a == 0
+                                }
+                            }
                             ProgramCoverageCard(
                                 programLabel = formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
                                 assigned = totalAssignments,
                                 total = totalSlots,
+                                completeWeeks = completeWeeks,
+                                partialWeeks = partialWeeks,
+                                emptyWeeks = emptyWeeks,
                             )
                         }
 
