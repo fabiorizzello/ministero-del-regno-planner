@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sketch v2 — Scuola di Ministero (Desktop)</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #ECEEF2;
+      --surface:       #FFFFFF;
+      --surface-raised:#F8F9FB;
+      --surface-inset: #F2F4F7;
+      --border:        #D8DCE8;
+      --border-soft:   #E8EAF0;
+
+      --ink:           #18203A;
+      --ink-soft:      #404968;
+      --ink-muted:     #7A84A0;
+      --ink-disabled:  #B0B8CC;
+
+      --accent:        #3560D4;
+      --accent-light:  #EEF3FD;
+      --accent-border: #AABEF0;
+      --accent-dark:   #2448AC;
+
+      --ok:            #1E9E6A;
+      --ok-light:      #E7F7F1;
+      --ok-border:     #90D9B8;
+
+      --warn:          #C07B18;
+      --warn-light:    #FEF6E4;
+      --warn-border:   #E9C47A;
+
+      --danger:        #B92C47;
+      --danger-light:  #FCEEF1;
+      --danger-border: #E09AAA;
+
+      --slot-empty-bg:     #F4F6F9;
+      --slot-empty-border: #C4CBD8;
+
+      --r-sm: 5px;
+      --r-md: 9px;
+      --r-lg: 13px;
+
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-sm: 0 1px 4px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 20px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06);
+
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       TOOLBAR (Desktop-native, not a web topbar)
+    ═══════════════════════════════════════════ */
+    .toolbar {
+      height: 44px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 0;
+      flex-shrink: 0;
+      -webkit-app-region: drag; /* native feel */
+      user-select: none;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding-right: 16px;
+      border-right: 1px solid var(--border-soft);
+      margin-right: 4px;
+    }
+    .brand-logo {
+      width: 24px; height: 24px;
+      background: linear-gradient(135deg, var(--accent) 0%, #5480E8 100%);
+      border-radius: 5px;
+      display: grid; place-items: center;
+      color: white; font-size: 11px; font-weight: 800;
+      box-shadow: 0 1px 3px rgba(53,96,212,.35);
+    }
+    .brand-name {
+      font-size: 12.5px; font-weight: 600;
+      color: var(--ink); letter-spacing: -.2px;
+    }
+
+    /* Toolbar segment tabs */
+    .toolbar-nav {
+      display: flex;
+      gap: 1px;
+      margin: 0 8px;
+    }
+    .toolbar-tab {
+      padding: 5px 12px;
+      border-radius: var(--r-sm);
+      font-size: 12px; font-weight: 500;
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: all 120ms;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .toolbar-tab:hover { background: var(--surface-raised); color: var(--ink); }
+    .toolbar-tab.active {
+      background: var(--accent-light);
+      color: var(--accent); font-weight: 600;
+    }
+    .toolbar-tab .tab-icon { font-size: 11px; opacity: .75; }
+
+    /* Toolbar separator */
+    .tb-sep {
+      width: 1px; height: 20px;
+      background: var(--border-soft);
+      margin: 0 8px;
+    }
+
+    /* Toolbar actions group */
+    .toolbar-actions {
+      display: flex; gap: 4px; align-items: center;
+      margin-left: auto;
+    }
+
+    .tb-btn {
+      height: 30px; padding: 0 12px;
+      border-radius: var(--r-sm);
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 5px;
+      cursor: pointer; transition: all 120ms;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .tb-btn:hover::after {
+      content: attr(data-shortcut);
+      position: absolute;
+      top: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.82); color: white;
+      font-size: 10.5px; font-weight: 500;
+      padding: 3px 7px; border-radius: 4px;
+      white-space: nowrap; pointer-events: none;
+      z-index: 9999;
+    }
+    .tb-btn-ghost {
+      background: transparent; color: var(--ink-soft);
+      border-color: transparent;
+    }
+    .tb-btn-ghost:hover { background: var(--surface-raised); color: var(--ink); border-color: var(--border); }
+
+    .tb-btn-primary {
+      background: var(--accent); color: white;
+      border-color: var(--accent-dark);
+      box-shadow: 0 1px 3px rgba(53,96,212,.30);
+      font-weight: 600;
+    }
+    .tb-btn-primary:hover { background: var(--accent-dark); }
+
+    .tb-btn-secondary {
+      background: var(--surface-raised); color: var(--ink-soft);
+      border-color: var(--border);
+    }
+    .tb-btn-secondary:hover { color: var(--ink); background: var(--surface); }
+
+    /* ═══════════════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════════════ */
+    .layout {
+      display: flex; flex: 1; overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       LEFT SIDEBAR — mesi + settimane
+    ═══════════════════════════════════════════ */
+    .sidebar {
+      width: 210px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-programs {
+      padding: 10px 10px 8px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .section-title {
+      font-size: 10px; font-weight: 700;
+      color: var(--ink-muted); text-transform: uppercase;
+      letter-spacing: .7px; padding: 0 2px 4px;
+    }
+    .month-item {
+      padding: 7px 10px; border-radius: var(--r-md);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      cursor: pointer; transition: all 120ms;
+      border: 1px solid transparent;
+    }
+    .month-item:hover { background: var(--surface-raised); }
+    .month-item.active {
+      background: var(--accent-light);
+      border-color: var(--accent-border);
+    }
+    .month-item-label {
+      font-size: 12.5px; font-weight: 600; color: var(--ink);
+    }
+    .month-item.active .month-item-label { color: var(--accent); }
+    .month-item-meta {
+      font-size: 10.5px; color: var(--ink-muted);
+    }
+    .month-add {
+      padding: 5px 10px; border-radius: var(--r-sm);
+      color: var(--accent); font-size: 12px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+      border: 1px dashed var(--accent-border);
+      transition: all 120ms; margin-top: 2px;
+      background: transparent;
+    }
+    .month-add:hover { background: var(--accent-light); }
+
+    /* Week list */
+    .sidebar-weeks {
+      flex: 1; overflow-y: auto; padding: 6px 8px;
+    }
+    .week-group-label {
+      font-size: 10px; font-weight: 700; color: var(--ink-muted);
+      text-transform: uppercase; letter-spacing: .6px;
+      padding: 8px 4px 4px;
+    }
+
+    .week-item {
+      border-radius: var(--r-md); cursor: pointer;
+      transition: all 130ms; border: 1px solid transparent;
+      margin-bottom: 2px; overflow: hidden;
+    }
+    .week-item-main {
+      padding: 7px 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .week-item:hover { background: var(--surface-raised); }
+    .week-item.active {
+      background: var(--accent-light);
+      border-color: var(--accent-border);
+    }
+    .week-item.active .week-name { color: var(--accent); font-weight: 600; }
+
+    .week-status-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-empty    { background: var(--slot-empty-border); }
+    .dot-partial  { background: var(--warn); }
+    .dot-complete { background: var(--ok); }
+    .dot-current  { background: var(--accent); }
+    .dot-skipped  { background: var(--border); }
+
+    .week-name {
+      font-size: 12px; font-weight: 500; color: var(--ink); flex: 1;
+    }
+    .week-tag {
+      font-size: 10px; font-weight: 700; padding: 1px 5px;
+      border-radius: 3px; letter-spacing: .3px;
+    }
+    .week-tag.current { background: var(--accent-light); color: var(--accent); }
+    .week-tag.skipped { background: var(--surface-inset); color: var(--ink-muted); }
+
+    /* Mini progress bar per settimana */
+    .week-mini-bar {
+      height: 3px; margin: 0 10px 6px;
+      background: var(--border-soft); border-radius: 999px; overflow: hidden;
+    }
+    .week-mini-bar-fill {
+      height: 100%; border-radius: 999px; transition: width 300ms;
+    }
+    .fill-ok      { background: var(--ok); }
+    .fill-partial { background: var(--warn); }
+    .fill-empty   { background: var(--slot-empty-border); width: 0 !important; }
+
+    .sidebar-footer {
+      padding: 8px; border-top: 1px solid var(--border-soft);
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .sidebar-footer-btn {
+      padding: 6px 10px; border-radius: var(--r-sm);
+      font-size: 11.5px; font-weight: 500; color: var(--ink-soft);
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); background: var(--surface);
+      transition: all 120ms;
+    }
+    .sidebar-footer-btn:hover { background: var(--surface-raised); color: var(--ink); }
+    .sidebar-footer-btn .icon { font-size: 12px; }
+
+    /* ═══════════════════════════════════════════
+       CENTER — WEEK DETAIL
+    ═══════════════════════════════════════════ */
+    .center {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      min-width: 0;
+    }
+
+    /* Sticky week header */
+    .detail-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-xs);
+    }
+    .detail-week-name {
+      font-size: 16px; font-weight: 700; color: var(--ink);
+      letter-spacing: -.3px;
+    }
+    .detail-week-meta {
+      font-size: 11.5px; color: var(--ink-muted); margin-top: 1px;
+    }
+    .detail-badge {
+      padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: .2px;
+    }
+    .badge-current {
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent-border);
+    }
+    .badge-skipped {
+      background: var(--surface-inset); color: var(--ink-muted);
+      border: 1px solid var(--border);
+    }
+    .detail-header-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hdr-btn {
+      padding: 5px 11px; border-radius: var(--r-sm);
+      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--surface); color: var(--ink-soft);
+      cursor: pointer; transition: all 120ms;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .hdr-btn:hover { background: var(--surface-raised); color: var(--ink); }
+    .hdr-btn.warn { color: var(--warn); border-color: var(--warn-border); }
+    .hdr-btn.warn:hover { background: var(--warn-light); }
+    .hdr-btn.ok { color: var(--ok); border-color: var(--ok-border); }
+    .hdr-btn.ok:hover { background: var(--ok-light); }
+
+    /* Coverage strip under header */
+    .detail-coverage-strip {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 8px 20px;
+      display: flex; align-items: center; gap: 16px;
+      flex-shrink: 0;
+    }
+    .coverage-text {
+      font-size: 12px; font-weight: 600; color: var(--ink-soft);
+      white-space: nowrap;
+    }
+    .coverage-bar-track {
+      flex: 1; height: 5px;
+      background: var(--surface-inset); border-radius: 999px; overflow: hidden;
+    }
+    .coverage-bar-fill {
+      height: 100%; border-radius: 999px;
+      background: var(--ok); transition: width 400ms ease;
+    }
+    .coverage-pct {
+      font-size: 11.5px; font-weight: 700; color: var(--ok);
+      min-width: 36px; text-align: right;
+    }
+    .coverage-pct.zero { color: var(--ink-muted); }
+
+    /* Content body */
+    .detail-body {
+      flex: 1; overflow-y: auto; padding: 16px 20px;
+    }
+
+    /* ─── PARTS GRID ─────────────────────── */
+    .parts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+    }
+
+    .part-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-xs);
+      transition: box-shadow 150ms;
+    }
+    .part-card:hover { box-shadow: var(--shadow-sm); }
+
+    .part-card-hd {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border-soft);
+      background: var(--surface-raised);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .part-num {
+      font-size: 10px; font-weight: 700; color: var(--ink-muted);
+      text-transform: uppercase; letter-spacing: .6px;
+    }
+    .part-title {
+      font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 1px;
+    }
+    .part-slots-badge {
+      font-size: 10px; font-weight: 600;
+      padding: 2px 6px; border-radius: 3px;
+      background: var(--surface-inset); color: var(--ink-muted);
+    }
+
+    .part-card-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+
+    /* ─── SLOT ROWS ──────────────────────── */
+    .slot-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .slot-role-label {
+      font-size: 11.5px; color: var(--ink-muted); font-weight: 500;
+      width: 88px; flex-shrink: 0;
+    }
+
+    /* Empty slot */
+    .slot-empty {
+      flex: 1; padding: 7px 11px;
+      border: 1.5px dashed var(--slot-empty-border);
+      border-radius: var(--r-sm);
+      background: var(--slot-empty-bg);
+      color: var(--ink-muted);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 150ms;
+      position: relative;
+    }
+    .slot-empty:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+      border-style: solid;
+    }
+    .slot-empty .slot-hint {
+      margin-left: auto;
+      font-size: 10px; color: var(--ink-disabled);
+      opacity: 0;
+      transition: opacity 150ms;
+    }
+    .slot-empty:hover .slot-hint {
+      opacity: 1; color: var(--accent);
+    }
+
+    /* Filled slot */
+    .slot-filled {
+      flex: 1; padding: 6px 10px;
+      border: 1px solid var(--ok-border);
+      border-radius: var(--r-sm);
+      background: var(--ok-light);
+      color: var(--ok);
+      font-size: 12.5px; font-weight: 600;
+      display: flex; align-items: center; gap: 7px;
+      cursor: pointer;
+      transition: all 150ms;
+      position: relative;
+    }
+    .slot-filled:hover {
+      border-color: var(--ok);
+      box-shadow: 0 0 0 2px rgba(30,158,106,.12);
+    }
+    .slot-check { font-size: 12px; flex-shrink: 0; }
+    .slot-name { flex: 1; }
+    .slot-actions {
+      display: flex; gap: 2px;
+      opacity: 0; transition: opacity 150ms;
+    }
+    .slot-filled:hover .slot-actions { opacity: 1; }
+    .slot-action-btn {
+      width: 20px; height: 20px;
+      border-radius: 4px; border: none;
+      display: grid; place-items: center;
+      font-size: 10px; cursor: pointer;
+      background: transparent; color: var(--ok);
+      transition: all 120ms;
+    }
+    .slot-action-btn:hover { background: rgba(30,158,106,.15); }
+    .slot-action-btn.remove { color: var(--danger); }
+    .slot-action-btn.remove:hover { background: var(--danger-light); }
+
+    /* ═══════════════════════════════════════════
+       RIGHT PANEL
+    ═══════════════════════════════════════════ */
+    .right-panel {
+      width: 248px; flex-shrink: 0;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .rp-scroll {
+      flex: 1; overflow-y: auto;
+      padding: 12px 12px 0;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .rp-section {}
+    .rp-section-title {
+      font-size: 10px; font-weight: 700;
+      color: var(--ink-muted); text-transform: uppercase;
+      letter-spacing: .7px; margin-bottom: 6px;
+    }
+
+    /* Coverage card */
+    .cov-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--r-md); padding: 10px 12px;
+    }
+    .cov-number {
+      font-size: 26px; font-weight: 800; color: var(--ink);
+      letter-spacing: -1.5px; line-height: 1;
+    }
+    .cov-of {
+      font-size: 13px; font-weight: 500; color: var(--ink-muted);
+    }
+    .cov-label {
+      font-size: 11px; color: var(--ink-muted); margin-top: 2px;
+    }
+    .cov-track {
+      height: 5px; background: var(--surface-inset);
+      border-radius: 999px; overflow: hidden; margin: 8px 0;
+    }
+    .cov-fill {
+      height: 100%; border-radius: 999px; background: var(--ok);
+      transition: width 400ms ease;
+    }
+    .cov-pills {
+      display: flex; gap: 4px; flex-wrap: wrap;
+    }
+    .cov-pill {
+      font-size: 10.5px; font-weight: 600;
+      padding: 2px 7px; border-radius: 999px;
+    }
+    .pill-ok   { background: var(--ok-light);   color: var(--ok);   border: 1px solid var(--ok-border); }
+    .pill-warn { background: var(--warn-light);  color: var(--warn);  border: 1px solid var(--warn-border); }
+
+    /* Settings collapsible */
+    .collapsible {}
+    .collapsible-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      padding: 4px 0;
+    }
+    .collapsible-hd .rp-section-title { margin-bottom: 0; }
+    .collapsible-arrow {
+      font-size: 9px; color: var(--ink-muted);
+      transition: transform 200ms;
+    }
+    .collapsible.open .collapsible-arrow { transform: rotate(90deg); }
+    .collapsible-body {
+      display: none; margin-top: 6px;
+    }
+    .collapsible.open .collapsible-body { display: block; }
+
+    /* Auto-save setting rows */
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+      padding: 5px 0; border-bottom: 1px solid var(--border-soft);
+      position: relative;
+    }
+    .setting-row:last-of-type { border: none; }
+    .setting-key {
+      font-size: 11.5px; color: var(--ink-soft); flex: 1;
+      line-height: 1.3;
+    }
+    .setting-control {
+      display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    }
+
+    /* Number input */
+    .setting-input {
+      width: 40px; padding: 3px 6px;
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      font-size: 12px; font-weight: 600; color: var(--ink);
+      background: var(--surface); text-align: center;
+      outline: none; transition: border-color 150ms;
+      font-family: var(--font-mono);
+    }
+    .setting-input:focus {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* Saved checkmark — appears per field after autosave */
+    .field-saved {
+      font-size: 11px; color: var(--ok);
+      opacity: 0; transition: opacity 300ms;
+      width: 14px; flex-shrink: 0;
+    }
+    .field-saved.visible { opacity: 1; }
+
+    /* Toggle */
+    .toggle-pill {
+      width: 28px; height: 15px; background: var(--ok);
+      border-radius: 999px; position: relative; cursor: pointer;
+      flex-shrink: 0; transition: background 200ms;
+    }
+    .toggle-pill.off { background: var(--border); }
+    .toggle-pill::after {
+      content: ''; width: 11px; height: 11px;
+      background: white; border-radius: 50%;
+      position: absolute; top: 2px;
+      left: 15px; transition: left 150ms;
+    }
+    .toggle-pill.off::after { left: 2px; }
+
+    /* ── Issues panel (visible only when issues exist) ── */
+    .issues-panel {
+      background: var(--warn-light);
+      border: 1px solid var(--warn-border);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+    .issues-header {
+      padding: 7px 10px;
+      display: flex; align-items: center; gap: 7px;
+      cursor: pointer; user-select: none;
+    }
+    .issues-header:hover { background: rgba(0,0,0,.03); }
+    .issues-icon { font-size: 12px; }
+    .issues-title {
+      font-size: 11px; font-weight: 700;
+      color: var(--warn); flex: 1;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .issues-badge {
+      background: var(--warn); color: white;
+      font-size: 10px; font-weight: 700;
+      width: 17px; height: 17px; border-radius: 50%;
+      display: grid; place-items: center;
+    }
+    .issues-arrow {
+      font-size: 9px; color: var(--warn);
+      transition: transform 200ms;
+    }
+    .issues-panel.open .issues-arrow { transform: rotate(90deg); }
+    .issues-list {
+      display: none; border-top: 1px solid var(--warn-border);
+    }
+    .issues-panel.open .issues-list { display: block; }
+    .issue-row {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(192,123,24,.15);
+      cursor: pointer; transition: background 120ms;
+    }
+    .issue-row:last-child { border: none; }
+    .issue-row:hover { background: rgba(192,123,24,.07); }
+    .issue-label {
+      font-size: 10.5px; font-weight: 700; color: var(--warn);
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .issue-detail {
+      font-size: 11.5px; color: var(--ink-soft); margin-top: 1px;
+      line-height: 1.4;
+    }
+    .issue-reason {
+      font-size: 10.5px; color: var(--ink-muted); margin-top: 2px;
+    }
+
+    /* Danger zone */
+    .rp-danger {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-soft);
+      margin-top: auto;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .danger-btn {
+      width: 100%; padding: 6px 10px;
+      border: 1px solid var(--danger-border);
+      background: var(--surface); color: var(--danger);
+      border-radius: var(--r-sm); font-size: 11.5px; font-weight: 600;
+      cursor: pointer; transition: all 150ms;
+      display: flex; align-items: center; gap: 6px;
+      text-align: left;
+    }
+    .danger-btn:hover { background: var(--danger-light); }
+
+    /* ═══════════════════════════════════════════
+       STATUS BAR (bottom, VS Code style)
+    ═══════════════════════════════════════════ */
+    .statusbar {
+      height: 24px; flex-shrink: 0;
+      background: var(--accent); color: rgba(255,255,255,.88);
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 16px;
+      font-size: 11px; font-weight: 500;
+      border-top: 1px solid var(--accent-dark);
+    }
+    .sb-item { display: flex; align-items: center; gap: 4px; cursor: default; }
+    .sb-item:hover { color: white; }
+    .sb-sep { width: 1px; height: 12px; background: rgba(255,255,255,.25); }
+    .sb-right { margin-left: auto; }
+
+    /* ═══════════════════════════════════════════
+       EMPTY STATE
+    ═══════════════════════════════════════════ */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 10px; color: var(--ink-muted);
+      padding: 40px;
+    }
+    .empty-icon { font-size: 36px; opacity: .35; }
+    .empty-title { font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+    .empty-sub   { font-size: 12px; text-align: center; max-width: 280px; line-height: 1.6; }
+    .empty-hint  {
+      margin-top: 4px; padding: 6px 14px;
+      background: var(--surface-raised); border: 1px solid var(--border);
+      border-radius: var(--r-sm); font-size: 11.5px; color: var(--ink-muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 5px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 3px;
+      font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--ink-soft); box-shadow: 0 1px 0 var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       CONTEXT MENU
+    ═══════════════════════════════════════════ */
+    .ctx-menu {
+      position: fixed; z-index: 1000;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 4px; min-width: 196px;
+      display: none;
+    }
+    .ctx-menu.show { display: block; }
+
+    .ctx-item {
+      padding: 6px 10px; border-radius: var(--r-sm);
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; font-size: 12.5px; color: var(--ink-soft);
+      transition: all 100ms;
+    }
+    .ctx-item:hover { background: var(--surface-raised); color: var(--ink); }
+    .ctx-item.danger { color: var(--danger); }
+    .ctx-item.danger:hover { background: var(--danger-light); }
+    .ctx-icon { width: 15px; text-align: center; font-size: 12px; flex-shrink: 0; }
+    .ctx-label { flex: 1; }
+    .ctx-shortcut { font-size: 10.5px; color: var(--ink-disabled); font-family: var(--font-mono); }
+    .ctx-sep { height: 1px; background: var(--border-soft); margin: 3px 0; }
+
+    /* ═══════════════════════════════════════════
+       PICKER DIALOG — table style
+    ═══════════════════════════════════════════ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16,24,54,.28);
+      display: none; place-items: center; z-index: 500;
+      backdrop-filter: blur(2px);
+    }
+    .overlay.show { display: grid; }
+
+    .dialog {
+      background: var(--surface); border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      width: 640px; max-height: 78vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .dialog-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .dialog-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .dialog-sub { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+    .dialog-close {
+      margin-left: auto; width: 26px; height: 26px;
+      border-radius: var(--r-sm); border: none; background: var(--surface-raised);
+      color: var(--ink-muted); font-size: 14px; cursor: pointer;
+      display: grid; place-items: center;
+      transition: all 120ms;
+    }
+    .dialog-close:hover { background: var(--surface-inset); color: var(--ink); }
+
+    .dialog-toolbar {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      background: var(--surface-raised);
+      display: flex; gap: 8px; align-items: center;
+    }
+    .dialog-search {
+      flex: 1; padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      font-size: 12.5px; background: var(--surface); color: var(--ink);
+      outline: none; transition: border-color 150ms;
+    }
+    .dialog-search:focus { border-color: var(--accent); }
+
+    .sort-btn {
+      padding: 5px 10px; border-radius: var(--r-sm);
+      font-size: 11.5px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--ink-soft); cursor: pointer; transition: all 120ms;
+    }
+    .sort-btn.active {
+      background: var(--accent-light); color: var(--accent);
+      border-color: var(--accent-border);
+    }
+    .sort-btn:hover:not(.active) { background: var(--surface-raised); color: var(--ink); }
+
+    /* Table */
+    .picker-table {
+      flex: 1; overflow-y: auto;
+    }
+    .table-header {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px 100px 90px;
+      padding: 6px 16px;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border-soft);
+      position: sticky; top: 0;
+    }
+    .th {
+      font-size: 10.5px; font-weight: 700;
+      color: var(--ink-muted); text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .th.right { text-align: right; }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px 100px 90px;
+      padding: 8px 16px; align-items: center;
+      border-bottom: 1px solid var(--border-soft);
+      cursor: pointer; transition: all 120ms;
+    }
+    .table-row:hover { background: var(--accent-light); }
+    .table-row:last-child { border-bottom: none; }
+
+    .td-name { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+    .td-meta {
+      font-size: 11px; color: var(--ink-muted); margin-top: 1px;
+    }
+    .td-num {
+      font-size: 12px; color: var(--ink-soft); text-align: right;
+      font-family: var(--font-mono);
+    }
+    .td-cooldown {
+      font-size: 11.5px; font-weight: 600; text-align: right;
+    }
+    .td-cooldown.ok { color: var(--ok); }
+    .td-cooldown.warn { color: var(--warn); }
+    .td-action { display: flex; justify-content: flex-end; }
+
+    .assign-btn {
+      padding: 4px 12px; border: none; border-radius: var(--r-sm);
+      background: var(--accent); color: white;
+      font-size: 11.5px; font-weight: 600;
+      cursor: pointer; transition: all 120ms;
+      opacity: 0;
+    }
+    .table-row:hover .assign-btn { opacity: 1; }
+    .assign-btn:hover { background: var(--accent-dark); }
+
+    /* ═══════════════════════════════════════════
+       SMALL BUTTON
+    ═══════════════════════════════════════════ */
+    .btn-sm {
+      padding: 4px 10px; border-radius: var(--r-sm);
+      font-size: 11.5px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--ink-soft); cursor: pointer; transition: all 120ms;
+    }
+    .btn-sm:hover { background: var(--surface-raised); color: var(--ink); }
+
+    /* ═══════════════════════════════════════════
+       MISC
+    ═══════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 32px; right: 16px;
+      background: var(--ink); color: white;
+      padding: 8px 16px; border-radius: var(--r-md);
+      font-size: 12.5px; font-weight: 500;
+      box-shadow: var(--shadow-md);
+      opacity: 0; transform: translateY(6px);
+      transition: all 220ms; pointer-events: none; z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ TOOLBAR ═════════════════════════════════ -->
+  <header class="toolbar">
+    <div class="app-brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-name">Scuola di ministero</div>
+    </div>
+
+    <nav class="toolbar-nav">
+      <div class="toolbar-tab active">
+        <span class="tab-icon">📅</span> Programma
+      </div>
+      <div class="toolbar-tab" onclick="showToast('Sezione Proclamatori')">
+        <span class="tab-icon">👥</span> Proclamatori
+      </div>
+      <div class="toolbar-tab" onclick="showToast('Impostazioni globali')">
+        <span class="tab-icon">⚙</span> Impostazioni
+      </div>
+    </nav>
+
+    <div class="tb-sep"></div>
+
+    <div class="toolbar-actions">
+      <button class="tb-btn tb-btn-ghost"
+        data-shortcut="↺ Aggiorna schemi"
+        onclick="showToast('Schemi aggiornati')">
+        ↺ Schemi
+      </button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn tb-btn-secondary"
+        data-shortcut="⌘P — Stampa PDF"
+        onclick="showToast('Stampa PDF avviata…')">
+        🖨 Stampa
+      </button>
+      <button class="tb-btn tb-btn-primary"
+        data-shortcut="⌘⏎ — Autoassegnazione"
+        onclick="doAutoAssign()">
+        ▶ Autoassegna
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ LAYOUT ═══════════════════════════════════ -->
+  <div class="layout">
+
+    <!-- ══ SIDEBAR ══════════════════════════════ -->
+    <aside class="sidebar">
+      <div class="sidebar-programs">
+        <div class="section-title">Programma attivo</div>
+        <div id="month-list"><!-- JS --></div>
+        <button class="month-add" onclick="showToast('Crea nuovo mese basato sugli schemi attuali')">
+          + Crea prossimo mese
+        </button>
+      </div>
+
+      <div class="sidebar-weeks">
+        <div class="week-group-label">Settimane</div>
+        <div id="week-list"><!-- JS --></div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-footer-btn" onclick="showToast('Schemi aggiornati con successo')">
+          <span class="icon">↺</span> Aggiorna schemi
+        </button>
+      </div>
+    </aside>
+
+    <!-- ══ CENTER ════════════════════════════════ -->
+    <main class="center" id="center">
+      <!-- Empty state or detail injected here -->
+    </main>
+
+    <!-- ══ RIGHT PANEL ═══════════════════════════ -->
+    <aside class="right-panel">
+      <div class="rp-scroll">
+
+        <div class="rp-section">
+          <div class="rp-section-title">Copertura mese</div>
+          <div class="cov-card">
+            <div>
+              <span class="cov-number" id="rp-num">0</span>
+              <span class="cov-of" id="rp-denom">/10</span>
+            </div>
+            <div class="cov-label">slot assegnati</div>
+            <div class="cov-track">
+              <div class="cov-fill" id="rp-bar" style="width:0%"></div>
+            </div>
+            <div class="cov-pills">
+              <span class="cov-pill pill-ok"   id="rp-pill-ok">0 assegnati</span>
+              <span class="cov-pill pill-warn"  id="rp-pill-warn">10 vuoti</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Issues panel — visibile solo se ci sono problemi -->
+        <div class="rp-section" id="issues-section" style="display:none;">
+          <div class="rp-section-title">Problemi rilevati</div>
+          <div class="issues-panel open" id="issues-panel">
+            <div class="issues-header" onclick="document.getElementById('issues-panel').classList.toggle('open')">
+              <span class="issues-icon">⚠</span>
+              <span class="issues-title">Da risolvere</span>
+              <span class="issues-badge" id="issues-count">0</span>
+              <span class="issues-arrow">▶</span>
+            </div>
+            <div class="issues-list" id="issues-list">
+              <!-- JS populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings — auto-save senza bottone -->
+        <div class="rp-section collapsible" id="settings-collapsible">
+          <div class="collapsible-hd" onclick="toggleSection('settings-collapsible')">
+            <div class="rp-section-title">Impostazioni assegnatore</div>
+            <span class="collapsible-arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <!-- Toggle: salvato subito su click -->
+            <div class="setting-row">
+              <span class="setting-key">Cooldown rigoroso</span>
+              <div class="setting-control">
+                <span class="field-saved" id="fs-cooldown-strict">✓</span>
+                <span class="toggle-pill" id="toggle-strict" onclick="toggleSetting('cooldown-strict', this)"></span>
+              </div>
+            </div>
+            <!-- Number inputs: salvati su blur / 800ms inattività -->
+            <div class="setting-row">
+              <span class="setting-key">Peso conduzione</span>
+              <div class="setting-control">
+                <span class="field-saved" id="fs-lead-weight">✓</span>
+                <input class="setting-input" type="number" id="set-lead-weight"
+                  value="2" min="1" max="10"
+                  oninput="scheduleAutosave('lead-weight', this)"
+                  onblur="autosaveNow('lead-weight', this)" />
+              </div>
+            </div>
+            <div class="setting-row">
+              <span class="setting-key">Peso assistenza</span>
+              <div class="setting-control">
+                <span class="field-saved" id="fs-assist-weight">✓</span>
+                <input class="setting-input" type="number" id="set-assist-weight"
+                  value="1" min="1" max="10"
+                  oninput="scheduleAutosave('assist-weight', this)"
+                  onblur="autosaveNow('assist-weight', this)" />
+              </div>
+            </div>
+            <div class="setting-row">
+              <span class="setting-key">Cooldown conduzione</span>
+              <div class="setting-control">
+                <span class="field-saved" id="fs-lead-cooldown">✓</span>
+                <input class="setting-input" type="number" id="set-lead-cooldown"
+                  value="4" min="1" max="20"
+                  oninput="scheduleAutosave('lead-cooldown', this)"
+                  onblur="autosaveNow('lead-cooldown', this)" />
+                <span style="font-size:10.5px;color:var(--ink-muted);">sett.</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <span class="setting-key">Cooldown assistenza</span>
+              <div class="setting-control">
+                <span class="field-saved" id="fs-assist-cooldown">✓</span>
+                <input class="setting-input" type="number" id="set-assist-cooldown"
+                  value="2" min="1" max="20"
+                  oninput="scheduleAutosave('assist-cooldown', this)"
+                  onblur="autosaveNow('assist-cooldown', this)" />
+                <span style="font-size:10.5px;color:var(--ink-muted);">sett.</span>
+              </div>
+            </div>
+            <div style="padding:6px 0 2px; font-size:10.5px; color:var(--ink-muted); text-align:right;">
+              Le modifiche vengono salvate automaticamente
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Danger zone in fondo, sempre visibile -->
+      <div class="rp-danger">
+        <div class="rp-section-title">Operazioni</div>
+        <button class="danger-btn" onclick="showToast('Svuota assegnazioni future?', true)">
+          ✕ Svuota assegnazioni future
+        </button>
+        <button class="danger-btn" onclick="showToast('Elimina intero mese?', true)">
+          🗑 Elimina mese
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ══ STATUS BAR ════════════════════════════════ -->
+  <div class="statusbar">
+    <div class="sb-item" id="sb-program">📅 marzo 2026</div>
+    <div class="sb-sep"></div>
+    <div class="sb-item" id="sb-coverage">0/10 slot assegnati</div>
+    <div class="sb-sep"></div>
+    <div class="sb-item" id="sb-week">Nessuna settimana selezionata</div>
+    <div class="sb-right" style="display:flex;gap:16px;align-items:center;">
+      <div class="sb-item" id="sb-issues" style="display:none; cursor:pointer;"
+        onclick="scrollToIssues()" title="Clicca per vedere i problemi">
+        ⚠ <span id="sb-issues-count">0</span> problemi
+      </div>
+      <div class="sb-item">v0.3 sketch</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONTEXT MENU ════════════════════════════ -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAct('modifica')">
+    <span class="ctx-icon">✏</span>
+    <span class="ctx-label">Modifica parti</span>
+    <span class="ctx-shortcut">E</span>
+  </div>
+  <div class="ctx-item" onclick="ctxAct('salta')">
+    <span class="ctx-icon">⏭</span>
+    <span class="ctx-label">Salta settimana</span>
+    <span class="ctx-shortcut">S</span>
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxAct('svuota')">
+    <span class="ctx-icon">✕</span>
+    <span class="ctx-label">Rimuovi assegnazioni</span>
+  </div>
+</div>
+
+<!-- ═══ PERSON PICKER ════════════════════════════ -->
+<div class="overlay" id="picker-overlay" onclick="closePicker(event)">
+  <div class="dialog" onclick="event.stopPropagation()">
+    <div class="dialog-header">
+      <div>
+        <div class="dialog-title" id="picker-title">Assegna persona</div>
+        <div class="dialog-sub" id="picker-sub"></div>
+      </div>
+      <button class="dialog-close" onclick="closePicker()">✕</button>
+    </div>
+    <div class="dialog-toolbar">
+      <input class="dialog-search" type="text" placeholder="🔍  Cerca per nome…" oninput="filterPersons(this.value)" id="picker-search" />
+      <span style="font-size:11px;color:var(--ink-muted);">Ordina:</span>
+      <button class="sort-btn active" id="sort-global" onclick="setSort('global')">Globale</button>
+      <button class="sort-btn" id="sort-part" onclick="setSort('part')">Per parte</button>
+    </div>
+    <div class="picker-table">
+      <div class="table-header">
+        <div class="th">Proclamatore</div>
+        <div class="th right">Ultima (glob.)</div>
+        <div class="th right">Ultima (parte)</div>
+        <div class="th right">Cooldown</div>
+        <div class="th right"></div>
+      </div>
+      <div id="person-rows"><!-- JS --></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════ DATA ═══════════════════════ */
+const PROGRAMS = {
+  mar2026: {
+    label: 'marzo 2026', months: [3,2026],
+    weeks: [
+      { id:'w1', label:'2–8 mar',   full:'2–8 marzo 2026',   current:true,  skipped:false,
+        parts:[
+          { id:'p1', num:3, title:'Lettura biblica',      slots:1, assignments:[] },
+          { id:'p2', num:4, title:'Coltivare l\'interesse', slots:2, assignments:['Mario Rossi'] },
+          { id:'p3', num:5, title:'Fare discepoli',        slots:2, assignments:[] },
+          { id:'p4', num:6, title:'Discorso',              slots:1, assignments:[] },
+        ]
+      },
+      { id:'w2', label:'9–15 mar',  full:'9–15 marzo 2026',  current:false, skipped:false,
+        parts:[
+          { id:'p5', num:3, title:'Lettura biblica', slots:1, assignments:[] },
+        ]
+      },
+      { id:'w3', label:'16–22 mar', full:'16–22 marzo 2026', current:false, skipped:false,
+        parts:[
+          { id:'p6', num:3, title:'Lettura biblica', slots:1, assignments:['Giulia Verdi'] },
+          { id:'p7', num:4, title:'Discorso',        slots:1, assignments:[] },
+        ]
+      },
+      { id:'w4', label:'23–29 mar', full:'23–29 marzo 2026', current:false, skipped:true,  parts:[] },
+    ]
+  },
+  apr2026: {
+    label: 'aprile 2026', months: [4,2026],
+    weeks: [
+      { id:'a1', label:'6–12 apr',  full:'6–12 aprile 2026', current:false, skipped:false,
+        parts:[ { id:'a1p1', num:3, title:'Lettura biblica', slots:1, assignments:[] } ]
+      },
+    ]
+  }
+};
+
+const PERSONS = [
+  { name:'Mario Rossi',    lastGlobal:3,  lastPart:3,  cooldown:false, cooldownWeeks:0 },
+  { name:'Giulia Verdi',   lastGlobal:1,  lastPart:1,  cooldown:true,  cooldownWeeks:1 },
+  { name:'Luca Bianchi',   lastGlobal:8,  lastPart:12, cooldown:false, cooldownWeeks:0 },
+  { name:'Sara Esposito',  lastGlobal:null, lastPart:null, cooldown:false, cooldownWeeks:0 },
+  { name:'Paolo Mancini',  lastGlobal:6,  lastPart:9,  cooldown:false, cooldownWeeks:0 },
+  { name:'Anna Ferrari',   lastGlobal:4,  lastPart:4,  cooldown:false, cooldownWeeks:0 },
+  { name:'Marco Ferretti', lastGlobal:2,  lastPart:5,  cooldown:false, cooldownWeeks:0 },
+  { name:'Elena Bruno',    lastGlobal:10, lastPart:15, cooldown:false, cooldownWeeks:0 },
+];
+
+let currentProgId = 'mar2026';
+let selectedWeekId = null;
+let ctxWeekId = null;
+let pendingSlot = null; // {weekId, partId, slotIdx}
+let sortMode = 'global';
+
+/* ═══════════════ INIT ═══════════════════════ */
+function init() {
+  renderMonths();
+  renderWeekList();
+  showEmptyState();
+  updateStatusBar();
+  updateRightPanel();
+}
+
+/* ─── MONTHS ─────────────────────────────── */
+function renderMonths() {
+  const el = document.getElementById('month-list');
+  el.innerHTML = Object.entries(PROGRAMS).map(([id, prog]) => {
+    const total = prog.weeks.reduce((a,w)=>a+w.parts.reduce((b,p)=>b+p.slots,0),0);
+    const filled = prog.weeks.reduce((a,w)=>a+w.parts.reduce((b,p)=>b+p.assignments.length,0),0);
+    const active = id === currentProgId ? ' active' : '';
+    return `<div class="month-item${active}" onclick="selectProgram('${id}')">
+      <div class="month-item-label">${prog.label}</div>
+      <div class="month-item-meta">${filled}/${total}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectProgram(id) {
+  currentProgId = id;
+  selectedWeekId = null;
+  renderMonths();
+  renderWeekList();
+  showEmptyState();
+  updateStatusBar();
+  updateRightPanel();
+}
+
+/* ─── WEEK LIST ──────────────────────────── */
+function renderWeekList() {
+  const prog = PROGRAMS[currentProgId];
+  const el = document.getElementById('week-list');
+  el.innerHTML = prog.weeks.map(w => {
+    const total = w.parts.reduce((a,p)=>a+p.slots,0);
+    const filled = w.parts.reduce((a,p)=>a+p.assignments.length,0);
+    const pct = total > 0 ? Math.round(filled/total*100) : 0;
+
+    let dotClass = 'dot-empty';
+    if (w.skipped) dotClass = 'dot-skipped';
+    else if (w.current) dotClass = 'dot-current';
+    else if (pct===100 && total>0) dotClass = 'dot-complete';
+    else if (pct>0) dotClass = 'dot-partial';
+
+    let fillClass = 'fill-empty';
+    if (!w.skipped && pct===100 && total>0) fillClass = 'fill-ok';
+    else if (!w.skipped && pct>0) fillClass = 'fill-partial';
+
+    const active = w.id === selectedWeekId ? ' active' : '';
+    const tag = w.current ? '<div class="week-tag current">Oggi</div>'
+              : w.skipped ? '<div class="week-tag skipped">Saltata</div>' : '';
+
+    return `<div class="week-item${active}" data-id="${w.id}"
+              onclick="selectWeek('${w.id}')"
+              oncontextmenu="openCtx(event,'${w.id}')">
+      <div class="week-item-main">
+        <div class="week-status-dot ${dotClass}"></div>
+        <div class="week-name">${w.label}</div>
+        ${tag}
+      </div>
+      <div class="week-mini-bar">
+        <div class="week-mini-bar-fill ${fillClass}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ─── SELECT WEEK ────────────────────────── */
+function selectWeek(id) {
+  selectedWeekId = id;
+  renderWeekList();
+  renderDetail();
+  updateStatusBar();
+}
+
+/* ─── EMPTY STATE ────────────────────────── */
+function showEmptyState() {
+  const center = document.getElementById('center');
+  center.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📅</div>
+      <div class="empty-title">Seleziona una settimana</div>
+      <div class="empty-sub">
+        Clicca su una settimana nel pannello a sinistra per vedere le parti
+        e gestire le assegnazioni.
+      </div>
+      <div class="empty-hint">
+        Suggerimento: tasto destro sulla settimana per le azioni rapide
+      </div>
+    </div>`;
+}
+
+/* ─── DETAIL ─────────────────────────────── */
+function renderDetail() {
+  const prog = PROGRAMS[currentProgId];
+  const week = prog.weeks.find(w => w.id === selectedWeekId);
+  if (!week) return;
+
+  const total = week.parts.reduce((a,p)=>a+p.slots,0);
+  const filled = week.parts.reduce((a,p)=>a+p.assignments.length,0);
+  const pct = total > 0 ? Math.round(filled/total*100) : 0;
+
+  const pctClass = pct === 0 ? 'zero' : '';
+  const pctLabel = pct === 100 ? '✓ Completa' : pct === 0 ? '—' : `${pct}%`;
+
+  /* Header */
+  const weekBadge = week.current
+    ? '<div class="detail-badge badge-current">Settimana corrente</div>'
+    : week.skipped
+    ? '<div class="detail-badge badge-skipped">Saltata</div>' : '';
+
+  const weekActions = week.skipped
+    ? `<button class="hdr-btn ok" onclick="showToast('Settimana riattivata')">✓ Riattiva</button>`
+    : `<button class="hdr-btn" onclick="showToast('Editor parti aperto')">✏ Modifica parti</button>
+       <button class="hdr-btn warn" onclick="showToast('Settimana saltata')">⏭ Salta</button>`;
+
+  /* Parts */
+  let partsHtml = '';
+  if (week.parts.length === 0) {
+    partsHtml = `<div class="empty-state" style="height:auto;padding:48px 0;">
+      <div class="empty-icon" style="font-size:28px;">📋</div>
+      <div class="empty-title">Nessuna parte</div>
+      <div class="empty-sub">Clicca "Modifica parti" per aggiungerne.</div>
+    </div>`;
+  } else {
+    partsHtml = `<div class="parts-grid">` +
+      week.parts.map(part => {
+        let slotsHtml = '';
+        for (let s = 0; s < part.slots; s++) {
+          const role = part.slots > 1 ? (s===0 ? 'Proclamatore' : 'Assistente') : null;
+          const roleHtml = role ? `<div class="slot-role-label">${role}</div>` : '';
+          const asgn = part.assignments[s];
+
+          if (asgn) {
+            slotsHtml += `<div class="slot-row">
+              ${roleHtml}
+              <div class="slot-filled" onclick="openPicker('${week.id}','${part.id}',${s})"
+                   oncontextmenu="openSlotCtx(event,'${week.id}','${part.id}',${s})">
+                <span class="slot-check">✓</span>
+                <span class="slot-name">${asgn}</span>
+                <div class="slot-actions">
+                  <button class="slot-action-btn" title="Cambia persona"
+                    onclick="openPicker('${week.id}','${part.id}',${s});event.stopPropagation()">✎</button>
+                  <button class="slot-action-btn remove" title="Rimuovi"
+                    onclick="removeAsgn(event,'${week.id}','${part.id}',${s})">✕</button>
+                </div>
+              </div>
+            </div>`;
+          } else {
+            slotsHtml += `<div class="slot-row">
+              ${roleHtml}
+              <div class="slot-empty" onclick="openPicker('${week.id}','${part.id}',${s})">
+                + Seleziona proclamatore
+                <span class="slot-hint">clic per aprire lista</span>
+              </div>
+            </div>`;
+          }
+        }
+
+        return `<div class="part-card">
+          <div class="part-card-hd">
+            <div>
+              <div class="part-num">Parte ${part.num}</div>
+              <div class="part-title">${part.title}</div>
+            </div>
+            <div class="part-slots-badge">${part.slots} slot</div>
+          </div>
+          <div class="part-card-body">${slotsHtml}</div>
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
+  document.getElementById('center').innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="detail-week-name">${week.full}</div>
+          ${weekBadge}
+        </div>
+        <div class="detail-week-meta">${week.parts.length} parti · ${filled}/${total} slot assegnati</div>
+      </div>
+      <div class="detail-header-right">${weekActions}</div>
+    </div>
+    <div class="detail-coverage-strip">
+      <span class="coverage-text">${filled}/${total} slot assegnati</span>
+      <div class="coverage-bar-track">
+        <div class="coverage-bar-fill" style="width:${pct}%"></div>
+      </div>
+      <span class="coverage-pct ${pctClass}">${pctLabel}</span>
+    </div>
+    <div class="detail-body" style="overflow-y:auto;">${partsHtml}</div>
+  `;
+
+  updateRightPanel();
+}
+
+/* ─── RIGHT PANEL ────────────────────────── */
+function updateRightPanel() {
+  const prog = PROGRAMS[currentProgId];
+  let total = 0, filled = 0;
+  prog.weeks.forEach(w => w.parts.forEach(p => {
+    total += p.slots; filled += p.assignments.length;
+  }));
+  const pct = total > 0 ? Math.round(filled/total*100) : 0;
+
+  document.getElementById('rp-num').textContent = filled;
+  document.getElementById('rp-denom').textContent = '/' + total;
+  document.getElementById('rp-bar').style.width = pct + '%';
+  document.getElementById('rp-pill-ok').textContent   = `${filled} assegnati`;
+  document.getElementById('rp-pill-warn').textContent  = `${total-filled} vuoti`;
+}
+
+/* ─── STATUS BAR ─────────────────────────── */
+function updateStatusBar() {
+  const prog = PROGRAMS[currentProgId];
+  let total = 0, filled = 0;
+  prog.weeks.forEach(w => w.parts.forEach(p => {
+    total += p.slots; filled += p.assignments.length;
+  }));
+  document.getElementById('sb-program').textContent = '📅 ' + prog.label;
+  document.getElementById('sb-coverage').textContent = `${filled}/${total} slot assegnati`;
+  const w = prog.weeks.find(x => x.id === selectedWeekId);
+  document.getElementById('sb-week').textContent = w ? w.full : 'Nessuna settimana selezionata';
+}
+
+/* ─── CONTEXT MENU — WEEK ───────────────── */
+function openCtx(e, weekId) {
+  e.preventDefault();
+  ctxWeekId = weekId;
+  const m = document.getElementById('ctx-menu');
+  m.style.left = e.clientX + 'px';
+  m.style.top  = e.clientY + 'px';
+  m.classList.add('show');
+}
+function closeCtx() { document.getElementById('ctx-menu').classList.remove('show'); }
+function ctxAct(action) {
+  const msgs = { modifica:'Editor parti aperto', salta:'Settimana saltata', svuota:'Assegnazioni rimosse' };
+  showToast(msgs[action]);
+  closeCtx();
+}
+document.addEventListener('click', closeCtx);
+
+/* ─── PICKER ─────────────────────────────── */
+function openPicker(weekId, partId, slotIdx) {
+  pendingSlot = { weekId, partId, slotIdx };
+  const prog = PROGRAMS[currentProgId];
+  const week = prog.weeks.find(w=>w.id===weekId);
+  const part = week.parts.find(p=>p.id===partId);
+  const role = part.slots > 1 ? (slotIdx===0 ? 'Proclamatore' : 'Assistente') : null;
+  document.getElementById('picker-title').textContent = part.title;
+  document.getElementById('picker-sub').textContent = role ? `Slot: ${role}` : 'Seleziona il proclamatore';
+  document.getElementById('picker-search').value = '';
+  renderPersonRows('');
+  document.getElementById('picker-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('picker-search').focus(), 50);
+}
+function closePicker(e) {
+  if (!e || e.target === document.getElementById('picker-overlay'))
+    document.getElementById('picker-overlay').classList.remove('show');
+}
+function filterPersons(val) { renderPersonRows(val); }
+function setSort(mode) {
+  sortMode = mode;
+  document.getElementById('sort-global').classList.toggle('active', mode==='global');
+  document.getElementById('sort-part').classList.toggle('active', mode==='part');
+  renderPersonRows(document.getElementById('picker-search').value);
+}
+function formatWeeks(n) {
+  if (n === null) return '—';
+  if (n === 0)   return 'Questa sett.';
+  return `${n} sett. fa`;
+}
+function renderPersonRows(term) {
+  let list = PERSONS.filter(p => p.name.toLowerCase().includes(term.toLowerCase()));
+  if (sortMode === 'global') {
+    list = list.sort((a,b) => (b.lastGlobal??999) - (a.lastGlobal??999));
+  } else {
+    list = list.sort((a,b) => (b.lastPart??999) - (a.lastPart??999));
+  }
+  document.getElementById('person-rows').innerHTML = list.map(p => `
+    <div class="table-row" onclick="assignPerson('${p.name}')">
+      <div>
+        <div class="td-name">${p.name}</div>
+      </div>
+      <div class="td-num">${formatWeeks(p.lastGlobal)}</div>
+      <div class="td-num">${formatWeeks(p.lastPart)}</div>
+      <div class="td-cooldown ${p.cooldown ? 'warn' : 'ok'}">
+        ${p.cooldown ? `${p.cooldownWeeks} sett. ⚠` : '✓ OK'}
+      </div>
+      <div class="td-action">
+        <button class="assign-btn">Assegna</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function assignPerson(name) {
+  if (!pendingSlot) return;
+  const { weekId, partId, slotIdx } = pendingSlot;
+  const prog = PROGRAMS[currentProgId];
+  const week = prog.weeks.find(w=>w.id===weekId);
+  const part = week.parts.find(p=>p.id===partId);
+  part.assignments[slotIdx] = name;
+  document.getElementById('picker-overlay').classList.remove('show');
+  pendingSlot = null;
+  renderWeekList();
+  renderDetail();
+  updateStatusBar();
+  showToast(`${name} assegnato/a`);
+}
+
+function removeAsgn(e, weekId, partId, slotIdx) {
+  e.stopPropagation();
+  const prog = PROGRAMS[currentProgId];
+  const week = prog.weeks.find(w=>w.id===weekId);
+  const part = week.parts.find(p=>p.id===partId);
+  const removed = part.assignments[slotIdx];
+  part.assignments.splice(slotIdx, 1);
+  renderWeekList();
+  renderDetail();
+  updateStatusBar();
+  showToast(`${removed} rimosso/a`);
+}
+
+/* ─── SLOT CONTEXT MENU ─────────────────── */
+function openSlotCtx(e, wId, pId, sIdx) {
+  e.preventDefault(); e.stopPropagation();
+  // For simplicity, just open picker
+  openPicker(wId, pId, sIdx);
+}
+
+/* ─── COLLAPSIBLE ────────────────────────── */
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+/* ═══════════════════════════════════════════
+   AUTO-SAVE SETTINGS
+   Debounce 800ms su input, immediato su blur.
+   Feedback: ✓ per campo appare 1.5s poi svanisce.
+   Nessun bottone "Salva".
+═══════════════════════════════════════════ */
+const _saveTimers = {};
+
+function scheduleAutosave(fieldId, input) {
+  clearTimeout(_saveTimers[fieldId]);
+  _saveTimers[fieldId] = setTimeout(() => autosaveNow(fieldId, input), 800);
+}
+
+function autosaveNow(fieldId, input) {
+  clearTimeout(_saveTimers[fieldId]);
+  const val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 1) { input.value = parseInt(input.min) || 1; return; }
+  showFieldSaved(fieldId);
+}
+
+function toggleSetting(fieldId, el) {
+  el.classList.toggle('off');
+  showFieldSaved(fieldId);
+}
+
+function showFieldSaved(fieldId) {
+  const el = document.getElementById('fs-' + fieldId);
+  if (!el) return;
+  el.classList.add('visible');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('visible'), 1500);
+}
+
+/* ═══════════════════════════════════════════
+   ISSUES PANEL
+   Issues = strutturali/persistenti (slot non risolti,
+   cooldown violati). Separati dai toast di successo.
+═══════════════════════════════════════════ */
+let ISSUES = [];
+
+function setIssues(issues) {
+  ISSUES = issues;
+  renderIssues();
+}
+
+function renderIssues() {
+  const section  = document.getElementById('issues-section');
+  const listEl   = document.getElementById('issues-list');
+  const countEl  = document.getElementById('issues-count');
+  const sbIssues = document.getElementById('sb-issues');
+  const sbCount  = document.getElementById('sb-issues-count');
+
+  if (ISSUES.length === 0) {
+    section.style.display  = 'none';
+    sbIssues.style.display = 'none';
+    return;
+  }
+
+  section.style.display  = '';
+  sbIssues.style.display = '';
+  countEl.textContent  = ISSUES.length;
+  sbCount.textContent  = ISSUES.length;
+
+  listEl.innerHTML = ISSUES.map(issue => `
+    <div class="issue-row" onclick="selectWeek('${issue.weekId}')">
+      <div class="issue-label">${issue.label}</div>
+      <div class="issue-detail">${issue.detail}</div>
+    </div>
+  `).join('');
+}
+
+function scrollToIssues() {
+  document.getElementById('issues-section').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  document.getElementById('issues-panel').classList.add('open');
+}
+
+/* ─── AUTO ASSIGN ────────────────────────── */
+function doAutoAssign() {
+  const prog = PROGRAMS[currentProgId];
+  let count = 0;
+  const unresolved = [];
+  prog.weeks.forEach(w => {
+    if (w.skipped) return;
+    w.parts.forEach(p => {
+      for (let s = 0; s < p.slots; s++) {
+        if (!p.assignments[s]) {
+          const available = PERSONS.filter(x => !x.cooldown && !Object.values(prog.weeks)
+            .flatMap(ww=>ww.parts).flatMap(pp=>pp.assignments).includes(x.name));
+          if (available.length) { p.assignments[s] = available[0].name; count++; }
+          else {
+            unresolved.push({
+              weekId: w.id,
+              weekLabel: w.label,
+              partTitle: p.title,
+              slot: s + 1,
+              reason: p.slots > 1 ? `Nessun proclamatore disponibile (slot ${s+1})` : 'Nessun proclamatore disponibile'
+            });
+          }
+        }
+      }
+    });
+  });
+  setIssues(unresolved.map(u => ({
+    id: `${u.weekId}-${u.partTitle}-${u.slot}`,
+    weekId: u.weekId,
+    label: `${u.weekLabel} — ${u.partTitle}`,
+    detail: u.reason
+  })));
+  renderWeekList();
+  if (selectedWeekId) renderDetail();
+  updateRightPanel();
+  updateStatusBar();
+  const msg = count > 0
+    ? `Autoassegnazione: ${count} slot risolti` + (unresolved.length ? `, ${unresolved.length} non risolti` : '')
+    : unresolved.length ? `Autoassegnazione: nessun slot risolvibile — ${unresolved.length} problemi` : 'Tutti i slot già assegnati';
+  showToast(msg, unresolved.length > 0 && count === 0);
+}
+
+/* ─── TOAST ──────────────────────────────── */
+function showToast(msg, danger=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = danger ? 'var(--danger)' : 'var(--ink)';
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ─── KEYBOARD ───────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.metaKey && e.key === 'Enter') { doAutoAssign(); return; }
+  if (e.key === 'Escape') {
+    document.getElementById('picker-overlay').classList.remove('show');
+    closeCtx();
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const prog = PROGRAMS[currentProgId];
+    const idx = prog.weeks.findIndex(w=>w.id===selectedWeekId);
+    if (e.key === 'ArrowDown' && idx < prog.weeks.length-1) selectWeek(prog.weeks[idx+1].id);
+    if (e.key === 'ArrowUp'   && idx > 0)                   selectWeek(prog.weeks[idx-1].id);
+    e.preventDefault();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
