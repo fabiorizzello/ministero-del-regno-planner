@@ -655,10 +655,10 @@ private fun SketchWeekListItem(week: FkWeek, selected: Boolean, onClick: () -> U
 
 @Composable
 private fun SketchWeekTag(label: String, color: Color) {
-    val sketch = MaterialTheme.workspaceSketch
     Surface(
-        shape = RoundedCornerShape(3.dp),
+        shape = RoundedCornerShape(999.dp),
         color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
     ) {
         Text(
             label,

@@ -108,7 +108,8 @@ internal fun PartEditorDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
-            tonalElevation = 0.dp,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
             border = BorderStroke(1.dp, sketch.lineSoft),
             color = sketch.surface,
             modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
@@ -246,7 +247,7 @@ internal fun PartEditorDialog(
                         label = if (isSaving) "Salvataggio..." else "Salva",
                         onClick = onSave,
                         enabled = !isSaving,
-                        tone = DesktopInlineActionTone.Positive,
+                        tone = DesktopInlineActionTone.Primary,
                     )
                 }
             }
@@ -463,7 +464,7 @@ internal fun WeekSidebarItem(
     }
     val bgColor = when {
         selected -> sketch.accentSoft
-        hovered -> sketch.surface
+        hovered -> sketch.lineSoft.copy(alpha = 0.28f)
         else -> Color.Transparent
     }
 
@@ -524,7 +525,11 @@ internal fun WeekSidebarItem(
 
 @Composable
 private fun WeekSidebarTag(label: String, color: Color) {
-    Surface(shape = RoundedCornerShape(3.dp), color = color.copy(alpha = 0.14f)) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
@@ -641,7 +646,7 @@ private fun WeekHdrButton(
 ) {
     Surface(
         modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(8.dp),
         color = Color.Transparent,
         border = BorderStroke(1.dp, border),
     ) {
@@ -726,7 +731,7 @@ internal fun SidebarFooterButton(
             .fillMaxWidth()
             .handCursorOnHover(enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(8.dp),
         color = sketch.surface,
         border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
     ) {
@@ -760,7 +765,7 @@ internal fun ProgramRightPanelButton(
         modifier = modifier
             .handCursorOnHover(enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(8.dp),
         color = if (isPrimary) sketch.accent.copy(alpha = alpha) else sketch.surfaceMuted.copy(alpha = alpha),
         border = BorderStroke(
             1.dp,
@@ -864,7 +869,7 @@ internal fun ProgramCoverageCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (completeWeeks > 0) CovPill("$completeWeeks complete", sketch.ok)
                     if (partialWeeks > 0) CovPill("$partialWeeks parziali", sketch.warn)
-                    if (emptyWeeks > 0) CovPill("$emptyWeeks vuote", sketch.bad)
+                    if (emptyWeeks > 0) CovPill("$emptyWeeks vuote", sketch.inkMuted)
                 }
             }
         }
@@ -1028,7 +1033,7 @@ internal fun ProgramDangerButton(
             .fillMaxWidth()
             .handCursorOnHover(enabled)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(8.dp),
         color = sketch.surface,
         border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f * alpha)),
     ) {
