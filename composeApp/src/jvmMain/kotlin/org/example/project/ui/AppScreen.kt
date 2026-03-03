@@ -494,11 +494,7 @@ private fun ToolbarIconAction(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val alpha = if (enabled) 1f else 0.45f
-    val bg = if (isDestructive) {
-        sketch.surface
-    } else {
-        sketch.surface
-    }
+
     val border = if (isDestructive) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.65f * alpha)
     } else {
@@ -511,7 +507,7 @@ private fun ToolbarIconAction(
     }
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = bg,
+        color = sketch.surface,
         border = BorderStroke(1.dp, border),
         modifier = modifier
             .handCursorOnHover(enabled = enabled)

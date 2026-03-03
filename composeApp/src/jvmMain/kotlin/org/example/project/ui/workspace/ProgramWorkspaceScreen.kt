@@ -367,9 +367,7 @@ fun ProgramWorkspaceScreen() {
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .fillMaxWidth(),
             ) {
                 // ── Left sidebar ──────────────────────────────────────────────────────
                 Column(
@@ -754,12 +752,11 @@ fun ProgramWorkspaceScreen() {
 
             // Status bar
             if (selectedProgram != null) {
-                val sb = sketch
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(24.dp)
-                        .background(sb.accent)
+                        .background(sketch.accent)
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
