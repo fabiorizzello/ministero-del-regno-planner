@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TaskAlt
@@ -69,9 +68,13 @@ fun PartAssignmentCard(
         else -> 2
     }
     val borderColor = when (statusTone) {
-        0 -> sketch.bad.copy(alpha = 0.58f)
+        0 -> sketch.lineSoft
         1 -> sketch.warn.copy(alpha = 0.6f)
         else -> sketch.ok.copy(alpha = 0.55f)
+    }
+    val badgeColor = when (statusTone) {
+        0 -> sketch.inkMuted
+        else -> borderColor
     }
     val containerColor = sketch.surface
     val statusLabel = when (statusTone) {
@@ -108,14 +111,14 @@ fun PartAssignmentCard(
                     }
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = borderColor.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, borderColor.copy(alpha = 0.4f)),
+                        color = badgeColor.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f)),
                     ) {
                         Text(
                             text = statusLabel,
                             modifier = Modifier.padding(horizontal = spacing.xs, vertical = 1.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = borderColor,
+                            color = badgeColor,
                         )
                     }
                 }
@@ -285,24 +288,27 @@ private fun MissingAssignmentChip(
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
     val shape = RoundedCornerShape(6.dp)
-    val containerColor = if (readOnly) {
-        sketch.surfaceMuted
-    } else {
-        sketch.warn.copy(alpha = 0.12f)
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val containerColor = when {
+        readOnly -> sketch.surfaceMuted
+        hovered -> sketch.accentSoft
+        else -> Color.Transparent
     }
-    val borderColor = if (readOnly) {
-        sketch.lineSoft
-    } else {
-        sketch.bad.copy(alpha = 0.55f)
+    val borderColor = when {
+        readOnly -> sketch.lineSoft
+        hovered -> sketch.accent.copy(alpha = 0.7f)
+        else -> sketch.lineSoft
     }
-    val contentColor = if (readOnly) {
-        sketch.inkMuted
-    } else {
-        sketch.bad
+    val contentColor = when {
+        readOnly -> sketch.inkMuted
+        hovered -> sketch.accent
+        else -> sketch.inkMuted
     }
 
     Row(
         modifier = modifier
+            .hoverable(interactionSource)
             .clip(shape)
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
@@ -312,14 +318,14 @@ private fun MissingAssignmentChip(
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
         Icon(
-            if (readOnly) Icons.Filled.Person else Icons.Filled.ErrorOutline,
+            if (readOnly) Icons.Filled.Person else Icons.Filled.Add,
             contentDescription = "Assegna",
             modifier = Modifier.size(16.dp),
             tint = contentColor,
         )
         Text(
-            text = if (readOnly) "Slot vuoto" else "Assegna slot",
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            text = if (readOnly) "—" else "Assegna",
+            style = MaterialTheme.typography.labelMedium,
             color = contentColor,
         )
     }

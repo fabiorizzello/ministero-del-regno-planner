@@ -162,7 +162,7 @@ WHERE active = 1
 ORDER BY last_name, first_name;
 
 searchProclaimers:
-SELECT id, first_name, last_name, sex, active
+SELECT id, first_name, last_name, sex, active, suspended
 FROM person
 WHERE (
     ? = 1

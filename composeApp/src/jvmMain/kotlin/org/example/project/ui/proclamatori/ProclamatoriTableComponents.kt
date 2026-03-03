@@ -521,7 +521,7 @@ internal fun ProclamatoriDataRow(
 
         // Stato badge
         Box(modifier = Modifier.weight(1.2f)) {
-            ProclamatoreStatusBadge(proclamatore.attivo)
+            ProclamatoreStatusBadge(attivo = proclamatore.attivo, sospeso = proclamatore.sospeso)
         }
 
         // Hover-reveal icon actions
@@ -581,11 +581,13 @@ internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso, att
 }
 
 @Composable
-internal fun ProclamatoreStatusBadge(attivo: Boolean) {
+internal fun ProclamatoreStatusBadge(attivo: Boolean, sospeso: Boolean) {
     val sketch = MaterialTheme.workspaceSketch
-    val bgColor = if (attivo) sketch.ok.copy(alpha = 0.12f) else sketch.warn.copy(alpha = 0.12f)
-    val dotColor = if (attivo) sketch.ok else sketch.warn
-    val label = if (attivo) "Attivo" else "Sospeso"
+    val (bgColor, dotColor, label) = when {
+        sospeso -> Triple(sketch.warn.copy(alpha = 0.12f), sketch.warn, "Sospeso")
+        attivo -> Triple(sketch.ok.copy(alpha = 0.12f), sketch.ok, "Attivo")
+        else -> Triple(sketch.bad.copy(alpha = 0.12f), sketch.bad, "Inattivo")
+    }
 
     Row(
         modifier = Modifier

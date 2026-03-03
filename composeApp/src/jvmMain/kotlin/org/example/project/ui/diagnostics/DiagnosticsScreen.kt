@@ -146,7 +146,7 @@ fun DiagnosticsScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    Button(
+                    OutlinedButton(
                         onClick = { viewModel.exportDiagnosticsBundle() },
                         enabled = !state.isExporting && !state.isCleaning,
                         modifier = Modifier
