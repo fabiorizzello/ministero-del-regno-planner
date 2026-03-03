@@ -63,29 +63,23 @@ class SqlDelightAssignmentStore(
             // Choose ranking queries based on slot:
             // Slot 1: only slot-1 history
             // Slot 2+: all slots (1+2) history
-            val globalRanking: Map<String, String?> = if (slot == 1) {
-                database.ministeroDatabaseQueries
-                    .lastSlot1GlobalAssignmentPerPerson()
-                    .executeAsList()
-                    .associate { it.person_id to it.last_week_date }
-            } else {
-                database.ministeroDatabaseQueries
-                    .lastGlobalAssignmentPerPerson()
-                    .executeAsList()
-                    .associate { it.person_id to it.last_week_date }
-            }
+            // Global ranking: any role (used for scoring + cooldown check)
+            val globalRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .lastGlobalAssignmentPerPerson()
+                .executeAsList()
+                .associate { it.person_id to it.last_week_date }
 
-            val partTypeRanking: Map<String, String?> = if (slot == 1) {
-                database.ministeroDatabaseQueries
-                    .lastSlot1PartTypeAssignmentPerPerson(partTypeId.value)
-                    .executeAsList()
-                    .associate { it.person_id to it.last_week_date }
-            } else {
-                database.ministeroDatabaseQueries
-                    .lastPartTypeAssignmentPerPerson(partTypeId.value)
-                    .executeAsList()
-                    .associate { it.person_id to it.last_week_date }
-            }
+            // Part-type ranking: any role (used for scoring)
+            val partTypeRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .lastPartTypeAssignmentPerPerson(partTypeId.value)
+                .executeAsList()
+                .associate { it.person_id to it.last_week_date }
+
+            // Conductor ranking: slot-1 only — used to determine if last assignment was as conductor
+            val conductorRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .lastSlot1GlobalAssignmentPerPerson()
+                .executeAsList()
+                .associate { it.person_id to it.last_week_date }
 
             val allActive = database.ministeroDatabaseQueries
                 .allAssignableProclaimers(::mapProclamatoreAssignableRow)
@@ -94,6 +88,7 @@ class SqlDelightAssignmentStore(
             allActive.map { p ->
                 val lastGlobalDate = globalRanking[p.id.value]
                 val lastPartDate = partTypeRanking[p.id.value]
+                val lastConductorDate = conductorRanking[p.id.value]
 
                 SuggestedProclamatore(
                     proclamatore = p,
@@ -101,6 +96,9 @@ class SqlDelightAssignmentStore(
                         ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
                     },
                     lastForPartTypeWeeks = lastPartDate?.let {
+                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
+                    },
+                    lastConductorWeeks = lastConductorDate?.let {
                         ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
                     },
                     lastGlobalDays = lastGlobalDate?.let {

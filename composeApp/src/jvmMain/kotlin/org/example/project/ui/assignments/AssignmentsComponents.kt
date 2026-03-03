@@ -15,10 +15,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -513,7 +516,7 @@ private fun SuggestionHeaderRow() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .background(MaterialTheme.workspaceSketch.surfaceMuted)
             .padding(horizontal = spacing.lg, vertical = spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -549,12 +552,19 @@ private fun SuggestionRow(
     onAssign: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val rowInteractionSource = remember { MutableInteractionSource() }
     val isHovered by rowInteractionSource.collectIsHoveredAsState()
-    val rowBackgroundColor = if (isHovered) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-    } else {
-        backgroundColor
+
+    // Two-step confirm: first click arms the button, second click fires onAssign.
+    // Applies only when the person is in cooldown (which implies strictCooldown=false,
+    // since the use case filters them out otherwise).
+    var awaitingCooldownConfirm by remember { mutableStateOf(false) }
+
+    val rowBackgroundColor = when {
+        isHovered -> sketch.accentSoft
+        suggestion.inCooldown -> sketch.warn.copy(alpha = 0.07f)
+        else -> backgroundColor
     }
 
     Row(
@@ -585,30 +595,54 @@ private fun SuggestionRow(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        val cooldownLabel = if (suggestion.inCooldown) {
-            "${suggestion.cooldownRemainingWeeks} sett."
-        } else {
-            "-"
-        }
-        Text(
-            text = cooldownLabel,
+        // Cooldown column — warning icon + amber text when overriding cooldown
+        Row(
             modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (suggestion.inCooldown) {
-                MaterialTheme.colorScheme.error
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            if (suggestion.inCooldown) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = sketch.warn,
+                )
+                Text(
+                    text = "${suggestion.cooldownRemainingWeeks} sett.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.warn,
+                )
             } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        )
+                Text(
+                    text = "-",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // Button — two-step confirm when overriding cooldown
+        val buttonColor = if (suggestion.inCooldown) sketch.warn else MaterialTheme.colorScheme.primary
+        val buttonLabel = when {
+            isAssigning -> "..."
+            suggestion.inCooldown && awaitingCooldownConfirm -> "Conferma"
+            else -> "Assegna"
+        }
+        val buttonIcon = if (suggestion.inCooldown && awaitingCooldownConfirm) Icons.Filled.Warning else Icons.Filled.Add
+        val buttonAction: () -> Unit = if (suggestion.inCooldown && !awaitingCooldownConfirm) {
+            { awaitingCooldownConfirm = true }
+        } else {
+            onAssign
+        }
         Surface(
             modifier = Modifier
                 .width(BUTTON_COLUMN_WIDTH)
                 .height(36.dp)
                 .handCursorOnHover(enabled = !isAssigning)
-                .clickable(enabled = !isAssigning, onClick = onAssign),
+                .clickable(enabled = !isAssigning, onClick = buttonAction),
             shape = RoundedCornerShape(6.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isAssigning) 0.35f else 0.92f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)),
+            color = buttonColor.copy(alpha = if (isAssigning) 0.35f else 0.92f),
+            border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.9f)),
         ) {
             Row(
                 modifier = Modifier
@@ -618,16 +652,16 @@ private fun SuggestionRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Filled.Add,
-                    contentDescription = "Assegna",
+                    buttonIcon,
+                    contentDescription = buttonLabel,
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = Color.White,
                 )
                 Spacer(Modifier.width(MaterialTheme.spacing.xs))
                 Text(
-                    text = if (isAssigning) "..." else "Assegna",
+                    text = buttonLabel,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,

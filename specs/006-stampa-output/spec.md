@@ -24,7 +24,7 @@ avviare la stampa → verificare creazione PDF in export con nome e contenuto co
 2. **Given** una settimana con slot non assegnati, **When** si stampa il programma,
    **Then** nel PDF gli slot mancanti appaiono come "Non assegnato".
 3. **Given** una parte con più slot, **When** si stampa, **Then** slot 1 è etichettato
-   "Conducente" e slot successivi "Assistente".
+   "Studente" e slot successivi "Assistente".
 4. **Given** il programma non esiste, **When** si avvia la stampa, **Then** l'operazione
    termina con errore "Programma non trovato".
 
@@ -142,3 +142,9 @@ immagini → verificare che venga prodotto un PNG per ciascun proclamatore coinv
 - Q: Esiste solo la stampa mensile? → A: No. Oltre a `StampaProgrammaUseCase`, il codice
   implementa anche `GeneraPdfAssegnazioni` (settimanale) e `GeneraImmaginiAssegnazioni`
   (schede PNG per proclamatore).
+
+### Session 2026-03-03
+
+- Q: Qual è il label di ruolo per slot 1 nei PDF? → A: "Studente" per slot 1,
+  "Assistente" per slot >= 2. Uniformato in `StampaProgrammaUseCase`, `GeneraPdfAssegnazioni`
+  e `GeneraImmaginiAssegnazioni`. Parti con `peopleCount = 1` non mostrano etichetta ruolo.

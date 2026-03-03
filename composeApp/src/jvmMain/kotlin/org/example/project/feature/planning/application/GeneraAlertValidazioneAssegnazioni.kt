@@ -50,41 +50,50 @@ class GeneraAlertValidazioneAssegnazioni(
                 }
             }
 
+            // Pre-fetch ranking once per unique (partTypeId, slot) combo in this week —
+            // avoids N+1 queries (one per assignment).
+            val rankingByPartSlot = assignments
+                .mapNotNull { a -> weekPlan.parts.find { it.id == a.weeklyPartId }?.let { part -> part.partType.id to a.slot } }
+                .distinct()
+                .associate { (ptId, slot) ->
+                    (ptId to slot) to assignmentRanking.suggestedProclamatori(
+                        partTypeId = ptId,
+                        slot = slot,
+                        referenceDate = weekPlan.weekStartDate,
+                    )
+                }
+
             // Check cooldown and eligibility for each assignment
             for (assignment in assignments) {
                 val part = weekPlan.parts.find { it.id == assignment.weeklyPartId } ?: continue
 
                 // Check cooldown violation
-                val cooldownWeeks = if (assignment.slot == 1) {
+                val suggestions = rankingByPartSlot[part.partType.id to assignment.slot].orEmpty()
+                val personSuggestion = suggestions.find { it.proclamatore.id == assignment.personId }
+                val globalWeeks = personSuggestion?.lastGlobalWeeks ?: Int.MAX_VALUE
+                val lastWasConductor = personSuggestion != null &&
+                    personSuggestion.lastConductorWeeks != null &&
+                    personSuggestion.lastGlobalWeeks != null &&
+                    personSuggestion.lastConductorWeeks == personSuggestion.lastGlobalWeeks
+                val cooldownWeeks = if (lastWasConductor && assignment.slot == 1) {
                     settings.leadCooldownWeeks
                 } else {
                     settings.assistCooldownWeeks
                 }
 
-                if (cooldownWeeks > 0) {
-                    val suggestions = assignmentRanking.suggestedProclamatori(
-                        partTypeId = part.partType.id,
-                        slot = assignment.slot,
-                        referenceDate = weekPlan.weekStartDate,
+                if (cooldownWeeks > 0 && globalWeeks < cooldownWeeks) {
+                    alerts.add(
+                        PlanningAlert(
+                            type = AlertType.COOLDOWN_VIOLATION,
+                            weekKeys = listOf(weekPlan.weekStartDate.toString()),
+                            personName = assignment.fullName,
+                            partTypeName = part.partType.label,
+                        ),
                     )
-                    val personSuggestion = suggestions.find { it.proclamatore.id == assignment.personId }
-                    val globalWeeks = personSuggestion?.lastGlobalWeeks ?: Int.MAX_VALUE
-
-                    if (globalWeeks < cooldownWeeks) {
-                        alerts.add(
-                            PlanningAlert(
-                                type = AlertType.COOLDOWN_VIOLATION,
-                                weekKeys = listOf(weekPlan.weekStartDate.toString()),
-                                personName = assignment.fullName,
-                                partTypeName = part.partType.label,
-                            ),
-                        )
-                    }
                 }
 
                 // Check eligibility
                 if (assignment.slot == 1) {
-                    // Lead role - check lead eligibility
                     val eligibilities = eligibilityStore.listLeadEligibility(assignment.personId)
                     val canLead = eligibilities.any {
                         it.partTypeId == part.partType.id && it.canLead
@@ -100,7 +109,6 @@ class GeneraAlertValidazioneAssegnazioni(
                         )
                     }
                 } else {
-                    // Assist role - check puoAssistere
                     val proclamatore = proclamatoriStore.load(assignment.personId)
                     if (proclamatore != null && !proclamatore.puoAssistere) {
                         alerts.add(

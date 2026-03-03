@@ -89,6 +89,7 @@ fun main() {
         Window(
             state = windowState,
             undecorated = true,
+            transparent = true,
             onCloseRequest = {
                 settingsStore.save(windowState.toSettingsSnapshot())
                 exitApplication()

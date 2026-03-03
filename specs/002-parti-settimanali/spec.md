@@ -112,9 +112,10 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - `AggiornaDatiRemotiUseCase` — flusso in due fasi:
   1. `fetchAndImport()`: scarica tipi di parte e schemi; per le settimane già presenti
      localmente restituisce `weeksNeedingConfirmation` invece di sovrascriverle.
-  2. `importSchemas(schemas)`: sovrascrive le settimane confermate dall'utente (elimina
-     il WeekPlan esistente e ricrea da zero). L'utente deve confermare esplicitamente
-     prima della fase 2.
+  2. `importSchemas(schemas)`: valida prima tutte le date (fuori da DB), poi esegue
+     eliminazione + ricreazione di ogni settimana dentro **una singola transazione**.
+     Se un'operazione fallisce a metà, il DB torna allo stato precedente. L'utente deve
+     confermare esplicitamente prima della fase 2.
 
 ## Requirements *(mandatory)*
 
@@ -137,9 +138,9 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   settimanali da sorgente remoto su richiesta, in due fasi:
   (1) `fetchAndImport`: scarica e applica; le settimane già presenti vengono segnalate
   in `weeksNeedingConfirmation` senza sovrascrivere;
-  (2) `importSchemas`: sovrascrive le settimane confermate dall'utente dopo conferma
-  esplicita. Ogni schema con settimana già presente DEVE essere confermato prima della
-  sovrascrittura.
+  (2) `importSchemas`: valida tutte le date upfront, poi sovrascrive le settimane
+  confermate in **una singola transazione atomica** — se una qualsiasi sovrascrittura
+  fallisce, l'intera fase 2 viene annullata senza modifiche parziali al DB.
 - **FR-008**: Il sistema MUST caricare un WeekPlan per data di inizio settimana, o
   restituire null se non esiste.
 
@@ -182,3 +183,9 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   `importSchemas(schemas)` è la seconda fase (sovrascrive dopo conferma utente).
 - Q: SexRule.LIBERO nella spec 002 era errata? → A: Sì — aggiornata a: stesso sesso
   OPPURE sesso diverso solo se CONIUGE/GENITORE_FIGLIO (allineato a spec 001 e 005).
+
+### Session 2026-03-03
+
+- Q: `importSchemas` era atomica? → A: No — ora è stata resa atomica: validazione date
+  upfront (fuori transazione, fail-fast), poi tutta la fase di delete+create dentro una
+  singola transazione `TransactionRunner`.

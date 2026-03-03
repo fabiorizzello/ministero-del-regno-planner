@@ -34,5 +34,5 @@ val weeklyPartsModule = module {
     single { RimuoviParteUseCase(get()) }
     single { RiordinaPartiUseCase(get()) }
     single { CercaTipiParteUseCase(get()) }
-    single { AggiornaDatiRemotiUseCase(get(), get(), get()) }
+    single { AggiornaDatiRemotiUseCase(get(), get(), get(), get()) }
 }

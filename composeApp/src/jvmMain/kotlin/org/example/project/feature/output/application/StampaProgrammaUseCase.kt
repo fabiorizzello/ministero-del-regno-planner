@@ -32,7 +32,7 @@ class StampaProgrammaUseCase(
                 (1..part.partType.peopleCount).map { slot ->
                     val assigned = assignmentByPartAndSlot[part.id.value to slot]?.fullName ?: "Non assegnato"
                     val role = if (part.partType.peopleCount > 1) {
-                        if (slot == 1) "Conducente" else "Assistente"
+                        if (slot == 1) "Studente" else "Assistente"
                     } else {
                         ""
                     }

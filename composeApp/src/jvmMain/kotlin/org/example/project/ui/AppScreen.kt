@@ -3,6 +3,9 @@ package org.example.project.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -155,6 +160,7 @@ fun WindowScope.AppScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .clip(RoundedCornerShape(workspaceTokens.windowRadius))
                             .background(windowBackdrop),
                     ) {
                         Surface(
@@ -173,7 +179,7 @@ fun WindowScope.AppScreen(
                                 ) {
                                     WindowDraggableArea(
                                         modifier = Modifier
-                                            .width(180.dp)
+                                            .weight(1f)
                                             .fillMaxHeight()
                                             .windowToggleOnDoubleClick(
                                                 enabled = topBarPolicy.canToggleWindowOnDoubleClick(TopBarHitTarget.NonInteractive),
@@ -181,165 +187,139 @@ fun WindowScope.AppScreen(
                                             ),
                                     ) {
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = spacing.xs),
+                                            modifier = Modifier.fillMaxSize(),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                                         ) {
                                             Surface(
                                                 shape = RoundedCornerShape(workspaceTokens.controlRadius),
-                                                color = sketch.surface,
-                                                border = BorderStroke(1.dp, sketch.lineSoft),
+                                                color = sketch.toolbarSelectedBg,
+                                                border = BorderStroke(1.dp, sketch.toolbarSelectedBorder.copy(alpha = 0.55f)),
                                             ) {
                                                 Text(
                                                     text = "S",
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                                     style = MaterialTheme.typography.labelMedium,
-                                                    color = sketch.accent,
+                                                    color = sketch.toolbarSelectedInk,
                                                 )
                                             }
                                             Text(
                                                 text = "Scuola di ministero",
                                                 style = MaterialTheme.typography.titleMedium,
-                                                color = sketch.ink,
+                                                color = sketch.toolbarInk,
                                             )
-                                        }
-                                    }
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                ) {
-                                    if (topBarPolicy.canStartWindowDrag(TopBarHitTarget.NonInteractive)) {
-                                        WindowDraggableArea(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .windowToggleOnDoubleClick(
-                                                    enabled = topBarPolicy.canToggleWindowOnDoubleClick(TopBarHitTarget.NonInteractive),
-                                                    onToggle = onRequestToggleMaximize,
-                                                ),
-                                        ) {
-                                            Box(modifier = Modifier.fillMaxSize())
-                                        }
-                                    }
-
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        navigationSections.forEach { section ->
-                                            TopBarSectionButton(
-                                                selected = currentSection == section,
-                                                onClick = { navigateToSection(section) },
-                                                section = section,
-                                                tag = when (section) {
-                                                    AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
-                                                    AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
-                                                    AppSection.DIAGNOSTICS -> TAG_SECTION_DIAGNOSTICA
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
-                                ) {
-                                    Box {
-                                        ToolbarIconAction(
-                                            onClick = {
-                                                draftUiScale = uiScale
-                                                isSizeMenuExpanded = true
-                                            },
-                                            icon = Icons.Filled.FormatSize,
-                                            contentDescription = "Dimensione testo",
-                                        )
-
-                                        DropdownMenu(
-                                            expanded = isSizeMenuExpanded,
-                                            onDismissRequest = {
-                                                applyUiScale(draftUiScale)
-                                                isSizeMenuExpanded = false
-                                            },
-                                            properties = PopupProperties(focusable = true),
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .width(300.dp)
-                                                    .padding(spacing.md),
-                                                verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                val draftPercentage = draftUiScale.toUiScalePercentage()
-                                                Text("Dimensione testo")
-                                                Text("$draftPercentage%", style = MaterialTheme.typography.bodySmall)
-                                                Slider(
-                                                    value = draftUiScale,
-                                                    onValueChange = { draftUiScale = snapUiScale(it) },
-                                                    onValueChangeFinished = { applyUiScale(draftUiScale) },
-                                                    valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                                    steps = UI_SCALE_SLIDER_STEPS,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                ) {
-                                                    Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                    Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                }
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .horizontalScroll(rememberScrollState()),
-                                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                                ) {
-                                                    UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
-                                                        val presetScale = preset.toUiScale()
-                                                        ScaleMenuButton(
-                                                            onClick = { applyUiScale(presetScale) },
-                                                            enabled = draftPercentage != preset,
-                                                            label = "$preset%",
-                                                        )
-                                                    }
-                                                }
-                                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                                                    ScaleMenuButton(
-                                                        onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                        label = "-$UI_SCALE_STEP_PERCENT%",
-                                                    )
-                                                    ScaleMenuButton(
-                                                        onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
-                                                        label = "+$UI_SCALE_STEP_PERCENT%",
+                                                navigationSections.forEach { section ->
+                                                    TopBarSectionButton(
+                                                        selected = currentSection == section,
+                                                        onClick = { navigateToSection(section) },
+                                                        section = section,
+                                                        tag = when (section) {
+                                                            AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
+                                                            AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
+                                                            AppSection.DIAGNOSTICS -> TAG_SECTION_DIAGNOSTICA
+                                                        },
                                                     )
                                                 }
                                             }
+                                            Spacer(Modifier.weight(1f))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+                                            ) {
+                                                Box {
+                                                    ToolbarIconAction(
+                                                        onClick = {
+                                                            draftUiScale = uiScale
+                                                            isSizeMenuExpanded = true
+                                                        },
+                                                        icon = Icons.Filled.FormatSize,
+                                                        contentDescription = "Dimensione testo",
+                                                    )
+                                                    DropdownMenu(
+                                                        expanded = isSizeMenuExpanded,
+                                                        onDismissRequest = {
+                                                            applyUiScale(draftUiScale)
+                                                            isSizeMenuExpanded = false
+                                                        },
+                                                        properties = PopupProperties(focusable = true),
+                                                    ) {
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .width(300.dp)
+                                                            .padding(spacing.md),
+                                                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                    ) {
+                                                        val draftPercentage = draftUiScale.toUiScalePercentage()
+                                                        Text("Dimensione testo")
+                                                        Text("${draftPercentage}%", style = MaterialTheme.typography.bodySmall)
+                                                        Slider(
+                                                            value = draftUiScale,
+                                                            onValueChange = { draftUiScale = snapUiScale(it) },
+                                                            onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                            valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                            steps = UI_SCALE_SLIDER_STEPS,
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                        )
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                        ) {
+                                                            Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                            Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                        }
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .horizontalScroll(rememberScrollState()),
+                                                            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                        ) {
+                                                            UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                                val presetScale = preset.toUiScale()
+                                                                ScaleMenuButton(
+                                                                    onClick = { applyUiScale(presetScale) },
+                                                                    enabled = draftPercentage != preset,
+                                                                    label = "${preset}%",
+                                                                )
+                                                            }
+                                                        }
+                                                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                            ScaleMenuButton(
+                                                                onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                                enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
+                                                                label = "-${UI_SCALE_STEP_PERCENT}%",
+                                                            )
+                                                            ScaleMenuButton(
+                                                                onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                                enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
+                                                                label = "+${UI_SCALE_STEP_PERCENT}%",
+                                                            )
+                                                        }
+                                                    }
+                                                    }
+                                                }
+                                                WindowActionButton(
+                                                    onClick = onRequestMinimize,
+                                                    icon = Icons.Filled.Remove,
+                                                    contentDescription = "Minimizza finestra",
+                                                )
+                                                WindowActionButton(
+                                                    onClick = onRequestToggleMaximize,
+                                                    icon = if (isWindowMaximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
+                                                    contentDescription = if (isWindowMaximized) "Ripristina finestra" else "Massimizza finestra",
+                                                )
+                                                WindowActionButton(
+                                                    onClick = onRequestClose,
+                                                    icon = Icons.Filled.Close,
+                                                    contentDescription = "Chiudi finestra",
+                                                    isDestructive = true,
+                                                )
+                                            }
                                         }
                                     }
-
-                                    WindowActionButton(
-                                        onClick = onRequestMinimize,
-                                        icon = Icons.Filled.Remove,
-                                        contentDescription = "Minimizza finestra",
-                                    )
-                                    WindowActionButton(
-                                        onClick = onRequestToggleMaximize,
-                                        icon = if (isWindowMaximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
-                                        contentDescription = if (isWindowMaximized) "Ripristina finestra" else "Massimizza finestra",
-                                    )
-                                    WindowActionButton(
-                                        onClick = onRequestClose,
-                                        icon = Icons.Filled.Close,
-                                        contentDescription = "Chiudi finestra",
-                                        isDestructive = true,
-                                    )
-                                }
                             }
 
                             Box(
@@ -363,31 +343,36 @@ private fun TopBarSectionButton(
     tag: String,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val shape = RoundedCornerShape(MaterialTheme.workspaceTokens.controlRadius)
-    val containerColor = if (selected) {
-        sketch.accent.copy(alpha = 0.2f)
-    } else {
-        sketch.surface.copy(alpha = 0.6f)
+    val tokens = MaterialTheme.workspaceTokens
+    val shape = RoundedCornerShape(tokens.controlRadius)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    val containerColor = when {
+        selected -> sketch.toolbarSelectedBg
+        isHovered -> sketch.toolbarSurface
+        else -> Color.Transparent
     }
-    val borderColor = if (selected) {
-        sketch.accent.copy(alpha = 0.6f)
-    } else {
-        sketch.lineSoft
+    val border: BorderStroke? = when {
+        selected -> BorderStroke(1.dp, sketch.toolbarSelectedBorder)
+        isHovered -> BorderStroke(1.dp, sketch.toolbarBorder)
+        else -> null
     }
-    val contentColor = if (selected) {
-        sketch.accent
-    } else {
-        sketch.inkSoft
+    val contentColor = when {
+        selected -> sketch.toolbarSelectedInk
+        isHovered -> sketch.toolbarInk
+        else -> sketch.toolbarInkMuted
     }
 
     Surface(
         modifier = Modifier
             .testTag(tag)
             .handCursorOnHover()
+            .hoverable(interactionSource)
             .clickable(onClick = onClick),
         shape = shape,
         color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
+        border = border,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -421,6 +406,7 @@ private fun WindowActionButton(
         icon = icon,
         contentDescription = contentDescription,
         isDestructive = isDestructive,
+        fillHeight = true,
     )
 }
 
@@ -465,12 +451,16 @@ private fun ScaleMenuButton(
     enabled: Boolean,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
     val alpha = if (enabled) 1f else 0.45f
+
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = sketch.surface,
+        color = if (isHovered && enabled) sketch.accentSoft else sketch.surface,
         border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
         modifier = Modifier
+            .hoverable(interactionSource)
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
     ) {
@@ -490,39 +480,52 @@ private fun ToolbarIconAction(
     contentDescription: String,
     isDestructive: Boolean = false,
     enabled: Boolean = true,
+    fillHeight: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
     val alpha = if (enabled) 1f else 0.45f
 
-    val border = if (isDestructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = 0.65f * alpha)
-    } else {
-        sketch.lineSoft.copy(alpha = alpha)
+    val bg = when {
+        isDestructive && isHovered -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        isHovered -> sketch.toolbarSurface
+        else -> Color.Transparent
+    }
+    val border: BorderStroke? = when {
+        isDestructive -> BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f * alpha))
+        isHovered -> BorderStroke(1.dp, sketch.toolbarBorder.copy(alpha = alpha))
+        else -> null
     }
     val tint = if (isDestructive) {
-        MaterialTheme.colorScheme.error
+        MaterialTheme.colorScheme.error.copy(alpha = alpha)
     } else {
-        sketch.inkSoft
+        sketch.toolbarInkMuted.copy(alpha = alpha)
     }
+
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = sketch.surface,
-        border = BorderStroke(1.dp, border),
+        shape = RoundedCornerShape(if (fillHeight) 0.dp else 6.dp),
+        color = bg,
+        border = border,
         modifier = modifier
+            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
+            .hoverable(interactionSource)
             .handCursorOnHover(enabled = enabled)
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Box(
-            modifier = Modifier
-                .width(30.dp)
-                .height(24.dp),
+            modifier = if (fillHeight) {
+                Modifier.width(40.dp).fillMaxHeight()
+            } else {
+                Modifier.width(30.dp).height(24.dp)
+            },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = tint.copy(alpha = alpha),
+                tint = tint,
             )
         }
     }

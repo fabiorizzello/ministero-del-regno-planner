@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
@@ -703,7 +704,6 @@ fun ProgramWorkspaceScreen() {
                             Box(modifier = Modifier.testTag("program-assignment-settings")) {
                                 ProgramInlineAssignmentSettings(
                                     state = assignmentState.assignmentSettings,
-                                    isSaving = assignmentState.isSavingAssignmentSettings,
                                     onStrictCooldownChange = assignmentVM::setStrictCooldown,
                                     onLeadWeightChange = assignmentVM::setLeadWeight,
                                     onAssistWeightChange = assignmentVM::setAssistWeight,
@@ -756,7 +756,7 @@ fun ProgramWorkspaceScreen() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(24.dp)
-                        .background(sketch.accent)
+                        .background(sketch.panelLeft)
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -764,27 +764,27 @@ fun ProgramWorkspaceScreen() {
                     Text(
                         formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.88f),
+                        color = sketch.inkSoft,
                     )
-                    Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                    Box(Modifier.height(12.dp).width(1.dp).background(sketch.lineStrong.copy(alpha = 0.5f)))
                     if (selectedWeek != null) {
                         Text(
                             "Settimana ${formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))}",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                            color = Color.White.copy(alpha = 0.88f),
+                            color = sketch.inkSoft,
                         )
-                        Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                        Box(Modifier.height(12.dp).width(1.dp).background(sketch.lineStrong.copy(alpha = 0.5f)))
                     }
                     Text(
                         "$totalAssignments/$totalSlots slot",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.88f),
+                        color = sketch.inkSoft,
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         lifecycleState.today.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ITALIAN)),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = sketch.inkMuted,
                     )
                 }
             }
@@ -833,7 +833,6 @@ private fun ProgramMonthSelectorButton(
 @Composable
 private fun ProgramInlineAssignmentSettings(
     state: AssignmentSettingsUiState,
-    isSaving: Boolean,
     onStrictCooldownChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
@@ -866,7 +865,10 @@ private fun ProgramInlineAssignmentSettings(
                 )
                 DesktopToggle(
                     checked = state.strictCooldown,
-                    onToggle = onStrictCooldownChange,
+                    onToggle = {
+                        onStrictCooldownChange(it)
+                        onSave()
+                    },
                 )
             }
             Row(
@@ -877,12 +879,14 @@ private fun ProgramInlineAssignmentSettings(
                     label = "Peso conduzione",
                     value = state.leadWeight,
                     onValueChange = onLeadWeightChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
                 DesktopNumericField(
                     label = "Peso assistenza",
                     value = state.assistWeight,
                     onValueChange = onAssistWeightChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -894,23 +898,17 @@ private fun ProgramInlineAssignmentSettings(
                     label = "Cooldown conduzione",
                     value = state.leadCooldownWeeks,
                     onValueChange = onLeadCooldownChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
                 DesktopNumericField(
                     label = "Cooldown assistenza",
                     value = state.assistCooldownWeeks,
                     onValueChange = onAssistCooldownChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
             }
-            DesktopInlineAction(
-                label = if (isSaving) "Salvataggio..." else "Salva",
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .handCursorOnHover(enabled = !isSaving),
-                enabled = !isSaving,
-                onClick = onSave,
-            )
         }
     }
 }
@@ -952,9 +950,11 @@ private fun DesktopNumericField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
+    onBlur: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    var wasFocused by remember { mutableStateOf(false) }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -982,7 +982,13 @@ private fun DesktopNumericField(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = sketch.ink),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .onFocusChanged { focusState ->
+                        if (wasFocused && !focusState.hasFocus && value.isNotBlank()) {
+                            onBlur()
+                        }
+                        wasFocused = focusState.hasFocus
+                    },
             )
         }
     }

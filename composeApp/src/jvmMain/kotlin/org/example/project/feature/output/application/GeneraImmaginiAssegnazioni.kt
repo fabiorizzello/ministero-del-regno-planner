@@ -56,7 +56,7 @@ class GeneraImmaginiAssegnazioni(
                 val part = selectedParts.first { it.id == assignment.weeklyPartId }
                 val roleLabel = when {
                     part.partType.peopleCount == 1 -> null
-                    assignment.slot == 1 -> "Proclamatore"
+                    assignment.slot == 1 -> "Studente"
                     else -> "Assistente"
                 }
                 val role = roleLabel?.let { " ($it)" } ?: ""

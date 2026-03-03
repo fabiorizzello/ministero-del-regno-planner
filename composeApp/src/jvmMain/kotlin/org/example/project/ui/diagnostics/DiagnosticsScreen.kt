@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -128,7 +129,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -151,9 +152,10 @@ fun DiagnosticsScreen() {
                         enabled = !state.isExporting && !state.isCleaning,
                         modifier = Modifier
                             .weight(1f)
+                            .height(34.dp)
                             .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
                         elevation = diagnosticsFlatButtonElevation(),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     ) {
                         if (state.isExporting) {
                             CircularProgressIndicator(
@@ -190,7 +192,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -233,7 +235,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -276,7 +278,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -323,6 +325,7 @@ fun DiagnosticsScreen() {
                         enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
                         modifier = Modifier
                             .weight(1f)
+                            .height(34.dp)
                             .handCursorOnHover(
                                 enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
                             ),
@@ -435,13 +438,13 @@ private fun DiagnosticsOutlinedActionButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.handCursorOnHover(enabled = enabled),
+        modifier = modifier.height(34.dp).handCursorOnHover(enabled = enabled),
         elevation = diagnosticsFlatButtonElevation(),
-        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
     ) {
-        Icon(icon, contentDescription = label)
+        Icon(icon, contentDescription = label, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-        Text(label)
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 

@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -229,11 +230,47 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     }
                 }
                 state.schemaUpdateAnomalies.forEach { anomaly ->
-                    val versionText = anomaly.schemaVersion?.let { " | schema $it" }.orEmpty()
-                    Text(
-                        "• ${anomaly.personLabel} | ${anomaly.partTypeLabel}$versionText | ${anomaly.reason} | ${anomaly.createdAt}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            anomaly.personLabel,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1.5f),
+                        )
+                        Text(
+                            anomaly.partTypeLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1.5f),
+                        )
+                        Text(
+                            anomaly.reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.workspaceSketch.warn,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(2f),
+                        )
+                        anomaly.schemaVersion?.let {
+                            Text(
+                                "v$it",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            formatAnomalyDate(anomaly.createdAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -264,7 +301,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     // ── Table card ───────────────────────────────────────────────────────────
     Card(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
@@ -479,7 +516,7 @@ internal fun ProclamatoriDataRow(
 
     val rowBg = when {
         selected -> sketch.accentSoft
-        hovered  -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        hovered  -> sketch.lineSoft.copy(alpha = 0.35f)
         else     -> Color.Transparent
     }
 
@@ -560,8 +597,8 @@ internal fun ProclamatoriDataRow(
 @Composable
 internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso, attivo: Boolean) {
     val sketch = MaterialTheme.workspaceSketch
-    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else Color(0xFF2A1040)
-    val fgColor = if (sesso == Sesso.M) sketch.accent else Color(0xFFC084FC)
+    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else Color(0xFFF3E8FF)
+    val fgColor = if (sesso == Sesso.M) sketch.accent else Color(0xFF7C3AED)
     val initials = "${nome.firstOrNull() ?: ""}${cognome.firstOrNull() ?: ""}".uppercase()
 
     Box(
@@ -602,5 +639,14 @@ internal fun ProclamatoreStatusBadge(attivo: Boolean, sospeso: Boolean) {
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
             color = dotColor,
         )
+    }
+}
+
+private fun formatAnomalyDate(createdAt: String): String {
+    return try {
+        val dt = java.time.LocalDateTime.parse(createdAt)
+        dt.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    } catch (_: Exception) {
+        createdAt.substringBefore('T')
     }
 }

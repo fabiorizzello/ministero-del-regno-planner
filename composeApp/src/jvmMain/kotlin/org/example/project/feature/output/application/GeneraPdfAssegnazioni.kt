@@ -38,7 +38,7 @@ class GeneraPdfAssegnazioni(
                     val assignment = partAssignments.firstOrNull { it.slot == slot }
                     val roleLabel = when {
                         part.partType.peopleCount == 1 -> null
-                        slot == 1 -> "Proclamatore"
+                        slot == 1 -> "Studente"
                         else -> "Assistente"
                     }
                     val base = assignment?.fullName ?: "Non assegnato"

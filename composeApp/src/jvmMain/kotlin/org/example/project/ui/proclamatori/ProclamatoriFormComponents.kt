@@ -33,6 +33,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
@@ -94,7 +95,7 @@ internal fun ProclamatoriFormContentForm(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -151,15 +152,22 @@ internal fun ProclamatoriFormContentForm(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val segColors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = sketch.accentSoft,
+                        activeContentColor = sketch.accent,
+                        activeBorderColor = sketch.accent,
+                    )
                     SegmentedButton(
                         selected = sesso == Sesso.M,
                         onClick = { onSessoChange(Sesso.M) },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        colors = segColors,
                     ) { Text("Uomo") }
                     SegmentedButton(
                         selected = sesso == Sesso.F,
                         onClick = { onSessoChange(Sesso.F) },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        colors = segColors,
                     ) { Text("Donna") }
                 }
             }
@@ -205,6 +213,11 @@ internal fun ProclamatoriFormContentForm(
                     Switch(
                         checked = sospeso,
                         onCheckedChange = onSospesoChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = sketch.surface,
+                            checkedTrackColor = sketch.warn,
+                            checkedBorderColor = sketch.warn,
+                        ),
                     )
                 }
             }
@@ -229,6 +242,12 @@ internal fun ProclamatoriFormContentForm(
                             selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                             selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = allEligibilitySelected,
+                            selectedBorderColor = MaterialTheme.colorScheme.secondary,
+                            selectedBorderWidth = 1.5.dp,
+                        ),
                     )
                     // Assistente chip
                     FilterChip(
@@ -239,6 +258,12 @@ internal fun ProclamatoriFormContentForm(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = sketch.accentSoft,
                             selectedLabelColor = sketch.accent,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = puoAssistere,
+                            selectedBorderColor = sketch.accent,
+                            selectedBorderWidth = 1.5.dp,
                         ),
                     )
                     // Lead part type chips
@@ -252,6 +277,12 @@ internal fun ProclamatoriFormContentForm(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = sketch.accentSoft,
                                 selectedLabelColor = sketch.accent,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = option.canSelect,
+                                selected = option.checked,
+                                selectedBorderColor = sketch.accent,
+                                selectedBorderWidth = 1.5.dp,
                             ),
                         )
                     }

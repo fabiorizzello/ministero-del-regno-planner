@@ -24,7 +24,6 @@ class SuggerisciProclamatoriUseCase(
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
         val settings = assignmentSettingsStore.load()
-        val cooldownWeeks = if (slot <= 1) settings.leadCooldownWeeks else settings.assistCooldownWeeks
         val roleWeight = if (slot <= 1) settings.leadWeight else settings.assistWeight
 
         val suggestions = assignmentStore.suggestedProclamatori(
@@ -53,6 +52,11 @@ class SuggerisciProclamatoriUseCase(
                     p.puoAssistere
                 }
                 val globalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE
+                val lastWasConductor = suggestion.lastConductorWeeks != null &&
+                    suggestion.lastGlobalWeeks != null &&
+                    suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
+                val cooldownWeeks = if (lastWasConductor && slot <= 1) settings.leadCooldownWeeks
+                                    else settings.assistCooldownWeeks
                 val isInCooldown = cooldownWeeks > 0 && globalWeeks < cooldownWeeks
                 val remaining = if (isInCooldown) cooldownWeeks - globalWeeks else 0
                 val annotated = suggestion.copy(

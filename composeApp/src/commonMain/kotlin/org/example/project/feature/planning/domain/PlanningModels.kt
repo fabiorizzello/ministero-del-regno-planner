@@ -57,10 +57,8 @@ object PlanningCalculations {
             return PlanningProgress(null, 0, 0)
         }
         var plannedThroughKey: String? = null
-        var consecutivePlanned = 0
         for (week in weeks) {
             if (week.status == WeekPlanningStatus.PIANIFICATA) {
-                consecutivePlanned += 1
                 plannedThroughKey = week.weekKey
             } else {
                 break

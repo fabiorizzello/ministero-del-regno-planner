@@ -3,6 +3,7 @@ package org.example.project.feature.weeklyparts.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
@@ -20,6 +21,7 @@ class AggiornaDatiRemotiUseCase(
     private val remoteDataSource: RemoteDataSource,
     private val partTypeStore: PartTypeStore,
     private val weekPlanStore: WeekPlanStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend fun fetchAndImport(): Either<DomainError, ImportResult> = either {
         val remoteTypes = try {
@@ -65,21 +67,26 @@ class AggiornaDatiRemotiUseCase(
     }
 
     suspend fun importSchemas(schemas: List<RemoteWeekSchema>): Either<DomainError, Int> = either {
-        var count = 0
-        for (schema in schemas) {
+        // Validate all dates upfront before touching the DB
+        val parsedSchemas = schemas.map { schema ->
             val date = try {
                 LocalDate.parse(schema.weekStartDate)
             } catch (_: DateTimeParseException) {
                 raise(DomainError.Validation("Data non valida nello schema remoto: '${schema.weekStartDate}'"))
             }
-            val existing = weekPlanStore.findByDate(date)
-            if (existing != null) {
-                weekPlanStore.delete(existing.id)
-            }
-            importSchema(schema)
-            count++
+            date to schema
         }
-        count
+
+        transactionRunner.runInTransaction {
+            for ((date, schema) in parsedSchemas) {
+                val existing = weekPlanStore.findByDate(date)
+                if (existing != null) {
+                    weekPlanStore.delete(existing.id)
+                }
+                importSchema(schema)
+            }
+        }
+        parsedSchemas.size
     }
 
     /**

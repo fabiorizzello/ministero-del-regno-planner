@@ -150,7 +150,7 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Nel workspace UI, il reset di una singola settimana (`Rimuovi assegnazioni`) è
   disponibile solo per settimane future; per la settimana corrente non deve essere
   mostrato.
-- Slot = 1 → ruolo "Conduttore"; slot >= 2 → ruolo "Assistente" (determinato dal
+- Slot = 1 → ruolo "Studente"; slot >= 2 → ruolo "Assistente" (determinato dal
   modello `AssignmentHistoryEntry.role`).
 - Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
   ci sono più parti nella stessa settimana (`isPersonAssignedInWeek` cross-parte).
@@ -195,10 +195,13 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 
 ### Key Entities
 
-- **Assignment**: id, weeklyPartId, personId, slot (>= 1). Slot 1 = conduttore.
+- **Assignment**: id, weeklyPartId, personId, slot (>= 1). Slot 1 = studente.
 - **AssignmentWithPerson**: join di Assignment con dati anagrafici del proclamatore.
 - **SuggestedProclamatore**: proclamatore + lastGlobalWeeks + lastForPartTypeWeeks
-  + inCooldown + cooldownRemainingWeeks.
+  + lastConductorWeeks + inCooldown + cooldownRemainingWeeks.
+  `lastGlobalWeeks` = settimane dall'ultima assegnazione in **qualsiasi ruolo**.
+  `lastConductorWeeks` = settimane dall'ultima assegnazione come conduttore (slot 1);
+  se `lastConductorWeeks == lastGlobalWeeks` l'ultima assegnazione era come conduttore.
 - **PersonAssignmentHistory**: lista di AssignmentHistoryEntry con summaryByPartType
   e totalAssignments.
 - **AssignmentSettings**: `strictCooldown: Boolean = true`, `leadWeight: Int = 2`,
@@ -240,3 +243,18 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: AssignmentSettings default confermati dal codice? → A: strictCooldown=true,
   leadWeight=2, assistWeight=1, leadCooldownWeeks=4, assistCooldownWeeks=2.
   Metodo `normalized()` coerces valori negativi.
+
+### Session 2026-03-03
+
+- Q: Il cooldown usa le settimane dall'ultima assegnazione in qualsiasi ruolo o per
+  ruolo specifico? → A: Il cooldown è basato sull'**ultima assegnazione in qualsiasi
+  ruolo** (`lastGlobalWeeks`). La soglia dipende dall'*ultimo ruolo svolto* e dal ruolo
+  *target*: se l'ultima era da conduttore E il target è conduttore → `leadCooldownWeeks`;
+  altrimenti → `assistCooldownWeeks`. `lastConductorWeeks` in `SuggestedProclamatore`
+  traccia l'ultima da conduttore (slot 1); se `lastConductorWeeks == lastGlobalWeeks`
+  l'ultima assegnazione era come conduttore. Query SQL: `lastGlobalAssignmentPerPerson`
+  (qualsiasi ruolo), `lastSlot1GlobalAssignmentPerPerson` (per determinare l'ultimo ruolo).
+- Q: Qual è il label di ruolo per slot 1 e slot >= 2? → A: Slot 1 = "Studente",
+  slot >= 2 = "Assistente". Uniformato in tutti gli output (storico, PDF mensile,
+  PDF settimanale, PNG). `AssignmentHistoryEntry.role` restituisce "Studente" per
+  slot 1.

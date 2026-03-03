@@ -19,7 +19,7 @@ data class AssignmentHistoryEntry(
     /**
      * Returns the role for this assignment: "Conduttore" for slot 1, "Assistente" for slot >= 2.
      */
-    val role: String get() = if (slot == 1) "Conduttore" else "Assistente"
+    val role: String get() = if (slot == 1) "Studente" else "Assistente"
 }
 
 /**

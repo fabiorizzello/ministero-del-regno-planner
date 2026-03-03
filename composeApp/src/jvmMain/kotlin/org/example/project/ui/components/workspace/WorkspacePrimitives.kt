@@ -63,13 +63,13 @@ fun WorkspaceShellBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = sketch.toolbarBackground,
-        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = 0.95f)),
+        border = BorderStroke(1.dp, sketch.toolbarBorder),
         shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.spacing.sm),
+                .padding(start = MaterialTheme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.sm),
             content = content,
@@ -157,7 +157,7 @@ fun WorkspaceActionButton(
                 .fillMaxWidth()
                 .padding(horizontal = MaterialTheme.spacing.xs, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         ) {
             Icon(
                 imageVector = icon,
@@ -165,7 +165,7 @@ fun WorkspaceActionButton(
                 tint = content.copy(alpha = alpha),
             )
             Text(
-                text = "  $label",
+                text = label,
                 color = content.copy(alpha = alpha),
                 style = MaterialTheme.typography.titleSmall,
             )
