@@ -14,10 +14,12 @@ import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 private const val DEFAULT_PAST_MONTHS = 10
 private const val DEFAULT_FUTURE_MONTHS = 2
+private const val DEFAULT_SEED_PEOPLE_COUNT = 84
 private const val RANDOM_SEED = 20260226L
 private const val DEFAULT_CATALOG_PATH = ".worktrees/efficaci-nel-ministero-data/schemas-catalog.json"
 
@@ -25,7 +27,6 @@ fun main(args: Array<String>) {
     val config = parseArgs(args)
     require(config.pastMonths >= 0) { "--past-months deve essere >= 0" }
     require(config.futureMonths >= 0) { "--future-months deve essere >= 0" }
-    require(config.catalogFile.exists()) { "Catalogo non trovato: ${config.catalogFile.absolutePath}" }
 
     AppBootstrap.initialize()
     val db = DatabaseProvider.database()
@@ -48,7 +49,8 @@ fun main(args: Array<String>) {
     val rangeEnd = endSundayForMonth(lastMonth)
 
     cleanupSeedArtifacts(queries)
-    val seedPartTypes = ensureSeedPartTypes(queries, config.catalogFile)
+    val resolvedPartTypes = resolveSeedPartTypes(queries, config.catalogFile)
+    val seedPartTypes = resolvedPartTypes.partTypes
     val seedPeople = seedPeople()
     upsertPeople(queries, seedPeople)
     val eligibilityMap = upsertMixedEligibility(queries, seedPeople, seedPartTypes)
@@ -62,11 +64,13 @@ fun main(args: Array<String>) {
         people = seedPeople,
         eligibilityMap = eligibilityMap,
         random = random,
+        now = now,
     )
     cleanupOrphans(queries)
 
     println("Seed demo completato.")
     println("Catalogo part types: ${config.catalogFile.absolutePath}")
+    println("Sorgente part types: ${resolvedPartTypes.source}")
     println("Mesi seed: ${firstMonth.monthValue}/${firstMonth.year} .. ${lastMonth.monthValue}/${lastMonth.year}")
     println("Config finestra: past=${config.pastMonths}, current=${config.includeCurrent}, future=${config.futureMonths}")
     println("Intervallo settimane: $rangeStart .. $rangeEnd")
@@ -206,33 +210,247 @@ private data class SeedReport(
     val assignmentsInserted: Int,
 )
 
+private data class SeedPartTypeResolution(
+    val source: String,
+    val partTypes: List<SeedPartType>,
+)
+
+private data class ExistingSeedPartTypeRow(
+    val partType: SeedPartType,
+    val active: Boolean,
+)
+
+private val SEED_LAST_NAMES = listOf(
+    "Rossi",
+    "Bianchi",
+    "Verdi",
+    "Neri",
+    "Gallo",
+    "Greco",
+    "Costa",
+    "Romano",
+    "Marino",
+    "Longo",
+    "Ricci",
+    "Colombo",
+    "Conti",
+    "Giordano",
+    "Mancini",
+    "Rizzo",
+    "Moretti",
+    "Barbieri",
+    "Lombardi",
+    "Fontana",
+    "Santoro",
+    "Ferrara",
+    "Rinaldi",
+    "Caruso",
+    "Leone",
+    "Ferri",
+    "Villa",
+    "Martini",
+    "DeLuca",
+    "Esposito",
+    "Farina",
+    "Pellegrini",
+    "Testa",
+    "Monti",
+    "Palumbo",
+    "Donati",
+    "Piras",
+    "Sanna",
+    "Vitali",
+    "Parisi",
+    "Bianco",
+    "Orlando",
+    "Damico",
+    "Rossetti",
+    "Sartori",
+    "Bellini",
+    "Negri",
+    "Marchetti",
+    "Amato",
+    "Serra",
+    "Fabbri",
+    "DeSantis",
+    "Moro",
+    "Pace",
+    "Bruno",
+    "Coppola",
+    "Fiore",
+    "Valente",
+    "DeRosa",
+    "Caputo",
+    "Ruggieri",
+    "Benedetti",
+    "Grassi",
+    "Messina",
+    "Vacca",
+    "Damiani",
+    "Cattaneo",
+    "Pinto",
+    "Sala",
+    "Puglisi",
+)
+
+private val SEED_FIRST_NAMES_M = listOf(
+    "Marco",
+    "Luca",
+    "Paolo",
+    "Giovanni",
+    "Davide",
+    "Stefano",
+    "Francesco",
+    "Michele",
+    "Andrea",
+    "Alessio",
+    "Gabriele",
+    "Matteo",
+    "Simone",
+    "Riccardo",
+    "Nicola",
+    "Tommaso",
+    "Filippo",
+    "Daniele",
+    "Christian",
+    "Enrico",
+    "Fabio",
+    "Claudio",
+    "Emanuele",
+    "Salvatore",
+    "Roberto",
+    "Pierluigi",
+    "Massimo",
+    "Vincenzo",
+)
+
+private val SEED_FIRST_NAMES_F = listOf(
+    "Chiara",
+    "Sara",
+    "Elena",
+    "Marta",
+    "Giulia",
+    "Valentina",
+    "Federica",
+    "Martina",
+    "Alessandra",
+    "Francesca",
+    "Laura",
+    "Silvia",
+    "Ilaria",
+    "Barbara",
+    "Monica",
+    "Raffaella",
+    "Serena",
+    "Beatrice",
+    "Arianna",
+    "Noemi",
+    "Veronica",
+    "Eleonora",
+    "Camilla",
+    "Debora",
+    "Claudia",
+    "Giorgia",
+    "Anna",
+    "Lucia",
+)
+
 private fun seedPeople(): List<SeedPerson> {
-    return listOf(
-        SeedPerson("seed-person-001", "Marco", "Rossi", "M", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-002", "Luca", "Bianchi", "M", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-003", "Paolo", "Verdi", "M", active = true, suspended = false, canAssist = false),
-        SeedPerson("seed-person-004", "Giovanni", "Neri", "M", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-005", "Davide", "Gallo", "M", active = true, suspended = false, canAssist = false),
-        SeedPerson("seed-person-006", "Stefano", "Greco", "M", active = true, suspended = true, canAssist = true),
-        SeedPerson("seed-person-007", "Francesco", "Costa", "M", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-008", "Michele", "Romano", "M", active = false, suspended = false, canAssist = true),
-        SeedPerson("seed-person-009", "Andrea", "Marino", "M", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-010", "Alessio", "Longo", "M", active = true, suspended = false, canAssist = false),
-        SeedPerson("seed-person-011", "Chiara", "Ricci", "F", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-012", "Sara", "Colombo", "F", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-013", "Elena", "Conti", "F", active = true, suspended = false, canAssist = false),
-        SeedPerson("seed-person-014", "Marta", "Giordano", "F", active = true, suspended = true, canAssist = true),
-        SeedPerson("seed-person-015", "Giulia", "Mancini", "F", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-016", "Valentina", "Rizzo", "F", active = true, suspended = false, canAssist = true),
-        SeedPerson("seed-person-017", "Federica", "Moretti", "F", active = true, suspended = false, canAssist = false),
-        SeedPerson("seed-person-018", "Martina", "Barbieri", "F", active = false, suspended = false, canAssist = true),
+    val maleTarget = DEFAULT_SEED_PEOPLE_COUNT / 2
+    val femaleTarget = DEFAULT_SEED_PEOPLE_COUNT - maleTarget
+    val malePeople = buildSeedPeopleForSex(
+        sex = "M",
+        firstNames = SEED_FIRST_NAMES_M,
+        targetCount = maleTarget,
+        lastNameOffset = 3,
     )
+    val femalePeople = buildSeedPeopleForSex(
+        sex = "F",
+        firstNames = SEED_FIRST_NAMES_F,
+        targetCount = femaleTarget,
+        lastNameOffset = 11,
+    )
+    return (malePeople + femalePeople)
+        .sortedWith(compareBy<SeedPerson>({ it.lastName }, { it.firstName }))
+        .mapIndexed { index, person ->
+            person.copy(id = "seed-person-${(index + 1).toString().padStart(3, '0')}")
+        }
 }
 
-private fun ensureSeedPartTypes(
+private fun buildSeedPeopleForSex(
+    sex: String,
+    firstNames: List<String>,
+    targetCount: Int,
+    lastNameOffset: Int,
+): List<SeedPerson> {
+    require(targetCount <= firstNames.size * SEED_LAST_NAMES.size) {
+        "Target proclamatori troppo alto: $targetCount per sesso=$sex"
+    }
+    val result = mutableListOf<SeedPerson>()
+    val usedNames = linkedSetOf<String>()
+    var cursor = 0
+    while (result.size < targetCount) {
+        val firstName = firstNames[cursor % firstNames.size]
+        val lastName = SEED_LAST_NAMES[(cursor * 7 + lastNameOffset) % SEED_LAST_NAMES.size]
+        val fullNameKey = "$firstName|$lastName"
+        if (usedNames.add(fullNameKey)) {
+            val localIndex = result.size
+            val active = (localIndex % 13) != 0
+            val suspended = active && (localIndex % 9 == 0)
+            val canAssist = when {
+                !active -> (localIndex % 2) == 0
+                suspended -> (localIndex % 3) != 0
+                else -> (localIndex % 4) != 0
+            }
+            result += SeedPerson(
+                id = "seed-person-temp-$sex-${localIndex + 1}",
+                firstName = firstName,
+                lastName = lastName,
+                sex = sex,
+                active = active,
+                suspended = suspended,
+                canAssist = canAssist,
+            )
+        }
+        cursor += 1
+    }
+    return result
+}
+
+private fun resolveSeedPartTypes(
     queries: org.example.project.db.MinisteroDatabaseQueries,
     catalogFile: File,
-): List<SeedPartType> {
+): SeedPartTypeResolution {
+    val existingRows = queries.listAllPartTypesExtended { id, code, label, people_count, sex_rule, fixed, active, sort_order, _ ->
+        ExistingSeedPartTypeRow(
+            partType = SeedPartType(
+                id = id,
+                code = code,
+                label = label,
+                peopleCount = people_count.toInt(),
+                sexRule = runCatching { SexRule.valueOf(sex_rule) }.getOrDefault(SexRule.LIBERO),
+                fixed = fixed == 1L,
+                sortOrder = sort_order.toInt(),
+            ),
+            active = active == 1L,
+        )
+    }.executeAsList()
+
+    val existingActive = existingRows
+        .asSequence()
+        .filter { it.active }
+        .map { it.partType }
+        .sortedBy { it.sortOrder }
+        .toList()
+
+    if (existingActive.isNotEmpty()) {
+        return SeedPartTypeResolution(
+            source = "database (part_type attivi esistenti)",
+            partTypes = existingActive,
+        )
+    }
+
+    require(catalogFile.exists()) { "Catalogo non trovato: ${catalogFile.absolutePath}" }
     val defs = loadPartTypesFromCatalog(catalogFile)
     queries.transaction {
         defs.forEach { part ->
@@ -248,7 +466,7 @@ private fun ensureSeedPartTypes(
         }
     }
 
-    return defs.map { def ->
+    val seededFromCatalog = defs.map { def ->
         queries.findPartTypeByCode(def.code) { id, code, label, people_count, sex_rule, fixed, sort_order ->
             SeedPartType(
                 id = id,
@@ -261,6 +479,11 @@ private fun ensureSeedPartTypes(
             )
         }.executeAsOne()
     }.sortedBy { it.sortOrder }
+
+    return SeedPartTypeResolution(
+        source = "catalogo JSON (fallback, DB part_type vuoto)",
+        partTypes = seededFromCatalog,
+    )
 }
 
 private fun loadPartTypesFromCatalog(catalogFile: File): List<SeedPartType> {
@@ -311,16 +534,22 @@ private fun upsertMixedEligibility(
     partTypes: List<SeedPartType>,
 ): Map<String, Set<String>> {
     val leadByPart = linkedMapOf<String, MutableSet<String>>()
+    val leadByPerson = linkedMapOf<String, MutableSet<String>>()
     queries.transaction {
         people.forEachIndexed { personIndex, person ->
             partTypes.forEachIndexed { partIndex, part ->
-                val canLead = when {
-                    !person.active || person.suspended -> false
-                    part.sexRule == SexRule.UOMO && person.sex != "M" -> false
-                    else -> ((personIndex + partIndex) % 3) != 0
-                }
+                val canLead = shouldSeedCanLead(
+                    personIndex = personIndex,
+                    partIndex = partIndex,
+                    active = person.active,
+                    suspended = person.suspended,
+                    sex = person.sex,
+                    canAssist = person.canAssist,
+                    sexRule = part.sexRule,
+                )
                 if (canLead) {
                     leadByPart.getOrPut(part.id) { linkedSetOf() }.add(person.id)
+                    leadByPerson.getOrPut(person.id) { linkedSetOf() }.add(part.id)
                 }
                 queries.upsertPersonPartTypeEligibility(
                     id = "seed-eligibility-${person.id}-${part.id}",
@@ -332,19 +561,50 @@ private fun upsertMixedEligibility(
         }
     }
 
-    // Garantisce almeno 3 idonei per parte (quando possibile) per evitare settimane totalmente bloccate.
+    // Garantisce una base ampia di idonei per parte per ridurre slot scoperti durante il seed storico.
     val activeCandidates = people.filter { it.active && !it.suspended }
     partTypes.forEach { part ->
         val current = leadByPart.getOrPut(part.id) { linkedSetOf() }
         val eligiblePool = activeCandidates.filter { candidate ->
             part.sexRule != SexRule.UOMO || candidate.sex == "M"
         }
-        val needed = max(0, 3 - current.size)
+        val targetLeads = min(
+            eligiblePool.size,
+            max(6, (eligiblePool.size * 3) / 4),
+        )
+        val needed = max(0, targetLeads - current.size)
         eligiblePool
             .filter { it.id !in current }
             .take(needed)
             .forEach { person ->
                 current += person.id
+                leadByPerson.getOrPut(person.id) { linkedSetOf() }.add(part.id)
+                queries.upsertPersonPartTypeEligibility(
+                    id = "seed-eligibility-${person.id}-${part.id}",
+                    person_id = person.id,
+                    part_type_id = part.id,
+                    can_lead = 1L,
+                )
+            }
+    }
+
+    // Ogni proclamatore attivo riceve molte idoneità compatibili, non solo pochi casi sparsi.
+    activeCandidates.forEach { person ->
+        val compatibleParts = partTypes.filter { part ->
+            part.sexRule != SexRule.UOMO || person.sex == "M"
+        }
+        val current = leadByPerson.getOrPut(person.id) { linkedSetOf() }
+        val targetLeads = min(
+            compatibleParts.size,
+            max(5, (compatibleParts.size * 4) / 5),
+        )
+        val needed = max(0, targetLeads - current.size)
+        compatibleParts
+            .filter { it.id !in current }
+            .take(needed)
+            .forEach { part ->
+                current += part.id
+                leadByPart.getOrPut(part.id) { linkedSetOf() }.add(person.id)
                 queries.upsertPersonPartTypeEligibility(
                     id = "seed-eligibility-${person.id}-${part.id}",
                     person_id = person.id,
@@ -355,6 +615,26 @@ private fun upsertMixedEligibility(
     }
 
     return leadByPart.mapValues { (_, value) -> value.toSet() }
+}
+
+internal fun shouldSeedCanLead(
+    personIndex: Int,
+    partIndex: Int,
+    active: Boolean,
+    suspended: Boolean,
+    sex: String,
+    canAssist: Boolean,
+    sexRule: SexRule,
+): Boolean {
+    if (!active || suspended) return false
+    if (sexRule == SexRule.UOMO && sex != "M") return false
+
+    val rotation = (personIndex * 7 + partIndex * 5 + if (canAssist) 3 else 0) % 19
+    return if (canAssist) {
+        rotation != 0
+    } else {
+        rotation != 0 && rotation != 7 && rotation != 13
+    }
 }
 
 private fun deleteWeeksInRange(
@@ -439,6 +719,7 @@ private fun seedPastProgramsAndAssignments(
     people: List<SeedPerson>,
     eligibilityMap: Map<String, Set<String>>,
     random: Random,
+    now: LocalDate,
 ): SeedReport {
     var programsInserted = 0
     var weeksInserted = 0
@@ -452,6 +733,13 @@ private fun seedPastProgramsAndAssignments(
             person.canAssist && (part.sexRule != SexRule.UOMO || person.sex == "M")
         }
     }
+    val cooldownAnchorIds = assignablePeople
+        .sortedWith(compareBy<SeedPerson>({ it.lastName }, { it.firstName }))
+        .take(10)
+        .map { it.id }
+        .toSet()
+    val lastGlobalAssignmentWeekByPerson = mutableMapOf<String, Int>()
+    val lastPartTypeAssignmentWeekByPerson = mutableMapOf<String, MutableMap<String, Int>>()
 
     queries.transaction {
         months.forEach { month ->
@@ -473,7 +761,7 @@ private fun seedPastProgramsAndAssignments(
 
             var weekCursor = startDate
             while (!weekCursor.isAfter(endDate)) {
-                val isSkipped = random.nextDouble() < 0.08
+                val isSkipped = random.nextDouble() < skipChanceForWeek(weekCursor, now)
                 val weekStatus = if (isSkipped) "SKIPPED" else "ACTIVE"
                 val weekPlanId = "seed-week-plan-${programId}-$weekCursor"
                 queries.insertWeekPlanWithProgram(
@@ -497,11 +785,21 @@ private fun seedPastProgramsAndAssignments(
                     weeklyPartId to part
                 }
 
-                if (!isSkipped) {
+                val weekMode = assignmentModeForWeek(
+                    weekStartDate = weekCursor,
+                    today = now,
+                    absoluteWeekIndex = absoluteWeekIndex,
+                )
+                if (!isSkipped && weekMode != WeekAssignmentMode.EMPTY) {
                     val usedInWeek = linkedSetOf<String>()
+                    val preferCooldownAnchors = weekCursor.isAfter(now.minusWeeks(7)) && weekCursor.isBefore(now)
                     weeklyParts.forEachIndexed { index, (weeklyPartId, part) ->
                         for (slot in 1..part.peopleCount) {
-                            val shouldLeaveUnassigned = random.nextDouble() < 0.14 && !(slot == 1 && random.nextDouble() < 0.5)
+                            val shouldLeaveUnassigned = shouldLeaveSlotUnassigned(
+                                mode = weekMode,
+                                slot = slot,
+                                random = random,
+                            )
                             if (shouldLeaveUnassigned) continue
 
                             val candidatePool = if (slot == 1) {
@@ -513,7 +811,13 @@ private fun seedPastProgramsAndAssignments(
                             val person = pickCandidate(
                                 pool = candidatePool,
                                 usedInWeek = usedInWeek,
-                                offset = absoluteWeekIndex + index + slot,
+                                partTypeId = part.id,
+                                weekIndex = absoluteWeekIndex + index,
+                                random = random,
+                                lastGlobalAssignmentWeekByPerson = lastGlobalAssignmentWeekByPerson,
+                                lastPartTypeAssignmentWeekByPerson = lastPartTypeAssignmentWeekByPerson,
+                                cooldownAnchorIds = cooldownAnchorIds,
+                                preferCooldownAnchors = preferCooldownAnchors,
                             ) ?: continue
 
                             queries.upsertAssignment(
@@ -545,15 +849,108 @@ private fun seedPastProgramsAndAssignments(
 private fun pickCandidate(
     pool: List<SeedPerson>,
     usedInWeek: Set<String>,
-    offset: Int,
+    partTypeId: String,
+    weekIndex: Int,
+    random: Random,
+    lastGlobalAssignmentWeekByPerson: MutableMap<String, Int>,
+    lastPartTypeAssignmentWeekByPerson: MutableMap<String, MutableMap<String, Int>>,
+    cooldownAnchorIds: Set<String>,
+    preferCooldownAnchors: Boolean,
 ): SeedPerson? {
     if (pool.isEmpty()) return null
-    val startIndex = if (pool.isEmpty()) 0 else (offset % pool.size).coerceAtLeast(0)
-    for (step in pool.indices) {
-        val candidate = pool[(startIndex + step) % pool.size]
-        if (candidate.id !in usedInWeek) return candidate
+    val partHistory = lastPartTypeAssignmentWeekByPerson.getOrPut(partTypeId) { mutableMapOf() }
+    val selected = pool
+        .asSequence()
+        .filter { it.id !in usedInWeek }
+        .map { person ->
+            val lastGlobal = lastGlobalAssignmentWeekByPerson[person.id]
+            val lastForPart = partHistory[person.id]
+            val globalGap = if (lastGlobal == null) 1_000 else weekIndex - lastGlobal
+            val partGap = if (lastForPart == null) 1_000 else weekIndex - lastForPart
+            val assistBias = if (person.canAssist) 2 else 0
+            val cooldownBias = when {
+                preferCooldownAnchors && person.id in cooldownAnchorIds -> 16
+                !preferCooldownAnchors && person.id in cooldownAnchorIds -> -2
+                else -> 0
+            }
+            val score = globalGap * 6 + partGap * 4 + assistBias + cooldownBias + random.nextDouble(0.0, 2.0)
+            person to score
+        }
+        .maxByOrNull { it.second }
+        ?.first
+        ?: return null
+
+    lastGlobalAssignmentWeekByPerson[selected.id] = weekIndex
+    partHistory[selected.id] = weekIndex
+    return selected
+}
+
+private enum class WeekAssignmentMode {
+    DENSE,
+    PARTIAL,
+    SPARSE,
+    EMPTY,
+}
+
+private fun assignmentModeForWeek(
+    weekStartDate: LocalDate,
+    today: LocalDate,
+    absoluteWeekIndex: Int,
+): WeekAssignmentMode {
+    val phase = absoluteWeekIndex.mod(6)
+    return when {
+        weekStartDate.isAfter(today.plusMonths(1)) -> when (phase) {
+            0 -> WeekAssignmentMode.EMPTY
+            1, 2 -> WeekAssignmentMode.SPARSE
+            else -> WeekAssignmentMode.PARTIAL
+        }
+        weekStartDate.isAfter(today.minusWeeks(1)) -> when (phase) {
+            0 -> WeekAssignmentMode.EMPTY
+            1, 2 -> WeekAssignmentMode.SPARSE
+            3 -> WeekAssignmentMode.PARTIAL
+            else -> WeekAssignmentMode.DENSE
+        }
+        weekStartDate.isAfter(today.minusMonths(2)) -> when (phase) {
+            0 -> WeekAssignmentMode.SPARSE
+            1, 2 -> WeekAssignmentMode.PARTIAL
+            else -> WeekAssignmentMode.DENSE
+        }
+        else -> when (phase) {
+            0 -> WeekAssignmentMode.PARTIAL
+            else -> WeekAssignmentMode.DENSE
+        }
     }
-    return null
+}
+
+private fun shouldLeaveSlotUnassigned(
+    mode: WeekAssignmentMode,
+    slot: Int,
+    random: Random,
+): Boolean {
+    if (mode == WeekAssignmentMode.EMPTY) return true
+    val leaveChance = when (mode) {
+        WeekAssignmentMode.DENSE -> 0.05
+        WeekAssignmentMode.PARTIAL -> 0.30
+        WeekAssignmentMode.SPARSE -> 0.62
+        WeekAssignmentMode.EMPTY -> 1.0
+    }
+    val leaderKeepChance = when (mode) {
+        WeekAssignmentMode.DENSE -> 0.90
+        WeekAssignmentMode.PARTIAL -> 0.68
+        WeekAssignmentMode.SPARSE -> 0.38
+        WeekAssignmentMode.EMPTY -> 0.0
+    }
+    if (slot == 1 && random.nextDouble() < leaderKeepChance) return false
+    return random.nextDouble() < leaveChance
+}
+
+private fun skipChanceForWeek(weekStartDate: LocalDate, today: LocalDate): Double {
+    return when {
+        weekStartDate.isAfter(today.plusMonths(1)) -> 0.16
+        weekStartDate.isAfter(today) -> 0.12
+        weekStartDate.isBefore(today.minusMonths(4)) -> 0.05
+        else -> 0.08
+    }
 }
 
 private fun partSequenceForWeek(
@@ -566,7 +963,13 @@ private fun partSequenceForWeek(
 
     if (others.isEmpty()) return listOfNotNull(fixed)
 
-    val rotatingCount = minOf(5, others.size)
+    val minRotating = minOf(4, others.size)
+    val maxRotating = minOf(7, others.size)
+    val rotatingCount = minRotating + if (maxRotating > minRotating) {
+        weekIndex % (maxRotating - minRotating + 1)
+    } else {
+        0
+    }
     val rotating = (0 until rotatingCount).map { offset ->
         others[(weekIndex + offset) % others.size]
     }

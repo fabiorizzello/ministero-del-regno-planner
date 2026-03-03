@@ -12,6 +12,10 @@ data class WindowSettings(
     val positionYDp: Int = POSITION_UNSET,
 ) {
     companion object {
+        const val MIN_WIDTH_DP = 1200
+        const val MIN_HEIGHT_DP = 760
+        const val MAX_WIDTH_DP = 4000
+        const val MAX_HEIGHT_DP = 2400
         const val POSITION_UNSET = -1
     }
 }
@@ -20,8 +24,10 @@ class WindowSettingsStore(
     private val settings: Settings,
 ) {
     fun load(): WindowSettings {
-        val width = settings.getInt(KEY_WIDTH_DP, 1400).coerceIn(800, 4000)
-        val height = settings.getInt(KEY_HEIGHT_DP, 900).coerceIn(600, 2400)
+        val width = settings.getInt(KEY_WIDTH_DP, 1400)
+            .coerceIn(WindowSettings.MIN_WIDTH_DP, WindowSettings.MAX_WIDTH_DP)
+        val height = settings.getInt(KEY_HEIGHT_DP, 900)
+            .coerceIn(WindowSettings.MIN_HEIGHT_DP, WindowSettings.MAX_HEIGHT_DP)
         val placement = settings.getString(KEY_PLACEMENT, WindowPlacement.Floating.name)
             .let { runCatching { WindowPlacement.valueOf(it) }.getOrNull() }
             ?: WindowPlacement.Floating
@@ -79,8 +85,8 @@ fun WindowState.toSettingsSnapshot(): WindowSettings {
         posYDp = WindowSettings.POSITION_UNSET
     }
     return WindowSettings(
-        widthDp = size.width.value.toInt().coerceIn(800, 4000),
-        heightDp = size.height.value.toInt().coerceIn(600, 2400),
+        widthDp = size.width.value.toInt().coerceIn(WindowSettings.MIN_WIDTH_DP, WindowSettings.MAX_WIDTH_DP),
+        heightDp = size.height.value.toInt().coerceIn(WindowSettings.MIN_HEIGHT_DP, WindowSettings.MAX_HEIGHT_DP),
         placement = placement,
         positionXDp = posXDp,
         positionYDp = posYDp,

@@ -1,6 +1,9 @@
 package org.example.project.ui.diagnostics
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -34,6 +38,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -62,7 +68,7 @@ fun DiagnosticsScreen() {
     val state by viewModel.state.collectAsState()
     val spacing = MaterialTheme.spacing
     val sectionCardShape = RoundedCornerShape(spacing.cardRadius + 2.dp)
-    val sectionCardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+    val sectionCardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.78f))
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
 
@@ -435,16 +441,64 @@ private fun DiagnosticsOutlinedActionButton(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.height(34.dp).handCursorOnHover(enabled = enabled),
-        elevation = diagnosticsFlatButtonElevation(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = when {
+        !enabled -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+        isHovered -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+        else -> MaterialTheme.colorScheme.outline
+    }
+    val containerColor = when {
+        !enabled -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+        isFocused -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.46f)
+        isHovered -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    }
+    Surface(
+        modifier = modifier
+            .height(34.dp)
+            .handCursorOnHover(enabled = enabled)
+            .hoverable(interactionSource, enabled = enabled)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor),
+        color = containerColor,
     ) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                modifier = Modifier.size(14.dp),
+                tint = contentColor,
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

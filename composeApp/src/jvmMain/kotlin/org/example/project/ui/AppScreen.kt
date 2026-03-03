@@ -3,8 +3,10 @@ package org.example.project.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.foundation.horizontalScroll
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +37,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +58,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
@@ -247,58 +252,94 @@ fun WindowScope.AppScreen(
                                                         },
                                                         properties = PopupProperties(focusable = true),
                                                     ) {
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .width(300.dp)
-                                                            .padding(spacing.md),
-                                                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                                                    ) {
-                                                        val draftPercentage = draftUiScale.toUiScalePercentage()
-                                                        Text("Dimensione testo")
-                                                        Text("${draftPercentage}%", style = MaterialTheme.typography.bodySmall)
-                                                        Slider(
-                                                            value = draftUiScale,
-                                                            onValueChange = { draftUiScale = snapUiScale(it) },
-                                                            onValueChangeFinished = { applyUiScale(draftUiScale) },
-                                                            valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                                            steps = UI_SCALE_SLIDER_STEPS,
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                        )
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                        Surface(
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            color = sketch.surface,
+                                                            border = BorderStroke(1.dp, sketch.lineSoft),
                                                         ) {
-                                                            Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                            Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                        }
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .horizontalScroll(rememberScrollState()),
-                                                            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                                        ) {
-                                                            UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
-                                                                val presetScale = preset.toUiScale()
-                                                                ScaleMenuButton(
-                                                                    onClick = { applyUiScale(presetScale) },
-                                                                    enabled = draftPercentage != preset,
-                                                                    label = "${preset}%",
+                                                            Column(
+                                                                modifier = Modifier
+                                                                    .width(320.dp)
+                                                                    .padding(spacing.md),
+                                                                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                                                            ) {
+                                                                val draftPercentage = draftUiScale.toUiScalePercentage()
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                ) {
+                                                                    Text("Dimensione testo", style = MaterialTheme.typography.titleSmall)
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(999.dp),
+                                                                        color = sketch.accentSoft,
+                                                                        border = BorderStroke(1.dp, sketch.accent.copy(alpha = 0.52f)),
+                                                                    ) {
+                                                                        Text(
+                                                                            "${draftPercentage}%",
+                                                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                                                                            style = MaterialTheme.typography.labelMedium,
+                                                                            color = sketch.accent,
+                                                                        )
+                                                                    }
+                                                                }
+                                                                Text(
+                                                                    "Regola la scala dell'interfaccia",
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    color = sketch.inkMuted,
                                                                 )
+                                                                Slider(
+                                                                    value = draftUiScale,
+                                                                    onValueChange = { draftUiScale = snapUiScale(it) },
+                                                                    onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                                    valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                                    steps = UI_SCALE_SLIDER_STEPS,
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    colors = SliderDefaults.colors(
+                                                                        thumbColor = sketch.accent,
+                                                                        activeTrackColor = sketch.accent,
+                                                                        inactiveTrackColor = sketch.lineSoft,
+                                                                        activeTickColor = sketch.surface,
+                                                                        inactiveTickColor = sketch.inkMuted.copy(alpha = 0.35f),
+                                                                    ),
+                                                                )
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                ) {
+                                                                    Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                                    Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
+                                                                }
+                                                                Row(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .horizontalScroll(rememberScrollState()),
+                                                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                                                ) {
+                                                                    UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                                        val presetScale = preset.toUiScale()
+                                                                        ScaleMenuButton(
+                                                                            onClick = { applyUiScale(presetScale) },
+                                                                            enabled = draftPercentage != preset,
+                                                                            selected = draftPercentage == preset,
+                                                                            label = "${preset}%",
+                                                                        )
+                                                                    }
+                                                                }
+                                                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                                    ScaleMenuButton(
+                                                                        onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                                        enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
+                                                                        label = "-${UI_SCALE_STEP_PERCENT}%",
+                                                                    )
+                                                                    ScaleMenuButton(
+                                                                        onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                                        enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
+                                                                        label = "+${UI_SCALE_STEP_PERCENT}%",
+                                                                    )
+                                                                }
                                                             }
                                                         }
-                                                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                                                            ScaleMenuButton(
-                                                                onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                                enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                                label = "-${UI_SCALE_STEP_PERCENT}%",
-                                                            )
-                                                            ScaleMenuButton(
-                                                                onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                                enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
-                                                                label = "+${UI_SCALE_STEP_PERCENT}%",
-                                                            )
-                                                        }
-                                                    }
                                                     }
                                                 }
                                                 WindowActionButton(
@@ -347,19 +388,23 @@ private fun TopBarSectionButton(
     val shape = RoundedCornerShape(tokens.controlRadius)
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
 
     val containerColor = when {
         selected -> sketch.toolbarSelectedBg
+        isFocused -> sketch.accentSoft.copy(alpha = 0.85f)
         isHovered -> sketch.toolbarSurface
         else -> Color.Transparent
     }
     val border: BorderStroke? = when {
         selected -> BorderStroke(1.dp, sketch.toolbarSelectedBorder)
+        isFocused -> BorderStroke(1.dp, sketch.accent.copy(alpha = 0.72f))
         isHovered -> BorderStroke(1.dp, sketch.toolbarBorder)
         else -> null
     }
     val contentColor = when {
         selected -> sketch.toolbarSelectedInk
+        isFocused -> sketch.accent
         isHovered -> sketch.toolbarInk
         else -> sketch.toolbarInkMuted
     }
@@ -369,7 +414,12 @@ private fun TopBarSectionButton(
             .testTag(tag)
             .handCursorOnHover()
             .hoverable(interactionSource)
-            .clickable(onClick = onClick),
+            .focusable(interactionSource = interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = shape,
         color = containerColor,
         border = border,
@@ -389,6 +439,8 @@ private fun TopBarSectionButton(
                 text = section.label,
                 color = contentColor,
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -449,25 +501,46 @@ private fun ScaleMenuButton(
     onClick: () -> Unit,
     label: String,
     enabled: Boolean,
+    selected: Boolean = false,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val alpha = if (enabled) 1f else 0.45f
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val alpha = if (enabled || selected) 1f else 0.45f
 
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = if (isHovered && enabled) sketch.accentSoft else sketch.surface,
-        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
+        color = when {
+            selected -> sketch.accentSoft
+            (isHovered || isFocused) && enabled -> sketch.surface
+            else -> sketch.surfaceMuted
+        },
+        border = BorderStroke(
+            1.dp,
+            when {
+                selected -> sketch.accent.copy(alpha = 0.72f)
+                isFocused && enabled -> sketch.accent.copy(alpha = 0.72f)
+                else -> sketch.lineSoft.copy(alpha = alpha)
+            },
+        ),
         modifier = Modifier
             .hoverable(interactionSource)
-            .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .focusable(enabled = enabled && !selected, interactionSource = interactionSource)
+            .handCursorOnHover(enabled = enabled && !selected)
+            .clickable(
+                enabled = enabled && !selected,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         Text(
             text = label,
-            color = sketch.inkSoft.copy(alpha = alpha),
-            style = MaterialTheme.typography.labelMedium,
+            color = (if (selected) sketch.accent else sketch.inkSoft).copy(alpha = alpha),
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            ),
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }
@@ -486,20 +559,25 @@ private fun ToolbarIconAction(
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.45f
 
     val bg = when {
-        isDestructive && isHovered -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        isDestructive && isHovered -> MaterialTheme.colorScheme.error.copy(alpha = 0.88f)
+        isDestructive && isFocused -> MaterialTheme.colorScheme.error.copy(alpha = 0.92f)
+        isFocused -> sketch.accentSoft.copy(alpha = 0.8f)
         isHovered -> sketch.toolbarSurface
         else -> Color.Transparent
     }
     val border: BorderStroke? = when {
-        isDestructive -> BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f * alpha))
+        isDestructive && (isHovered || isFocused) -> BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.78f))
+        isFocused -> BorderStroke(1.dp, sketch.accent.copy(alpha = 0.7f * alpha))
         isHovered -> BorderStroke(1.dp, sketch.toolbarBorder.copy(alpha = alpha))
         else -> null
     }
     val tint = if (isDestructive) {
-        MaterialTheme.colorScheme.error.copy(alpha = alpha)
+        if (isHovered || isFocused) Color.White.copy(alpha = alpha)
+        else sketch.toolbarInkMuted.copy(alpha = alpha)
     } else {
         sketch.toolbarInkMuted.copy(alpha = alpha)
     }
@@ -511,12 +589,18 @@ private fun ToolbarIconAction(
         modifier = modifier
             .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
             .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
             .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         Box(
             modifier = if (fillHeight) {
-                Modifier.width(40.dp).fillMaxHeight()
+                Modifier.size(48.dp)
             } else {
                 Modifier.width(30.dp).height(24.dp)
             },

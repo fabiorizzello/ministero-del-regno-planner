@@ -31,6 +31,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.slf4j.LoggerFactory
+import java.awt.Dimension
 import java.awt.Frame
 
 fun main() {
@@ -97,6 +98,12 @@ fun main() {
             title = "Scuola di ministero",
             icon = painterResource(Res.drawable.icon),
         ) {
+            LaunchedEffect(Unit) {
+                window.minimumSize = Dimension(
+                    WindowSettings.MIN_WIDTH_DP,
+                    WindowSettings.MIN_HEIGHT_DP,
+                )
+            }
             AppScreen(
                 initialUiScale = initialUiScale,
                 onUiScaleChange = settingsStore::saveUiScale,

@@ -6,12 +6,16 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -61,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -126,13 +131,17 @@ internal fun PartEditorDialog(
                     color = sketch.inkMuted,
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     DesktopInlineAction(
                         label = "Aggiungi parte",
                         icon = Icons.Filled.Add,
                         onClick = { menuExpanded = true },
                         enabled = !isSaving,
                         tone = DesktopInlineActionTone.Primary,
+                        modifier = Modifier.width(184.dp).height(40.dp),
                     )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         availablePartTypes.forEach { type ->
@@ -235,12 +244,14 @@ internal fun PartEditorDialog(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     DesktopInlineAction(
                         label = "Annulla",
                         onClick = onDismiss,
                         enabled = !isSaving,
                         tone = DesktopInlineActionTone.Neutral,
+                        modifier = Modifier.width(132.dp).height(40.dp),
                     )
                     Spacer(Modifier.width(spacing.sm))
                     DesktopInlineAction(
@@ -248,6 +259,7 @@ internal fun PartEditorDialog(
                         onClick = onSave,
                         enabled = !isSaving,
                         tone = DesktopInlineActionTone.Primary,
+                        modifier = Modifier.width(132.dp).height(40.dp),
                     )
                 }
             }
@@ -378,6 +390,9 @@ private fun DesktopInlineAction(
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
     val (container, border, content) = when (tone) {
         DesktopInlineActionTone.Neutral -> Triple(
             sketch.surfaceMuted,
@@ -385,9 +400,9 @@ private fun DesktopInlineAction(
             sketch.inkSoft,
         )
         DesktopInlineActionTone.Primary -> Triple(
-            sketch.accent.copy(alpha = 0.2f),
-            sketch.accent.copy(alpha = 0.7f),
             sketch.accent,
+            sketch.accent.copy(alpha = 0.92f),
+            Color.White,
         )
         DesktopInlineActionTone.Positive -> Triple(
             sketch.ok.copy(alpha = 0.2f),
@@ -405,17 +420,39 @@ private fun DesktopInlineAction(
             sketch.bad,
         )
     }
-    val alpha = if (enabled) 1f else 0.46f
+    val alpha = if (enabled) 1f else 0.72f
+    val containerColor = when {
+        enabled && tone == DesktopInlineActionTone.Primary && focused -> sketch.accent.copy(alpha = 0.96f)
+        enabled && tone == DesktopInlineActionTone.Primary && hovered -> sketch.accent.copy(alpha = 0.86f)
+        enabled && focused -> sketch.accentSoft.copy(alpha = 0.86f)
+        enabled && hovered -> sketch.surface
+        else -> container.copy(alpha = alpha)
+    }
     Surface(
         modifier = modifier
+            .heightIn(min = 34.dp)
             .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(10.dp),
-        color = container.copy(alpha = alpha),
-        border = BorderStroke(1.dp, border.copy(alpha = alpha)),
+        color = containerColor,
+        border = BorderStroke(
+            1.dp,
+            if (focused && enabled && tone != DesktopInlineActionTone.Danger) {
+                sketch.accent.copy(alpha = 0.72f)
+            } else {
+                border.copy(alpha = alpha)
+            },
+        ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = spacing.sm, vertical = 5.dp),
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -431,6 +468,8 @@ private fun DesktopInlineAction(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = content.copy(alpha = alpha),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -447,6 +486,7 @@ internal fun WeekSidebarItem(
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
 
     val dotColor = when (status) {
         WeekSidebarStatus.CURRENT -> sketch.accent
@@ -464,6 +504,7 @@ internal fun WeekSidebarItem(
     }
     val bgColor = when {
         selected -> sketch.accentSoft
+        focused -> sketch.accentSoft.copy(alpha = 0.8f)
         hovered -> sketch.lineSoft.copy(alpha = 0.28f)
         else -> Color.Transparent
     }
@@ -473,6 +514,7 @@ internal fun WeekSidebarItem(
             .fillMaxWidth()
             .hoverable(interactionSource)
             .handCursorOnHover()
+            .focusable(interactionSource = interactionSource)
             .clip(RoundedCornerShape(9.dp))
             .background(bgColor)
             .clickable(onClick = onClick),
@@ -644,11 +686,28 @@ private fun WeekHdrButton(
     border: Color,
     onClick: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val bgColor = when {
+        focused -> fg.copy(alpha = 0.14f)
+        hovered -> fg.copy(alpha = 0.08f)
+        else -> Color.Transparent
+    }
+    val borderColor = when {
+        focused -> fg.copy(alpha = 0.8f)
+        hovered -> border.copy(alpha = 0.85f)
+        else -> border
+    }
     Surface(
-        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
+        modifier = Modifier
+            .handCursorOnHover()
+            .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, border),
+        color = bgColor,
+        border = BorderStroke(1.dp, borderColor),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
@@ -660,6 +719,8 @@ private fun WeekHdrButton(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = fg,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -669,12 +730,12 @@ private fun WeekHdrButton(
 internal fun WeekCoverageStrip(assigned: Int, total: Int, fraction: Float) {
     val sketch = MaterialTheme.workspaceSketch
     val fillColor = when {
-        fraction == 1f -> sketch.ok
+        fraction >= 1f -> sketch.ok
         fraction > 0f -> sketch.accent
         else -> Color.Transparent
     }
     val pctColor = when {
-        fraction == 1f -> sketch.ok
+        fraction >= 1f -> sketch.ok
         fraction > 0f -> sketch.accent
         else -> sketch.inkMuted
     }
@@ -725,14 +786,29 @@ internal fun SidebarFooterButton(
     enabled: Boolean = true,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.46f
+    val bgColor = when {
+        focused -> sketch.accentSoft.copy(alpha = 0.8f)
+        hovered -> sketch.surfaceMuted
+        else -> sketch.surface
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .handCursorOnHover(enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = sketch.surface,
+        color = bgColor,
         border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
     ) {
         Row(
@@ -745,6 +821,8 @@ internal fun SidebarFooterButton(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = sketch.inkSoft.copy(alpha = alpha),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -760,20 +838,41 @@ internal fun ProgramRightPanelButton(
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val alpha = if (enabled) 1f else 0.45f
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val alpha = if (enabled) 1f else 0.72f
+    val baseContainer = if (isPrimary) sketch.accent.copy(alpha = 0.18f) else sketch.surface
+    val container = when {
+        enabled && focused -> sketch.accentSoft.copy(alpha = 0.95f)
+        enabled && hovered -> sketch.accentSoft.copy(alpha = 0.65f)
+        else -> baseContainer.copy(alpha = alpha)
+    }
+    val border = when {
+        enabled && focused -> sketch.accent.copy(alpha = 0.8f)
+        enabled && hovered -> sketch.accent.copy(alpha = 0.55f)
+        isPrimary -> sketch.accent.copy(alpha = 0.7f * alpha)
+        else -> sketch.lineSoft.copy(alpha = alpha)
+    }
     Surface(
         modifier = modifier
             .handCursorOnHover(enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = if (isPrimary) sketch.accent.copy(alpha = alpha) else sketch.surfaceMuted.copy(alpha = alpha),
-        border = BorderStroke(
-            1.dp,
-            if (isPrimary) sketch.accent.copy(alpha = 0.7f * alpha) else sketch.lineSoft.copy(alpha = alpha),
-        ),
+        color = container,
+        border = BorderStroke(1.dp, border),
     ) {
         Row(
-            modifier = Modifier.height(30.dp).padding(horizontal = 10.dp),
+            modifier = Modifier
+                .height(34.dp)
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -786,13 +885,17 @@ internal fun ProgramRightPanelButton(
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                modifier = Modifier.weight(1f),
                 color = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun ProgramCoverageCard(
     programLabel: String,
     assigned: Int,
@@ -803,7 +906,7 @@ internal fun ProgramCoverageCard(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val fraction = if (total > 0) assigned.toFloat() / total else 0f
-    val fillColor = if (fraction == 1f) sketch.ok else sketch.accent
+    val fillColor = if (fraction >= 1f) sketch.ok else sketch.accent
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -866,7 +969,10 @@ internal fun ProgramCoverageCard(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     if (completeWeeks > 0) CovPill("$completeWeeks complete", sketch.ok)
                     if (partialWeeks > 0) CovPill("$partialWeeks parziali", sketch.warn)
                     if (emptyWeeks > 0) CovPill("$emptyWeeks vuote", sketch.inkMuted)
@@ -878,16 +984,27 @@ internal fun ProgramCoverageCard(
 
 @Composable
 private fun CovPill(label: String, color: Color) {
+    val sketch = MaterialTheme.workspaceSketch
+    val containerColor = when (color) {
+        sketch.ok -> MaterialTheme.colorScheme.secondaryContainer
+        sketch.warn -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = when (color) {
+        sketch.ok -> MaterialTheme.colorScheme.onSecondaryContainer
+        sketch.warn -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = color.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+        color = containerColor,
+        border = BorderStroke(1.dp, color.copy(alpha = 0.55f)),
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = color,
+            color = contentColor,
         )
     }
 }
@@ -900,11 +1017,14 @@ internal fun RightPanelCollapsibleSection(
     content: @Composable () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .handCursorOnHover()
+                .focusable(interactionSource = interactionSource)
                 .clickable(onClick = onToggle)
                 .padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -917,12 +1037,12 @@ internal fun RightPanelCollapsibleSection(
                     fontSize = 10.sp,
                     letterSpacing = 0.7.sp,
                 ),
-                color = sketch.inkMuted,
+                color = if (focused) sketch.inkSoft else sketch.inkMuted,
             )
             Icon(
                 imageVector = if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                 contentDescription = null,
-                tint = sketch.inkMuted,
+                tint = if (focused) sketch.inkSoft else sketch.inkMuted,
                 modifier = Modifier.size(14.dp),
             )
         }
@@ -1027,18 +1147,40 @@ internal fun ProgramDangerButton(
     onClick: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val alpha = if (enabled) 1f else 0.45f
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val alpha = if (enabled) 1f else 0.72f
+    val container = when {
+        enabled && focused -> sketch.bad.copy(alpha = 0.12f)
+        enabled && hovered -> sketch.bad.copy(alpha = 0.08f)
+        else -> sketch.surface
+    }
+    val border = when {
+        enabled && focused -> sketch.bad.copy(alpha = 0.7f)
+        enabled && hovered -> sketch.bad.copy(alpha = 0.58f)
+        else -> sketch.bad.copy(alpha = 0.45f * alpha)
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .handCursorOnHover(enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = sketch.surface,
-        border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f * alpha)),
+        color = container,
+        border = BorderStroke(1.dp, border),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier
+                .height(34.dp)
+                .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1050,8 +1192,11 @@ internal fun ProgramDangerButton(
             )
             Text(
                 label,
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = sketch.bad.copy(alpha = alpha),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

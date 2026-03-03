@@ -15,8 +15,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -513,10 +515,11 @@ internal fun ProclamatoriDataRow(
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
 
     val rowBg = when {
         selected -> sketch.accentSoft
-        hovered  -> sketch.lineSoft.copy(alpha = 0.35f)
+        focused || hovered -> sketch.lineSoft.copy(alpha = 0.35f)
         else     -> Color.Transparent
     }
 
@@ -524,6 +527,7 @@ internal fun ProclamatoriDataRow(
         modifier = Modifier
             .fillMaxWidth()
             .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
             .background(rowBg)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -566,7 +570,7 @@ internal fun ProclamatoriDataRow(
             modifier = Modifier.width(56.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            AnimatedVisibility(visible = hovered && !batchMode) {
+            AnimatedVisibility(visible = (hovered || focused) && !batchMode) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(
                         onClick = onEdit,

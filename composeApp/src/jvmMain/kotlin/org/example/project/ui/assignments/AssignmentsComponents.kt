@@ -75,9 +75,15 @@ fun PartAssignmentCard(
         1 -> sketch.warn.copy(alpha = 0.6f)
         else -> sketch.ok.copy(alpha = 0.55f)
     }
-    val badgeColor = when (statusTone) {
-        0 -> sketch.inkMuted
-        else -> borderColor
+    val badgeContainerColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.surfaceVariant
+        1 -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val badgeTextColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.onSurfaceVariant
+        1 -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSecondaryContainer
     }
     val containerColor = sketch.surface
     val statusLabel = when (statusTone) {
@@ -101,27 +107,35 @@ fun PartAssignmentCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text(
                     text = "$displayNumber. ${part.partType.label}",
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = sketch.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (showSexRuleChip) {
                         SexRuleChip(part.partType.sexRule)
                     }
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = badgeColor.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f)),
+                        color = badgeContainerColor,
+                        border = BorderStroke(1.dp, borderColor.copy(alpha = 0.6f)),
                     ) {
                         Text(
                             text = statusLabel,
                             modifier = Modifier.padding(horizontal = spacing.xs, vertical = 1.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor,
+                            color = badgeTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -234,6 +248,7 @@ private fun AssignedPersonChip(
     Row(
         modifier = modifier
             .widthIn(max = ASSIGNED_PERSON_CHIP_MAX_WIDTH)
+            .heightIn(min = 30.dp)
             .handCursorOnHover(enabled = !readOnly)
             .hoverable(
                 enabled = !readOnly,
@@ -248,7 +263,7 @@ private fun AssignedPersonChip(
                 indication = LocalIndication.current,
                 onClick = onOpenPicker,
             )
-            .padding(start = spacing.md, end = spacing.xs, top = spacing.xxs, bottom = spacing.xxs),
+            .padding(start = spacing.md, end = spacing.xs, top = spacing.xs, bottom = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
@@ -311,12 +326,13 @@ private fun MissingAssignmentChip(
 
     Row(
         modifier = modifier
+            .heightIn(min = 30.dp)
             .hoverable(interactionSource)
             .clip(shape)
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
-            .padding(horizontal = spacing.md, vertical = spacing.xxs),
+            .padding(horizontal = spacing.md, vertical = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {

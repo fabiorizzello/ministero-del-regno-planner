@@ -1083,7 +1083,7 @@ private fun SketchRightPanel(selectedMonth: FkMonth?, issues: List<FkIssue>) {
     var issuesOpen by remember { mutableStateOf(true) }
 
     Column(
-        modifier = Modifier.width(248.dp).fillMaxHeight().background(sketch.panelRight),
+        modifier = Modifier.width(296.dp).fillMaxHeight().background(sketch.panelRight),
     ) {
         // Scrollable content
         Column(
