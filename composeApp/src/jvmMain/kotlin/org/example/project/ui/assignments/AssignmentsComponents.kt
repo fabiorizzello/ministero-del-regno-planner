@@ -10,9 +10,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 
 // Column width constants for suggestion table
 private val WEEKS_COLUMN_WIDTH = 120.dp
@@ -56,17 +59,40 @@ fun PartAssignmentCard(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    val requiredSlots = part.partType.peopleCount
+    val filledSlots = assignments.size.coerceAtMost(requiredSlots)
+    val statusTone = when {
+        filledSlots == 0 && requiredSlots > 0 -> 0
+        filledSlots < requiredSlots -> 1
+        else -> 2
+    }
+    val borderColor = when (statusTone) {
+        0 -> sketch.lineSoft
+        1 -> sketch.warn.copy(alpha = 0.6f)
+        else -> sketch.ok.copy(alpha = 0.55f)
+    }
+    val badgeColor = when (statusTone) {
+        0 -> sketch.inkMuted
+        else -> borderColor
+    }
+    val containerColor = sketch.surface
+    val statusLabel = when (statusTone) {
+        0 -> "Vuota"
+        1 -> "Parziale"
+        else -> "Assegnata"
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(spacing.cardRadius + 2.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(spacing.cardRadius),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(spacing.md),
+            modifier = Modifier.fillMaxWidth().padding(spacing.md),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             // Header row: display number + label + sex rule chip
             Row(
@@ -76,10 +102,25 @@ fun PartAssignmentCard(
             ) {
                 Text(
                     text = "$displayNumber. ${part.partType.label}",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = sketch.ink,
                 )
-                if (showSexRuleChip) {
-                    SexRuleChip(part.partType.sexRule)
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                    if (showSexRuleChip) {
+                        SexRuleChip(part.partType.sexRule)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = badgeColor.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f)),
+                    ) {
+                        Text(
+                            text = statusLabel,
+                            modifier = Modifier.padding(horizontal = spacing.xs, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = badgeColor,
+                        )
+                    }
                 }
             }
 
@@ -122,34 +163,38 @@ private fun SlotRow(
     onRemove: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
         if (label != null) {
             Text(
                 text = "$label:",
-                modifier = Modifier.width(110.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(106.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = sketch.inkSoft,
+                maxLines = 1,
             )
-            Spacer(Modifier.width(spacing.md))
         }
 
-        Spacer(Modifier.weight(1f))
         if (assignment != null) {
             AssignedPersonChip(
                 fullName = assignment.fullName,
                 readOnly = readOnly,
                 onOpenPicker = onAssign,
                 onRemove = onRemove,
+                modifier = Modifier.weight(1f),
             )
         } else {
             MissingAssignmentChip(
                 readOnly = readOnly,
                 onAssign = onAssign,
-                modifier = Modifier.handCursorOnHover(),
+                modifier = Modifier
+                    .weight(1f)
+                    .handCursorOnHover(),
             )
         }
     }
@@ -164,22 +209,23 @@ private fun AssignedPersonChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
-    val shape = RoundedCornerShape(999.dp)
+    val sketch = MaterialTheme.workspaceSketch
+    val shape = RoundedCornerShape(6.dp)
     val chipInteractionSource = remember { MutableInteractionSource() }
     val isHovered by chipInteractionSource.collectIsHoveredAsState()
     val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        sketch.surfaceMuted
     } else if (isHovered) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)
+        sketch.ok.copy(alpha = 0.18f)
     } else {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        sketch.ok.copy(alpha = 0.12f)
     }
     val borderColor = if (readOnly) {
-        MaterialTheme.colorScheme.outlineVariant
+        sketch.lineSoft
     } else if (isHovered) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+        sketch.ok.copy(alpha = 0.6f)
     } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+        sketch.ok.copy(alpha = 0.5f)
     }
 
     Row(
@@ -199,30 +245,34 @@ private fun AssignedPersonChip(
                 indication = LocalIndication.current,
                 onClick = onOpenPicker,
             )
-            .padding(start = spacing.lg, end = spacing.xs, top = spacing.sm, bottom = spacing.sm),
+            .padding(start = spacing.md, end = spacing.xs, top = spacing.xxs, bottom = spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
+        Icon(
+            imageVector = Icons.Filled.TaskAlt,
+            contentDescription = null,
+            modifier = Modifier.size(15.dp),
+            tint = if (readOnly) sketch.inkMuted else sketch.ok,
+        )
         Text(
             text = fullName,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = sketch.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         if (!readOnly) {
-            FilledIconButton(
+            IconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(36.dp).handCursorOnHover(),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
+                modifier = Modifier.size(24.dp).handCursorOnHover(),
             ) {
                 Icon(
                     Icons.Filled.Close,
                     contentDescription = "Rimuovi $fullName",
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(14.dp),
+                    tint = sketch.inkMuted,
                 )
             }
         }
@@ -236,46 +286,46 @@ private fun MissingAssignmentChip(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.spacing
-    val shape = RoundedCornerShape(999.dp)
-    val containerColor = if (readOnly) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-    } else {
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+    val sketch = MaterialTheme.workspaceSketch
+    val shape = RoundedCornerShape(6.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val containerColor = when {
+        readOnly -> sketch.surfaceMuted
+        hovered -> sketch.accentSoft
+        else -> Color.Transparent
     }
-    val borderColor = if (readOnly) {
-        MaterialTheme.colorScheme.outlineVariant
-    } else {
-        MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+    val borderColor = when {
+        readOnly -> sketch.lineSoft
+        hovered -> sketch.accent.copy(alpha = 0.7f)
+        else -> sketch.lineSoft
     }
-    val contentColor = if (readOnly) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        MaterialTheme.colorScheme.onSecondaryContainer
+    val contentColor = when {
+        readOnly -> sketch.inkMuted
+        hovered -> sketch.accent
+        else -> sketch.inkMuted
     }
 
     Row(
         modifier = modifier
+            .hoverable(interactionSource)
             .clip(shape)
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
-            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+            .padding(horizontal = spacing.md, vertical = spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
         Icon(
-            Icons.Filled.PersonAdd,
+            if (readOnly) Icons.Filled.Person else Icons.Filled.Add,
             contentDescription = "Assegna",
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
             tint = contentColor,
         )
         Text(
-            text = if (readOnly) "Non assegnato" else "Assegna",
-            style = if (readOnly) {
-                MaterialTheme.typography.titleSmall.copy(fontStyle = FontStyle.Italic)
-            } else {
-                MaterialTheme.typography.titleSmall
-            },
+            text = if (readOnly) "—" else "Assegna",
+            style = MaterialTheme.typography.labelMedium,
             color = contentColor,
         )
     }
@@ -330,6 +380,8 @@ fun PersonPickerDialog(
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
+            color = MaterialTheme.workspaceSketch.surface,
+            border = BorderStroke(1.dp, MaterialTheme.workspaceSketch.lineSoft),
             modifier = Modifier.width(900.dp),
         ) {
             Column(
@@ -353,6 +405,7 @@ fun PersonPickerDialog(
                         Icon(
                             Icons.Filled.Close,
                             contentDescription = "Chiudi",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -363,10 +416,15 @@ fun PersonPickerDialog(
                     onValueChange = onSearchChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Cerca proclamatore...") },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = null)
-                    },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
                 )
 
                 // Sort toggle
@@ -378,26 +436,18 @@ fun PersonPickerDialog(
                         text = "Ordina per:",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    FilterChip(
-                        selected = sortGlobal,
-                        onClick = { if (!sortGlobal) onToggleSort() },
-                        label = { Text("Globale") },
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    )
-                    FilterChip(
-                        selected = !sortGlobal,
-                        onClick = { if (sortGlobal) onToggleSort() },
-                        label = { Text("Per parte") },
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                        SortModeButton(
+                            label = "Globale",
+                            selected = sortGlobal,
+                            onClick = { if (!sortGlobal) onToggleSort() },
+                        )
+                        SortModeButton(
+                            label = "Per parte",
+                            selected = !sortGlobal,
+                            onClick = { if (sortGlobal) onToggleSort() },
+                        )
+                    }
                 }
 
                 // Content
@@ -550,25 +600,77 @@ private fun SuggestionRow(
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
         )
-        Button(
-            onClick = onAssign,
-            enabled = !isAssigning,
+        Surface(
             modifier = Modifier
                 .width(BUTTON_COLUMN_WIDTH)
                 .height(36.dp)
-                .handCursorOnHover(),
+                .handCursorOnHover(enabled = !isAssigning)
+                .clickable(enabled = !isAssigning, onClick = onAssign),
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isAssigning) 0.35f else 0.92f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)),
         ) {
-            Icon(Icons.Filled.PersonAdd, contentDescription = "Assegna", modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(MaterialTheme.spacing.xs))
-            Text(
-                text = "Assegna",
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Clip,
-                textAlign = TextAlign.Center,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = spacing.sm),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Assegna",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(Modifier.width(MaterialTheme.spacing.xs))
+                Text(
+                    text = if (isAssigning) "..." else "Assegna",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SortModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+        )
     }
 }
 

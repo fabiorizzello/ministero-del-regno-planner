@@ -47,7 +47,11 @@ import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.example.project.ui.components.FeedbackBanner
+import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.components.workspace.WorkspacePanel
+import org.example.project.ui.components.workspace.WorkspaceStateKind
+import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
 import org.koin.core.context.GlobalContext
 
@@ -91,21 +95,36 @@ fun DiagnosticsScreen() {
         )
     }
 
-    Column(
+    WorkspacePanel(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+            .fillMaxSize(),
     ) {
-        Text("Diagnostica", style = MaterialTheme.typography.headlineMedium)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        ) {
+            Text("Diagnostica", style = MaterialTheme.typography.headlineMedium)
 
-        FeedbackBanner(
-            model = state.notice,
-            onDismissRequest = { viewModel.dismissNotice() },
-        )
+            FeedbackBanner(
+                model = state.notice,
+                onDismissRequest = { viewModel.dismissNotice() },
+            )
 
-        Card(
+            when {
+                state.isLoading -> WorkspaceStatePane(
+                    kind = WorkspaceStateKind.Loading,
+                    message = "Caricamento diagnostica in corso...",
+                )
+                state.notice?.kind == FeedbackBannerKind.ERROR -> WorkspaceStatePane(
+                    kind = WorkspaceStateKind.Error,
+                    message = "Alcune informazioni diagnostiche non sono disponibili.",
+                )
+            }
+
+            Card(
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
@@ -127,7 +146,7 @@ fun DiagnosticsScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    Button(
+                    OutlinedButton(
                         onClick = { viewModel.exportDiagnosticsBundle() },
                         enabled = !state.isExporting && !state.isCleaning,
                         modifier = Modifier
@@ -167,7 +186,7 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(
+            Card(
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
@@ -210,7 +229,7 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(
+            Card(
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
@@ -253,7 +272,7 @@ fun DiagnosticsScreen() {
             }
         }
 
-        Card(
+            Card(
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
@@ -332,6 +351,7 @@ fun DiagnosticsScreen() {
                     }
                 }
             }
+        }
         }
     }
 }

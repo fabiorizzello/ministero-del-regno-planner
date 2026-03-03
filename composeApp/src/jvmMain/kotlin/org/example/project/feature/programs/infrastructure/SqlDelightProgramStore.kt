@@ -1,6 +1,7 @@
 package org.example.project.feature.programs.infrastructure
 
 import org.example.project.db.MinisteroDatabase
+import org.example.project.feature.programs.application.ProgramDeleteImpact
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -15,6 +16,8 @@ class SqlDelightProgramStore(
         return database.ministeroDatabaseQueries
             .listProgramsCurrentAndFuture(referenceDate.toString(), ::mapProgramRow)
             .executeAsList()
+            .distinctBy { it.yearMonth }
+            .sortedBy { it.yearMonth }
     }
 
     override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? {
@@ -50,6 +53,21 @@ class SqlDelightProgramStore(
 
     override suspend fun delete(id: ProgramMonthId) {
         database.ministeroDatabaseQueries.deleteProgramMonthly(id.value)
+    }
+
+    override suspend fun countDeleteImpact(id: ProgramMonthId): ProgramDeleteImpact {
+        val weeks = database.ministeroDatabaseQueries
+            .countWeeksByProgram(id.value)
+            .executeAsOne()
+            .toInt()
+        val assignments = database.ministeroDatabaseQueries
+            .countAssignmentsByProgram(id.value)
+            .executeAsOne()
+            .toInt()
+        return ProgramDeleteImpact(
+            weeksCount = weeks,
+            assignmentsCount = assignments,
+        )
     }
 }
 

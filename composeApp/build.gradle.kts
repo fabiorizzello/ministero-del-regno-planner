@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.multiplatform.settings)
             implementation(libs.pdfbox)
+            implementation(libs.jsoup)
         }
     }
 }
@@ -74,10 +75,19 @@ sqldelight {
     }
 }
 
-tasks.register<JavaExec>("seedDatabase") {
-    description = "Popola la tabella part_type con i dati da data/part-types.json"
+tasks.register<JavaExec>("seedHistoricalDemoData") {
+    description = "Genera dataset storico realistico (proclamatori, idoneita', catalogo, programmi e assegnazioni)"
     group = "application"
-    mainClass.set("org.example.project.core.cli.SeedDatabaseKt")
+    mainClass.set("org.example.project.core.cli.SeedHistoricalDemoDataKt")
+    classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
+        kotlin.jvm().compilations["main"].output.allOutputs
+    workingDir = rootProject.projectDir
+}
+
+tasks.register<JavaExec>("generateWolEfficaciCatalog") {
+    description = "Genera un catalogo schemi JSON dal selettore settimane WOL (sezione EFFICACI NEL MINISTERO)"
+    group = "application"
+    mainClass.set("org.example.project.core.cli.GenerateWolEfficaciCatalogKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
     workingDir = rootProject.projectDir
@@ -89,16 +99,16 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
-            packageName = "efficaci-nel-ministero"
+            packageName = "scuola-di-ministero"
             packageVersion = numericVersion
             description = "Pianificatore per il ministero del Regno"
-            vendor = "Efficaci Nel Ministero"
-            copyright = "© 2025 Efficaci Nel Ministero"
+            vendor = "Scuola di ministero"
+            copyright = "© 2026 Scuola di ministero"
 
             windows {
                 iconFile.set(project.file("launcher-icon.ico"))
                 shortcut = true
-                menuGroup = "Efficaci Nel Ministero"
+                menuGroup = "Scuola di ministero"
             }
         }
     }

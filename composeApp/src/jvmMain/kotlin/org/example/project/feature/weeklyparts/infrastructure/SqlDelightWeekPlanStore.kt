@@ -158,6 +158,10 @@ class SqlDelightWeekPlanStore(
             }
     }
 
+    override suspend fun deleteByProgram(programId: String) {
+        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId)
+    }
+
     override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {
         database.ministeroDatabaseQueries.updateWeekPlanStatus(
             status = status.name,

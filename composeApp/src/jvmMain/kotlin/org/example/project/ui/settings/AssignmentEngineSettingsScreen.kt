@@ -11,9 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
@@ -29,6 +32,23 @@ import org.example.project.ui.theme.spacing
 import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.AssignmentSettingsUiState
 import org.koin.core.context.GlobalContext
+
+internal data class AssignmentSettingsSwitchPalette(
+    val checkedThumbColor: Color,
+    val checkedTrackColor: Color,
+    val uncheckedThumbColor: Color,
+    val uncheckedTrackColor: Color,
+    val uncheckedBorderColor: Color,
+)
+
+internal fun assignmentSettingsSwitchPalette(colorScheme: ColorScheme): AssignmentSettingsSwitchPalette =
+    AssignmentSettingsSwitchPalette(
+        checkedThumbColor = colorScheme.onPrimary,
+        checkedTrackColor = colorScheme.primary,
+        uncheckedThumbColor = colorScheme.onSurface,
+        uncheckedTrackColor = colorScheme.surfaceVariant,
+        uncheckedBorderColor = colorScheme.outline,
+    )
 
 @Composable
 fun AssignmentEngineSettingsScreen() {
@@ -74,11 +94,12 @@ private fun AssignmentEngineSettingsCard(
     onSave: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val switchPalette = assignmentSettingsSwitchPalette(MaterialTheme.colorScheme)
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -95,6 +116,14 @@ private fun AssignmentEngineSettingsCard(
                 Switch(
                     checked = state.strictCooldown,
                     onCheckedChange = onStrictCooldownChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = switchPalette.checkedThumbColor,
+                        checkedTrackColor = switchPalette.checkedTrackColor,
+                        checkedBorderColor = switchPalette.checkedTrackColor,
+                        uncheckedThumbColor = switchPalette.uncheckedThumbColor,
+                        uncheckedTrackColor = switchPalette.uncheckedTrackColor,
+                        uncheckedBorderColor = switchPalette.uncheckedBorderColor,
+                    ),
                 )
                 Text("Strict cooldown (default ON)")
             }

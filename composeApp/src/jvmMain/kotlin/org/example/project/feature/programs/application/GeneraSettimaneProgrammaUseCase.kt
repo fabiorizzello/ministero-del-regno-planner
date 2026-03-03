@@ -54,9 +54,7 @@ class GeneraSettimaneProgrammaUseCase(
 
         val programMonthId = org.example.project.feature.programs.domain.ProgramMonthId(programId)
         transactionRunner.runInTransaction {
-            weekPlanStore.listByProgram(programId).forEach { existing ->
-                weekPlanStore.delete(existing.id)
-            }
+            weekPlanStore.deleteByProgram(programId)
 
             for (spec in weekSpecs) {
                 val weekPlan = WeekPlan(
@@ -74,8 +72,8 @@ class GeneraSettimaneProgrammaUseCase(
                 )
                 weekPlanStore.replaceAllParts(weekPlan.id, spec.partTypeIds)
             }
-        }
 
-        programStore.updateTemplateAppliedAt(programMonthId, LocalDateTime.now())
+            programStore.updateTemplateAppliedAt(programMonthId, LocalDateTime.now())
+        }
     }
 }

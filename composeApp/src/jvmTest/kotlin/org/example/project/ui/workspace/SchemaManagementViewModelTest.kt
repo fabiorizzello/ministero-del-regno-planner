@@ -4,7 +4,9 @@ import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.YearMonth
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -64,5 +66,41 @@ class SchemaManagementViewModelTest {
     fun `no lastSchemaImport returns false`() {
         val program = programMonth(createdAt = importTime.minusDays(1))
         assertFalse(isSchemaRefreshNeeded(null, program))
+    }
+
+    @Test
+    fun `impacted future ids include only months with changed template weeks`() {
+        val march = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
+        val april = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 4), id = "april")
+        val before = mapOf(
+            LocalDate.of(2026, 3, 2) to listOf("A", "B"),
+            LocalDate.of(2026, 4, 6) to listOf("A", "B"),
+        )
+        val after = mapOf(
+            LocalDate.of(2026, 3, 2) to listOf("A", "C"),
+            LocalDate.of(2026, 4, 6) to listOf("A", "B"),
+        )
+
+        val impacted = calculateImpactedFutureProgramIds(
+            futurePrograms = listOf(march, april),
+            before = before,
+            after = after,
+        )
+
+        assertEquals(setOf("march"), impacted)
+    }
+
+    @Test
+    fun `no schema delta returns empty impacted ids`() {
+        val march = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
+        val snapshot = mapOf(LocalDate.of(2026, 3, 2) to listOf("A", "B"))
+
+        val impacted = calculateImpactedFutureProgramIds(
+            futurePrograms = listOf(march),
+            before = snapshot,
+            after = snapshot,
+        )
+
+        assertTrue(impacted.isEmpty())
     }
 }

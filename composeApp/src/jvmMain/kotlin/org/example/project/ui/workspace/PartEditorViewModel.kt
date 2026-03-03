@@ -17,10 +17,12 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeAsyncOperationWithNotice
-import org.example.project.ui.components.formatWeekRangeLabel
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.UUID
+import java.time.temporal.TemporalAdjusters
 
 internal data class PartEditorUiState(
     val today: LocalDate = LocalDate.now(),
@@ -146,20 +148,50 @@ internal class PartEditorViewModel(
 
     fun reactivateWeek(week: WeekPlan, onSuccess: () -> Unit) {
         scope.launch {
-            val weekLabel = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))
-            _state.executeAsyncOperationWithNotice(
+            var succeeded = false
+            _state.executeAsyncOperation(
                 loadingUpdate = { it },
-                noticeUpdate = { state, notice -> state.copy(notice = notice) },
-                successMessage = "Settimana $weekLabel riattivata",
-                errorMessagePrefix = "Errore riattivazione",
+                successUpdate = { state, _ ->
+                    succeeded = true
+                    state.copy(notice = null)
+                },
+                errorUpdate = { state, error ->
+                    state.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.message}", FeedbackBannerKind.ERROR))
+                },
                 operation = { weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.ACTIVE) },
-                onSuccess = { onSuccess() },
             )
+            if (succeeded) onSuccess()
         }
     }
 
-    private fun canMutateWeek(week: WeekPlan): Boolean =
-        week.weekStartDate >= _state.value.today && week.status == WeekPlanStatus.ACTIVE
+    fun skipWeek(week: WeekPlan, onSuccess: () -> Unit) {
+        if (!canSkipWeek(week)) return
+        scope.launch {
+            var succeeded = false
+            _state.executeAsyncOperation(
+                loadingUpdate = { it },
+                successUpdate = { state, _ ->
+                    succeeded = true
+                    state.copy(notice = null)
+                },
+                errorUpdate = { state, error ->
+                    state.copy(notice = FeedbackBannerModel("Errore salto settimana: ${error.message}", FeedbackBannerKind.ERROR))
+                },
+                operation = { weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.SKIPPED) },
+            )
+            if (succeeded) onSuccess()
+        }
+    }
+
+    private fun canMutateWeek(week: WeekPlan): Boolean {
+        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        return week.weekStartDate >= currentMonday && week.status == WeekPlanStatus.ACTIVE
+    }
+
+    private fun canSkipWeek(week: WeekPlan): Boolean {
+        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        return week.weekStartDate >= currentMonday && week.status == WeekPlanStatus.ACTIVE
+    }
 
     private fun loadPartTypes() {
         scope.launch {

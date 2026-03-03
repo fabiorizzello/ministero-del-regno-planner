@@ -7,14 +7,22 @@
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -91,6 +99,7 @@ internal fun ProclamatoriFormDialogComponent(
     onPuoAssistereChange: (Boolean) -> Unit,
     leadEligibilityOptions: List<LeadEligibilityOptionUi>,
     onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
+    onSetAllEligibilityChange: (Boolean) -> Unit,
     nomeTrim: String,
     cognomeTrim: String,
     showFieldErrors: Boolean,
@@ -111,6 +120,7 @@ internal fun ProclamatoriFormDialogComponent(
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
             modifier = Modifier
                 .padding(spacing.lg)
                 .width(900.dp),
@@ -119,6 +129,24 @@ internal fun ProclamatoriFormDialogComponent(
                 modifier = Modifier.padding(spacing.xxl),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Chiudi",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
                 ProclamatoriFormContentForm(
                     route = route,
                     nome = nome,
@@ -133,6 +161,7 @@ internal fun ProclamatoriFormDialogComponent(
                     onPuoAssistereChange = onPuoAssistereChange,
                     leadEligibilityOptions = leadEligibilityOptions,
                     onLeadEligibilityChange = onLeadEligibilityChange,
+                    onSetAllEligibilityChange = onSetAllEligibilityChange,
                     nomeTrim = nomeTrim,
                     cognomeTrim = cognomeTrim,
                     showFieldErrors = showFieldErrors,

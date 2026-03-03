@@ -27,5 +27,9 @@ interface WeekPlanStore {
 
     suspend fun listByProgram(programId: String): List<WeekPlan> = emptyList()
 
+    suspend fun deleteByProgram(programId: String) {
+        listByProgram(programId).forEach { week -> delete(week.id) }
+    }
+
     suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {}
 }

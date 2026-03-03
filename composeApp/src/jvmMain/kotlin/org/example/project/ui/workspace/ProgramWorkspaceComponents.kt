@@ -1,13 +1,17 @@
 package org.example.project.ui.workspace
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,29 +26,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,270 +57,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.domain.AssignmentId
-import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.weeklyparts.domain.PartType
-import org.example.project.feature.weeklyparts.domain.WeekPlan
-import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
-import org.example.project.ui.assignments.PartAssignmentCard
-import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.time.DayOfWeek
-import java.time.temporal.TemporalAdjusters
-
-// Components extracted from ProgramWorkspaceScreen.kt
-// This file contains composables for the Program Workspace UI
-
-@Composable
-internal fun ProgramWeekStickyHeader(
-    week: WeekPlan,
-    isCurrent: Boolean,
-    isPast: Boolean,
-) {
-    val spacing = MaterialTheme.spacing
-    val isSkipped = week.status == WeekPlanStatus.SKIPPED
-    val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.94f)
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.94f)
-        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
-    }
-    val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
-        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.94f))
-            .padding(vertical = spacing.xxs),
-        shape = RoundedCornerShape(12.dp),
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.md, vertical = spacing.xs),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Settimana ${formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6))}",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (isCurrent) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    ) {
-                        Text(
-                            "Corrente",
-                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                if (isSkipped) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                    ) {
-                        Text(
-                            "Saltata",
-                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                }
-                if (isPast) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    ) {
-                        Text(
-                            "Passata",
-                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Text(
-                    "Parti: ${week.parts.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun ProgramWeekCard(
-    week: WeekPlan,
-    isCurrent: Boolean,
-    today: java.time.LocalDate,
-    assignments: List<AssignmentWithPerson>,
-    onReactivate: () -> Unit,
-    onOpenPartEditor: () -> Unit,
-    onRequestClearWeekAssignments: () -> Unit,
-    onAssignSlot: (WeeklyPartId, Int) -> Unit,
-    onRemoveAssignment: (AssignmentId) -> Unit,
-) {
-    val spacing = MaterialTheme.spacing
-    val isSkipped = week.status == WeekPlanStatus.SKIPPED
-    val isPast = week.weekStartDate < today
-    val canMutate = !isSkipped && !isPast
-    val assignmentsByPart = remember(assignments) { assignments.groupBy { it.weeklyPartId } }
-    val partRows = remember(week.parts) { week.parts.chunked(2) }
-
-    val borderColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-        isSkipped -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f)
-        isPast -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-    }
-    val containerColor = when {
-        isCurrent -> MaterialTheme.colorScheme.surface
-        isSkipped -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
-        isPast -> MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-        else -> MaterialTheme.colorScheme.surface
-    }
-    val accentColor = when {
-        isCurrent -> MaterialTheme.colorScheme.primary
-        isSkipped -> MaterialTheme.colorScheme.secondary
-        isPast -> MaterialTheme.colorScheme.outline
-        else -> MaterialTheme.colorScheme.tertiary
-    }
-
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isCurrent) 4.dp else 3.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(containerColor),
-            verticalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(accentColor.copy(alpha = 0.76f)),
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.md),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (isSkipped && !isPast) {
-                    OutlinedButton(
-                        onClick = onReactivate,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.secondary,
-                        ),
-                    ) { Text("Riattiva") }
-                } else if (!isPast) {
-                    OutlinedButton(
-                        onClick = onOpenPartEditor,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) { Text("Modifica parti") }
-                }
-                if (canMutate) {
-                    OutlinedButton(
-                        onClick = onRequestClearWeekAssignments,
-                        modifier = Modifier.handCursorOnHover(),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        ),
-                    ) {
-                        Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text("Rimuovi assegnazioni")
-                    }
-                }
-            }
-
-            if (week.parts.isEmpty()) {
-                Text(
-                    "Nessuna parte configurata",
-                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Column(
-                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
-                ) {
-                    partRows.forEach { rowParts ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(if (rowParts.size > 1) Modifier.height(IntrinsicSize.Min) else Modifier),
-                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            rowParts.forEach { part ->
-                                val partModifier = if (rowParts.size > 1) {
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                } else {
-                                    Modifier.fillMaxWidth()
-                                }
-                                PartAssignmentCard(
-                                    part = part,
-                                    assignments = assignmentsByPart[part.id] ?: emptyList(),
-                                    displayNumber = part.sortOrder + DISPLAY_NUMBER_OFFSET,
-                                    readOnly = !canMutate,
-                                    showSexRuleChip = false,
-                                    onAssignSlot = { slot -> onAssignSlot(part.id, slot) },
-                                    onRemoveAssignment = onRemoveAssignment,
-                                    modifier = partModifier,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -331,6 +93,7 @@ internal fun PartEditorDialog(
     onDismiss: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     var menuExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(
@@ -344,8 +107,11 @@ internal fun PartEditorDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(spacing.cardRadius),
             tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, sketch.lineSoft),
+            color = sketch.surface,
             modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
         ) {
             Column(
@@ -357,23 +123,17 @@ internal fun PartEditorDialog(
                 Text(
                     "Trascina le righe per riordinare le parti",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = sketch.inkMuted,
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    FilledTonalButton(
+                    DesktopInlineAction(
+                        label = "Aggiungi parte",
+                        icon = Icons.Filled.Add,
                         onClick = { menuExpanded = true },
                         enabled = !isSaving,
-                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text("Aggiungi parte")
-                    }
+                        tone = DesktopInlineActionTone.Primary,
+                    )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         availablePartTypes.forEach { type ->
                             DropdownMenuItem(
@@ -391,7 +151,7 @@ internal fun PartEditorDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .background(sketch.surfaceMuted.copy(alpha = 0.92f), RoundedCornerShape(10.dp))
                         .padding(end = 10.dp),
                 ) {
                     LazyColumn(
@@ -410,16 +170,16 @@ internal fun PartEditorDialog(
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = if (isDragging) {
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                        sketch.accent.copy(alpha = 0.18f)
                                     } else {
-                                        MaterialTheme.colorScheme.surface
+                                        sketch.surface
                                     },
                                     border = BorderStroke(
                                         1.dp,
                                         if (isDragging) {
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                            sketch.accent.copy(alpha = 0.8f)
                                         } else {
-                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                            sketch.lineSoft
                                         },
                                     ),
                                 ) {
@@ -433,7 +193,7 @@ internal fun PartEditorDialog(
                                         Icon(
                                             imageVector = Icons.Filled.DragIndicator,
                                             contentDescription = "Trascina per riordinare",
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = sketch.accent,
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .handCursorOnHover(enabled = !isSaving)
@@ -448,7 +208,7 @@ internal fun PartEditorDialog(
                                         Text(
                                             "${part.partType.peopleCount} persone",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = sketch.inkMuted,
                                         )
                                         if (!part.partType.fixed) {
                                             IconButton(
@@ -476,15 +236,19 @@ internal fun PartEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Annulla") }
+                    DesktopInlineAction(
+                        label = "Annulla",
+                        onClick = onDismiss,
+                        enabled = !isSaving,
+                        tone = DesktopInlineActionTone.Neutral,
+                    )
                     Spacer(Modifier.width(spacing.sm))
-                    Button(
+                    DesktopInlineAction(
+                        label = if (isSaving) "Salvataggio..." else "Salva",
                         onClick = onSave,
                         enabled = !isSaving,
-                        modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                    ) {
-                        Text(if (isSaving) "Salvataggio..." else "Salva")
-                    }
+                        tone = DesktopInlineActionTone.Primary,
+                    )
                 }
             }
         }
@@ -511,9 +275,9 @@ internal fun ProgramHeader(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -532,19 +296,13 @@ internal fun ProgramHeader(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                TextButton(
+                DesktopInlineAction(
+                    label = if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna schemi",
+                    icon = Icons.Filled.Refresh,
                     onClick = onRefreshSchemas,
                     enabled = !isRefreshingSchemas,
-                    modifier = Modifier.handCursorOnHover(enabled = !isRefreshingSchemas),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna Schemi")
-                }
+                    tone = DesktopInlineActionTone.Neutral,
+                )
             }
             if (!hasPrograms) {
                 Text(
@@ -560,35 +318,19 @@ internal fun ProgramHeader(
             ) {
                 current?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    FilledTonalButton(
-                        onClick = { onSelectProgram(it.id.value) },
-                        enabled = !isSelected,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary,
-                            disabledContentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ) {
-                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
-                    }
+                    DesktopInlineAction(
+                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
+                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
+                        tone = if (isSelected) DesktopInlineActionTone.Primary else DesktopInlineActionTone.Neutral,
+                    )
                 }
                 future?.let {
                     val isSelected = selectedProgramId == it.id.value
-                    FilledTonalButton(
-                        onClick = { onSelectProgram(it.id.value) },
-                        enabled = !isSelected,
-                        modifier = Modifier.handCursorOnHover(),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.tertiary,
-                            disabledContentColor = MaterialTheme.colorScheme.onTertiary,
-                        ),
-                    ) {
-                        Text(formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() })
-                    }
+                    DesktopInlineAction(
+                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
+                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
+                        tone = if (isSelected) DesktopInlineActionTone.Warn else DesktopInlineActionTone.Neutral,
+                    )
                     if (futureNeedsSchemaRefresh) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
@@ -604,21 +346,713 @@ internal fun ProgramHeader(
                     }
                 }
                 if (canCreateProgram) {
-                    FilledTonalButton(
+                    DesktopInlineAction(
+                        label = if (isCreatingProgram) "Creazione..." else "Crea prossimo mese",
+                        icon = Icons.Filled.Add,
                         onClick = onCreateNextProgram,
                         enabled = !isCreatingProgram,
-                        modifier = Modifier.handCursorOnHover(enabled = !isCreatingProgram),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tone = DesktopInlineActionTone.Primary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class DesktopInlineActionTone {
+    Neutral,
+    Primary,
+    Positive,
+    Warn,
+    Danger,
+}
+
+@Composable
+private fun DesktopInlineAction(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    tone: DesktopInlineActionTone = DesktopInlineActionTone.Neutral,
+) {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    val (container, border, content) = when (tone) {
+        DesktopInlineActionTone.Neutral -> Triple(
+            sketch.surfaceMuted,
+            sketch.lineSoft,
+            sketch.inkSoft,
+        )
+        DesktopInlineActionTone.Primary -> Triple(
+            sketch.accent.copy(alpha = 0.2f),
+            sketch.accent.copy(alpha = 0.7f),
+            sketch.accent,
+        )
+        DesktopInlineActionTone.Positive -> Triple(
+            sketch.ok.copy(alpha = 0.2f),
+            sketch.ok.copy(alpha = 0.7f),
+            sketch.ok,
+        )
+        DesktopInlineActionTone.Warn -> Triple(
+            sketch.warn.copy(alpha = 0.2f),
+            sketch.warn.copy(alpha = 0.7f),
+            sketch.warn,
+        )
+        DesktopInlineActionTone.Danger -> Triple(
+            sketch.surfaceMuted,
+            sketch.bad.copy(alpha = 0.75f),
+            sketch.bad,
+        )
+    }
+    val alpha = if (enabled) 1f else 0.46f
+    Surface(
+        modifier = modifier
+            .handCursorOnHover(enabled = enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = container.copy(alpha = alpha),
+        border = BorderStroke(1.dp, border.copy(alpha = alpha)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = content.copy(alpha = alpha),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = content.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun WeekSidebarItem(
+    label: String,
+    status: WeekSidebarStatus,
+    fraction: Float,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+
+    val dotColor = when (status) {
+        WeekSidebarStatus.CURRENT -> sketch.accent
+        WeekSidebarStatus.COMPLETE -> sketch.ok
+        WeekSidebarStatus.PARTIAL -> sketch.warn
+        WeekSidebarStatus.PAST -> sketch.inkMuted
+        WeekSidebarStatus.SKIPPED, WeekSidebarStatus.EMPTY -> sketch.lineSoft
+    }
+    val fillColor = when (status) {
+        WeekSidebarStatus.CURRENT -> sketch.accent
+        WeekSidebarStatus.COMPLETE -> sketch.ok
+        WeekSidebarStatus.PARTIAL -> sketch.warn
+        WeekSidebarStatus.PAST -> sketch.inkMuted
+        else -> Color.Transparent
+    }
+    val bgColor = when {
+        selected -> sketch.accentSoft
+        hovered -> sketch.lineSoft.copy(alpha = 0.28f)
+        else -> Color.Transparent
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .hoverable(interactionSource)
+            .handCursorOnHover()
+            .clip(RoundedCornerShape(9.dp))
+            .background(bgColor)
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(dotColor))
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                ),
+                color = if (selected) sketch.accent else sketch.ink,
+                maxLines = 1,
+            )
+            when (status) {
+                WeekSidebarStatus.CURRENT -> WeekSidebarTag("CORRENTE", sketch.accent)
+                WeekSidebarStatus.SKIPPED -> WeekSidebarTag("SALTATA", sketch.inkMuted)
+                else -> {}
+            }
+        }
+        if (status != WeekSidebarStatus.SKIPPED) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .padding(bottom = 6.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(sketch.lineSoft.copy(alpha = 0.5f)),
+            ) {
+                if (fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction.coerceAtMost(1f))
+                            .background(fillColor, RoundedCornerShape(999.dp)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekSidebarTag(label: String, color: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                letterSpacing = 0.3.sp,
+            ),
+            color = color,
+        )
+    }
+}
+
+@Composable
+internal fun WeekDetailHeader(
+    weekLabel: String,
+    monthLabel: String,
+    isCurrent: Boolean,
+    isSkipped: Boolean,
+    canMutate: Boolean,
+    onOpenPartEditor: () -> Unit,
+    onSkipWeek: () -> Unit,
+    onReactivate: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Column(modifier = Modifier.background(sketch.panelLeft)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        weekLabel,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = (-0.3).sp,
                         ),
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(spacing.xs))
-                        Text(if (isCreatingProgram) "Creazione..." else "Crea prossimo mese")
+                        color = sketch.ink,
+                    )
+                    when {
+                        isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
+                        isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
+                    }
+                }
+                Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                when {
+                    isSkipped -> WeekHdrButton(
+                        label = "Riattiva",
+                        icon = Icons.Filled.PlayCircle,
+                        fg = sketch.ok,
+                        border = sketch.ok.copy(alpha = 0.45f),
+                        onClick = onReactivate,
+                    )
+                    canMutate -> {
+                        WeekHdrButton(
+                            label = "Modifica parti",
+                            icon = Icons.Filled.Edit,
+                            fg = sketch.inkSoft,
+                            border = sketch.lineSoft,
+                            onClick = onOpenPartEditor,
+                        )
+                        WeekHdrButton(
+                            label = "Salta settimana",
+                            icon = Icons.Filled.Block,
+                            fg = sketch.warn,
+                            border = sketch.warn.copy(alpha = 0.45f),
+                            onClick = onSkipWeek,
+                        )
                     }
                 }
             }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft))
+    }
+}
+
+@Composable
+private fun WeekDetailBadge(label: String, color: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                letterSpacing = 0.2.sp,
+            ),
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun WeekHdrButton(
+    label: String,
+    icon: ImageVector,
+    fg: Color,
+    border: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = fg,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun WeekCoverageStrip(assigned: Int, total: Int, fraction: Float) {
+    val sketch = MaterialTheme.workspaceSketch
+    val fillColor = when {
+        fraction == 1f -> sketch.ok
+        fraction > 0f -> sketch.accent
+        else -> Color.Transparent
+    }
+    val pctColor = when {
+        fraction == 1f -> sketch.ok
+        fraction > 0f -> sketch.accent
+        else -> sketch.inkMuted
+    }
+    Column(modifier = Modifier.background(sketch.panelLeft)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "$assigned / $total slot",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = sketch.inkSoft,
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(sketch.lineSoft),
+            ) {
+                if (fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction.coerceAtMost(1f))
+                            .background(fillColor, RoundedCornerShape(999.dp)),
+                    )
+                }
+            }
+            Text(
+                "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = pctColor,
+            )
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
+    }
+}
+
+@Composable
+internal fun SidebarFooterButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.46f
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = sketch.inkSoft.copy(alpha = alpha), modifier = Modifier.size(12.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = sketch.inkSoft.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ProgramRightPanelButton(
+    label: String,
+    icon: ImageVector,
+    isPrimary: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.45f
+    Surface(
+        modifier = modifier
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (isPrimary) sketch.accent.copy(alpha = alpha) else sketch.surfaceMuted.copy(alpha = alpha),
+        border = BorderStroke(
+            1.dp,
+            if (isPrimary) sketch.accent.copy(alpha = 0.7f * alpha) else sketch.lineSoft.copy(alpha = alpha),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.height(30.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+                modifier = Modifier.size(13.dp),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ProgramCoverageCard(
+    programLabel: String,
+    assigned: Int,
+    total: Int,
+    completeWeeks: Int,
+    partialWeeks: Int,
+    emptyWeeks: Int,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val fraction = if (total > 0) assigned.toFloat() / total else 0f
+    val fillColor = if (fraction == 1f) sketch.ok else sketch.accent
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "COPERTURA",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                letterSpacing = 0.7.sp,
+            ),
+            color = sketch.inkMuted,
+        )
+        Surface(
+            shape = RoundedCornerShape(9.dp),
+            color = sketch.surfaceMuted,
+            border = BorderStroke(1.dp, sketch.lineSoft),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "$assigned",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-1.5).sp,
+                        ),
+                        color = sketch.ink,
+                    )
+                    Text(
+                        "/ $total",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = sketch.inkMuted,
+                        modifier = Modifier.padding(bottom = 3.dp),
+                    )
+                }
+                Text(
+                    "slot assegnati · $programLabel",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = sketch.inkMuted,
+                )
+                Spacer(Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(sketch.lineSoft),
+                ) {
+                    if (fraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(fraction.coerceAtMost(1f))
+                                .background(fillColor, RoundedCornerShape(999.dp)),
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (completeWeeks > 0) CovPill("$completeWeeks complete", sketch.ok)
+                    if (partialWeeks > 0) CovPill("$partialWeeks parziali", sketch.warn)
+                    if (emptyWeeks > 0) CovPill("$emptyWeeks vuote", sketch.inkMuted)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CovPill(label: String, color: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = color,
+        )
+    }
+}
+
+@Composable
+internal fun RightPanelCollapsibleSection(
+    title: String,
+    open: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .handCursorOnHover()
+                .clickable(onClick = onToggle)
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.7.sp,
+                ),
+                color = sketch.inkMuted,
+            )
+            Icon(
+                imageVector = if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                tint = sketch.inkMuted,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        AnimatedVisibility(visible = open) {
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
+    val sketch = MaterialTheme.workspaceSketch
+    var open by remember { mutableStateOf(true) }
+    Surface(
+        shape = RoundedCornerShape(9.dp),
+        color = sketch.warn.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.4f)),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .handCursorOnHover()
+                    .clickable { open = !open }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = sketch.warn,
+                    modifier = Modifier.size(12.dp),
+                )
+                Text(
+                    "PROBLEMI",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.5.sp,
+                    ),
+                    color = sketch.warn,
+                )
+                Box(
+                    modifier = Modifier.size(17.dp).clip(CircleShape).background(sketch.warn),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "${issues.size}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.sp,
+                        ),
+                        color = Color.White,
+                    )
+                }
+                Icon(
+                    if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = sketch.warn,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+            AnimatedVisibility(visible = open) {
+                Column {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.warn.copy(alpha = 0.4f)))
+                    issues.take(6).forEach { issue ->
+                        val weekLabel = formatWeekRangeLabel(issue.weekStartDate, issue.weekStartDate.plusDays(6))
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                "${issue.partLabel.uppercase()} · Slot ${issue.slot} · $weekLabel",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.5.sp,
+                                    letterSpacing = 0.4.sp,
+                                ),
+                                color = sketch.warn,
+                            )
+                            Text(
+                                issue.reason,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = sketch.inkSoft,
+                            )
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.warn.copy(alpha = 0.15f)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ProgramDangerButton(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val alpha = if (enabled) 1f else 0.45f
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover(enabled)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f * alpha)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = sketch.bad.copy(alpha = alpha),
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = sketch.bad.copy(alpha = alpha),
+            )
         }
     }
 }

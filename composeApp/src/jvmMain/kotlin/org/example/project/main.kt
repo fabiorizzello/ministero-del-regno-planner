@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.unit.dp
@@ -30,8 +31,10 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.slf4j.LoggerFactory
+import java.awt.Frame
 
 fun main() {
+    System.getenv("SKIKO_RENDER_API")?.let { System.setProperty("skiko.renderApi", it) }
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
         val logger = LoggerFactory.getLogger("UncaughtException")
         logger.error("Eccezione non gestita nel thread {}", thread.name, throwable)
@@ -85,16 +88,32 @@ fun main() {
 
         Window(
             state = windowState,
+            undecorated = true,
             onCloseRequest = {
                 settingsStore.save(windowState.toSettingsSnapshot())
                 exitApplication()
             },
-            title = "Efficaci Nel Ministero",
+            title = "Scuola di ministero",
             icon = painterResource(Res.drawable.icon),
         ) {
             AppScreen(
                 initialUiScale = initialUiScale,
                 onUiScaleChange = settingsStore::saveUiScale,
+                isWindowMaximized = windowState.placement == WindowPlacement.Maximized,
+                onRequestMinimize = {
+                    window.extendedState = window.extendedState or Frame.ICONIFIED
+                },
+                onRequestToggleMaximize = {
+                    windowState.placement = if (windowState.placement == WindowPlacement.Maximized) {
+                        WindowPlacement.Floating
+                    } else {
+                        WindowPlacement.Maximized
+                    }
+                },
+                onRequestClose = {
+                    settingsStore.save(windowState.toSettingsSnapshot())
+                    exitApplication()
+                },
             )
         }
     }

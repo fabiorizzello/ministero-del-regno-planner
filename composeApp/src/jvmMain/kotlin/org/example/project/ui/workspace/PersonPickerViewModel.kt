@@ -128,7 +128,7 @@ internal class PersonPickerViewModel(
             _state.executeEitherOperationWithNotice(
                 loadingUpdate = { it.copy(isRemovingAssignment = true) },
                 noticeUpdate = { state, notice -> state.copy(isRemovingAssignment = false, notice = notice) },
-                successMessage = "Assegnazione rimossa",
+                successMessage = null,
                 operation = { rimuoviAssegnazione(assignmentId) },
                 onSuccess = { onSuccess() },
             )

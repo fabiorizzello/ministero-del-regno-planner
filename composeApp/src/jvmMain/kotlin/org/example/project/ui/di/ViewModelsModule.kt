@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
-import org.example.project.ui.planning.PlanningDashboardViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
 import org.example.project.ui.workspace.AssignmentManagementViewModel
@@ -17,18 +16,11 @@ import org.koin.dsl.module
 val viewModelsModule = module {
     // ViewModels — factory: screen-local state, data always reloaded from DB
     factory {
-        PlanningDashboardViewModel(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            sharedWeekState = get(),
-            caricaPanoramica = get(),
-        )
-    }
-    factory {
         ProgramLifecycleViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             caricaProgrammiAttivi = get(),
             creaProssimoProgramma = get(),
-            eliminaProgrammaFuturo = get(),
+            eliminaProgramma = get(),
             generaSettimaneProgramma = get(),
             schemaTemplateStore = get(),
             weekPlanStore = get(),

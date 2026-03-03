@@ -431,3 +431,27 @@ suspend fun <T, R> MutableStateFlow<T>.executeEitherOperationWithNotice(
         },
     )
 }
+
+/**
+ * Returns true when a success notification should be shown according to workspace policy:
+ * show success only if there is no immediate visual feedback or when details add real value.
+ */
+fun shouldShowSuccessNotice(
+    hasImmediateVisualFeedback: Boolean,
+    hasAdditionalInfo: Boolean,
+): Boolean = !hasImmediateVisualFeedback || hasAdditionalInfo
+
+fun successNoticeIfNeeded(
+    details: String,
+    hasImmediateVisualFeedback: Boolean,
+    hasAdditionalInfo: Boolean,
+): FeedbackBannerModel? = if (
+    shouldShowSuccessNotice(
+        hasImmediateVisualFeedback = hasImmediateVisualFeedback,
+        hasAdditionalInfo = hasAdditionalInfo,
+    )
+) {
+    successNotice(details)
+} else {
+    null
+}

@@ -10,6 +10,7 @@ internal fun mapProclamatoreRow(
     last_name: String,
     sex: String,
     active: Long,
+    suspended: Long,
 ): Proclamatore {
     return Proclamatore(
         id = ProclamatoreId(id),
@@ -17,6 +18,7 @@ internal fun mapProclamatoreRow(
         cognome = last_name,
         sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
         attivo = active == 1L,
+        sospeso = suspended == 1L,
     )
 }
 

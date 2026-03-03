@@ -210,6 +210,17 @@ internal class ProclamatoreFormViewModel(
         }
     }
 
+    fun setAllEligibility(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                puoAssistere = value,
+                leadEligibilityOptions = state.leadEligibilityOptions.map { option ->
+                    if (option.canSelect) option.copy(checked = value) else option.copy(checked = false)
+                },
+            )
+        }
+    }
+
     fun toggleHistoryExpanded() {
         _uiState.update { it.copy(isHistoryExpanded = !it.isHistoryExpanded) }
     }

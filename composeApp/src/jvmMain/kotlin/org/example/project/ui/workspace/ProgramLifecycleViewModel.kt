@@ -1,6 +1,5 @@
 package org.example.project.ui.workspace
 
-import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -28,32 +27,51 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperationWithNotice
-import org.example.project.ui.components.formatMonthYearLabel
 import java.time.LocalDate
+import java.time.YearMonth
+
+private const val MAX_FUTURE_PROGRAMS = 2
+
+internal data class DeleteProgramImpact(
+    val year: Int,
+    val month: Int,
+    val weeksCount: Int,
+    val assignmentsCount: Int,
+)
 
 internal data class ProgramLifecycleUiState(
     val today: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
     val currentProgram: ProgramMonth? = null,
-    val futureProgram: ProgramMonth? = null,
+    val futurePrograms: List<ProgramMonth> = emptyList(),
+    val creatableTargets: List<YearMonth> = emptyList(),
     val selectedProgramId: String? = null,
     val selectedProgramWeeks: List<WeekPlan> = emptyList(),
     val selectedProgramAssignments: Map<String, List<AssignmentWithPerson>> = emptyMap(),
     val partTypes: List<PartType> = emptyList(),
     val isCreatingProgram: Boolean = false,
     val isDeletingSelectedProgram: Boolean = false,
+    val deleteImpactConfirm: DeleteProgramImpact? = null,
     val notice: FeedbackBannerModel? = null,
 ) {
-    val hasPrograms: Boolean get() = currentProgram != null || futureProgram != null
-    val canCreateProgram: Boolean get() = futureProgram == null
-    val canDeleteSelectedProgram: Boolean get() = selectedProgramId != null && selectedProgramId == futureProgram?.id?.value
+    val hasPrograms: Boolean get() = currentProgram != null || futurePrograms.isNotEmpty()
+    val canCreateProgram: Boolean get() = creatableTargets.isNotEmpty()
+    val selectedProgram: ProgramMonth?
+        get() = when (selectedProgramId) {
+            currentProgram?.id?.value -> currentProgram
+            else -> futurePrograms.firstOrNull { it.id.value == selectedProgramId }
+        }
+    val selectedFutureProgram: ProgramMonth?
+        get() = futurePrograms.firstOrNull { it.id.value == selectedProgramId }
+    val canDeleteSelectedProgram: Boolean
+        get() = selectedProgram != null
 }
 
 internal class ProgramLifecycleViewModel(
     private val scope: CoroutineScope,
     private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
     private val creaProssimoProgramma: CreaProssimoProgrammaUseCase,
-    private val eliminaProgrammaFuturo: EliminaProgrammaFuturoUseCase,
+    private val eliminaProgramma: EliminaProgrammaFuturoUseCase,
     private val generaSettimaneProgramma: GeneraSettimaneProgrammaUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val weekPlanStore: WeekPlanStore,
@@ -87,6 +105,11 @@ internal class ProgramLifecycleViewModel(
     }
 
     fun createNextProgram() {
+        val target = _state.value.creatableTargets.firstOrNull() ?: return
+        createProgramForTarget(target.year, target.monthValue)
+    }
+
+    fun createProgramForTarget(targetYear: Int, targetMonth: Int) {
         if (_state.value.isCreatingProgram) return
         scope.launch {
             if (schemaTemplateStore.isEmpty()) {
@@ -105,12 +128,12 @@ internal class ProgramLifecycleViewModel(
                 loadingUpdate = { it.copy(isCreatingProgram = true) },
                 noticeUpdate = { state, notice -> state.copy(isCreatingProgram = false, notice = notice) },
                 successMessage = null,
-                operation = { creaProssimoProgramma() },
+                operation = { creaProssimoProgramma(targetYear, targetMonth, _state.value.today) },
                 onSuccess = { program ->
                     _state.executeEitherOperationWithNotice(
                         loadingUpdate = { it },
                         noticeUpdate = { state, notice -> state.copy(notice = notice) },
-                        successMessage = "Programma ${formatMonthYearLabel(program.month, program.year)} creato",
+                        successMessage = null,
                         operation = { generaSettimaneProgramma(program.id.value) },
                         onSuccess = { loadProgramsAndWeeks() },
                     )
@@ -119,16 +142,41 @@ internal class ProgramLifecycleViewModel(
         }
     }
 
-    fun deleteSelectedProgram() {
+    fun requestDeleteSelectedProgram() {
+        if (_state.value.isDeletingSelectedProgram) return
+        val selectedProgram = _state.value.selectedProgram ?: return
+        _state.update {
+            it.copy(
+                deleteImpactConfirm = DeleteProgramImpact(
+                    year = selectedProgram.year,
+                    month = selectedProgram.month,
+                    weeksCount = it.selectedProgramWeeks.size,
+                    assignmentsCount = it.selectedProgramAssignments.values.sumOf { assignments -> assignments.size },
+                ),
+            )
+        }
+    }
+
+    fun dismissDeleteSelectedProgram() {
+        _state.update { it.copy(deleteImpactConfirm = null) }
+    }
+
+    fun confirmDeleteSelectedProgram() {
         val selectedProgramId = _state.value.selectedProgramId ?: return
         if (_state.value.isDeletingSelectedProgram) return
 
         scope.launch {
             _state.executeEitherOperationWithNotice(
-                loadingUpdate = { it.copy(isDeletingSelectedProgram = true) },
-                noticeUpdate = { state, notice -> state.copy(isDeletingSelectedProgram = false, notice = notice) },
-                successMessage = "Programma selezionato eliminato",
-                operation = { eliminaProgrammaFuturo(ProgramMonthId(selectedProgramId), _state.value.today) },
+                loadingUpdate = { it.copy(isDeletingSelectedProgram = true, deleteImpactConfirm = null) },
+                noticeUpdate = { state, notice ->
+                    state.copy(
+                        isDeletingSelectedProgram = false,
+                        deleteImpactConfirm = null,
+                        notice = notice,
+                    )
+                },
+                successMessage = null,
+                operation = { eliminaProgramma(ProgramMonthId(selectedProgramId), _state.value.today) },
                 onSuccess = { loadProgramsAndWeeks() },
             )
         }
@@ -140,16 +188,23 @@ internal class ProgramLifecycleViewModel(
             _state.executeAsyncOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { state, snapshot ->
-                    val selectedProgramId = when {
-                        state.selectedProgramId != null -> state.selectedProgramId
-                        snapshot.current != null -> snapshot.current.id.value
-                        else -> snapshot.future?.id?.value
-                    }
+                    val creatableTargets = computeCreatableTargets(
+                        today = state.today,
+                        currentProgram = snapshot.current,
+                        futurePrograms = snapshot.futures,
+                    )
+                    val selectedProgramId = resolveSelectedProgramId(
+                        previousSelectedId = state.selectedProgramId,
+                        currentProgram = snapshot.current,
+                        futurePrograms = snapshot.futures,
+                    )
                     state.copy(
                         isLoading = false,
                         currentProgram = snapshot.current,
-                        futureProgram = snapshot.future,
+                        futurePrograms = snapshot.futures,
+                        creatableTargets = creatableTargets,
                         selectedProgramId = selectedProgramId,
+                        deleteImpactConfirm = null,
                     )
                 },
                 errorUpdate = { state, error ->
@@ -189,5 +244,53 @@ internal class ProgramLifecycleViewModel(
             }
         }
         deferredByWeekId.mapValues { (_, deferred) -> deferred.await() }
+    }
+
+}
+
+internal fun resolveSelectedProgramId(
+    previousSelectedId: String?,
+    currentProgram: ProgramMonth?,
+    futurePrograms: List<ProgramMonth>,
+): String? {
+    val ids = buildSet {
+        currentProgram?.let { add(it.id.value) }
+        futurePrograms.forEach { add(it.id.value) }
+    }
+    return when {
+        previousSelectedId != null && previousSelectedId in ids -> previousSelectedId
+        currentProgram != null -> currentProgram.id.value
+        else -> futurePrograms.firstOrNull()?.id?.value
+    }
+}
+
+internal fun computeCreatableTargets(
+    today: LocalDate,
+    currentProgram: ProgramMonth?,
+    futurePrograms: List<ProgramMonth>,
+): List<YearMonth> {
+    val referenceMonth = YearMonth.from(today)
+    val window = listOf(referenceMonth, referenceMonth.plusMonths(1), referenceMonth.plusMonths(2))
+    val existingByMonth = buildSet {
+        currentProgram?.let { add(it.yearMonth) }
+        futurePrograms.forEach { add(it.yearMonth) }
+    }
+    val hasCurrent = currentProgram != null
+    val futureMonths = futurePrograms.map { it.yearMonth }.toSet()
+
+    return window.filter { target ->
+        if (target in existingByMonth) return@filter false
+
+        val isCurrentTarget = target == referenceMonth
+        val projectedFutureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
+        if (!isCurrentTarget && projectedFutureCount > MAX_FUTURE_PROGRAMS) return@filter false
+
+        val projected = existingByMonth + target
+        val plusOne = referenceMonth.plusMonths(1)
+        val plusTwo = referenceMonth.plusMonths(2)
+        if (plusTwo in projected && plusOne !in projected) return@filter false
+
+        if (!hasCurrent && futureMonths.isEmpty() && target != plusOne) return@filter false
+        true
     }
 }
