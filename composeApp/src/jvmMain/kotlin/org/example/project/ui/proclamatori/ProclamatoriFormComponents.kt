@@ -8,8 +8,10 @@ package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -23,12 +25,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedButton
@@ -84,16 +88,20 @@ internal fun ProclamatoriFormContentForm(
     formError: String?,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
+    onDelete: (() -> Unit)? = null,
+    showTitle: Boolean = true,
 ) {
     val isNew = route == ProclamatoriRoute.Nuovo
     val sketch = MaterialTheme.workspaceSketch
     val spacing = MaterialTheme.spacing
 
-    Text(
-        if (isNew) "Nuovo proclamatore" else "Modifica proclamatore",
-        style = MaterialTheme.typography.headlineMedium,
-    )
-    Spacer(Modifier.height(spacing.lg))
+    if (showTitle) {
+        Text(
+            if (isNew) "Nuovo studente" else "Modifica studente",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Spacer(Modifier.height(spacing.lg))
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -246,36 +254,58 @@ internal fun ProclamatoriFormContentForm(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                FlowRow(
+                // Meta controls: Tutti + Assistente
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // "Tutti" chip
                     EligibilityFilterChip(
                         selected = allEligibilitySelected,
                         onClick = { onSetAllEligibilityChange(!allEligibilitySelected) },
                         label = "Tutti",
                         modifier = Modifier.handCursorOnHover(),
                     )
-                    // Assistente chip
                     EligibilityFilterChip(
                         selected = puoAssistere,
                         onClick = { onPuoAssistereChange(!puoAssistere) },
                         label = "Assistente",
                         modifier = Modifier.handCursorOnHover(),
                     )
-                    // Lead part type chips
-                    leadEligibilityOptions.forEach { option ->
-                        EligibilityFilterChip(
-                            selected = option.checked,
-                            onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
-                            label = option.label,
-                            enabled = option.canSelect,
-                            modifier = Modifier.handCursorOnHover(enabled = option.canSelect),
+                }
+                if (leadEligibilityOptions.isNotEmpty()) {
+                    // Separator between meta controls and role-specific chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            "Studente",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                         )
                     }
-                }
-                if (leadEligibilityOptions.isEmpty()) {
+                    // Lead part type chips
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        leadEligibilityOptions.forEach { option ->
+                            EligibilityFilterChip(
+                                selected = option.checked,
+                                onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
+                                label = option.label,
+                                enabled = option.canSelect,
+                                modifier = Modifier.handCursorOnHover(enabled = option.canSelect),
+                            )
+                        }
+                    }
+                } else {
                     Text(
                         "Nessun ruolo disponibile. Usa Aggiorna schemi.",
                         style = MaterialTheme.typography.bodySmall,
@@ -322,6 +352,49 @@ internal fun ProclamatoriFormContentForm(
             if (formError != null) {
                 SelectionContainer {
                     Text(formError, color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            // ── Zona pericolosa — solo in modifica ───────────────────────────
+            if (!isNew && onDelete != null) {
+                Spacer(Modifier.height(spacing.sm))
+                // Separator
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f)),
+                    )
+                    Text(
+                        "ZONA PERICOLOSA",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = androidx.compose.ui.unit.TextUnit(9f, androidx.compose.ui.unit.TextUnitType.Sp),
+                            letterSpacing = androidx.compose.ui.unit.TextUnit(0.6f, androidx.compose.ui.unit.TextUnitType.Sp),
+                        ),
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f)),
+                    )
+                }
+                OutlinedButton(
+                    onClick = onDelete,
+                    enabled = !isLoading,
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                ) {
+                    Text("Elimina studente")
                 }
             }
         }

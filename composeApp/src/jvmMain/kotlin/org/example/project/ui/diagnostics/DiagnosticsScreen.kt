@@ -49,6 +49,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
@@ -143,10 +150,10 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text("Informazioni applicazione", style = MaterialTheme.typography.titleMedium)
-                SelectionContainer { Text("Versione app: ${state.appVersion}") }
-                SelectionContainer { Text("DB: ${state.dbPath}") }
-                SelectionContainer { Text("Log: ${state.logsPath}") }
-                SelectionContainer { Text("Export: ${state.exportsPath}") }
+                DiagnosticsInfoRow(label = "Versione", value = state.appVersion)
+                DiagnosticsPathRow(label = "DB", path = state.dbPath)
+                DiagnosticsPathRow(label = "Log", path = state.logsPath)
+                DiagnosticsPathRow(label = "Export", path = state.exportsPath)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -206,14 +213,11 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Aggiornamenti applicazione", style = MaterialTheme.typography.titleMedium)
-                Text(state.updateStatusText)
+                Text(state.updateStatusText, style = MaterialTheme.typography.bodyMedium)
                 val lastCheck = state.updateLastCheck?.let { formatUpdateCheck(it) } ?: "mai"
-                Text("Ultimo controllo: $lastCheck", style = MaterialTheme.typography.bodySmall)
+                DiagnosticsInfoRow(label = "Ultimo controllo", value = lastCheck)
                 if (state.updateAvailable && state.updateLatestVersion != null) {
-                    Text(
-                        "Versione disponibile: ${state.updateLatestVersion}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    DiagnosticsInfoRow(label = "Versione disponibile", value = state.updateLatestVersion!!)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -249,9 +253,9 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Occupazione disco", style = MaterialTheme.typography.titleMedium)
-                Text("Database: ${formatBytes(state.dbSizeBytes)}")
-                Text("Log: ${formatBytes(state.logsSizeBytes)}")
-                Text("Totale: ${formatBytes(state.dbSizeBytes + state.logsSizeBytes)}")
+                DiagnosticsInfoRow(label = "Database", value = formatBytes(state.dbSizeBytes))
+                DiagnosticsInfoRow(label = "Log", value = formatBytes(state.logsSizeBytes))
+                DiagnosticsInfoRow(label = "Totale", value = formatBytes(state.dbSizeBytes + state.logsSizeBytes))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -292,9 +296,20 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Pulizia dati storici", style = MaterialTheme.typography.titleMedium)
-                Text(retentionMeaning(state.selectedRetention))
-                Text(CLEANUP_SCOPE_TEXT)
-                Text(CLEANUP_EXCLUSIONS_TEXT)
+                Text(
+                    retentionMeaning(state.selectedRetention),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    CLEANUP_SCOPE_TEXT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    CLEANUP_EXCLUSIONS_TEXT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     DiagnosticsRetentionOption.entries.forEach { option ->
@@ -307,9 +322,10 @@ fun DiagnosticsScreen() {
                     }
                 }
 
-                Text("Data limite: ${formatCutoffDate(state.selectedRetention)}")
-                Text(
-                    "Anteprima: settimane ${state.cleanupPreview.weekPlans}, " +
+                DiagnosticsInfoRow(label = "Data limite", value = formatCutoffDate(state.selectedRetention))
+                DiagnosticsInfoRow(
+                    label = "Anteprima",
+                    value = "settimane ${state.cleanupPreview.weekPlans}, " +
                         "parti ${state.cleanupPreview.weeklyParts}, " +
                         "assegnazioni ${state.cleanupPreview.assignments}",
                 )
@@ -382,7 +398,7 @@ private const val CLEANUP_SCOPE_TEXT =
     "Vengono eliminati: settimane passate, parti collegate e relative assegnazioni."
 
 private const val CLEANUP_EXCLUSIONS_TEXT =
-    "Non vengono toccati: proclamatori, tipi di parte, file di log e file esportati."
+    "Non vengono toccati: studenti, tipi di parte, file di log e file esportati."
 
 @Composable
 private fun DiagnosticsRetentionChip(
@@ -522,6 +538,60 @@ private fun diagnosticsFlatFilterChipElevation() =
         draggedElevation = 0.dp,
         disabledElevation = 0.dp,
     )
+
+@Composable
+private fun DiagnosticsInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(120.dp),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun DiagnosticsPathRow(label: String, path: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(60.dp),
+        )
+        SelectionContainer {
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    path,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
 
 private fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

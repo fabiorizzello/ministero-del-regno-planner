@@ -97,7 +97,7 @@ internal enum class AppSection(
     val screen: Screen,
 ) {
     PLANNING("Programma", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
-    PROCLAMATORI("Proclamatori", Icons.Filled.Groups, ProclamatoriSectionScreen),
+    PROCLAMATORI("Studenti", Icons.Filled.Groups, ProclamatoriSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
 

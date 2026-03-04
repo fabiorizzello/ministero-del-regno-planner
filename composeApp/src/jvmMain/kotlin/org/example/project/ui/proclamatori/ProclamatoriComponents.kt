@@ -184,6 +184,7 @@ internal fun ProclamatoriFormDialog(
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     ProclamatoriFormDialogComponent(
         route = route,
@@ -211,6 +212,7 @@ internal fun ProclamatoriFormDialog(
         onSubmit = onSubmit,
         onCancel = onCancel,
         onDismiss = onDismiss,
+        onDelete = onDelete,
     )
 }
 

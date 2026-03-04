@@ -43,6 +43,7 @@ internal data class AssignmentManagementUiState(
     val clearAssignmentsConfirm: Int? = null,
     val isClearingWeekAssignments: Boolean = false,
     val clearWeekAssignmentsConfirm: Pair<String, Int>? = null,
+    val settingsSaved: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
 
@@ -74,6 +75,11 @@ internal class AssignmentManagementViewModel(
 
     fun setStrictCooldown(value: Boolean) {
         _uiState.update { it.copy(assignmentSettings = it.assignmentSettings.copy(strictCooldown = value)) }
+        saveAssignmentSettings()
+    }
+
+    fun dismissSettingsSaved() {
+        _uiState.update { it.copy(settingsSaved = false) }
     }
 
     fun setLeadWeight(value: String) {
@@ -108,11 +114,15 @@ internal class AssignmentManagementViewModel(
         }
 
         scope.launch {
-            _uiState.executeAsyncOperationWithNotice(
+            _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isSavingAssignmentSettings = true) },
-                noticeUpdate = { state, notice -> state.copy(isSavingAssignmentSettings = false, notice = notice) },
-                successMessage = "Impostazioni assegnatore salvate",
-                errorMessagePrefix = "Errore salvataggio impostazioni",
+                successUpdate = { state, _ -> state.copy(isSavingAssignmentSettings = false, settingsSaved = true) },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isSavingAssignmentSettings = false,
+                        notice = errorNotice("Errore salvataggio impostazioni: ${error.message}"),
+                    )
+                },
                 operation = { salvaImpostazioniAssegnatore(parsed) },
             )
         }

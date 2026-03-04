@@ -45,6 +45,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -120,12 +122,13 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
+            val sketch = MaterialTheme.workspaceSketch
+            Text("Studenti", style = MaterialTheme.typography.headlineMedium)
             Box(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .background(sketch.lineSoft, RoundedCornerShape(20.dp))
                     .padding(horizontal = 10.dp, vertical = 2.dp),
             ) {
                 Text(
@@ -137,7 +140,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (canImportInitialJson) {
                 Button(
@@ -323,23 +326,19 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     enabled = !isLoading && pageItemIds.isNotEmpty(),
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "Nome" + (sortIndicatorForColumn(1, sort)?.let { " $it" } ?: ""),
-                    modifier = Modifier
-                        .weight(2.5f)
-                        .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(1)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SortableColumnHeader(
+                    label = "Nome",
+                    field = ProclamatoriSortField.NOME,
+                    sort = sort,
+                    modifier = Modifier.weight(2.5f),
+                    onSortChange = events.onSortChange,
                 )
-                Text(
-                    text = "Stato" + (sortIndicatorForColumn(4, sort)?.let { " $it" } ?: ""),
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(4)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SortableColumnHeader(
+                    label = "Stato",
+                    field = ProclamatoriSortField.ATTIVO,
+                    sort = sort,
+                    modifier = Modifier.weight(1.2f),
+                    onSortChange = events.onSortChange,
                 )
                 Spacer(Modifier.width(56.dp))
             }
@@ -356,7 +355,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "Nessun proclamatore",
+                                    "Nessun studente",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -391,8 +390,9 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (sortedItems.size == allItems.size) "${allItems.size} proclamatori"
-                    else "${sortedItems.size} di ${allItems.size} proclamatori",
+                    if (sortedItems.size == allItems.size) {
+                        if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
+                    } else "${sortedItems.size} di ${allItems.size} studenti",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -429,6 +429,40 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     }
 }
 
+// ─── Sort header ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun SortableColumnHeader(
+    label: String,
+    field: ProclamatoriSortField,
+    sort: ProclamatoriSort,
+    modifier: Modifier = Modifier,
+    onSortChange: (ProclamatoriSort) -> Unit,
+) {
+    val isActive = sort.field == field
+    Row(
+        modifier = modifier
+            .pointerHoverIcon(PointerIcon.Hand)
+            .clickable { onSortChange(toggleSort(sort, field)) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (isActive) {
+            Icon(
+                imageVector = if (sort.direction == SortDirection.ASC) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
 // ─── Bulk bar ─────────────────────────────────────────────────────────────────
 
 @Composable
@@ -450,7 +484,7 @@ private fun ProclamatoriiBulkBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -601,8 +635,8 @@ internal fun ProclamatoriDataRow(
 @Composable
 internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso, attivo: Boolean) {
     val sketch = MaterialTheme.workspaceSketch
-    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else Color(0xFFF3E8FF)
-    val fgColor = if (sesso == Sesso.M) sketch.accent else Color(0xFF7C3AED)
+    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+    val fgColor = if (sesso == Sesso.M) sketch.accent else sketch.avatarFemminaFg
     val initials = "${nome.firstOrNull() ?: ""}${cognome.firstOrNull() ?: ""}".uppercase()
 
     Box(
@@ -610,7 +644,7 @@ internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso, att
             .size(32.dp)
             .clip(CircleShape)
             .background(bgColor)
-            .then(if (!attivo) Modifier.background(Color.Black.copy(alpha = 0.35f)) else Modifier),
+            .then(if (!attivo) Modifier.background(sketch.ink.copy(alpha = 0.3f)) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -633,9 +667,9 @@ internal fun ProclamatoreStatusBadge(attivo: Boolean, sospeso: Boolean) {
     Row(
         modifier = Modifier
             .background(bgColor, RoundedCornerShape(20.dp))
-            .padding(horizontal = 9.dp, vertical = 3.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(dotColor))
         Text(

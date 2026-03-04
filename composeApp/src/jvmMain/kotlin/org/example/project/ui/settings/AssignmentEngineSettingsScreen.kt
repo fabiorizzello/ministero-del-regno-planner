@@ -1,17 +1,24 @@
 package org.example.project.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -24,10 +31,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import org.example.project.ui.components.FeedbackBanner
-import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.AssignmentSettingsUiState
@@ -58,10 +68,13 @@ fun AssignmentEngineSettingsScreen() {
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
 
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(spacing.xl),
+            .padding(spacing.xl)
+            .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
         FeedbackBanner(
@@ -71,13 +84,14 @@ fun AssignmentEngineSettingsScreen() {
 
         AssignmentEngineSettingsCard(
             state = state.assignmentSettings,
-            isSaving = state.isSavingAssignmentSettings,
+            settingsSaved = state.settingsSaved,
             onStrictCooldownChange = { viewModel.setStrictCooldown(it) },
             onLeadWeightChange = { viewModel.setLeadWeight(it) },
             onAssistWeightChange = { viewModel.setAssistWeight(it) },
             onLeadCooldownChange = { viewModel.setLeadCooldownWeeks(it) },
             onAssistCooldownChange = { viewModel.setAssistCooldownWeeks(it) },
             onSave = { viewModel.saveAssignmentSettings() },
+            onDismissSavedFeedback = { viewModel.dismissSettingsSaved() },
         )
     }
 }
@@ -85,14 +99,21 @@ fun AssignmentEngineSettingsScreen() {
 @Composable
 private fun AssignmentEngineSettingsCard(
     state: AssignmentSettingsUiState,
-    isSaving: Boolean,
+    settingsSaved: Boolean,
     onStrictCooldownChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
     onLeadCooldownChange: (String) -> Unit,
     onAssistCooldownChange: (String) -> Unit,
     onSave: () -> Unit,
+    onDismissSavedFeedback: () -> Unit,
 ) {
+    LaunchedEffect(settingsSaved) {
+        if (settingsSaved) {
+            delay(2000)
+            onDismissSavedFeedback()
+        }
+    }
     val spacing = MaterialTheme.spacing
     val switchPalette = assignmentSettingsSwitchPalette(MaterialTheme.colorScheme)
     Card(
@@ -108,7 +129,31 @@ private fun AssignmentEngineSettingsCard(
                 .padding(spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            Text("Impostazioni auto assegnazione", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Impostazioni auto assegnazione", style = MaterialTheme.typography.titleMedium)
+                AnimatedVisibility(visible = settingsSaved, enter = fadeIn(), exit = fadeOut()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            "Salvato",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -136,7 +181,7 @@ private fun AssignmentEngineSettingsCard(
                     onValueChange = onLeadWeightChange,
                     label = { Text("Peso conduzione") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
                     isError = state.leadWeightError != null,
                     supportingText = {
                         if (state.leadWeightError != null) {
@@ -151,7 +196,7 @@ private fun AssignmentEngineSettingsCard(
                     onValueChange = onAssistWeightChange,
                     label = { Text("Peso assistenza") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
                     isError = state.assistWeightError != null,
                     supportingText = {
                         if (state.assistWeightError != null) {
@@ -171,7 +216,7 @@ private fun AssignmentEngineSettingsCard(
                     onValueChange = onLeadCooldownChange,
                     label = { Text("Cooldown conduzione (sett.)") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
                     isError = state.leadCooldownError != null,
                     supportingText = {
                         if (state.leadCooldownError != null) {
@@ -186,7 +231,7 @@ private fun AssignmentEngineSettingsCard(
                     onValueChange = onAssistCooldownChange,
                     label = { Text("Cooldown assistenza (sett.)") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
                     isError = state.assistCooldownError != null,
                     supportingText = {
                         if (state.assistCooldownError != null) {
@@ -196,18 +241,6 @@ private fun AssignmentEngineSettingsCard(
                         }
                     },
                 )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                Button(
-                    onClick = onSave,
-                    enabled = !isSaving,
-                    modifier = Modifier.handCursorOnHover(enabled = !isSaving),
-                ) {
-                    Text(if (isSaving) "Salvataggio..." else "Salva impostazioni")
-                }
             }
         }
     }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.FeedbackBannerKind
-import org.example.project.ui.components.workspace.WorkspacePanel
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
@@ -56,7 +56,7 @@ fun ProclamatoriScreen() {
 
     listState.deleteCandidate?.let { candidate ->
         ConfirmDeleteDialog(
-            title = "Rimuovi proclamatore",
+            title = "Rimuovi studente",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmDeleteCandidate() },
             onDismiss = { listVm.dismissDeleteCandidate() },
@@ -82,12 +82,12 @@ fun ProclamatoriScreen() {
 
     if (listState.showBatchDeleteConfirm) {
         ConfirmDeleteDialog(
-            title = "Rimuovi proclamatori selezionati",
+            title = "Rimuovi studenti selezionati",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmBatchDelete() },
             onDismiss = { listVm.dismissBatchDeleteConfirm() },
         ) {
-            Text("Confermi rimozione di ${listState.selectedIds.size} proclamatori selezionati?")
+            Text("Confermi rimozione di ${listState.selectedIds.size} studenti selezionati?")
         }
     }
 
@@ -131,7 +131,7 @@ fun ProclamatoriScreen() {
         rootFocusRequester.requestFocus()
     }
 
-    WorkspacePanel(
+    Column(
         modifier = Modifier
             .fillMaxHeight()
             .focusRequester(rootFocusRequester)
@@ -157,12 +157,10 @@ fun ProclamatoriScreen() {
                     }
                     else -> false
                 }
-            },
+            }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
     ) {
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
-        ) {
             val showLoadingState = listState.isLoading && listState.allItems.isEmpty()
             val showErrorState = !listState.isLoading &&
                 listState.allItems.isEmpty() &&
@@ -175,15 +173,15 @@ fun ProclamatoriScreen() {
             when {
                 showLoadingState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Loading,
-                    message = "Caricamento proclamatori in corso...",
+                    message = "Caricamento studenti in corso...",
                 )
                 showErrorState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Error,
-                    message = "Impossibile caricare l'elenco proclamatori.",
+                    message = "Impossibile caricare l'elenco studenti.",
                 )
                 showEmptyState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Empty,
-                    message = "Nessun proclamatore disponibile.",
+                    message = "Nessun studente disponibile.",
                 )
             }
 
@@ -205,7 +203,7 @@ fun ProclamatoriScreen() {
                     onEdit = { id ->
                         formVm.loadForEdit(
                             id = id,
-                            onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                            onNotFound = { listVm.setNotice(errorNotice("Studente non trovato")) },
                             onSuccess = { route = ProclamatoriRoute.Modifica(id) },
                         )
                     },
@@ -223,7 +221,6 @@ fun ProclamatoriScreen() {
                 canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
                 events = elencoEvents,
             )
-        }
     }
 
     if (isFormRoute) {
@@ -258,6 +255,15 @@ fun ProclamatoriScreen() {
             onSubmit = { submitAndNavigate() },
             onCancel = { goToListManual() },
             onDismiss = { goToListManual() },
+            onDelete = currentEditId?.let { editId ->
+                {
+                    val candidate = listState.allItems.find { it.id == editId }
+                    if (candidate != null) {
+                        goToListManual()
+                        listVm.requestDeleteCandidate(candidate)
+                    }
+                }
+            },
         )
     }
 }

@@ -45,7 +45,7 @@ internal data class ProclamatoriListUiState(
     val notice: FeedbackBannerModel? = null,
     val sort: ProclamatoriSort = ProclamatoriSort(),
     val pageIndex: Int = 0,
-    val pageSize: Int = 10,
+    val pageSize: Int = 20,
     val selectedIds: Set<ProclamatoreId> = emptySet(),
     val deleteCandidate: Proclamatore? = null,
     val deleteAssignmentCount: Int = 0,
@@ -188,8 +188,8 @@ internal class ProclamatoriListViewModel(
         scope.launch {
             val resultNotice = executeOnSelected(
                 action = { id -> elimina(id) },
-                completedLabel = "Proclamatori rimossi",
-                noneCompletedLabel = "Nessun proclamatore rimosso",
+                completedLabel = "Studenti rimossi",
+                noneCompletedLabel = "Nessun studente rimosso",
             )
             _uiState.update { it.copy(showBatchDeleteConfirm = false, notice = resultNotice) }
         }
@@ -200,8 +200,8 @@ internal class ProclamatoriListViewModel(
         scope.launch {
             val notice = executeOnSelected(
                 action = { id -> impostaStato(id, true) },
-                completedLabel = "Proclamatori attivati",
-                noneCompletedLabel = "Nessun proclamatore attivato",
+                completedLabel = "Studenti attivati",
+                noneCompletedLabel = "Nessun studente attivato",
             )
             _uiState.update { it.copy(notice = notice) }
         }
@@ -212,8 +212,8 @@ internal class ProclamatoriListViewModel(
         scope.launch {
             val notice = executeOnSelected(
                 action = { id -> impostaStato(id, false) },
-                completedLabel = "Proclamatori disattivati",
-                noneCompletedLabel = "Nessun proclamatore disattivato",
+                completedLabel = "Studenti disattivati",
+                noneCompletedLabel = "Nessun studente disattivato",
             )
             _uiState.update { it.copy(notice = notice) }
         }
@@ -224,7 +224,7 @@ internal class ProclamatoriListViewModel(
             _uiState.executeEitherOperationWithNotice(
                 loadingUpdate = { it.copy(isLoading = true) },
                 noticeUpdate = { state, notice -> state.copy(isLoading = false, notice = notice) },
-                successMessage = if (next) "Proclamatore attivato" else "Proclamatore disattivato",
+                successMessage = if (next) "Studente attivato" else "Studente disattivato",
                 operation = { impostaStato(id, next) },
                 onSuccess = { refreshListInternal() },
             )
@@ -293,7 +293,7 @@ internal class ProclamatoriListViewModel(
                 operation = { withContext(Dispatchers.IO) { importaDaJson(jsonContent) } },
                 onSuccess = { imported ->
                     _uiState.update {
-                        it.copy(notice = successNotice("Importati ${imported.importati} proclamatori da ${selectedFile.name}"))
+                        it.copy(notice = successNotice("Importati ${imported.importati} studenti da ${selectedFile.name}"))
                     }
                     refreshListInternal(resetPage = true)
                 },

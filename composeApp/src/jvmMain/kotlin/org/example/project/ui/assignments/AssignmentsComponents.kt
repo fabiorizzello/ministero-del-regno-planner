@@ -155,7 +155,7 @@ fun PartAssignmentCard(
             } else {
                 // Multiple slots with role labels
                 for (slot in 1..part.partType.peopleCount) {
-                    val label = if (slot == 1) "Proclamatore" else "Assistente"
+                    val label = if (slot == 1) "Studente" else "Assistente"
                     val assignment = assignments.find { it.slot == slot }
                     SlotRow(
                         label = label,
@@ -434,7 +434,7 @@ fun PersonPickerDialog(
                     value = searchTerm,
                     onValueChange = onSearchChange,
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Cerca proclamatore...") },
+                    placeholder = { Text("Cerca studente...") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
@@ -478,14 +478,20 @@ fun PersonPickerDialog(
                         CircularProgressIndicator()
                     }
                 } else if (sorted.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                        contentAlignment = Alignment.Center,
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            text = "Nessun proclamatore disponibile per questa parte",
+                            text = "Nessuno studente disponibile per questa parte.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "Verifica: idoneità alla parte, cooldown strict nelle Impostazioni.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                         )
                     }
                 } else {

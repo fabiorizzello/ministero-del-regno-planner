@@ -34,6 +34,9 @@ data class WorkspaceSketchPalette(
     val ok: Color = Color(0xFF16A34A),
     val warn: Color = Color(0xFFD97706),
     val bad: Color = Color(0xFFDC2626),
+    // Avatar gender colors
+    val avatarFemminaBg: Color = Color(0xFFF3E8FF),
+    val avatarFemminaFg: Color = Color(0xFF7C3AED),
 )
 
 val LocalWorkspaceSketchPalette = staticCompositionLocalOf { WorkspaceSketchPalette() }

@@ -343,7 +343,7 @@ private fun SketchToolbar() {
             )
             // Nav tabs
             SketchToolbarTab("Programma", Icons.Filled.Today, active = true)
-            SketchToolbarTab("Proclamatori", Icons.Filled.Groups, active = false)
+            SketchToolbarTab("Studenti", Icons.Filled.Groups, active = false)
             SketchToolbarTab("Diagnostica", Icons.Filled.BugReport, active = false)
 
             Spacer(Modifier.weight(1f))

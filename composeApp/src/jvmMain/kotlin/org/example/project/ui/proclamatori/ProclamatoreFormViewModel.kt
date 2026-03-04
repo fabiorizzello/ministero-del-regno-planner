@@ -46,7 +46,7 @@ private data class LoadedProclamatoreData(
     val history: PersonAssignmentHistory,
 )
 
-private class ProclamatoreNotFoundException : Exception("Proclamatore non trovato")
+private class ProclamatoreNotFoundException : Exception("Studente non trovato")
 
 private class SubmitFormDomainError(val domainError: DomainError) : Exception(domainError.toString())
 
@@ -328,9 +328,9 @@ internal class ProclamatoreFormViewModel(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { currentState, _: Unit ->
                     val operation = if (capturedRoute == ProclamatoriRoute.Nuovo) {
-                        "Proclamatore aggiunto"
+                        "Studente aggiunto"
                     } else {
-                        "Proclamatore aggiornato"
+                        "Studente aggiornato"
                     }
                     val details = personDetails(capturedNome, capturedCognome)
                     clearForm()
@@ -404,7 +404,7 @@ internal class ProclamatoreFormViewModel(
             _uiState.update {
                 it.copy(
                     duplicateError = if (exists) {
-                        "Esiste gia' un proclamatore con questo nome e cognome"
+                        "Esiste già uno studente con questo nome e cognome"
                     } else {
                         null
                     },

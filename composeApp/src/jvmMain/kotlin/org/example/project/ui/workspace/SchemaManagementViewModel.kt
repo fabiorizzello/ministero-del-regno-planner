@@ -160,7 +160,7 @@ internal class SchemaManagementViewModel(
     private fun buildSchemaUpdateNotice(result: AggiornaSchemiResult): String {
         val base = "Schemi aggiornati: ${result.partTypesImported} tipi, ${result.weekTemplatesImported} settimane"
         return if (result.eligibilityAnomalies > 0) {
-            "$base. Alcune persone potrebbero richiedere una verifica manuale."
+            "$base. Alcuni studenti potrebbero richiedere una verifica manuale."
         } else {
             base
         }

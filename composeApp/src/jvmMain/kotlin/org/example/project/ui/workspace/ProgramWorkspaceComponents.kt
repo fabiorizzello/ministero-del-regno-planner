@@ -90,6 +90,7 @@ internal fun PartEditorDialog(
     weekLabel: String,
     parts: List<WeeklyPart>,
     availablePartTypes: List<PartType>,
+    assignmentCountsByPart: Map<WeeklyPartId, Int>,
     isSaving: Boolean,
     onAddPart: (PartType) -> Unit,
     onMovePart: (Int, Int) -> Unit,
@@ -100,7 +101,56 @@ internal fun PartEditorDialog(
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
     var menuExpanded by remember { mutableStateOf(false) }
+    var pendingRemovePart by remember { mutableStateOf<WeeklyPart?>(null) }
     val listState = rememberLazyListState()
+
+    pendingRemovePart?.let { part ->
+        val count = assignmentCountsByPart[part.id] ?: 0
+        Dialog(onDismissRequest = { pendingRemovePart = null }) {
+            Surface(
+                shape = RoundedCornerShape(spacing.cardRadius),
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, sketch.lineSoft),
+                color = sketch.surface,
+                modifier = Modifier.width(440.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(spacing.xl),
+                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                ) {
+                    Text("Rimuovi parte", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Vuoi rimuovere «${part.partType.label}»?" +
+                            if (count > 0) " Questa parte ha $count ${if (count == 1) "assegnazione" else "assegnazioni"} che verranno eliminate." else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        DesktopInlineAction(
+                            label = "Annulla",
+                            onClick = { pendingRemovePart = null },
+                            tone = DesktopInlineActionTone.Neutral,
+                            modifier = Modifier.width(120.dp).height(40.dp),
+                        )
+                        Spacer(Modifier.width(spacing.sm))
+                        DesktopInlineAction(
+                            label = "Rimuovi",
+                            onClick = {
+                                pendingRemovePart = null
+                                onRemovePart(part)
+                            },
+                            tone = if (count > 0) DesktopInlineActionTone.Danger else DesktopInlineActionTone.Neutral,
+                            modifier = Modifier.width(120.dp).height(40.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
     val reorderableState = rememberReorderableLazyListState(
         lazyListState = listState,
     ) { from, to ->
@@ -123,8 +173,29 @@ internal fun PartEditorDialog(
                 modifier = Modifier.fillMaxHeight().padding(spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
-                Text("Modifica parti", style = MaterialTheme.typography.titleLarge)
-                Text("Settimana $weekLabel", style = MaterialTheme.typography.bodyMedium)
+                // ── Header: title + close button ─────────────────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text("Modifica parti", style = MaterialTheme.typography.titleLarge)
+                        Text("Settimana $weekLabel", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        enabled = !isSaving,
+                        modifier = Modifier.size(32.dp).handCursorOnHover(enabled = !isSaving),
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Chiudi",
+                            modifier = Modifier.size(18.dp),
+                            tint = sketch.inkMuted,
+                        )
+                    }
+                }
                 Text(
                     "Trascina le righe per riordinare le parti",
                     style = MaterialTheme.typography.bodySmall,
@@ -215,13 +286,28 @@ internal fun PartEditorDialog(
                                             style = MaterialTheme.typography.bodyLarge,
                                         )
                                         Text(
-                                            "${part.partType.peopleCount} persone",
+                                            if (part.partType.peopleCount == 1) "1 studente" else "${part.partType.peopleCount} studenti",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = sketch.inkMuted,
                                         )
+                                        val assignCount = assignmentCountsByPart[part.id] ?: 0
+                                        if (assignCount > 0) {
+                                            Surface(
+                                                shape = RoundedCornerShape(999.dp),
+                                                color = sketch.warn.copy(alpha = 0.15f),
+                                                border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.5f)),
+                                            ) {
+                                                Text(
+                                                    "$assignCount",
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                    color = sketch.warn,
+                                                )
+                                            }
+                                        }
                                         if (!part.partType.fixed) {
                                             IconButton(
-                                                onClick = { onRemovePart(part) },
+                                                onClick = { pendingRemovePart = part },
                                                 enabled = !isSaving,
                                                 modifier = Modifier.handCursorOnHover(enabled = !isSaving),
                                             ) {
@@ -566,6 +652,22 @@ internal fun WeekSidebarItem(
 }
 
 @Composable
+internal fun SidebarLegendRow(label: String, color: Color) {
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(color))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = sketch.inkMuted,
+        )
+    }
+}
+
+@Composable
 private fun WeekSidebarTag(label: String, color: Color) {
     Surface(
         shape = RoundedCornerShape(999.dp),
@@ -646,8 +748,8 @@ internal fun WeekDetailHeader(
                         WeekHdrButton(
                             label = "Salta settimana",
                             icon = Icons.Filled.Block,
-                            fg = sketch.warn,
-                            border = sketch.warn.copy(alpha = 0.45f),
+                            fg = sketch.inkSoft,
+                            border = sketch.lineSoft,
                             onClick = onSkipWeek,
                         )
                     }
@@ -842,18 +944,21 @@ internal fun ProgramRightPanelButton(
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.72f
-    val baseContainer = if (isPrimary) sketch.accent.copy(alpha = 0.18f) else sketch.surface
+    val baseContainer = if (isPrimary) sketch.accent else sketch.surface
     val container = when {
-        enabled && focused -> sketch.accentSoft.copy(alpha = 0.95f)
-        enabled && hovered -> sketch.accentSoft.copy(alpha = 0.65f)
+        enabled && isPrimary && focused -> sketch.accent.copy(alpha = 0.88f)
+        enabled && isPrimary && hovered -> sketch.accent.copy(alpha = 0.82f)
+        enabled && !isPrimary && focused -> sketch.accentSoft.copy(alpha = 0.95f)
+        enabled && !isPrimary && hovered -> sketch.accentSoft.copy(alpha = 0.65f)
         else -> baseContainer.copy(alpha = alpha)
     }
     val border = when {
         enabled && focused -> sketch.accent.copy(alpha = 0.8f)
         enabled && hovered -> sketch.accent.copy(alpha = 0.55f)
-        isPrimary -> sketch.accent.copy(alpha = 0.7f * alpha)
+        isPrimary -> sketch.accent.copy(alpha = alpha)
         else -> sketch.lineSoft.copy(alpha = alpha)
     }
+    val contentColor = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha)
     Surface(
         modifier = modifier
             .handCursorOnHover(enabled)
@@ -879,14 +984,14 @@ internal fun ProgramRightPanelButton(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+                tint = contentColor,
                 modifier = Modifier.size(13.dp),
             )
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 modifier = Modifier.weight(1f),
-                color = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha),
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

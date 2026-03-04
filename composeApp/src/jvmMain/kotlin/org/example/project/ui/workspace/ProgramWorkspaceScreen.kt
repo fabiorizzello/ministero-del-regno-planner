@@ -158,7 +158,7 @@ fun ProgramWorkspaceScreen() {
         }
         if (pickedPart != null) {
             val slotLabel = if (pickedPart.partType.peopleCount > 1) {
-                if (personPickerState.pickerSlot == 1) "Proclamatore" else "Assistente"
+                if (personPickerState.pickerSlot == 1) "Studente" else "Assistente"
             } else {
                 null
             }
@@ -181,10 +181,13 @@ fun ProgramWorkspaceScreen() {
     if (partEditorState.isPartEditorOpen) {
         val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
+            val editingWeekAssignments = lifecycleState.selectedProgramAssignments[editingWeek.id.value] ?: emptyList()
+            val editingAssignmentCountsByPart = editingWeekAssignments.groupingBy { it.weeklyPartId }.eachCount()
             PartEditorDialog(
                 weekLabel = formatWeekRangeLabel(editingWeek.weekStartDate, editingWeek.weekStartDate.plusDays(6)),
                 parts = partEditorState.partEditorParts,
                 availablePartTypes = partEditorState.editablePartTypes,
+                assignmentCountsByPart = editingAssignmentCountsByPart,
                 isSaving = partEditorState.isSavingPartEditor,
                 onAddPart = { partEditorVM.addPartToEditor(it.id) },
                 onMovePart = { fromIndex, toIndex -> partEditorVM.movePartInEditor(fromIndex, toIndex) },
@@ -353,6 +356,7 @@ fun ProgramWorkspaceScreen() {
             val sketch = MaterialTheme.workspaceSketch
 
             var selectedWeekId by remember { mutableStateOf<String?>(null) }
+            var pendingSkipWeek by remember { mutableStateOf(false) }
             val effectiveSelectedWeekId = remember(selectedWeekId, lifecycleState.selectedProgramWeeks, currentMonday) {
                 val id = selectedWeekId
                 val weeks = lifecycleState.selectedProgramWeeks
@@ -479,6 +483,13 @@ fun ProgramWorkspaceScreen() {
                         }
                     }
 
+                    // Week status legend
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        SidebarLegendRow(label = "Completa", color = sketch.ok)
+                        SidebarLegendRow(label = "Parziale", color = sketch.warn)
+                        SidebarLegendRow(label = "Vuota", color = sketch.lineSoft)
+                    }
+
                     // Footer
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
                     Column(modifier = Modifier.padding(8.dp)) {
@@ -521,6 +532,30 @@ fun ProgramWorkspaceScreen() {
                         val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
                         val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
 
+                        if (pendingSkipWeek) {
+                            AlertDialog(
+                                onDismissRequest = { pendingSkipWeek = false },
+                                title = { Text("Salta settimana") },
+                                text = { Text("La settimana $weekLabel verrà esclusa dal programma. Le assegnazioni esistenti non verranno rimosse. Continuare?") },
+                                confirmButton = {
+                                    DesktopInlineAction(
+                                        label = "Salta",
+                                        onClick = {
+                                            pendingSkipWeek = false
+                                            partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
+                                        },
+                                        destructive = true,
+                                    )
+                                },
+                                dismissButton = {
+                                    DesktopInlineAction(
+                                        label = "Annulla",
+                                        onClick = { pendingSkipWeek = false },
+                                    )
+                                },
+                            )
+                        }
+
                         WeekDetailHeader(
                             weekLabel = weekLabel,
                             monthLabel = monthLabel,
@@ -528,7 +563,7 @@ fun ProgramWorkspaceScreen() {
                             isSkipped = isSkipped,
                             canMutate = canMutate,
                             onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
-                            onSkipWeek = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
+                            onSkipWeek = { pendingSkipWeek = true },
                             onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
                         )
 
@@ -643,11 +678,11 @@ fun ProgramWorkspaceScreen() {
                             ProgramRightPanelButton(
                                 label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
                                 icon = Icons.Filled.PlayArrow,
-                                isPrimary = false,
+                                isPrimary = true,
                                 enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
                                 onClick = {
                                     lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.autoAssignSelectedProgram(programId, fromFutureDate, onSuccess = reloadData)
+                                        assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -708,9 +743,19 @@ fun ProgramWorkspaceScreen() {
                     // Danger zone (pinned to bottom)
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
                     Column(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
+                        Text(
+                            "AZIONI IRREVERSIBILI",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                            ),
+                            color = sketch.bad.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+                        )
                         if (hasFutureWeeks) {
                             ProgramDangerButton(
                                 label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni future",
