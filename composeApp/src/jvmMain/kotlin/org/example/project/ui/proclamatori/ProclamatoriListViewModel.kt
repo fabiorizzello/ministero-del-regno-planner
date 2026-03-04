@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.update
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
@@ -59,7 +58,6 @@ internal data class ProclamatoriListUiState(
 internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
     private val cerca: CercaProclamatoriUseCase,
-    private val impostaStato: ImpostaStatoProclamatoreUseCase,
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
@@ -192,42 +190,6 @@ internal class ProclamatoriListViewModel(
                 noneCompletedLabel = "Nessun studente rimosso",
             )
             _uiState.update { it.copy(showBatchDeleteConfirm = false, notice = resultNotice) }
-        }
-    }
-
-    fun activateSelected() {
-        if (_uiState.value.isBatchInProgress) return
-        scope.launch {
-            val notice = executeOnSelected(
-                action = { id -> impostaStato(id, true) },
-                completedLabel = "Studenti attivati",
-                noneCompletedLabel = "Nessun studente attivato",
-            )
-            _uiState.update { it.copy(notice = notice) }
-        }
-    }
-
-    fun deactivateSelected() {
-        if (_uiState.value.isBatchInProgress) return
-        scope.launch {
-            val notice = executeOnSelected(
-                action = { id -> impostaStato(id, false) },
-                completedLabel = "Studenti disattivati",
-                noneCompletedLabel = "Nessun studente disattivato",
-            )
-            _uiState.update { it.copy(notice = notice) }
-        }
-    }
-
-    fun toggleActive(id: ProclamatoreId, next: Boolean) {
-        scope.launch {
-            _uiState.executeEitherOperationWithNotice(
-                loadingUpdate = { it.copy(isLoading = true) },
-                noticeUpdate = { state, notice -> state.copy(isLoading = false, notice = notice) },
-                successMessage = if (next) "Studente attivato" else "Studente disattivato",
-                operation = { impostaStato(id, next) },
-                onSuccess = { refreshListInternal() },
-            )
         }
     }
 

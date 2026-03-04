@@ -49,11 +49,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,7 +89,7 @@ import org.example.project.ui.theme.workspaceSketch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun PartEditorDialog(
     weekLabel: String,
@@ -109,8 +114,8 @@ internal fun PartEditorDialog(
         Dialog(onDismissRequest = { pendingRemovePart = null }) {
             Surface(
                 shape = RoundedCornerShape(spacing.cardRadius),
-                tonalElevation = 6.dp,
-                shadowElevation = 8.dp,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
                 border = BorderStroke(1.dp, sketch.lineSoft),
                 color = sketch.surface,
                 modifier = Modifier.width(440.dp),
@@ -163,8 +168,8 @@ internal fun PartEditorDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.dp, sketch.lineSoft),
             color = sketch.surface,
             modifier = Modifier.width(780.dp).heightIn(max = 720.dp),
@@ -292,17 +297,28 @@ internal fun PartEditorDialog(
                                         )
                                         val assignCount = assignmentCountsByPart[part.id] ?: 0
                                         if (assignCount > 0) {
-                                            Surface(
-                                                shape = RoundedCornerShape(999.dp),
-                                                color = sketch.warn.copy(alpha = 0.15f),
-                                                border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.5f)),
+                                            val tooltipText = if (assignCount == 1) {
+                                                "1 assegnazione presente — verrà eliminata se rimuovi questa parte"
+                                            } else {
+                                                "$assignCount assegnazioni presenti — verranno eliminate se rimuovi questa parte"
+                                            }
+                                            TooltipBox(
+                                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                                tooltip = { PlainTooltip { Text(tooltipText) } },
+                                                state = rememberTooltipState(),
                                             ) {
-                                                Text(
-                                                    "$assignCount",
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = sketch.warn,
-                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(999.dp),
+                                                    color = sketch.warn.copy(alpha = 0.15f),
+                                                    border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.5f)),
+                                                ) {
+                                                    Text(
+                                                        "$assignCount assegn.",
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                        color = sketch.warn,
+                                                    )
+                                                }
                                             }
                                         }
                                         if (!part.partType.fixed) {
@@ -548,8 +564,8 @@ private fun DesktopInlineAction(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = spacing.sm, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sm, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {

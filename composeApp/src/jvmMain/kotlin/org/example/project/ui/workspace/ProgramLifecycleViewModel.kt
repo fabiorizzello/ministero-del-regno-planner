@@ -82,6 +82,7 @@ internal class ProgramLifecycleViewModel(
     val state: StateFlow<ProgramLifecycleUiState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
+    private var weeksJob: Job? = null
 
     fun onScreenEntered() {
         loadProgramsAndWeeks()
@@ -223,7 +224,8 @@ internal class ProgramLifecycleViewModel(
     }
 
     private fun loadWeeksForSelectedProgram() {
-        scope.launch {
+        weeksJob?.cancel()
+        weeksJob = scope.launch {
             val selectedProgramId = _state.value.selectedProgramId ?: return@launch
             val weeks = weekPlanStore.listByProgram(selectedProgramId)
             val assignmentsByWeek = loadAssignmentsByWeek(weeks)

@@ -34,7 +34,6 @@ val viewModelsModule = module {
             aggiornaSchemi = get(),
             aggiornaProgrammaDaSchemi = get(),
             schemaTemplateStore = get(),
-            settings = get(),
         )
     }
     factory {
@@ -69,7 +68,6 @@ val viewModelsModule = module {
         ProclamatoriListViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             cerca = get(),
-            impostaStato = get(),
             elimina = get(),
             importaDaJson = get(),
             contaAssegnazioni = get(),

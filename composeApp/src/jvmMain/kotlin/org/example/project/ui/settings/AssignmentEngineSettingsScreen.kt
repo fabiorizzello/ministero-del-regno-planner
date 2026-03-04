@@ -85,7 +85,6 @@ fun AssignmentEngineSettingsScreen() {
         AssignmentEngineSettingsCard(
             state = state.assignmentSettings,
             settingsSaved = state.settingsSaved,
-            onStrictCooldownChange = { viewModel.setStrictCooldown(it) },
             onLeadWeightChange = { viewModel.setLeadWeight(it) },
             onAssistWeightChange = { viewModel.setAssistWeight(it) },
             onLeadCooldownChange = { viewModel.setLeadCooldownWeeks(it) },
@@ -104,7 +103,6 @@ fun AssignmentEngineSettingsScreen() {
 private fun AssignmentEngineSettingsCard(
     state: AssignmentSettingsUiState,
     settingsSaved: Boolean,
-    onStrictCooldownChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
     onLeadCooldownChange: (String) -> Unit,
@@ -119,7 +117,6 @@ private fun AssignmentEngineSettingsCard(
         }
     }
     val spacing = MaterialTheme.spacing
-    val switchPalette = assignmentSettingsSwitchPalette(MaterialTheme.colorScheme)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(spacing.cardRadius),
@@ -159,24 +156,6 @@ private fun AssignmentEngineSettingsCard(
                 }
             }
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                Switch(
-                    checked = state.strictCooldown,
-                    onCheckedChange = onStrictCooldownChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = switchPalette.checkedThumbColor,
-                        checkedTrackColor = switchPalette.checkedTrackColor,
-                        checkedBorderColor = switchPalette.checkedTrackColor,
-                        uncheckedThumbColor = switchPalette.uncheckedThumbColor,
-                        uncheckedTrackColor = switchPalette.uncheckedTrackColor,
-                        uncheckedBorderColor = switchPalette.uncheckedBorderColor,
-                    ),
-                )
-                Text("Strict cooldown (default ON)")
-            }
-            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
@@ -211,42 +190,40 @@ private fun AssignmentEngineSettingsCard(
                     },
                 )
             }
-            if (!state.strictCooldown) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                ) {
-                    OutlinedTextField(
-                        value = state.leadCooldownWeeks,
-                        onValueChange = onLeadCooldownChange,
-                        label = { Text("Cooldown conduzione (sett.)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
-                        isError = state.leadCooldownError != null,
-                        supportingText = {
-                            if (state.leadCooldownError != null) {
-                                Text(state.leadCooldownError, color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("Numero intero >= 0 (settimane)")
-                            }
-                        },
-                    )
-                    OutlinedTextField(
-                        value = state.assistCooldownWeeks,
-                        onValueChange = onAssistCooldownChange,
-                        label = { Text("Cooldown assistenza (sett.)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
-                        isError = state.assistCooldownError != null,
-                        supportingText = {
-                            if (state.assistCooldownError != null) {
-                                Text(state.assistCooldownError, color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("Numero intero >= 0 (settimane)")
-                            }
-                        },
-                    )
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                OutlinedTextField(
+                    value = state.leadCooldownWeeks,
+                    onValueChange = onLeadCooldownChange,
+                    label = { Text("Cooldown conduzione (sett.)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
+                    isError = state.leadCooldownError != null,
+                    supportingText = {
+                        if (state.leadCooldownError != null) {
+                            Text(state.leadCooldownError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 0 (settimane)")
+                        }
+                    },
+                )
+                OutlinedTextField(
+                    value = state.assistCooldownWeeks,
+                    onValueChange = onAssistCooldownChange,
+                    label = { Text("Cooldown assistenza (sett.)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
+                    isError = state.assistCooldownError != null,
+                    supportingText = {
+                        if (state.assistCooldownError != null) {
+                            Text(state.assistCooldownError, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Numero intero >= 0 (settimane)")
+                        }
+                    },
+                )
             }
         }
     }

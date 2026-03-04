@@ -3,10 +3,8 @@ CREATE TABLE person (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     sex TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1,
     suspended INTEGER NOT NULL DEFAULT 0,
     can_assist INTEGER NOT NULL DEFAULT 0,
-    CHECK(active IN (0, 1)),
     CHECK(suspended IN (0, 1)),
     CHECK(can_assist IN (0, 1))
 );
@@ -149,20 +147,18 @@ ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
 allActiveProclaimers:
-SELECT id, first_name, last_name, sex, active
+SELECT id, first_name, last_name, sex, suspended
 FROM person
-WHERE active = 1
 ORDER BY last_name, first_name;
 
 allAssignableProclaimers:
-SELECT id, first_name, last_name, sex, active, suspended, can_assist
+SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
-WHERE active = 1
-  AND suspended = 0
+WHERE suspended = 0
 ORDER BY last_name, first_name;
 
 searchProclaimers:
-SELECT id, first_name, last_name, sex, active, suspended
+SELECT id, first_name, last_name, sex, suspended
 FROM person
 WHERE (
     ? = 1
@@ -173,12 +169,12 @@ WHERE (
 ORDER BY last_name, first_name;
 
 findProclaimerById:
-SELECT id, first_name, last_name, sex, active
+SELECT id, first_name, last_name, sex, suspended
 FROM person
 WHERE id = ?;
 
 findProclaimerByIdExtended:
-SELECT id, first_name, last_name, sex, active, suspended, can_assist
+SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
 WHERE id = ?;
 
@@ -196,13 +192,12 @@ WHERE first_name = ? COLLATE NOCASE
   AND id != ?;
 
 upsertProclaimer:
-INSERT INTO person(id, first_name, last_name, sex, active, suspended, can_assist)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO person(id, first_name, last_name, sex, suspended, can_assist)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     first_name = excluded.first_name,
     last_name = excluded.last_name,
     sex = excluded.sex,
-    active = excluded.active,
     suspended = excluded.suspended,
     can_assist = excluded.can_assist;
 
@@ -317,8 +312,7 @@ SELECT
     a.slot,
     p.first_name,
     p.last_name,
-    p.sex,
-    p.active
+    p.sex
 FROM assignment a
 JOIN person p ON a.person_id = p.id
 JOIN weekly_part wp ON a.weekly_part_id = wp.id
@@ -382,7 +376,6 @@ FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
 GROUP BY p.id;
 
 lastPartTypeAssignmentPerPerson:
@@ -394,7 +387,6 @@ LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
     AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
 GROUP BY p.id;
 
 lastSlot1GlobalAssignmentPerPerson:
@@ -405,7 +397,6 @@ FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
 GROUP BY p.id;
 
 lastSlot1PartTypeAssignmentPerPerson:
@@ -417,7 +408,6 @@ LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
     AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
 GROUP BY p.id;
 
 -- Diagnostics queries

@@ -37,7 +37,6 @@ class AssegnaPersonaUseCase(
 
         val persona = personStore.load(personId)
             ?: raise(DomainError.Validation("Proclamatore non trovato"))
-        if (!persona.attivo) raise(DomainError.Validation("Proclamatore non attivo"))
         if (persona.sospeso) raise(DomainError.Validation("Proclamatore sospeso"))
 
         try {

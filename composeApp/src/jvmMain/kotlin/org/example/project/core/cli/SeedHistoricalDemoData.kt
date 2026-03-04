@@ -188,7 +188,6 @@ private data class SeedPerson(
     val firstName: String,
     val lastName: String,
     val sex: String,
-    val active: Boolean,
     val suspended: Boolean,
     val canAssist: Boolean,
 )
@@ -395,10 +394,8 @@ private fun buildSeedPeopleForSex(
         val fullNameKey = "$firstName|$lastName"
         if (usedNames.add(fullNameKey)) {
             val localIndex = result.size
-            val active = (localIndex % 13) != 0
-            val suspended = active && (localIndex % 9 == 0)
+            val suspended = (localIndex % 9 == 0)
             val canAssist = when {
-                !active -> (localIndex % 2) == 0
                 suspended -> (localIndex % 3) != 0
                 else -> (localIndex % 4) != 0
             }
@@ -407,7 +404,6 @@ private fun buildSeedPeopleForSex(
                 firstName = firstName,
                 lastName = lastName,
                 sex = sex,
-                active = active,
                 suspended = suspended,
                 canAssist = canAssist,
             )
@@ -520,7 +516,6 @@ private fun upsertPeople(
                 first_name = person.firstName,
                 last_name = person.lastName,
                 sex = person.sex,
-                active = if (person.active) 1L else 0L,
                 suspended = if (person.suspended) 1L else 0L,
                 can_assist = if (person.canAssist) 1L else 0L,
             )
@@ -541,7 +536,6 @@ private fun upsertMixedEligibility(
                 val canLead = shouldSeedCanLead(
                     personIndex = personIndex,
                     partIndex = partIndex,
-                    active = person.active,
                     suspended = person.suspended,
                     sex = person.sex,
                     canAssist = person.canAssist,
@@ -562,7 +556,7 @@ private fun upsertMixedEligibility(
     }
 
     // Garantisce una base ampia di idonei per parte per ridurre slot scoperti durante il seed storico.
-    val activeCandidates = people.filter { it.active && !it.suspended }
+    val activeCandidates = people.filter { !it.suspended }
     partTypes.forEach { part ->
         val current = leadByPart.getOrPut(part.id) { linkedSetOf() }
         val eligiblePool = activeCandidates.filter { candidate ->
@@ -620,13 +614,12 @@ private fun upsertMixedEligibility(
 internal fun shouldSeedCanLead(
     personIndex: Int,
     partIndex: Int,
-    active: Boolean,
     suspended: Boolean,
     sex: String,
     canAssist: Boolean,
     sexRule: SexRule,
 ): Boolean {
-    if (!active || suspended) return false
+    if (suspended) return false
     if (sexRule == SexRule.UOMO && sex != "M") return false
 
     val rotation = (personIndex * 7 + partIndex * 5 + if (canAssist) 3 else 0) % 19
@@ -727,7 +720,7 @@ private fun seedPastProgramsAndAssignments(
     var assignmentsInserted = 0
     var absoluteWeekIndex = 0
 
-    val assignablePeople = people.filter { it.active && !it.suspended }
+    val assignablePeople = people.filter { !it.suspended }
     val assistPoolByPart = partTypes.associate { part ->
         part.id to assignablePeople.filter { person ->
             person.canAssist && (part.sexRule != SexRule.UOMO || person.sex == "M")

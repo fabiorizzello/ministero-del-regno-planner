@@ -1,7 +1,6 @@
 package org.example.project.ui.workspace
 
 import arrow.core.Either
-import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +43,6 @@ internal class SchemaManagementViewModel(
     private val aggiornaSchemi: AggiornaSchemiUseCase,
     private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
-    private val settings: Settings,
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
     val state: StateFlow<SchemaManagementUiState> = _state.asStateFlow()
@@ -60,22 +58,12 @@ internal class SchemaManagementViewModel(
         futurePrograms: List<ProgramMonth>,
     ) {
         _state.update {
-            val fallbackNeedsRefresh = checkSchemaRefreshNeeded(selectedFutureProgram)
             val allPrograms = buildList {
                 currentProgram?.let { p -> add(p) }
                 addAll(futurePrograms)
             }
             val validIds = allPrograms.map { program -> program.id.value }.toSet()
-            val persistedImpacted = it.impactedProgramIds.intersect(validIds)
-            val impactedIds = if (
-                persistedImpacted.isEmpty() &&
-                fallbackNeedsRefresh &&
-                selectedFutureProgram != null
-            ) {
-                setOf(selectedFutureProgram.id.value)
-            } else {
-                persistedImpacted
-            }
+            val impactedIds = it.impactedProgramIds.intersect(validIds)
             it.copy(
                 selectedProgramId = selectedProgramId,
                 selectedFutureProgram = selectedFutureProgram,
@@ -175,12 +163,6 @@ internal class SchemaManagementViewModel(
         } else {
             base
         }
-    }
-
-    private fun checkSchemaRefreshNeeded(selectedFutureProgram: ProgramMonth?): Boolean {
-        val lastSchemaImport = settings.getStringOrNull("last_schema_import_at")
-            ?.let { runCatching { LocalDateTime.parse(it) }.getOrNull() }
-        return isSchemaRefreshNeeded(lastSchemaImport, selectedFutureProgram)
     }
 
     private suspend fun captureSchemaFingerprint(): Map<LocalDate, List<String>> {

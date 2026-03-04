@@ -193,8 +193,6 @@ fun ProclamatoriScreen() {
                     onSortChange = { nextSort -> listVm.setSort(nextSort) },
                     onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
                     onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
-                    onActivateSelected = { listVm.activateSelected() },
-                    onDeactivateSelected = { listVm.deactivateSelected() },
                     onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
                     onClearSelection = { listVm.clearSelection() },
                     onGoNuovo = { goToNuovo() },
@@ -207,7 +205,6 @@ fun ProclamatoriScreen() {
                             onSuccess = { route = ProclamatoriRoute.Modifica(id) },
                         )
                     },
-                    onToggleActive = { id, next -> listVm.toggleActive(id, next) },
                     onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
                     onPreviousPage = { listVm.goToPreviousPage() },
                     onNextPage = { listVm.goToNextPage() },

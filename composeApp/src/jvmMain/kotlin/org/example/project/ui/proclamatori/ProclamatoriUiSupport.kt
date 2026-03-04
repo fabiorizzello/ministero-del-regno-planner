@@ -13,7 +13,7 @@ import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.partialNotice
 import org.example.project.ui.components.successNotice
 
-internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, ATTIVO }
+internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, SOSPESO }
 internal enum class SortDirection { ASC, DESC }
 internal data class ProclamatoriSort(
     val field: ProclamatoriSortField = ProclamatoriSortField.COGNOME,
@@ -96,7 +96,7 @@ internal fun List<Proclamatore>.applySort(sort: ProclamatoriSort): List<Proclama
         ProclamatoriSortField.SESSO -> compareBy<Proclamatore> { it.sesso.name }
             .thenBy { it.cognome.lowercase() }
             .thenBy { it.nome.lowercase() }
-        ProclamatoriSortField.ATTIVO -> compareBy<Proclamatore> { if (it.attivo) 0 else 1 }
+        ProclamatoriSortField.SOSPESO -> compareBy<Proclamatore> { if (it.sospeso) 1 else 0 }
             .thenBy { it.cognome.lowercase() }
             .thenBy { it.nome.lowercase() }
     }

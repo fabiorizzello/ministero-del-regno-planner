@@ -37,7 +37,6 @@ class CreaProclamatoreUseCase(
             nome = nome,
             cognome = cognome,
             sesso = command.sesso,
-            attivo = true,
             sospeso = command.sospeso,
             puoAssistere = command.puoAssistere,
         )

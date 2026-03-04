@@ -13,7 +13,6 @@ data class Proclamatore(
     val nome: String,
     val cognome: String,
     val sesso: Sesso,
-    val attivo: Boolean,
     val sospeso: Boolean = false,
     val puoAssistere: Boolean = false,
 ) {

@@ -120,8 +120,8 @@ internal fun ProclamatoriFormDialogComponent(
     ) {
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .padding(spacing.lg)
                 .width(640.dp),

@@ -12,7 +12,6 @@ data class AssignmentWithPerson(
     val firstName: String,
     val lastName: String,
     val sex: Sesso,
-    val active: Boolean,
 ) {
     init {
         require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }

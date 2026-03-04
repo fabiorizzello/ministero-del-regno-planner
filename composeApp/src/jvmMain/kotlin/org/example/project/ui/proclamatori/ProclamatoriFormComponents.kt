@@ -126,7 +126,7 @@ internal fun ProclamatoriFormContentForm(
                     onValueChange = { if (it.length <= NAME_MAX_LENGTH) onNomeChange(it) },
                     label = { Text("Nome *") },
                     isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(nameFr),
                     singleLine = true,
                     supportingText = {
                         if (showFieldErrors && nomeTrim.isBlank()) {

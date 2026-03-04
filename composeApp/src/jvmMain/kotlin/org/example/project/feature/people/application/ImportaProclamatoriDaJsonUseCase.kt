@@ -12,7 +12,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -109,7 +108,6 @@ class ImportaProclamatoriDaJsonUseCase(
         val nome = extractRequiredText(item, "nome", position).bind()
         val cognome = extractRequiredText(item, "cognome", position).bind()
         val sesso = extractSesso(item, position).bind()
-        val attivo = extractAttivo(item, position).bind()
 
         val duplicateKey = "${nome.lowercase()}|${cognome.lowercase()}"
         if (!uniqueNames.add(duplicateKey)) {
@@ -121,7 +119,6 @@ class ImportaProclamatoriDaJsonUseCase(
             nome = nome,
             cognome = cognome,
             sesso = sesso,
-            attivo = attivo,
         )
     }
 
@@ -147,20 +144,6 @@ class ImportaProclamatoriDaJsonUseCase(
             "M" -> Sesso.M
             "F" -> Sesso.F
             else -> raise("Elemento #$position: sesso non valido ($raw), valori ammessi: M, F")
-        }
-    }
-
-    private fun extractAttivo(item: JsonObject, position: Int): Either<String, Boolean> = either {
-        val element = item["attivo"] ?: return@either true
-        val primitive = element as? JsonPrimitive
-            ?: raise("Elemento #$position: campo attivo non valido")
-
-        primitive.booleanOrNull?.let { return@either it }
-        val fromText = primitive.contentOrNull?.trim()?.lowercase()
-        when (fromText) {
-            "true" -> true
-            "false" -> false
-            else -> raise("Elemento #$position: campo attivo non valido")
         }
     }
 

@@ -16,7 +16,6 @@ internal fun mapAssignmentWithPersonRow(
     first_name: String,
     last_name: String,
     sex: String,
-    active: Long,
 ): AssignmentWithPerson {
     return AssignmentWithPerson(
         id = AssignmentId(id),
@@ -26,7 +25,6 @@ internal fun mapAssignmentWithPersonRow(
         firstName = first_name,
         lastName = last_name,
         sex = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
-        active = active == 1L,
     )
 }
 

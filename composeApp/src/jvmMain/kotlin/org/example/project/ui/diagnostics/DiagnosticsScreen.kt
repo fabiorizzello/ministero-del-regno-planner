@@ -63,10 +63,10 @@ import java.util.Locale
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.workspace.WorkspacePanel
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import org.koin.core.context.GlobalContext
 
 @Composable
@@ -109,17 +109,15 @@ fun DiagnosticsScreen() {
         )
     }
 
-    WorkspacePanel(
+    val sketch = MaterialTheme.workspaceSketch
+    Column(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .background(sketch.windowBackground)
+            .verticalScroll(rememberScrollState())
+            .padding(spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(spacing.lg),
-        ) {
             Text("Diagnostica", style = MaterialTheme.typography.headlineMedium)
 
             FeedbackBanner(
@@ -376,7 +374,6 @@ fun DiagnosticsScreen() {
                     }
                 }
             }
-        }
         }
     }
 }

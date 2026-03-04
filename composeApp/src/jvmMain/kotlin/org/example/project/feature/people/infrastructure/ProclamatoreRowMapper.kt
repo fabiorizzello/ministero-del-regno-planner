@@ -9,7 +9,6 @@ internal fun mapProclamatoreRow(
     first_name: String,
     last_name: String,
     sex: String,
-    active: Long,
     suspended: Long,
 ): Proclamatore {
     return Proclamatore(
@@ -17,7 +16,6 @@ internal fun mapProclamatoreRow(
         nome = first_name,
         cognome = last_name,
         sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
-        attivo = active == 1L,
         sospeso = suspended == 1L,
     )
 }
@@ -27,7 +25,6 @@ internal fun mapProclamatoreAssignableRow(
     first_name: String,
     last_name: String,
     sex: String,
-    active: Long,
     suspended: Long,
     can_assist: Long,
 ): Proclamatore {
@@ -36,7 +33,6 @@ internal fun mapProclamatoreAssignableRow(
         nome = first_name,
         cognome = last_name,
         sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
-        attivo = active == 1L,
         sospeso = suspended == 1L,
         puoAssistere = can_assist == 1L,
     )

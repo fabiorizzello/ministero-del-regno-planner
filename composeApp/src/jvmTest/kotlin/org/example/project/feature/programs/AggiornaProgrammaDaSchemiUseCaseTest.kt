@@ -113,7 +113,6 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
                 firstName = "Mario",
                 lastName = "Rossi",
                 sex = Sesso.M,
-                active = true,
             ),
             AssignmentWithPerson(
                 id = AssignmentId("as-2"),
@@ -123,7 +122,6 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
                 firstName = "Luigi",
                 lastName = "Verdi",
                 sex = Sesso.M,
-                active = true,
             ),
         )
 

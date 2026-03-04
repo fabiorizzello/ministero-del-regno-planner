@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.window.WindowDraggableArea
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
@@ -251,12 +250,11 @@ fun WindowScope.AppScreen(
                                                             isSizeMenuExpanded = false
                                                         },
                                                         properties = PopupProperties(focusable = true),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        containerColor = sketch.surface,
+                                                        border = BorderStroke(1.dp, sketch.lineSoft),
+                                                        shadowElevation = 8.dp,
                                                     ) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            color = sketch.surface,
-                                                            border = BorderStroke(1.dp, sketch.lineSoft),
-                                                        ) {
                                                             Column(
                                                                 modifier = Modifier
                                                                     .width(320.dp)
@@ -305,15 +303,6 @@ fun WindowScope.AppScreen(
                                                                 )
                                                                 Row(
                                                                     modifier = Modifier.fillMaxWidth(),
-                                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                                ) {
-                                                                    Text("${UI_SCALE_MIN.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                                    Text("${UI_SCALE_MAX.toUiScalePercentage()}%", style = MaterialTheme.typography.labelSmall)
-                                                                }
-                                                                Row(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .horizontalScroll(rememberScrollState()),
                                                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                                                 ) {
                                                                     UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
@@ -323,14 +312,18 @@ fun WindowScope.AppScreen(
                                                                             enabled = draftPercentage != preset,
                                                                             selected = draftPercentage == preset,
                                                                             label = "${preset}%",
+                                                                            modifier = Modifier.weight(1f),
                                                                         )
                                                                     }
                                                                 }
-                                                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                ) {
                                                                     ScaleMenuButton(
                                                                         onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
                                                                         enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                                        label = "-${UI_SCALE_STEP_PERCENT}%",
+                                                                        label = "−${UI_SCALE_STEP_PERCENT}%",
                                                                     )
                                                                     ScaleMenuButton(
                                                                         onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
@@ -339,7 +332,6 @@ fun WindowScope.AppScreen(
                                                                     )
                                                                 }
                                                             }
-                                                        }
                                                     }
                                                 }
                                                 WindowActionButton(
@@ -502,6 +494,7 @@ private fun ScaleMenuButton(
     label: String,
     enabled: Boolean,
     selected: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
@@ -524,7 +517,7 @@ private fun ScaleMenuButton(
                 else -> sketch.lineSoft.copy(alpha = alpha)
             },
         ),
-        modifier = Modifier
+        modifier = modifier
             .hoverable(interactionSource)
             .focusable(enabled = enabled && !selected, interactionSource = interactionSource)
             .handCursorOnHover(enabled = enabled && !selected)
@@ -541,6 +534,8 @@ private fun ScaleMenuButton(
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             ),
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }
@@ -583,7 +578,7 @@ private fun ToolbarIconAction(
     }
 
     Surface(
-        shape = RoundedCornerShape(if (fillHeight) 0.dp else 6.dp),
+        shape = if (fillHeight) RoundedCornerShape(0.dp) else CircleShape,
         color = bg,
         border = border,
         modifier = modifier
@@ -602,7 +597,7 @@ private fun ToolbarIconAction(
             modifier = if (fillHeight) {
                 Modifier.size(48.dp)
             } else {
-                Modifier.width(30.dp).height(24.dp)
+                Modifier.size(28.dp)
             },
             contentAlignment = Alignment.Center,
         ) {

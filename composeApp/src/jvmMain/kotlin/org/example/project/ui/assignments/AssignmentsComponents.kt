@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -359,24 +360,31 @@ private fun MissingAssignmentChip(
 fun PersonPickerDialog(
     partLabel: String,
     slotLabel: String?,
+    weekLabel: String,
     searchTerm: String,
     sortGlobal: Boolean,
+    strictCooldown: Boolean,
     suggestions: List<SuggestedProclamatore>,
     isLoading: Boolean,
     isAssigning: Boolean,
     onSearchChange: (String) -> Unit,
     onToggleSort: () -> Unit,
+    onStrictCooldownChange: (Boolean) -> Unit,
     onAssign: (ProclamatoreId) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val title = buildString {
         append("Assegna \u2014 $partLabel")
         if (slotLabel != null) append(" ($slotLabel)")
     }
+    val searchFr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { searchFr.requestFocus() }
 
-    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition
-    val sorted = remember(suggestions, searchTerm, sortGlobal) {
+    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition.
+    // sexMismatch candidates are sorted to the end for clarity.
+    val (normalSorted, mismatchSorted) = remember(suggestions, searchTerm, sortGlobal) {
         val filtered = if (searchTerm.isBlank()) {
             suggestions
         } else {
@@ -386,13 +394,13 @@ fun PersonPickerDialog(
                     s.proclamatore.cognome.lowercase().contains(lowerTerm)
             }
         }
-
         // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
-        if (sortGlobal) {
+        val sorted = if (sortGlobal) {
             filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
         } else {
             filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
         }
+        sorted.partition { !it.sexMismatch }
     }
 
     Dialog(
@@ -413,13 +421,41 @@ fun PersonPickerDialog(
                 // Title + close button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = sketch.surfaceMuted,
+                            border = BorderStroke(1.dp, sketch.lineSoft),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = spacing.sm, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.CalendarToday,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = sketch.inkMuted,
+                                )
+                                Text(
+                                    text = weekLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = sketch.inkMuted,
+                                )
+                            }
+                        }
+                    }
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier.handCursorOnHover(),
@@ -436,7 +472,7 @@ fun PersonPickerDialog(
                 OutlinedTextField(
                     value = searchTerm,
                     onValueChange = onSearchChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(searchFr),
                     placeholder = { Text("Cerca studente...") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
@@ -449,25 +485,52 @@ fun PersonPickerDialog(
                     ),
                 )
 
-                // Sort toggle
+                // Sort toggle + strict cooldown
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    Text(
-                        text = "Ordina per:",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                        SortModeButton(
-                            label = "Globale",
-                            selected = sortGlobal,
-                            onClick = { if (!sortGlobal) onToggleSort() },
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                    ) {
+                        Text(
+                            text = "Ordina per:",
+                            style = MaterialTheme.typography.bodyMedium,
                         )
-                        SortModeButton(
-                            label = "Per parte",
-                            selected = !sortGlobal,
-                            onClick = { if (sortGlobal) onToggleSort() },
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                            SortModeButton(
+                                label = "Globale",
+                                selected = sortGlobal,
+                                onClick = { if (!sortGlobal) onToggleSort() },
+                            )
+                            SortModeButton(
+                                label = "Per parte",
+                                selected = !sortGlobal,
+                                onClick = { if (sortGlobal) onToggleSort() },
+                            )
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Text(
+                            "Nascondi in cooldown",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = sketch.inkSoft,
+                        )
+                        Switch(
+                            checked = strictCooldown,
+                            onCheckedChange = onStrictCooldownChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                            ),
                         )
                     }
                 }
@@ -480,7 +543,7 @@ fun PersonPickerDialog(
                     ) {
                         CircularProgressIndicator()
                     }
-                } else if (sorted.isEmpty()) {
+                } else if (normalSorted.isEmpty() && mismatchSorted.isEmpty()) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -510,10 +573,9 @@ fun PersonPickerDialog(
                             state = listState,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            itemsIndexed(sorted, key = { _, it -> it.proclamatore.id.value }) { index, suggestion ->
+                            itemsIndexed(normalSorted, key = { _, it -> it.proclamatore.id.value }) { index, suggestion ->
                                 val zebraColor = if (index % 2 == 0) Color.Transparent
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
                                 SuggestionRow(
                                     suggestion = suggestion,
                                     backgroundColor = zebraColor,
@@ -521,6 +583,22 @@ fun PersonPickerDialog(
                                     onAssign = { onAssign(suggestion.proclamatore.id) },
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            }
+                            if (mismatchSorted.isNotEmpty()) {
+                                item(key = "sex-mismatch-header") {
+                                    SexMismatchGroupHeader()
+                                }
+                                itemsIndexed(mismatchSorted, key = { _, it -> "m-${it.proclamatore.id.value}" }) { index, suggestion ->
+                                    val zebraColor = if (index % 2 == 0) Color.Transparent
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    SuggestionRow(
+                                        suggestion = suggestion,
+                                        backgroundColor = zebraColor,
+                                        isAssigning = isAssigning,
+                                        onAssign = { onAssign(suggestion.proclamatore.id) },
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                }
                             }
                         }
                         VerticalScrollbar(
@@ -532,6 +610,32 @@ fun PersonPickerDialog(
 
             }
         }
+    }
+}
+
+@Composable
+private fun SexMismatchGroupHeader() {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(sketch.warn.copy(alpha = 0.07f))
+            .padding(horizontal = spacing.lg, vertical = spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+    ) {
+        Icon(
+            Icons.Filled.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = sketch.warn,
+        )
+        Text(
+            "Sesso diverso dalla parte",
+            style = MaterialTheme.typography.labelSmall,
+            color = sketch.warn,
+        )
     }
 }
 
@@ -614,12 +718,20 @@ private fun SuggestionRow(
                 overflow = TextOverflow.Ellipsis,
             )
             if (suggestion.sexMismatch) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = "Sesso diverso dalla parte",
-                    modifier = Modifier.size(12.dp),
-                    tint = sketch.warn,
-                )
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp)
+                        .background(sketch.warn.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .border(1.dp, sketch.warn.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        "sesso ≠",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = sketch.warn,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
         Text(

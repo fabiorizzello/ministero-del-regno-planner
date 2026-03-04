@@ -166,16 +166,25 @@ fun ProgramWorkspaceScreen() {
             } else {
                 null
             }
+            val pickerWeekLabel = personPickerState.pickerWeekStartDate?.let {
+                formatWeekRangeLabel(it, it.plusDays(6))
+            } ?: ""
             PersonPickerDialog(
                 partLabel = pickedPart.partType.label,
                 slotLabel = slotLabel,
+                weekLabel = pickerWeekLabel,
                 searchTerm = personPickerState.pickerSearchTerm,
                 sortGlobal = personPickerState.pickerSortGlobal,
+                strictCooldown = assignmentState.assignmentSettings.strictCooldown,
                 suggestions = personPickerState.pickerSuggestions,
                 isLoading = personPickerState.isPickerLoading,
                 isAssigning = personPickerState.isAssigning,
                 onSearchChange = { personPickerVM.setPickerSearchTerm(it) },
                 onToggleSort = { personPickerVM.togglePickerSort() },
+                onStrictCooldownChange = {
+                    assignmentVM.setStrictCooldown(it)
+                    personPickerVM.reloadSuggestions()
+                },
                 onAssign = { personPickerVM.confirmAssignment(it, onSuccess = reloadData) },
                 onDismiss = { personPickerVM.closePersonPicker() },
             )
@@ -364,9 +373,9 @@ fun ProgramWorkspaceScreen() {
                     }
                 }
             }
-            val totalSlots = lifecycleState.selectedProgramWeeks.sumOf { week ->
-                week.parts.sumOf { part -> part.partType.peopleCount }
-            }
+            val totalSlots = lifecycleState.selectedProgramWeeks
+                .filter { it.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED }
+                .sumOf { week -> week.parts.sumOf { part -> part.partType.peopleCount } }
             val totalAssignments = lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
             val assignmentsById = lifecycleState.selectedProgramAssignments.values
                 .flatten()
@@ -767,7 +776,6 @@ fun ProgramWorkspaceScreen() {
                                 ProgramInlineAssignmentSettings(
                                     state = assignmentState.assignmentSettings,
                                     skipRemoveConfirm = assignmentState.skipRemoveConfirm,
-                                    onStrictCooldownChange = assignmentVM::setStrictCooldown,
                                     onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
                                     onLeadWeightChange = assignmentVM::setLeadWeight,
                                     onAssistWeightChange = assignmentVM::setAssistWeight,
@@ -929,7 +937,6 @@ private fun ProgramMonthSelectorButton(
 private fun ProgramInlineAssignmentSettings(
     state: AssignmentSettingsUiState,
     skipRemoveConfirm: Boolean,
-    onStrictCooldownChange: (Boolean) -> Unit,
     onSkipRemoveConfirmChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
@@ -952,24 +959,6 @@ private fun ProgramInlineAssignmentSettings(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Nascondi studenti in cooldown",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = sketch.inkSoft,
-                )
-                DesktopToggle(
-                    checked = state.strictCooldown,
-                    onToggle = {
-                        onStrictCooldownChange(it)
-                        onSave()
-                    },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
                 DesktopNumericField(
@@ -987,26 +976,24 @@ private fun ProgramInlineAssignmentSettings(
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (!state.strictCooldown) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                ) {
-                    DesktopNumericField(
-                        label = "Cooldown conduzione",
-                        value = state.leadCooldownWeeks,
-                        onValueChange = onLeadCooldownChange,
-                        onBlur = onSave,
-                        modifier = Modifier.weight(1f),
-                    )
-                    DesktopNumericField(
-                        label = "Cooldown assistenza",
-                        value = state.assistCooldownWeeks,
-                        onValueChange = onAssistCooldownChange,
-                        onBlur = onSave,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                DesktopNumericField(
+                    label = "Cooldown conduzione",
+                    value = state.leadCooldownWeeks,
+                    onValueChange = onLeadCooldownChange,
+                    onBlur = onSave,
+                    modifier = Modifier.weight(1f),
+                )
+                DesktopNumericField(
+                    label = "Cooldown assistenza",
+                    value = state.assistCooldownWeeks,
+                    onValueChange = onAssistCooldownChange,
+                    onBlur = onSave,
+                    modifier = Modifier.weight(1f),
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -13,14 +13,12 @@ class SeedHistoricalDemoDataPeopleVarietyTest {
 
         val maleCount = people.count { readString(it, "getSex") == "M" }
         val femaleCount = people.count { readString(it, "getSex") == "F" }
-        val inactiveCount = people.count { !readBoolean(it, "getActive") }
         val suspendedCount = people.count { readBoolean(it, "getSuspended") }
         val canAssistTrueCount = people.count { readBoolean(it, "getCanAssist") }
         val canAssistFalseCount = people.count { !readBoolean(it, "getCanAssist") }
 
         assertTrue(maleCount >= 20, "Attesi almeno 20 uomini, trovati $maleCount")
         assertTrue(femaleCount >= 20, "Attese almeno 20 donne, trovate $femaleCount")
-        assertTrue(inactiveCount >= 3, "Attesi almeno 3 inattivi, trovati $inactiveCount")
         assertTrue(suspendedCount >= 3, "Attesi almeno 3 sospesi, trovati $suspendedCount")
         assertTrue(canAssistTrueCount >= 20, "Attesi almeno 20 con puoAssistere=true, trovati $canAssistTrueCount")
         assertTrue(canAssistFalseCount >= 20, "Attesi almeno 20 con puoAssistere=false, trovati $canAssistFalseCount")
@@ -48,15 +46,14 @@ class SeedHistoricalDemoDataPeopleVarietyTest {
         var canLeadSlots = 0
 
         people.forEachIndexed { personIndex, person ->
-            val active = readBoolean(person, "getActive")
             val suspended = readBoolean(person, "getSuspended")
             val sex = readString(person, "getSex")
             val canAssist = readBoolean(person, "getCanAssist")
             partRules.forEachIndexed { partIndex, sexRule ->
-                val compatible = active && !suspended && (sexRule != SexRule.UOMO || sex == "M")
+                val compatible = !suspended && (sexRule != SexRule.UOMO || sex == "M")
                 if (compatible) {
                     compatibleSlots += 1
-                    if (shouldSeedCanLead(personIndex, partIndex, active, suspended, sex, canAssist, sexRule)) {
+                    if (shouldSeedCanLead(personIndex, partIndex, suspended, sex, canAssist, sexRule)) {
                         canLeadSlots += 1
                     }
                 }
