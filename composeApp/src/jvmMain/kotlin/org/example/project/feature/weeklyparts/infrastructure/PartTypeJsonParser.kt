@@ -9,6 +9,11 @@ import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import java.util.UUID
 
+/** LIBERO era il vecchio nome di STESSO_SESSO nel JSON di catalogo. */
+internal fun parseSexRule(value: String): SexRule =
+    if (value == "LIBERO") SexRule.STESSO_SESSO
+    else runCatching { SexRule.valueOf(value) }.getOrDefault(SexRule.STESSO_SESSO)
+
 /**
  * Parses a single [PartType] from a JSON object.
  * Shared between [GitHubDataSource] and the CLI seed tool.
@@ -27,7 +32,7 @@ internal fun parsePartTypeFromJson(obj: JsonObject, index: Int): PartType {
         code = code,
         label = label,
         peopleCount = peopleCount,
-        sexRule = SexRule.valueOf(sexRuleStr),
+        sexRule = parseSexRule(sexRuleStr),
         fixed = obj["fixed"]?.jsonPrimitive?.boolean ?: false,
         sortOrder = index,
     )
