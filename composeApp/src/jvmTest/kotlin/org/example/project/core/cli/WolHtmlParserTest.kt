@@ -158,14 +158,35 @@ class WolHtmlParserTest {
 
         val parts = WolHtmlParser.parseEfficaciSectionParts(html)
 
-        assertEquals(4, parts.size)
-        assertEquals(4, parts[0].number)
-        assertEquals("Iniziare una conversazione", parts[0].title)
-        assertEquals(5, parts[1].number)
+        assertEquals(5, parts.size)
+        assertEquals(3, parts[0].number)
+        assertEquals("Lettura della Bibbia", parts[0].title)
+        assertEquals(4, parts[1].number)
         assertEquals("Iniziare una conversazione", parts[1].title)
-        assertEquals(6, parts[2].number)
-        assertEquals("Coltivare l’interesse", parts[2].title)
-        assertEquals(7, parts[3].number)
-        assertEquals("Fare discepoli", parts[3].title)
+        assertEquals(5, parts[2].number)
+        assertEquals("Iniziare una conversazione", parts[2].title)
+        assertEquals(6, parts[3].number)
+        assertEquals("Coltivare l’interesse", parts[3].title)
+        assertEquals(7, parts[4].number)
+        assertEquals("Fare discepoli", parts[4].title)
+    }
+
+    @Test
+    fun `parse efficaci section parts injects lettura bibbia point 3 when missing`() {
+        val html = """
+            <html>
+              <body>
+                <h2>EFFICACI NEL MINISTERO</h2>
+                <h3>4. Iniziare una conversazione</h3>
+                <h3>5. Coltivare l'interesse</h3>
+              </body>
+            </html>
+        """.trimIndent()
+
+        val parts = WolHtmlParser.parseEfficaciSectionParts(html)
+
+        assertEquals(3, parts.size)
+        assertEquals(3, parts[0].number)
+        assertEquals("Lettura della Bibbia", parts[0].title)
     }
 }

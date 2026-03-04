@@ -37,7 +37,7 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 ### User Story 2 - Suggerimento automatico dei candidati (Priority: P1)
 
 Per ogni slot di ogni parte, il sistema suggerisce una lista ordinata di proclamatori
-idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `LIBERO` non filtrante),
+idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `STESSO_SESSO` non filtrante),
 idoneità, stato sospeso/attivo, cooldown dall'ultima assegnazione globale e specifica
 per quel tipo di parte, e parametri configurabili (peso ruolo, settimane cooldown).
 
@@ -209,7 +209,7 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown) e 1
   (pesi). Le impostazioni di default sono applicate se non ancora configurate.
 - **SexRule** (da feature weeklyparts): `UOMO` = filtro su soli proclamatori maschi;
-  `LIBERO` = nessun filtro di sesso nella logica di suggerimento attuale.
+  `STESSO_SESSO` = nessun filtro di sesso nella logica di suggerimento attuale.
 
 ## Success Criteria *(mandatory)*
 
@@ -230,7 +230,7 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
   → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
   dove cooldownPenalty = 10.000 se in cooldown.
-- Q: SexRule.LIBERO significato reale? → A: Nello stato attuale del codice è non
+- Q: SexRule.STESSO_SESSO significato reale? → A: Nello stato attuale del codice è non
   filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
   applicato solo su `SexRule.UOMO`.
 - Q: Esistono vincoli di validazione slot confermati dal codice? → A: Sì — (1) slot deve

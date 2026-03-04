@@ -735,13 +735,21 @@ private fun SuggestionRow(
             }
         }
         Text(
-            text = formatRecency(suggestion.lastGlobalDays, suggestion.lastGlobalWeeks),
+            text = formatRecencyLabel(
+                days = suggestion.lastGlobalDays,
+                weeks = suggestion.lastGlobalWeeks,
+                inFuture = suggestion.lastGlobalInFuture,
+            ),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = formatRecency(suggestion.lastForPartTypeDays, suggestion.lastForPartTypeWeeks),
+            text = formatRecencyLabel(
+                days = suggestion.lastForPartTypeDays,
+                weeks = suggestion.lastForPartTypeWeeks,
+                inFuture = suggestion.lastForPartTypeInFuture,
+            ),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -857,11 +865,4 @@ private fun SortModeButton(
             color = contentColor,
         )
     }
-}
-
-private fun formatRecency(days: Int?, weeks: Int?): String = when {
-    days == null -> "Mai assegnato"
-    days == 0 -> "Oggi"
-    days < 14 -> "$days giorni fa"
-    else -> "${weeks ?: (days / 7)} settimane fa"
 }

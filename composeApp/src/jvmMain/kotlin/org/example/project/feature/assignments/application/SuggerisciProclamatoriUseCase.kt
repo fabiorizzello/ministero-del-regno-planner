@@ -45,7 +45,7 @@ class SuggerisciProclamatoriUseCase(
         val requiredSex = existingPartAssignments.firstOrNull()?.sex
 
         // Filtri hard: regola sesso UOMO, idoneita', gia' assegnato nella stessa settimana.
-        // LIBERO = stesso sesso preferito (soft): non filtra, ma annota sexMismatch.
+        // STESSO_SESSO = stesso sesso preferito (soft): non filtra, ma annota sexMismatch.
         val eligible = suggestions
             .map { suggestion ->
                 val p = suggestion.proclamatore

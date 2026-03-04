@@ -1,9 +1,15 @@
 package org.example.project.ui.workspace
 
+import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.fixtureProgramMonth
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.YearMonth
+import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ProgramLifecycleViewModelSelectionTest {
 
@@ -47,5 +53,33 @@ class ProgramLifecycleViewModelSelectionTest {
         )
 
         assertEquals("future-1", selected)
+    }
+
+    @Test
+    fun `applyProgramSnapshot clears stale weeks and assignments when no program remains`() {
+        val staleWeek = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = emptyList(),
+            programId = "deleted-program",
+        )
+        val initial = ProgramLifecycleUiState(
+            isLoading = true,
+            selectedProgramId = "deleted-program",
+            selectedProgramWeeks = listOf(staleWeek),
+            selectedProgramAssignments = mapOf("week-1" to emptyList<AssignmentWithPerson>()),
+        )
+
+        val updated = applyProgramSnapshot(
+            state = initial,
+            snapshot = ProgramSelectionSnapshot(
+                current = null,
+                futures = emptyList(),
+            ),
+        )
+
+        assertEquals(null, updated.selectedProgramId)
+        assertTrue(updated.selectedProgramWeeks.isEmpty())
+        assertTrue(updated.selectedProgramAssignments.isEmpty())
     }
 }

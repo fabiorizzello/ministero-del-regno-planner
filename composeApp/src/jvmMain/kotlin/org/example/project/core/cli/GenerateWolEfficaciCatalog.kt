@@ -31,6 +31,13 @@ private const val DEFAULT_MAX_WEEKS = 120
 private const val DEFAULT_COOLDOWN_MIN_MS = 1600L
 private const val DEFAULT_COOLDOWN_MAX_MS = 3200L
 private const val CONSECUTIVE_NO_PROGRAM_STOP_WEEKS = 2
+private const val LETTURA_BIBBIA_POINT_NUMBER = 3
+private const val LETTURA_BIBBIA_LABEL = "Lettura della Bibbia"
+private const val LETTURA_BIBBIA_CODE = "LETTURA_DELLA_BIBBIA"
+private const val LETTURA_BIBBIA_SEX_RULE = "UOMO"
+private const val DISCORSO_LABEL = "Discorso"
+private const val DISCORSO_CODE = "DISCORSO"
+private const val SEX_RULE_STESSO_SESSO = "STESSO_SESSO"
 
 fun main(args: Array<String>) {
     val config = CliConfig.parse(args)
@@ -219,7 +226,7 @@ private data class CliConfig(
     }
 }
 
-private data class ScrapedWeek(
+internal data class ScrapedWeek(
     val weekStartDate: LocalDate,
     val meetingsUrl: String,
     val vitaMinisteroUrl: String,
@@ -237,14 +244,14 @@ private data class CrawlReport(
     val alreadyPresentWeeks: Int,
 )
 
-private data class OutputCatalog(
+internal data class OutputCatalog(
     val version: String,
     val updatedAt: String,
     val partTypes: List<OutputPartType>,
     val weeks: List<OutputWeek>,
 )
 
-private data class OutputPartType(
+internal data class OutputPartType(
     val code: String,
     val label: String,
     val peopleCount: Int,
@@ -252,12 +259,12 @@ private data class OutputPartType(
     val fixed: Boolean,
 )
 
-private data class OutputWeek(
+internal data class OutputWeek(
     val weekStartDate: String,
     val parts: List<OutputWeekPart>,
 )
 
-private data class OutputWeekPart(
+internal data class OutputWeekPart(
     val partTypeCode: String,
 )
 
@@ -497,7 +504,9 @@ private fun loadBasePartTypes(
             val code = obj["code"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val label = obj["label"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val peopleCount = obj["peopleCount"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2
-            val sexRule = obj["sexRule"]?.jsonPrimitive?.content ?: "LIBERO"
+            val sexRule = normalizeSexRule(
+                obj["sexRule"]?.jsonPrimitive?.content ?: SEX_RULE_STESSO_SESSO,
+            )
             val fixed = obj["fixed"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
             OutputPartType(
                 code = code,
@@ -513,7 +522,7 @@ private fun loadBasePartTypes(
     }
 }
 
-private fun buildCatalog(
+internal fun buildCatalog(
     scrapedWeeks: List<ScrapedWeek>,
     basePartTypes: List<OutputPartType>,
 ): OutputCatalog {
@@ -521,8 +530,33 @@ private fun buildCatalog(
     val usedPartTypes = linkedMapOf<String, OutputPartType>()
     val allKnownCodes = basePartTypes.map { it.code }.toMutableSet()
     val generatedByLabelKey = mutableMapOf<String, OutputPartType>()
+    val letturaBibbiaPartType = OutputPartType(
+        code = LETTURA_BIBBIA_CODE,
+        label = LETTURA_BIBBIA_LABEL,
+        peopleCount = 1,
+        sexRule = LETTURA_BIBBIA_SEX_RULE,
+        fixed = true,
+    )
+    val discorsoPartType = OutputPartType(
+        code = DISCORSO_CODE,
+        label = DISCORSO_LABEL,
+        peopleCount = 1,
+        sexRule = LETTURA_BIBBIA_SEX_RULE,
+        fixed = false,
+    )
 
     fun resolvePartType(title: String): OutputPartType {
+        if (isLetturaBibbiaTitle(title)) {
+            allKnownCodes += LETTURA_BIBBIA_CODE
+            usedPartTypes[LETTURA_BIBBIA_CODE] = letturaBibbiaPartType
+            return letturaBibbiaPartType
+        }
+        if (isDiscorsoTitle(title)) {
+            allKnownCodes += DISCORSO_CODE
+            usedPartTypes[DISCORSO_CODE] = discorsoPartType
+            return discorsoPartType
+        }
+
         val key = labelKey(title)
 
         baseByLabelKey[key]?.let { base ->
@@ -547,7 +581,7 @@ private fun buildCatalog(
             code = code,
             label = title,
             peopleCount = 2,
-            sexRule = "LIBERO",
+            sexRule = SEX_RULE_STESSO_SESSO,
             fixed = false,
         )
 
@@ -558,7 +592,7 @@ private fun buildCatalog(
     }
 
     val outputWeeks = scrapedWeeks.map { week ->
-        val partCodes = week.efficaciParts.map { part ->
+        val partCodes = ensureLetturaBibbiaPointThree(week.efficaciParts).map { part ->
             resolvePartType(part.title).code
         }
         OutputWeek(
@@ -570,9 +604,14 @@ private fun buildCatalog(
     return OutputCatalog(
         version = LocalDate.now().toString(),
         updatedAt = OffsetDateTime.now(ZoneOffset.UTC).toString(),
-        partTypes = usedPartTypes.values.toList(),
+        partTypes = reorderPartTypes(usedPartTypes.values.toList()),
         weeks = outputWeeks,
     )
+}
+
+private fun reorderPartTypes(partTypes: List<OutputPartType>): List<OutputPartType> {
+    val (lettura, others) = partTypes.partition { it.code == LETTURA_BIBBIA_CODE }
+    return lettura + others
 }
 
 private fun mergePartTypesByCode(
@@ -598,7 +637,7 @@ private fun mergeCatalogs(
     val mergedWeeks = mergedWeeksByDate.values.sortedBy { it.weekStartDate }
 
     return generated.copy(
-        partTypes = mergedPartTypes,
+        partTypes = reorderPartTypes(mergedPartTypes),
         weeks = mergedWeeks,
     )
 }
@@ -616,7 +655,9 @@ private fun loadExistingOutputCatalog(outputPath: String): OutputCatalog? {
             val code = obj["code"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val label = obj["label"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val peopleCount = obj["peopleCount"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2
-            val sexRule = obj["sexRule"]?.jsonPrimitive?.content ?: "LIBERO"
+            val sexRule = normalizeSexRule(
+                obj["sexRule"]?.jsonPrimitive?.content ?: SEX_RULE_STESSO_SESSO,
+            )
             val fixed = obj["fixed"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
             OutputPartType(
                 code = code,
@@ -686,6 +727,30 @@ private fun labelKey(value: String): String {
         .replace(Regex("[^A-Z0-9]+"), " ")
         .trim()
     return normalized.replace(Regex("\\s+"), " ")
+}
+
+private fun isLetturaBibbiaTitle(value: String): Boolean {
+    val key = labelKey(value)
+    return key.contains("LETTURA") && (key.contains("BIBBIA") || key.contains("BIBLICA"))
+}
+
+private fun isDiscorsoTitle(value: String): Boolean = labelKey(value).contains("DISCORSO")
+
+private fun ensureLetturaBibbiaPointThree(parts: List<EfficaciPart>): List<EfficaciPart> {
+    val normalizedParts = parts.filterNot { part ->
+        part.number == LETTURA_BIBBIA_POINT_NUMBER || isLetturaBibbiaTitle(part.title)
+    }
+    return listOf(
+        EfficaciPart(
+            number = LETTURA_BIBBIA_POINT_NUMBER,
+            title = LETTURA_BIBBIA_LABEL,
+        ),
+    ) + normalizedParts
+}
+
+private fun normalizeSexRule(value: String): String = when (val normalized = value.uppercase(Locale.ROOT)) {
+    "UOMO", SEX_RULE_STESSO_SESSO -> normalized
+    else -> SEX_RULE_STESSO_SESSO
 }
 
 private fun codeFromLabel(value: String): String {
@@ -828,7 +893,7 @@ internal object WolHtmlParser {
         val startIndex = headings.indexOfFirst {
             it.tagName() == "h2" && labelKey(it.text()) == labelKey("EFFICACI NEL MINISTERO")
         }
-        if (startIndex == -1) return emptyList()
+        if (startIndex == -1) return ensureLetturaBibbiaPointThree(emptyList())
 
         val parts = mutableListOf<EfficaciPart>()
         for (i in startIndex + 1 until headings.size) {
@@ -844,6 +909,6 @@ internal object WolHtmlParser {
             parts += EfficaciPart(number = number, title = title)
         }
 
-        return parts
+        return ensureLetturaBibbiaPointThree(parts)
     }
 }

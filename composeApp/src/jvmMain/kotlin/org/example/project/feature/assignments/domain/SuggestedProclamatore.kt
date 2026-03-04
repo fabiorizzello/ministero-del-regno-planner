@@ -9,7 +9,9 @@ data class SuggestedProclamatore(
     val lastConductorWeeks: Int?,     // null = mai stato conduttore; usato per determinare l'ultimo ruolo
     val lastGlobalDays: Int? = null,
     val lastForPartTypeDays: Int? = null,
+    val lastGlobalInFuture: Boolean = false,
+    val lastForPartTypeInFuture: Boolean = false,
     val inCooldown: Boolean = false,
     val cooldownRemainingWeeks: Int = 0,
-    val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola LIBERO)
+    val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola STESSO_SESSO)
 )

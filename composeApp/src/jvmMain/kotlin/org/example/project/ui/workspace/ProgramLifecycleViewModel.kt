@@ -15,6 +15,7 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviUse
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
+import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
@@ -189,24 +190,7 @@ internal class ProgramLifecycleViewModel(
             _state.executeAsyncOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { state, snapshot ->
-                    val creatableTargets = computeCreatableTargets(
-                        today = state.today,
-                        currentProgram = snapshot.current,
-                        futurePrograms = snapshot.futures,
-                    )
-                    val selectedProgramId = resolveSelectedProgramId(
-                        previousSelectedId = state.selectedProgramId,
-                        currentProgram = snapshot.current,
-                        futurePrograms = snapshot.futures,
-                    )
-                    state.copy(
-                        isLoading = false,
-                        currentProgram = snapshot.current,
-                        futurePrograms = snapshot.futures,
-                        creatableTargets = creatableTargets,
-                        selectedProgramId = selectedProgramId,
-                        deleteImpactConfirm = null,
-                    )
+                    applyProgramSnapshot(state, snapshot)
                 },
                 errorUpdate = { state, error ->
                     state.copy(
@@ -295,4 +279,31 @@ internal fun computeCreatableTargets(
         if (!hasCurrent && futureMonths.isEmpty() && target != plusOne) return@filter false
         true
     }
+}
+
+internal fun applyProgramSnapshot(
+    state: ProgramLifecycleUiState,
+    snapshot: ProgramSelectionSnapshot,
+): ProgramLifecycleUiState {
+    val creatableTargets = computeCreatableTargets(
+        today = state.today,
+        currentProgram = snapshot.current,
+        futurePrograms = snapshot.futures,
+    )
+    val selectedProgramId = resolveSelectedProgramId(
+        previousSelectedId = state.selectedProgramId,
+        currentProgram = snapshot.current,
+        futurePrograms = snapshot.futures,
+    )
+    val clearWeeks = selectedProgramId == null
+    return state.copy(
+        isLoading = false,
+        currentProgram = snapshot.current,
+        futurePrograms = snapshot.futures,
+        creatableTargets = creatableTargets,
+        selectedProgramId = selectedProgramId,
+        selectedProgramWeeks = if (clearWeeks) emptyList() else state.selectedProgramWeeks,
+        selectedProgramAssignments = if (clearWeeks) emptyMap() else state.selectedProgramAssignments,
+        deleteImpactConfirm = null,
+    )
 }

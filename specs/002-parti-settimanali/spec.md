@@ -149,11 +149,11 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - **WeekPlan**: id (UUID), weekStartDate (sempre lunedì), parts (lista ordinata),
   programId (opzionale, FK a ProgramMonth), status (ACTIVE | SKIPPED).
 - **WeeklyPart**: id (UUID), partType (FK), sortOrder. Appartiene a un WeekPlan.
-- **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | LIBERO),
+- **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | STESSO_SESSO),
   fixed (boolean), sortOrder. Catalogo dei tipi di parte disponibili.
-- **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot; LIBERO = stesso
+- **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot; STESSO_SESSO = stesso
   sesso OPPURE sesso diverso solo se i proclamatori assegnati agli slot sono in
-  relazione familiare (CONIUGE o GENITORE_FIGLIO). `LIBERO` NON significa "qualsiasi
+  relazione familiare (CONIUGE o GENITORE_FIGLIO). `STESSO_SESSO` NON significa "qualsiasi
   persona" — vedere spec 001 (RelazioneProclam) e spec 005 (FR-002) per dettaglio
   completo della regola.
 
@@ -181,7 +181,7 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - Q: AggiornaDatiRemotiUseCase ha fasi distinte? → A: Sì — `fetchAndImport()` è la
   prima fase (skippa settimane esistenti, restituisce `weeksNeedingConfirmation`);
   `importSchemas(schemas)` è la seconda fase (sovrascrive dopo conferma utente).
-- Q: SexRule.LIBERO nella spec 002 era errata? → A: Sì — aggiornata a: stesso sesso
+- Q: SexRule.STESSO_SESSO nella spec 002 era errata? → A: Sì — aggiornata a: stesso sesso
   OPPURE sesso diverso solo se CONIUGE/GENITORE_FIGLIO (allineato a spec 001 e 005).
 
 ### Session 2026-03-03

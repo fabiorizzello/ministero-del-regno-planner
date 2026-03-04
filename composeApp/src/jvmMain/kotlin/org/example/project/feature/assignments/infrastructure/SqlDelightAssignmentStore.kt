@@ -16,6 +16,7 @@ import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 
 class SqlDelightAssignmentStore(
     private val database: MinisteroDatabase,
@@ -93,24 +94,31 @@ class SqlDelightAssignmentStore(
                 val lastGlobalDate = globalRanking[p.id.value]
                 val lastPartDate = partTypeRanking[p.id.value]
                 val lastConductorDate = conductorRanking[p.id.value]
+                val signedGlobalDays = lastGlobalDate?.let {
+                    ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val signedPartDays = lastPartDate?.let {
+                    ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val signedGlobalWeeks = lastGlobalDate?.let {
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val signedPartWeeks = lastPartDate?.let {
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val signedConductorWeeks = lastConductorDate?.let {
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
 
                 SuggestedProclamatore(
                     proclamatore = p,
-                    lastGlobalWeeks = lastGlobalDate?.let {
-                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                    },
-                    lastForPartTypeWeeks = lastPartDate?.let {
-                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                    },
-                    lastConductorWeeks = lastConductorDate?.let {
-                        ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                    },
-                    lastGlobalDays = lastGlobalDate?.let {
-                        ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                    },
-                    lastForPartTypeDays = lastPartDate?.let {
-                        ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt().coerceAtLeast(0)
-                    },
+                    lastGlobalWeeks = signedGlobalWeeks?.let(::abs),
+                    lastForPartTypeWeeks = signedPartWeeks?.let(::abs),
+                    lastConductorWeeks = signedConductorWeeks?.let(::abs),
+                    lastGlobalDays = signedGlobalDays?.let(::abs),
+                    lastForPartTypeDays = signedPartDays?.let(::abs),
+                    lastGlobalInFuture = signedGlobalDays?.let { it < 0 } ?: false,
+                    lastForPartTypeInFuture = signedPartDays?.let { it < 0 } ?: false,
                 )
             }
         }

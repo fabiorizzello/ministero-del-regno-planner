@@ -38,13 +38,13 @@ Iterative code review against specs in `/specs/`. Single desktop user, single se
 ### NAMING / SEMANTICS
 
 #### 5. `SexRule.STESSO_SESSO` — nome ambiguo
-- Rinominato da `LIBERO` nel branch corrente (commit "SexRule LIBERO→STESSO_SESSO")
+- Rinominato nel branch corrente per allineamento semantico
 - **Semantica attuale** (da `SuggerisciProclamatoriUseCase.kt`):
   - `UOMO`: hard filter — solo maschi
   - `STESSO_SESSO`: nessun filtro hard (`passaSesso = true`), ma genera `sexMismatch` soft warning se i sessi differiscono
 - **Problema**: il nome `STESSO_SESSO` suggerisce "stesso sesso richiesto" (restrizione), mentre il comportamento è "stesso sesso preferito ma non obbligatorio"
-- La vecchia spec usava `LIBERO` = "nessuna restrizione", il che è più chiaro. Il rename introduce ambiguità semantica.
-- `PartTypeJsonParser.kt:14` mantiene backward compat: `if (value == "LIBERO") SexRule.STESSO_SESSO`
+- La vecchia spec usava un nome diverso per "nessuna restrizione", il che è più chiaro. Il rename introduce ambiguità semantica.
+- `PartTypeJsonParser.kt:14` usa fallback a `SexRule.STESSO_SESSO` per valori non validi.
 
 #### 6. `allActiveProclaimers` — query mal nominata
 - `MinisteroDatabase.sq:149`: `SELECT * FROM person` senza filtro `suspended`
@@ -218,7 +218,7 @@ Iterative code review against specs in `/specs/`. Single desktop user, single se
 - Da `SuggerisciProclamatoriUseCase:56`: `val isSexMismatch = part.partType.sexRule == SexRule.STESSO_SESSO && <sex_comparison>` — calcola il soft warning
 - **Il nome è confuso**: STESSO_SESSO suona come "stesso sesso obbligatorio" ma significa "stesso sesso preferito". UOMO invece è hard filter.
 - Impatto UI: il campo `sexMismatch: Boolean` in `SuggestedProclamatore` viene mostrato come warning nella lista suggeriti, ma non blocca l'assegnazione.
-- `PartTypeJsonParser:14`: compatibilità backward `if (value == "LIBERO") SexRule.STESSO_SESSO` — corretto
+- `PartTypeJsonParser:14`: fallback su `SexRule.STESSO_SESSO` per valori non validi — corretto
 
 ### DB schema — dettagli aggiuntivi
 
