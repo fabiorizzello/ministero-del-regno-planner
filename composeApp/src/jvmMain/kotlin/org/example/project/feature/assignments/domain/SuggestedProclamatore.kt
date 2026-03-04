@@ -11,4 +11,5 @@ data class SuggestedProclamatore(
     val lastForPartTypeDays: Int? = null,
     val inCooldown: Boolean = false,
     val cooldownRemainingWeeks: Int = 0,
+    val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola LIBERO)
 )

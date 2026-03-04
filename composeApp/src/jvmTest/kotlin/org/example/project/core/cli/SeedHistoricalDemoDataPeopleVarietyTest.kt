@@ -30,18 +30,18 @@ class SeedHistoricalDemoDataPeopleVarietyTest {
     fun `seed canLead grants broad eligibility for compatible active proclaimers`() {
         val people = invokeSeedPeople()
         val partRules = listOf(
-            SexRule.LIBERO,
+            SexRule.STESSO_SESSO,
             SexRule.UOMO,
-            SexRule.LIBERO,
-            SexRule.LIBERO,
+            SexRule.STESSO_SESSO,
+            SexRule.STESSO_SESSO,
             SexRule.UOMO,
-            SexRule.LIBERO,
-            SexRule.LIBERO,
-            SexRule.LIBERO,
+            SexRule.STESSO_SESSO,
+            SexRule.STESSO_SESSO,
+            SexRule.STESSO_SESSO,
             SexRule.UOMO,
-            SexRule.LIBERO,
-            SexRule.LIBERO,
-            SexRule.LIBERO,
+            SexRule.STESSO_SESSO,
+            SexRule.STESSO_SESSO,
+            SexRule.STESSO_SESSO,
         )
 
         var compatibleSlots = 0

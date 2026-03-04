@@ -766,7 +766,9 @@ fun ProgramWorkspaceScreen() {
                             Box(modifier = Modifier.testTag("program-assignment-settings")) {
                                 ProgramInlineAssignmentSettings(
                                     state = assignmentState.assignmentSettings,
+                                    skipRemoveConfirm = assignmentState.skipRemoveConfirm,
                                     onStrictCooldownChange = assignmentVM::setStrictCooldown,
+                                    onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
                                     onLeadWeightChange = assignmentVM::setLeadWeight,
                                     onAssistWeightChange = assignmentVM::setAssistWeight,
                                     onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
@@ -926,7 +928,9 @@ private fun ProgramMonthSelectorButton(
 @Composable
 private fun ProgramInlineAssignmentSettings(
     state: AssignmentSettingsUiState,
+    skipRemoveConfirm: Boolean,
     onStrictCooldownChange: (Boolean) -> Unit,
+    onSkipRemoveConfirmChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
     onLeadCooldownChange: (String) -> Unit,
@@ -952,7 +956,7 @@ private fun ProgramInlineAssignmentSettings(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Strict cooldown",
+                    "Nascondi studenti in cooldown",
                     style = MaterialTheme.typography.bodySmall,
                     color = sketch.inkSoft,
                 )
@@ -983,23 +987,40 @@ private fun ProgramInlineAssignmentSettings(
                     modifier = Modifier.weight(1f),
                 )
             }
+            if (!state.strictCooldown) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                ) {
+                    DesktopNumericField(
+                        label = "Cooldown conduzione",
+                        value = state.leadCooldownWeeks,
+                        onValueChange = onLeadCooldownChange,
+                        onBlur = onSave,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DesktopNumericField(
+                        label = "Cooldown assistenza",
+                        value = state.assistCooldownWeeks,
+                        onValueChange = onAssistCooldownChange,
+                        onBlur = onSave,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                DesktopNumericField(
-                    label = "Cooldown conduzione",
-                    value = state.leadCooldownWeeks,
-                    onValueChange = onLeadCooldownChange,
-                    onBlur = onSave,
-                    modifier = Modifier.weight(1f),
+                Text(
+                    "Rimuovi senza conferma",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkSoft,
                 )
-                DesktopNumericField(
-                    label = "Cooldown assistenza",
-                    value = state.assistCooldownWeeks,
-                    onValueChange = onAssistCooldownChange,
-                    onBlur = onSave,
-                    modifier = Modifier.weight(1f),
+                DesktopToggle(
+                    checked = skipRemoveConfirm,
+                    onToggle = onSkipRemoveConfirmChange,
                 )
             }
         }
@@ -1018,7 +1039,7 @@ private fun DesktopToggle(
     val trackColor = if (checked) {
         sketch.accent.copy(alpha = 0.72f)
     } else {
-        sketch.lineSoft
+        sketch.lineStrong
     }
     Surface(
         modifier = Modifier

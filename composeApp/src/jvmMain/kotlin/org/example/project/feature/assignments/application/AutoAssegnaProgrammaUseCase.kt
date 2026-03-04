@@ -55,13 +55,13 @@ class AutoAssegnaProgrammaUseCase(
                         alreadyAssignedIds = alreadyAssignedIds,
                     )
 
-                    val selected = suggestions.firstOrNull()
+                    val selected = suggestions.firstOrNull { !it.sexMismatch }
                     if (selected == null) {
                         unresolved += AutoAssignUnresolvedSlot(
                             weekStartDate = week.weekStartDate,
                             partLabel = part.partType.label,
                             slot = slot,
-                            reason = "Nessun candidato idoneo",
+                            reason = "Nessun candidato idoneo (regola sesso)",
                         )
                         continue
                     }

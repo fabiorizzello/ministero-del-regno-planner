@@ -45,8 +45,12 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Sesso
@@ -91,6 +95,8 @@ internal fun ProclamatoriFormContentForm(
     val isNew = route == ProclamatoriRoute.Nuovo
     val sketch = MaterialTheme.workspaceSketch
     val spacing = MaterialTheme.spacing
+    val nameFr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { nameFr.requestFocus() }
 
     if (showTitle) {
         Text(

@@ -42,18 +42,19 @@ class SuggerisciProclamatoriUseCase(
         val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
             .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }
 
-        // Filtri hard: regola sesso, idoneita', gia' assegnato nella stessa settimana.
+        val requiredSex = existingPartAssignments.firstOrNull()?.sex
+
+        // Filtri hard: regola sesso UOMO, idoneita', gia' assegnato nella stessa settimana.
+        // LIBERO = stesso sesso preferito (soft): non filtra, ma annota sexMismatch.
         val eligible = suggestions
             .map { suggestion ->
                 val p = suggestion.proclamatore
                 val passaSesso = when (part.partType.sexRule) {
                     SexRule.UOMO -> p.sesso == Sesso.M
-                    SexRule.LIBERO -> true
-                    SexRule.STESSO_SESSO -> {
-                        val requiredSex = existingPartAssignments.firstOrNull()?.sex
-                        if (requiredSex != null) p.sesso == requiredSex else true
-                    }
+                    SexRule.STESSO_SESSO -> true
                 }
+                val isSexMismatch = part.partType.sexRule == SexRule.STESSO_SESSO &&
+                    requiredSex != null && p.sesso != requiredSex
                 val passaIdoneita = if (slot <= 1) {
                     leadEligibilityByPersonId[p.id] == true
                 } else {
@@ -70,6 +71,7 @@ class SuggerisciProclamatoriUseCase(
                 val annotated = suggestion.copy(
                     inCooldown = isInCooldown,
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
+                    sexMismatch = isSexMismatch,
                 )
                 Triple(annotated, passaSesso && passaIdoneita && p.id !in alreadyAssignedIds, roleWeight)
             }

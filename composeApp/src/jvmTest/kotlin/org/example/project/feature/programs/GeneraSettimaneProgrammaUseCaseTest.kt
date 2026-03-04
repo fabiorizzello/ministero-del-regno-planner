@@ -90,7 +90,7 @@ internal fun partType(code: String, fixed: Boolean = false): PartType {
         code = code,
         label = code,
         peopleCount = 1,
-        sexRule = SexRule.LIBERO,
+        sexRule = SexRule.STESSO_SESSO,
         fixed = fixed,
         sortOrder = 1,
     )

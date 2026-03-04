@@ -88,9 +88,9 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
 
     private fun refreshFixture(): RefreshFixture {
         val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
-        val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.LIBERO, fixed = false, sortOrder = 1)
-        val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.LIBERO, fixed = false, sortOrder = 2)
-        val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.LIBERO, fixed = false, sortOrder = 3)
+        val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 1)
+        val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 2)
+        val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 3)
 
         val weekId = WeekPlanId("week-1")
         val week = WeekPlan(

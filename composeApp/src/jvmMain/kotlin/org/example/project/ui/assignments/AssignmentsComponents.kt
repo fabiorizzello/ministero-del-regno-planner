@@ -18,12 +18,15 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -585,7 +588,7 @@ private fun SuggestionRow(
 
     val rowBackgroundColor = when {
         isHovered -> sketch.accentSoft
-        suggestion.inCooldown -> sketch.warn.copy(alpha = 0.07f)
+        suggestion.inCooldown || suggestion.sexMismatch -> sketch.warn.copy(alpha = 0.07f)
         else -> backgroundColor
     }
 
@@ -598,13 +601,27 @@ private fun SuggestionRow(
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
+        Row(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (suggestion.sexMismatch) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = "Sesso diverso dalla parte",
+                    modifier = Modifier.size(12.dp),
+                    tint = sketch.warn,
+                )
+            }
+        }
         Text(
             text = formatRecency(suggestion.lastGlobalDays, suggestion.lastGlobalWeeks),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),

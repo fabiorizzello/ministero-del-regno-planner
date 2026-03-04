@@ -211,40 +211,42 @@ private fun AssignmentEngineSettingsCard(
                     },
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                OutlinedTextField(
-                    value = state.leadCooldownWeeks,
-                    onValueChange = onLeadCooldownChange,
-                    label = { Text("Cooldown conduzione (sett.)") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
-                    isError = state.leadCooldownError != null,
-                    supportingText = {
-                        if (state.leadCooldownError != null) {
-                            Text(state.leadCooldownError, color = MaterialTheme.colorScheme.error)
-                        } else {
-                            Text("Numero intero >= 0 (settimane)")
-                        }
-                    },
-                )
-                OutlinedTextField(
-                    value = state.assistCooldownWeeks,
-                    onValueChange = onAssistCooldownChange,
-                    label = { Text("Cooldown assistenza (sett.)") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
-                    isError = state.assistCooldownError != null,
-                    supportingText = {
-                        if (state.assistCooldownError != null) {
-                            Text(state.assistCooldownError, color = MaterialTheme.colorScheme.error)
-                        } else {
-                            Text("Numero intero >= 0 (settimane)")
-                        }
-                    },
-                )
+            if (!state.strictCooldown) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    OutlinedTextField(
+                        value = state.leadCooldownWeeks,
+                        onValueChange = onLeadCooldownChange,
+                        label = { Text("Cooldown conduzione (sett.)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
+                        isError = state.leadCooldownError != null,
+                        supportingText = {
+                            if (state.leadCooldownError != null) {
+                                Text(state.leadCooldownError, color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("Numero intero >= 0 (settimane)")
+                            }
+                        },
+                    )
+                    OutlinedTextField(
+                        value = state.assistCooldownWeeks,
+                        onValueChange = onAssistCooldownChange,
+                        label = { Text("Cooldown assistenza (sett.)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onSave() },
+                        isError = state.assistCooldownError != null,
+                        supportingText = {
+                            if (state.assistCooldownError != null) {
+                                Text(state.assistCooldownError, color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("Numero intero >= 0 (settimane)")
+                            }
+                        },
+                    )
+                }
             }
         }
     }
