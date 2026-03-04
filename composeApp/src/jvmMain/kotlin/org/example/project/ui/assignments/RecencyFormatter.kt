@@ -1,10 +1,8 @@
 package org.example.project.ui.assignments
 
-internal fun formatRecencyLabel(days: Int?, weeks: Int?, inFuture: Boolean): String = when {
-    days == null -> "Mai assegnato"
-    days == 0 -> "Oggi"
-    inFuture && days < 14 -> "Tra $days giorni"
-    inFuture -> "Tra ${weeks ?: (days / 7)} settimane"
-    days < 14 -> "$days giorni fa"
-    else -> "${weeks ?: (days / 7)} settimane fa"
+internal fun formatRecencyLabel(beforeWeeks: Int?, afterWeeks: Int?): String {
+    if (beforeWeeks == null && afterWeeks == null) return "Mai assegnato"
+    val beforeLabel = beforeWeeks?.let { "$it sett prima" } ?: "n/d prima"
+    val afterLabel = afterWeeks?.let { "$it sett dopo" } ?: "n/d dopo"
+    return "$beforeLabel - $afterLabel"
 }

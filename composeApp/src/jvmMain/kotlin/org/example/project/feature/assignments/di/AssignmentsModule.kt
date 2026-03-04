@@ -9,7 +9,6 @@ import org.example.project.feature.assignments.application.AutoAssegnaProgrammaU
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
-import org.example.project.feature.assignments.application.CaricaStoricoAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
@@ -36,6 +35,5 @@ val assignmentsModule = module {
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
-    single { CaricaStoricoAssegnazioniPersonaUseCase(get()) }
     single { SvuotaAssegnazioniProgrammaUseCase(get()) }
 }

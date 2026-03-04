@@ -76,6 +76,24 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         assertEquals(1, fixture.programStore.templateAppliedUpdates.size)
     }
 
+    @Test
+    fun `skipped weeks are not refreshed`() = runBlocking {
+        val fixture = refreshFixture(weekStatus = WeekPlanStatus.SKIPPED)
+        val useCase = buildUseCase(fixture)
+
+        val result = useCase(
+            programId = fixture.program.id.value,
+            referenceDate = LocalDate.of(2026, 3, 1),
+            dryRun = true,
+        )
+
+        val report = assertIs<Either.Right<org.example.project.feature.programs.application.SchemaRefreshReport>>(result).value
+        assertEquals(0, report.weeksUpdated)
+        assertEquals(0, report.assignmentsPreserved)
+        assertEquals(0, report.assignmentsRemoved)
+        assertEquals(0, fixture.assignmentRepository.savedAssignments.size)
+    }
+
     private fun buildUseCase(fixture: RefreshFixture): AggiornaProgrammaDaSchemiUseCase {
         return AggiornaProgrammaDaSchemiUseCase(
             programStore = fixture.programStore,
@@ -86,7 +104,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         )
     }
 
-    private fun refreshFixture(): RefreshFixture {
+    private fun refreshFixture(weekStatus: WeekPlanStatus = WeekPlanStatus.ACTIVE): RefreshFixture {
         val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
         val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 1)
         val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 2)
@@ -101,7 +119,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
                 WeeklyPart(WeeklyPartId("old-b"), partB, sortOrder = 1),
             ),
             programId = program.id.value,
-            status = WeekPlanStatus.ACTIVE,
+            status = weekStatus,
         )
 
         val assignments = listOf(
@@ -233,7 +251,10 @@ private class RefreshWeekStore(
         week = week.copy(parts = listOf(first, second))
     }
 
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? = null
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+        if (programId != this.programId) return null
+        return if (week.weekStartDate == weekStartDate) week else null
+    }
 
     override suspend fun listByProgram(programId: String): List<WeekPlan> {
         if (programId != this.programId) return emptyList()

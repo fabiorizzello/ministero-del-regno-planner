@@ -43,10 +43,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +54,7 @@ import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
@@ -81,7 +79,6 @@ import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
-import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
@@ -303,7 +300,9 @@ internal fun PartEditorDialog(
                                                 "$assignCount assegnazioni presenti — verranno eliminate se rimuovi questa parte"
                                             }
                                             TooltipBox(
-                                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                                    positioning = TooltipAnchorPosition.Above,
+                                                ),
                                                 tooltip = { PlainTooltip { Text(tooltipText) } },
                                                 state = rememberTooltipState(),
                                             ) {
@@ -362,105 +361,6 @@ internal fun PartEditorDialog(
                         enabled = !isSaving,
                         tone = DesktopInlineActionTone.Primary,
                         modifier = Modifier.width(132.dp).height(40.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun ProgramHeader(
-    currentProgram: org.example.project.feature.programs.domain.ProgramMonth?,
-    futureProgram: org.example.project.feature.programs.domain.ProgramMonth?,
-    selectedProgramId: String?,
-    hasPrograms: Boolean,
-    canCreateProgram: Boolean,
-    isCreatingProgram: Boolean,
-    isRefreshingSchemas: Boolean,
-    impactedProgramIds: Set<String>,
-    onSelectProgram: (String) -> Unit,
-    onCreateNextProgram: () -> Unit,
-    onRefreshSchemas: () -> Unit,
-) {
-    val spacing = MaterialTheme.spacing
-    val current = currentProgram
-    val future = futureProgram
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(spacing.cardRadius),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(spacing.md),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Programmi attivi",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                DesktopInlineAction(
-                    label = if (isRefreshingSchemas) "Aggiornamento..." else "Aggiorna schemi",
-                    icon = Icons.Filled.Refresh,
-                    onClick = onRefreshSchemas,
-                    enabled = !isRefreshingSchemas,
-                    tone = DesktopInlineActionTone.Neutral,
-                )
-            }
-            if (!hasPrograms) {
-                Text(
-                    "Nessun programma disponibile. Crea il primo programma.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                current?.let {
-                    val isSelected = selectedProgramId == it.id.value
-                    val isImpacted = it.id.value in impactedProgramIds
-                    DesktopInlineAction(
-                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
-                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
-                        tone = if (isSelected) DesktopInlineActionTone.Primary else DesktopInlineActionTone.Neutral,
-                    )
-                    if (isImpacted) {
-                        ProgramMisalignedBadge()
-                    }
-                }
-                future?.let {
-                    val isSelected = selectedProgramId == it.id.value
-                    val isImpacted = it.id.value in impactedProgramIds
-                    DesktopInlineAction(
-                        label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
-                        onClick = { if (!isSelected) onSelectProgram(it.id.value) },
-                        tone = if (isSelected) DesktopInlineActionTone.Warn else DesktopInlineActionTone.Neutral,
-                    )
-                    if (isImpacted) {
-                        ProgramMisalignedBadge()
-                    }
-                }
-                if (canCreateProgram) {
-                    DesktopInlineAction(
-                        label = if (isCreatingProgram) "Creazione..." else "Crea prossimo mese",
-                        icon = Icons.Filled.Add,
-                        onClick = onCreateNextProgram,
-                        enabled = !isCreatingProgram,
-                        tone = DesktopInlineActionTone.Primary,
                     )
                 }
             }

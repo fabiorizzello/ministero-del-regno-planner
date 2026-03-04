@@ -117,7 +117,7 @@ L'utente vuole annullare un programma corrente o futuro creato per errore o non 
 programmi futuri indesiderati.
 
 **Independent Test**: Selezionare il programma corrente → eliminarlo → verificare
-rimozione completa e ricalcolo coerente della selezione del mese attivo.
+rimozione completa e ricalcolo coerente della selezione del mese corrente.
 
 **Acceptance Scenarios**:
 

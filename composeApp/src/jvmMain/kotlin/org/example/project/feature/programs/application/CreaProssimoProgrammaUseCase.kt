@@ -16,16 +16,6 @@ private const val MAX_FUTURE_PROGRAMS = 2
 class CreaProssimoProgrammaUseCase(
     private val programStore: ProgramStore,
 ) {
-    suspend operator fun invoke(referenceDate: LocalDate = LocalDate.now()): Either<DomainError, ProgramMonth> = either {
-        val context = programStore.loadCreationContext(referenceDate)
-        val creatableTargets = computeCreatableTargets(referenceDate, context)
-        val candidate = creatableTargets.firstOrNull()
-            ?: raise(DomainError.Validation("Nessun mese creabile nella finestra corrente..+2"))
-        val program = createProgram(candidate)
-        programStore.save(program)
-        program
-    }
-
     suspend operator fun invoke(
         targetYear: Int,
         targetMonth: Int,
@@ -47,7 +37,7 @@ class CreaProssimoProgrammaUseCase(
         if (target !in creatableTargets) {
             raise(
                 DomainError.Validation(
-                    "Mese non creabile con le regole correnti (contiguità, limite futuri o ordine di creazione)",
+                    "Mese non creabile con le regole correnti (finestra consentita o limite futuri)",
                 ),
             )
         }
@@ -64,7 +54,6 @@ class CreaProssimoProgrammaUseCase(
         val referenceMonth = YearMonth.from(referenceDate)
         val window = listOf(referenceMonth, referenceMonth.plusMonths(1), referenceMonth.plusMonths(2))
         val existingByMonth = context.existingByMonth
-        val hasCurrent = context.hasCurrent
         val futureMonths = context.futureMonths
 
         return window.filter { target ->
@@ -73,14 +62,6 @@ class CreaProssimoProgrammaUseCase(
             val isCurrentTarget = target == referenceMonth
             val futureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
             if (!isCurrentTarget && futureCount > MAX_FUTURE_PROGRAMS) return@filter false
-
-            val projected = existingByMonth + target
-            val plusOne = referenceMonth.plusMonths(1)
-            val plusTwo = referenceMonth.plusMonths(2)
-            if (plusTwo in projected && plusOne !in projected) return@filter false
-
-            // Se manca il corrente e non c'è ancora nessun futuro, la prima creazione ammessa è solo corrente+1.
-            if (!hasCurrent && futureMonths.isEmpty() && target != plusOne) return@filter false
 
             true
         }

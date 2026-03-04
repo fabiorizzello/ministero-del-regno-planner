@@ -88,6 +88,10 @@ class SqlDelightAssignmentStoreTest {
         assertEquals(7, suggestion.lastForPartTypeDays)
         assertTrue(suggestion.lastGlobalInFuture)
         assertTrue(suggestion.lastForPartTypeInFuture)
+        assertEquals(1, suggestion.lastGlobalBeforeWeeks)
+        assertEquals(1, suggestion.lastGlobalAfterWeeks)
+        assertEquals(1, suggestion.lastForPartTypeBeforeWeeks)
+        assertEquals(1, suggestion.lastForPartTypeAfterWeeks)
     }
 
     @Test
@@ -149,5 +153,9 @@ class SqlDelightAssignmentStoreTest {
         assertEquals(7, suggestion.lastForPartTypeDays)
         assertTrue(suggestion.lastGlobalInFuture)
         assertTrue(suggestion.lastForPartTypeInFuture)
+        assertEquals(null, suggestion.lastGlobalBeforeWeeks)
+        assertEquals(1, suggestion.lastGlobalAfterWeeks)
+        assertEquals(null, suggestion.lastForPartTypeBeforeWeeks)
+        assertEquals(1, suggestion.lastForPartTypeAfterWeeks)
     }
 }

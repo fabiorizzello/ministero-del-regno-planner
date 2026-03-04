@@ -51,7 +51,7 @@ Come utente, voglio coerenza visiva tra Programma, Proclamatori e Diagnostica, c
 **Acceptance Scenarios**:
 
 1. **Given** l'utente cambia sezione dalla top bar, **When** passa tra Programma, Proclamatori e Diagnostica, **Then** il linguaggio visivo rimane coerente (componenti, spessori, raggi, stati attivi/inattivi).
-2. **Given** tema chiaro attivo, **When** l'utente usa l'app, **Then** contrasto e leggibilita restano adeguati e coerenti con lo stesso stile generale.
+2. **Given** tema chiaro selezionato, **When** l'utente usa l'app, **Then** contrasto e leggibilita restano adeguati e coerenti con lo stesso stile generale.
 3. **Given** l'utente deve modificare impostazioni assegnazione, **When** opera nella schermata Programma, **Then** trova i controlli nel pannello destro senza passare da una sezione Impostazioni dedicata.
 
 ---

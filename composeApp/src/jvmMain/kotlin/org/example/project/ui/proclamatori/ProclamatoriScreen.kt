@@ -55,7 +55,7 @@ fun ProclamatoriScreen() {
     val rootFocusRequester = remember { FocusRequester() }
 
     listState.deleteCandidate?.let { candidate ->
-        ConfirmDeleteDialog(
+        ConfirmDeleteDialogComponent(
             title = "Rimuovi studente",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmDeleteCandidate() },
@@ -81,7 +81,7 @@ fun ProclamatoriScreen() {
     }
 
     if (listState.showBatchDeleteConfirm) {
-        ConfirmDeleteDialog(
+        ConfirmDeleteDialogComponent(
             title = "Rimuovi studenti selezionati",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmBatchDelete() },
@@ -211,7 +211,7 @@ fun ProclamatoriScreen() {
                 )
             }
 
-            ProclamatoriElencoContent(
+            ProclamatoriElencoContentTable(
                 state = listState,
                 searchFocusRequester = searchFocusRequester,
                 tableListState = tableListState,
@@ -221,7 +221,7 @@ fun ProclamatoriScreen() {
     }
 
     if (isFormRoute) {
-        ProclamatoriFormDialog(
+        ProclamatoriFormDialogComponent(
             route = route,
             nome = formState.nome,
             onNomeChange = { formVm.setNome(it) },
@@ -238,9 +238,6 @@ fun ProclamatoriScreen() {
                 formVm.setLeadEligibility(partTypeId, checked)
             },
             onSetAllEligibilityChange = { checked -> formVm.setAllEligibility(checked) },
-            assignmentHistory = formState.assignmentHistory,
-            isHistoryExpanded = formState.isHistoryExpanded,
-            onToggleHistoryExpanded = { formVm.toggleHistoryExpanded() },
             nomeTrim = formState.nome.trim(),
             cognomeTrim = formState.cognome.trim(),
             showFieldErrors = formState.showFieldErrors,

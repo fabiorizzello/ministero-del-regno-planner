@@ -13,7 +13,7 @@ import org.example.project.feature.assignments.application.CaricaAssegnazioniUse
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
-import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
+import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonth
@@ -72,7 +72,7 @@ internal class ProgramLifecycleViewModel(
     private val scope: CoroutineScope,
     private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
     private val creaProssimoProgramma: CreaProssimoProgrammaUseCase,
-    private val eliminaProgramma: EliminaProgrammaFuturoUseCase,
+    private val eliminaProgramma: EliminaProgrammaUseCase,
     private val generaSettimaneProgramma: GeneraSettimaneProgrammaUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val weekPlanStore: WeekPlanStore,
@@ -104,11 +104,6 @@ internal class ProgramLifecycleViewModel(
             val partTypes = cercaTipiParte()
             _state.update { it.copy(partTypes = partTypes) }
         }
-    }
-
-    fun createNextProgram() {
-        val target = _state.value.creatableTargets.firstOrNull() ?: return
-        createProgramForTarget(target.year, target.monthValue)
     }
 
     fun createProgramForTarget(targetYear: Int, targetMonth: Int) {
@@ -261,7 +256,6 @@ internal fun computeCreatableTargets(
         currentProgram?.let { add(it.yearMonth) }
         futurePrograms.forEach { add(it.yearMonth) }
     }
-    val hasCurrent = currentProgram != null
     val futureMonths = futurePrograms.map { it.yearMonth }.toSet()
 
     return window.filter { target ->
@@ -270,13 +264,6 @@ internal fun computeCreatableTargets(
         val isCurrentTarget = target == referenceMonth
         val projectedFutureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
         if (!isCurrentTarget && projectedFutureCount > MAX_FUTURE_PROGRAMS) return@filter false
-
-        val projected = existingByMonth + target
-        val plusOne = referenceMonth.plusMonths(1)
-        val plusTwo = referenceMonth.plusMonths(2)
-        if (plusTwo in projected && plusOne !in projected) return@filter false
-
-        if (!hasCurrent && futureMonths.isEmpty() && target != plusOne) return@filter false
         true
     }
 }

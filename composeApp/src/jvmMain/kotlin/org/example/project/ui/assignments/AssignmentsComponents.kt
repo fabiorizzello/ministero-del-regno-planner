@@ -48,7 +48,7 @@ import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 
 // Column width constants for suggestion table
-private val WEEKS_COLUMN_WIDTH = 120.dp
+private val WEEKS_COLUMN_WIDTH = 180.dp
 private val COOLDOWN_COLUMN_WIDTH = 130.dp
 private val BUTTON_COLUMN_WIDTH = 132.dp
 private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
@@ -655,12 +655,12 @@ private fun SuggestionHeaderRow() {
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
-            text = "Ultima (globale)",
+            text = "Prima/Dopo (globale)",
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
-            text = "Ultima (parte)",
+            text = "Prima/Dopo (parte)",
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
@@ -736,9 +736,8 @@ private fun SuggestionRow(
         }
         Text(
             text = formatRecencyLabel(
-                days = suggestion.lastGlobalDays,
-                weeks = suggestion.lastGlobalWeeks,
-                inFuture = suggestion.lastGlobalInFuture,
+                beforeWeeks = suggestion.lastGlobalBeforeWeeks,
+                afterWeeks = suggestion.lastGlobalAfterWeeks,
             ),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
@@ -746,9 +745,8 @@ private fun SuggestionRow(
         )
         Text(
             text = formatRecencyLabel(
-                days = suggestion.lastForPartTypeDays,
-                weeks = suggestion.lastForPartTypeWeeks,
-                inFuture = suggestion.lastForPartTypeInFuture,
+                beforeWeeks = suggestion.lastForPartTypeBeforeWeeks,
+                afterWeeks = suggestion.lastForPartTypeAfterWeeks,
             ),
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,

@@ -6,6 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.UUID
 
@@ -17,6 +18,9 @@ class CreaSettimanaUseCase(
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, WeekPlan> = either {
         val existing = weekPlanStore.findByDate(weekStartDate)
         if (existing != null) raise(DomainError.Validation("La settimana esiste gia'"))
+        if (weekStartDate.dayOfWeek != DayOfWeek.MONDAY) {
+            raise(DomainError.Validation("La data della settimana deve essere un lunedi'"))
+        }
 
         val fixedPartType = partTypeStore.findFixed()
             ?: raise(DomainError.Validation("Catalogo tipi non disponibile. Aggiorna i dati prima."))

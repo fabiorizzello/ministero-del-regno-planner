@@ -12,13 +12,8 @@ enum class TopBarHitTarget {
 
 @Immutable
 data class TopBarInteractionPolicy(
-    val allowDragOnNonInteractive: Boolean = true,
     val allowDoubleClickToggleOnNonInteractive: Boolean = true,
 ) {
-    fun canStartWindowDrag(target: TopBarHitTarget): Boolean {
-        return allowDragOnNonInteractive && target == TopBarHitTarget.NonInteractive
-    }
-
     fun canToggleWindowOnDoubleClick(target: TopBarHitTarget): Boolean {
         return allowDoubleClickToggleOnNonInteractive && target == TopBarHitTarget.NonInteractive
     }

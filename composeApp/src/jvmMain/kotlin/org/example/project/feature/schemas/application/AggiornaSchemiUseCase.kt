@@ -85,9 +85,10 @@ class AggiornaSchemiUseCase(
                 )
             }
             schemaTemplateStore.replaceAll(storedTemplates)
-        }
 
-        settings.putString("last_schema_import_at", LocalDateTime.now().toString())
+            // Keep metadata update aligned with schema write transaction.
+            settings.putString("last_schema_import_at", LocalDateTime.now().toString())
+        }
 
         AggiornaSchemiResult(
             version = catalog.version,

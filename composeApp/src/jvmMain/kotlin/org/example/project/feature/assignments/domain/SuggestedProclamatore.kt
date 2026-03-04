@@ -7,6 +7,10 @@ data class SuggestedProclamatore(
     val lastGlobalWeeks: Int?,        // null = mai assegnato (qualsiasi ruolo)
     val lastForPartTypeWeeks: Int?,   // null = mai su questo tipo di parte (qualsiasi ruolo)
     val lastConductorWeeks: Int?,     // null = mai stato conduttore; usato per determinare l'ultimo ruolo
+    val lastGlobalBeforeWeeks: Int? = null,
+    val lastGlobalAfterWeeks: Int? = null,
+    val lastForPartTypeBeforeWeeks: Int? = null,
+    val lastForPartTypeAfterWeeks: Int? = null,
     val lastGlobalDays: Int? = null,
     val lastForPartTypeDays: Int? = null,
     val lastGlobalInFuture: Boolean = false,

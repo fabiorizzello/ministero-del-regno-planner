@@ -136,21 +136,6 @@ fun ProgramWorkspaceScreen() {
         partEditorVM.dismissNotice()
     }
 
-    // Keep schema VM in sync with lifecycle VM
-    LaunchedEffect(
-        lifecycleState.selectedProgramId,
-        lifecycleState.selectedFutureProgram,
-        lifecycleState.currentProgram,
-        lifecycleState.futurePrograms,
-    ) {
-        schemaVM.updateSelection(
-            selectedProgramId = lifecycleState.selectedProgramId,
-            selectedFutureProgram = lifecycleState.selectedFutureProgram,
-            currentProgram = lifecycleState.currentProgram,
-            futurePrograms = lifecycleState.futurePrograms,
-        )
-    }
-
     // Reload callback for operations that modify data
     val reloadData = {
         lifecycleVM.loadProgramsAndWeeks()
@@ -532,7 +517,12 @@ fun ProgramWorkspaceScreen() {
                             label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
                                 "Aggiornamento..." else "Aggiorna schemi",
                             icon = Icons.Filled.Refresh,
-                            onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
+                            onClick = {
+                                schemaVM.refreshSchemasAndProgram(
+                                    selectedProgramId = lifecycleState.selectedProgramId,
+                                    onProgramRefreshComplete = reloadData,
+                                )
+                            },
                             enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
                         )
                     }
@@ -726,18 +716,20 @@ fun ProgramWorkspaceScreen() {
                     ) {
                         // Quick actions row
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            ProgramRightPanelButton(
-                                label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
-                                icon = Icons.Filled.PlayArrow,
-                                isPrimary = true,
-                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
-                                onClick = {
-                                    lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            if (lifecycleState.selectedProgramId != null) {
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
+                                    icon = Icons.Filled.PlayArrow,
+                                    isPrimary = true,
+                                    enabled = !assignmentState.isAutoAssigning,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
 
                         // Coverage card (month level)

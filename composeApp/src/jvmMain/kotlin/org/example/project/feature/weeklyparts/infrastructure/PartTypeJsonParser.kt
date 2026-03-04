@@ -14,7 +14,7 @@ internal fun parseSexRule(value: String): SexRule =
 
 /**
  * Parses a single [PartType] from a JSON object.
- * Shared between [GitHubDataSource] and the CLI seed tool.
+ * Shared with the CLI seed tool.
  */
 internal fun parsePartTypeFromJson(obj: JsonObject, index: Int): PartType {
     val code = obj["code"]?.jsonPrimitive?.content

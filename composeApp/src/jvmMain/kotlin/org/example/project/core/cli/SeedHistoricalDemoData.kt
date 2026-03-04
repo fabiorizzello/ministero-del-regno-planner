@@ -582,7 +582,7 @@ private fun upsertMixedEligibility(
             }
     }
 
-    // Ogni proclamatore attivo riceve molte idoneità compatibili, non solo pochi casi sparsi.
+    // Ogni proclamatore non sospeso riceve molte idoneità compatibili, non solo pochi casi sparsi.
     activeCandidates.forEach { person ->
         val compatibleParts = partTypes.filter { part ->
             part.sexRule != SexRule.UOMO || person.sex == "M"

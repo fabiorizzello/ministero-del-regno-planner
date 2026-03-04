@@ -11,6 +11,8 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -20,6 +22,15 @@ data class SchemaRefreshReport(
     val weeksUpdated: Int,
     val assignmentsPreserved: Int,
     val assignmentsRemoved: Int,
+)
+
+private typealias AssignmentKey = Pair<PartTypeId, Int>
+
+private data class WeekRefreshCandidate(
+    val weekId: WeekPlanId,
+    val weekStartDate: LocalDate,
+    val partTypeIds: List<PartTypeId>,
+    val assignmentSnapshot: Map<AssignmentKey, List<Assignment>>,
 )
 
 class AggiornaProgrammaDaSchemiUseCase(
@@ -37,101 +48,107 @@ class AggiornaProgrammaDaSchemiUseCase(
         val program = programStore.findById(ProgramMonthId(programId))
             ?: raise(DomainError.Validation("Programma non trovato"))
 
-        val weeks = weekPlanStore.listByProgram(programId)
-            .filter { it.weekStartDate >= referenceDate }
+        val refreshCandidates = mutableListOf<WeekRefreshCandidate>()
+        for (week in weekPlanStore.listByProgram(programId)) {
+            if (week.weekStartDate < referenceDate) continue
+            if (week.status != WeekPlanStatus.ACTIVE) continue
+            val candidate = buildRefreshCandidate(week) ?: continue
+            refreshCandidates += candidate
+        }
 
-        var weeksUpdated = 0
         var assignmentsPreserved = 0
         var assignmentsRemoved = 0
 
-        // Analysis phase (runs for both dry run and real execution)
-        for (week in weeks) {
-            val template = schemaTemplateStore.findByWeekStartDate(week.weekStartDate)
-                ?: continue
-            val newPartTypeIds = template.partTypeIds
-            if (newPartTypeIds.isEmpty()) continue
-
-            val currentAssignments = assignmentRepository.listByWeek(week.id)
-            val assignmentsByKey = mutableMapOf<Pair<PartTypeId, Int>, MutableList<Assignment>>()
-            for (awp in currentAssignments) {
-                val part = week.parts.find { it.id == awp.weeklyPartId } ?: continue
-                val key = part.partType.id to part.sortOrder
-                assignmentsByKey.getOrPut(key) { mutableListOf() }.add(
-                    Assignment(id = awp.id, weeklyPartId = awp.weeklyPartId, personId = awp.personId, slot = awp.slot)
-                )
-            }
-
-            // Count what would be preserved vs removed
-            newPartTypeIds.forEachIndexed { index, ptId ->
-                val key = ptId to index
-                val matched = assignmentsByKey.remove(key)
-                if (matched != null) assignmentsPreserved += matched.size
-            }
-            assignmentsRemoved += assignmentsByKey.values.sumOf { it.size }
-            weeksUpdated++
+        for (candidate in refreshCandidates) {
+            val (preserved, removed) = calculateAssignmentDelta(
+                assignmentSnapshot = candidate.assignmentSnapshot,
+                partTypeIds = candidate.partTypeIds,
+            )
+            assignmentsPreserved += preserved
+            assignmentsRemoved += removed
         }
 
-        // Write phase (only runs for real execution)
         if (!dryRun) {
             transactionRunner.runInTransaction {
-                for (week in weeks) {
-                    val template = schemaTemplateStore.findByWeekStartDate(week.weekStartDate)
-                        ?: continue
-
-                    val newPartTypeIds = template.partTypeIds
-                    if (newPartTypeIds.isEmpty()) continue
-
-                    // 1. Snapshot current assignments keyed by (partTypeId, sortOrder)
-                    val currentAssignments = assignmentRepository.listByWeek(week.id)
-                    val snapshotByKey = mutableMapOf<Pair<PartTypeId, Int>, MutableList<Assignment>>()
-                    for (awp in currentAssignments) {
-                        val part = week.parts.find { it.id == awp.weeklyPartId } ?: continue
-                        val key = part.partType.id to part.sortOrder
-                        snapshotByKey.getOrPut(key) { mutableListOf() }.add(
-                            Assignment(
-                                id = awp.id,
-                                weeklyPartId = awp.weeklyPartId,
-                                personId = awp.personId,
-                                slot = awp.slot,
-                            )
-                        )
-                    }
-
-                    // 2. Replace all parts from template
-                    weekPlanStore.replaceAllParts(week.id, newPartTypeIds)
-
-                    // 3. Re-load week to get new part IDs
-                    val refreshedWeek = weekPlanStore.listByProgram(programId)
-                        .find { it.id == week.id }
-                        ?: continue
-
-                    // 4. Re-associate assignments that still match by (partTypeId, sortOrder)
-                    for (newPart in refreshedWeek.parts) {
-                        val key = newPart.partType.id to newPart.sortOrder
-                        val savedAssignments = snapshotByKey.remove(key) ?: continue
-
-                        for (old in savedAssignments) {
-                            assignmentRepository.save(
-                                Assignment(
-                                    id = AssignmentId(UUID.randomUUID().toString()),
-                                    weeklyPartId = newPart.id,
-                                    personId = old.personId,
-                                    slot = old.slot,
-                                )
-                            )
-                        }
-                    }
+                for (candidate in refreshCandidates) {
+                    applyRefreshCandidate(programId, candidate)
                 }
 
-                // Update template_applied_at timestamp
                 programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
             }
         }
 
         SchemaRefreshReport(
-            weeksUpdated = weeksUpdated,
+            weeksUpdated = refreshCandidates.size,
             assignmentsPreserved = assignmentsPreserved,
             assignmentsRemoved = assignmentsRemoved,
         )
+    }
+
+    private suspend fun buildRefreshCandidate(week: WeekPlan): WeekRefreshCandidate? {
+        val template = schemaTemplateStore.findByWeekStartDate(week.weekStartDate)
+            ?: return null
+        if (template.partTypeIds.isEmpty()) return null
+
+        return WeekRefreshCandidate(
+            weekId = week.id,
+            weekStartDate = week.weekStartDate,
+            partTypeIds = template.partTypeIds,
+            assignmentSnapshot = snapshotAssignmentsByKey(week),
+        )
+    }
+
+    private suspend fun snapshotAssignmentsByKey(week: WeekPlan): Map<AssignmentKey, List<Assignment>> {
+        val partsById = week.parts.associateBy { part -> part.id }
+        val assignmentsByKey = mutableMapOf<AssignmentKey, MutableList<Assignment>>()
+        assignmentRepository.listByWeek(week.id).forEach { awp ->
+            val part = partsById[awp.weeklyPartId] ?: return@forEach
+            val key = part.partType.id to part.sortOrder
+            assignmentsByKey.getOrPut(key) { mutableListOf() }.add(
+                Assignment(
+                    id = awp.id,
+                    weeklyPartId = awp.weeklyPartId,
+                    personId = awp.personId,
+                    slot = awp.slot,
+                )
+            )
+        }
+        return assignmentsByKey.mapValues { (_, assignments) -> assignments.toList() }
+    }
+
+    private fun calculateAssignmentDelta(
+        assignmentSnapshot: Map<AssignmentKey, List<Assignment>>,
+        partTypeIds: List<PartTypeId>,
+    ): Pair<Int, Int> {
+        var preserved = 0
+        partTypeIds.forEachIndexed { sortOrder, partTypeId ->
+            preserved += assignmentSnapshot[partTypeId to sortOrder]?.size ?: 0
+        }
+        val total = assignmentSnapshot.values.sumOf { assignments -> assignments.size }
+        return preserved to (total - preserved)
+    }
+
+    private suspend fun applyRefreshCandidate(
+        programId: String,
+        candidate: WeekRefreshCandidate,
+    ) {
+        weekPlanStore.replaceAllParts(candidate.weekId, candidate.partTypeIds)
+        val refreshedWeek = weekPlanStore.findByDateAndProgram(candidate.weekStartDate, programId)
+            ?: return
+
+        refreshedWeek.parts.forEach { newPart ->
+            val key = newPart.partType.id to newPart.sortOrder
+            val assignmentsToRestore = candidate.assignmentSnapshot[key].orEmpty()
+            assignmentsToRestore.forEach { old ->
+                assignmentRepository.save(
+                    Assignment(
+                        id = AssignmentId(UUID.randomUUID().toString()),
+                        weeklyPartId = newPart.id,
+                        personId = old.personId,
+                        slot = old.slot,
+                    )
+                )
+            }
+        }
     }
 }

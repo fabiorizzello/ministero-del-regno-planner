@@ -93,6 +93,24 @@ import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 
+internal data class ProclamatoriElencoEvents(
+    val onSearchTermChange: (String) -> Unit,
+    val onResetSearch: () -> Unit,
+    val onDismissNotice: () -> Unit,
+    val onSortChange: (ProclamatoriSort) -> Unit,
+    val onToggleSelectPage: (List<ProclamatoreId>, Boolean) -> Unit,
+    val onToggleRowSelected: (ProclamatoreId, Boolean) -> Unit,
+    val onRequestDeleteSelected: () -> Unit,
+    val onClearSelection: () -> Unit,
+    val onGoNuovo: () -> Unit,
+    val onImportJson: () -> Unit,
+    val onDismissSchemaAnomalies: () -> Unit,
+    val onEdit: (ProclamatoreId) -> Unit,
+    val onDelete: (Proclamatore) -> Unit,
+    val onPreviousPage: () -> Unit,
+    val onNextPage: () -> Unit,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.ProclamatoriElencoContentTable(

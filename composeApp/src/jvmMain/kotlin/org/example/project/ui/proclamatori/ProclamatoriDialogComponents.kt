@@ -80,9 +80,9 @@ internal fun ConfirmDeleteDialogComponent(
 /**
  * Dialog wrapper for the Proclamatore form.
  *
- * Displays the ProclamatoriFormContent in a centered dialog with
+ * Displays the Proclamatori form in a centered dialog with
  * platform-independent width. Delegates all form logic to the
- * nested ProclamatoriFormContent composable.
+ * nested ProclamatoriFormContentForm composable.
  */
 @Composable
 internal fun ProclamatoriFormDialogComponent(

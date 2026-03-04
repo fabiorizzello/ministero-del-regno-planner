@@ -38,7 +38,7 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 
 Per ogni slot di ogni parte, il sistema suggerisce una lista ordinata di proclamatori
 idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `STESSO_SESSO` non filtrante),
-idoneità, stato sospeso/attivo, cooldown dall'ultima assegnazione globale e specifica
+idoneità, stato `sospeso`, cooldown dall'ultima assegnazione globale e specifica
 per quel tipo di parte, e parametri configurabili (peso ruolo, settimane cooldown).
 
 **Why this priority**: Il suggerimento è il cuore del valore aggiunto dell'app —
@@ -52,7 +52,7 @@ dall'ultima assegnazione decrescenti.
 
 1. **Given** proclamatori con storie di assegnazione diverse, **When** si richiedono
    suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso quando
-   applicabile, idoneità, non sospesi/non inattivi) ordinati per score
+   applicabile, idoneità, non sospesi) ordinati per score
    (globale × peso + tipo-parte − penalità cooldown).
 2. **Given** un proclamatore in cooldown e `strictCooldown = true`, **When** si
    richiedono suggerimenti, **Then** il proclamatore in cooldown non appare.

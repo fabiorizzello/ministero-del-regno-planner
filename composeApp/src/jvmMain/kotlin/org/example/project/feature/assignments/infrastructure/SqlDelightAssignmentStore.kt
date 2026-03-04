@@ -7,7 +7,6 @@ import org.example.project.feature.assignments.application.PersonAssignmentLifec
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.infrastructure.mapProclamatoreAssignableRow
@@ -74,11 +73,31 @@ class SqlDelightAssignmentStore(
                 .executeAsList()
                 .associate { it.person_id to it.last_week_date }
 
+            val globalBeforeRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .lastGlobalAssignmentBeforePerPerson(referenceDate.toString())
+                .executeAsList()
+                .associate { it.person_id to it.week_date }
+
+            val globalAfterRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .firstGlobalAssignmentAfterPerPerson(referenceDate.toString())
+                .executeAsList()
+                .associate { it.person_id to it.week_date }
+
             // Part-type ranking: any role (used for scoring)
             val partTypeRanking: Map<String, String?> = database.ministeroDatabaseQueries
                 .lastPartTypeAssignmentPerPerson(partTypeId.value)
                 .executeAsList()
                 .associate { it.person_id to it.last_week_date }
+
+            val partTypeBeforeRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .lastPartTypeAssignmentBeforePerPerson(partTypeId.value, referenceDate.toString())
+                .executeAsList()
+                .associate { it.person_id to it.week_date }
+
+            val partTypeAfterRanking: Map<String, String?> = database.ministeroDatabaseQueries
+                .firstPartTypeAssignmentAfterPerPerson(partTypeId.value, referenceDate.toString())
+                .executeAsList()
+                .associate { it.person_id to it.week_date }
 
             // Conductor ranking: slot-1 only — used to determine if last assignment was as conductor
             val conductorRanking: Map<String, String?> = database.ministeroDatabaseQueries
@@ -94,6 +113,10 @@ class SqlDelightAssignmentStore(
                 val lastGlobalDate = globalRanking[p.id.value]
                 val lastPartDate = partTypeRanking[p.id.value]
                 val lastConductorDate = conductorRanking[p.id.value]
+                val lastGlobalBeforeDate = globalBeforeRanking[p.id.value]
+                val nextGlobalAfterDate = globalAfterRanking[p.id.value]
+                val lastPartBeforeDate = partTypeBeforeRanking[p.id.value]
+                val nextPartAfterDate = partTypeAfterRanking[p.id.value]
                 val signedGlobalDays = lastGlobalDate?.let {
                     ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt()
                 }
@@ -109,12 +132,28 @@ class SqlDelightAssignmentStore(
                 val signedConductorWeeks = lastConductorDate?.let {
                     ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
                 }
+                val globalBeforeWeeks = lastGlobalBeforeDate?.let {
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val globalAfterWeeks = nextGlobalAfterDate?.let {
+                    ChronoUnit.WEEKS.between(referenceDate, LocalDate.parse(it)).toInt()
+                }
+                val partBeforeWeeks = lastPartBeforeDate?.let {
+                    ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+                }
+                val partAfterWeeks = nextPartAfterDate?.let {
+                    ChronoUnit.WEEKS.between(referenceDate, LocalDate.parse(it)).toInt()
+                }
 
                 SuggestedProclamatore(
                     proclamatore = p,
                     lastGlobalWeeks = signedGlobalWeeks?.let(::abs),
                     lastForPartTypeWeeks = signedPartWeeks?.let(::abs),
                     lastConductorWeeks = signedConductorWeeks?.let(::abs),
+                    lastGlobalBeforeWeeks = globalBeforeWeeks,
+                    lastGlobalAfterWeeks = globalAfterWeeks,
+                    lastForPartTypeBeforeWeeks = partBeforeWeeks,
+                    lastForPartTypeAfterWeeks = partAfterWeeks,
                     lastGlobalDays = signedGlobalDays?.let(::abs),
                     lastForPartTypeDays = signedPartDays?.let(::abs),
                     lastGlobalInFuture = signedGlobalDays?.let { it < 0 } ?: false,
@@ -166,10 +205,4 @@ class SqlDelightAssignmentStore(
             .executeAsOne().toInt()
     }
 
-    override suspend fun getAssignmentHistoryForPerson(personId: ProclamatoreId): PersonAssignmentHistory {
-        val entries = database.ministeroDatabaseQueries
-            .assignmentHistoryForPerson(personId.value, ::mapAssignmentHistoryRow)
-            .executeAsList()
-        return PersonAssignmentHistory(entries)
-    }
 }

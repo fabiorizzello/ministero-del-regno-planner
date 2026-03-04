@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
+import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
@@ -27,14 +28,9 @@ internal fun isSchemaRefreshNeeded(lastSchemaImport: LocalDateTime?, selectedFut
 
 internal data class SchemaManagementUiState(
     val today: LocalDate = LocalDate.now(),
-    val selectedProgramId: String? = null,
-    val selectedFutureProgram: ProgramMonth? = null,
-    val currentProgram: ProgramMonth? = null,
-    val futurePrograms: List<ProgramMonth> = emptyList(),
     val isRefreshingSchemas: Boolean = false,
     val isRefreshingProgramFromSchemas: Boolean = false,
     val impactedProgramIds: Set<String> = emptySet(),
-    val futureNeedsSchemaRefresh: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
 
@@ -42,6 +38,7 @@ internal class SchemaManagementViewModel(
     private val scope: CoroutineScope,
     private val aggiornaSchemi: AggiornaSchemiUseCase,
     private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
+    private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
@@ -51,31 +48,7 @@ internal class SchemaManagementViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    fun updateSelection(
-        selectedProgramId: String?,
-        selectedFutureProgram: ProgramMonth?,
-        currentProgram: ProgramMonth?,
-        futurePrograms: List<ProgramMonth>,
-    ) {
-        _state.update {
-            val allPrograms = buildList {
-                currentProgram?.let { p -> add(p) }
-                addAll(futurePrograms)
-            }
-            val validIds = allPrograms.map { program -> program.id.value }.toSet()
-            val impactedIds = it.impactedProgramIds.intersect(validIds)
-            it.copy(
-                selectedProgramId = selectedProgramId,
-                selectedFutureProgram = selectedFutureProgram,
-                currentProgram = currentProgram,
-                futurePrograms = futurePrograms,
-                impactedProgramIds = impactedIds,
-                futureNeedsSchemaRefresh = selectedFutureProgram?.id?.value in impactedIds,
-            )
-        }
-    }
-
-    fun refreshSchemasAndProgram(onProgramRefreshComplete: () -> Unit = {}) {
+    fun refreshSchemasAndProgram(selectedProgramId: String?, onProgramRefreshComplete: () -> Unit = {}) {
         if (_state.value.isRefreshingSchemas || _state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
             val before = captureSchemaFingerprint()
@@ -94,27 +67,36 @@ internal class SchemaManagementViewModel(
                 is Either.Right -> {
                     val result = updateResult.value
                     val after = captureSchemaFingerprint()
-                    val allPrograms = buildList {
-                        _state.value.currentProgram?.let { add(it) }
-                        addAll(_state.value.futurePrograms)
-                    }
+                    val allPrograms = runCatching { loadCurrentAndFuturePrograms() }
+                        .getOrElse { error ->
+                            _state.update {
+                                it.copy(
+                                    isRefreshingSchemas = false,
+                                    notice = FeedbackBannerModel(
+                                        "Errore caricamento programmi: ${error.message}",
+                                        FeedbackBannerKind.ERROR,
+                                    ),
+                                )
+                            }
+                            onProgramRefreshComplete()
+                            return@launch
+                        }
+                    val validProgramIds = allPrograms.map { program -> program.id.value }.toSet()
                     val impactedProgramIds = calculateImpactedProgramIds(
                         allPrograms = allPrograms,
                         before = before,
                         after = after,
-                    )
+                    ).intersect(validProgramIds)
                     _state.update { state ->
                         state.copy(
                             isRefreshingSchemas = false,
                             impactedProgramIds = impactedProgramIds,
-                            futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedProgramIds,
                             notice = FeedbackBannerModel(
                                 buildSchemaUpdateNotice(result),
                                 FeedbackBannerKind.SUCCESS,
                             ),
                         )
                     }
-                    val selectedProgramId = _state.value.selectedProgramId
                     if (selectedProgramId != null) {
                         applyProgramRefresh(selectedProgramId, onProgramRefreshComplete)
                     } else {
@@ -129,20 +111,13 @@ internal class SchemaManagementViewModel(
         _state.executeEitherOperation(
             loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
             successUpdate = { state, report ->
-                val selectedProgramId = state.selectedProgramId
-                val impactedProgramIds = if (selectedProgramId == null) {
-                    state.impactedProgramIds
-                } else {
-                    state.impactedProgramIds - selectedProgramId
-                }
                 state.copy(
                     isRefreshingProgramFromSchemas = false,
                     notice = FeedbackBannerModel(
                         "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
                         FeedbackBannerKind.SUCCESS,
                     ),
-                    impactedProgramIds = impactedProgramIds,
-                    futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedProgramIds,
+                    impactedProgramIds = state.impactedProgramIds - programId,
                 )
             },
             errorUpdate = { state, error ->
@@ -170,6 +145,14 @@ internal class SchemaManagementViewModel(
             .associate { template ->
                 template.weekStartDate to template.partTypeIds.map { partTypeId -> partTypeId.value }
             }
+    }
+
+    private suspend fun loadCurrentAndFuturePrograms(): List<ProgramMonth> {
+        val snapshot = caricaProgrammiAttivi(_state.value.today)
+        return buildList {
+            snapshot.current?.let { add(it) }
+            addAll(snapshot.futures)
+        }
     }
 
 }

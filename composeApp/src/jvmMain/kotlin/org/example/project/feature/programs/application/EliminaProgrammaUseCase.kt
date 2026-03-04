@@ -9,7 +9,7 @@ import org.example.project.feature.programs.domain.ProgramTimelineStatus
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import java.time.LocalDate
 
-class EliminaProgrammaFuturoUseCase(
+class EliminaProgrammaUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanStore,
     private val transactionRunner: TransactionRunner,
@@ -26,7 +26,7 @@ class EliminaProgrammaFuturoUseCase(
         }
 
         transactionRunner.runInTransaction {
-            // Delete week plans first — CASCADE will remove parts and assignments
+            // Cancellare la settimana rimuove in cascade anche weekly_part e assignment_weekly_part.
             weekPlanStore.listByProgram(programId.value).forEach { week ->
                 weekPlanStore.delete(week.id)
             }

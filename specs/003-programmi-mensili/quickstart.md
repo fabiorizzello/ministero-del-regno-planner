@@ -2,7 +2,7 @@
 
 ## Prerequisiti
 
-- Branch attivo: `003-programmi-mensili`
+- Branch corrente: `003-programmi-mensili`
 - Database locale inizializzato con schema SQLDelight corrente
 - Catalogo schemi disponibile (almeno una settimana template e parte fissa valida)
 

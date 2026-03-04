@@ -19,7 +19,6 @@ import org.example.project.core.di.coreModule
 import org.example.project.feature.assignments.di.assignmentsModule
 import org.example.project.feature.output.di.outputModule
 import org.example.project.feature.people.di.peopleModule
-import org.example.project.feature.planning.di.planningModule
 import org.example.project.feature.programs.di.programsModule
 import org.example.project.feature.schemas.di.schemasModule
 import org.example.project.feature.updates.di.updatesModule
@@ -53,7 +52,6 @@ fun main() {
                 assignmentsModule,
                 outputModule,
                 updatesModule,
-                planningModule,
                 viewModelsModule,
             )
         }

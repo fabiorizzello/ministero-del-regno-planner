@@ -3,12 +3,14 @@ package org.example.project.feature.weeklyparts.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 
 class RimuoviParteUseCase(
     private val weekPlanStore: WeekPlanStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         weekStartDate: LocalDate,
@@ -24,15 +26,18 @@ class RimuoviParteUseCase(
             raise(DomainError.Validation("La parte '${part.partType.label}' non puo' essere rimossa"))
         }
 
-        weekPlanStore.removePart(weeklyPartId)
+        val refreshed = transactionRunner.runInTransaction {
+            weekPlanStore.removePart(weeklyPartId)
 
-        // Ricompatta sort_order contigui 0..n-1
-        val updatedPlan = weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Errore nel salvataggio"))
-        val reorderedIds = updatedPlan.parts.map { it.id }
-        weekPlanStore.updateSortOrders(reorderedIds.mapIndexed { i, id -> id to i })
+            // Ricompatta sort_order contigui 0..n-1 nella stessa transazione.
+            val updatedPlan = weekPlanStore.findByDate(weekStartDate)
+                ?: throw IllegalStateException("Errore nel salvataggio")
+            val reorderedIds = updatedPlan.parts.map { it.id }
+            weekPlanStore.updateSortOrders(reorderedIds.mapIndexed { i, id -> id to i })
 
-        weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Errore nel salvataggio"))
+            weekPlanStore.findByDate(weekStartDate)
+        }
+
+        refreshed ?: raise(DomainError.Validation("Errore nel salvataggio"))
     }
 }

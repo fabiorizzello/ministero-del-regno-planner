@@ -54,29 +54,27 @@ modificare il cognome → salvare → verificare che l'elenco mostri il nuovo co
 
 ---
 
-### User Story 3 - Gestione stato attivo e sospeso (Priority: P2)
+### User Story 3 - Gestione stato sospeso (Priority: P2)
 
-L'utente vuole gestire lo stato operativo dei proclamatori: attivazione/disattivazione
-dalla lista e sospensione dal form, senza eliminare i dati anagrafici.
+L'utente vuole gestire lo stato operativo dei proclamatori tramite sospensione
+reversibile dal form, senza eliminare i dati anagrafici.
 
 **Why this priority**: Gli stati operativi permettono di governare disponibilità e uso
 nei flussi di assegnazione senza ricorrere alla cancellazione definitiva.
 
-**Independent Test**: Dalla tabella proclamatori disattivare/riattivare un nominativo
-e verificarne lo stato; dal form impostare `sospeso = true` e verificare che non venga
-proposto nei flussi di candidatura per assegnazioni.
+**Independent Test**: Dal form impostare `sospeso = true` e verificare che il
+proclamatore non venga proposto nei flussi di candidatura; poi impostare
+`sospeso = false` e verificare che torni assegnabile.
 
 **Acceptance Scenarios**:
 
-1. **Given** un proclamatore in elenco, **When** l'utente lo disattiva dalla tabella,
-   **Then** il flag `attivo` viene aggiornato e la modifica è persistita.
-2. **Given** un proclamatore con assegnazioni in settimane future, **When** viene
-   applicata la sospensione, **Then** il sistema espone `SospensioneOutcome` con la
-   lista delle settimane future coinvolte.
-3. **Given** un proclamatore sospeso, **When** l'utente rimuove la sospensione dal form,
+1. **Given** un proclamatore con assegnazioni in settimane future, **When** viene
+   applicata la sospensione, **Then** il sistema restituisce la lista delle settimane
+   future coinvolte.
+2. **Given** un proclamatore sospeso, **When** l'utente rimuove la sospensione dal form,
    **Then** lo stato `sospeso` torna `false` e il proclamatore rientra nei candidati
    assegnabili.
-4. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
+3. **Given** un proclamatore sospeso, **When** si esegue l'auto-assegnazione, **Then**
    il proclamatore viene ignorato.
 
 ---
@@ -146,18 +144,18 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   assegnazioni storiche del proclamatore (`removeAllForPerson`), poi il proclamatore
   stesso (`store.remove`). L'operazione è irreversibile — non è possibile recuperare
   né il record né lo storico assegnazioni.
-- Sospensione con assegnazioni future: `ImpostaSospesoUseCase` restituisce
-  `SospensioneOutcome(futureWeeksWhereAssigned: List<LocalDate>)`. Se la lista non è
-  vuota, il chiamante può mostrare un avviso che il proclamatore è già assegnato in
-  quelle settimane future (le assegnazioni NON vengono rimosse automaticamente — devono
-  essere gestite manualmente).
+- Sospensione con assegnazioni future: l'operazione di aggiornamento del proclamatore
+  restituisce `futureWeeksWhereAssigned: List<LocalDate>`. Se la lista non è vuota,
+  il chiamante può mostrare un avviso che il proclamatore è già assegnato in quelle
+  settimane future (le assegnazioni NON vengono rimosse automaticamente — devono essere
+  gestite manualmente).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: Il sistema MUST consentire la creazione di un proclamatore con nome,
-  cognome, sesso (M/F), `attivo` (default true), `sospeso` e `puoAssistere`.
+  cognome, sesso (M/F), `sospeso` e `puoAssistere`.
 - **FR-002**: Il sistema MUST impedire la creazione di due proclamatori con lo stesso
   nome e cognome (case-insensitive, trim applicato).
 - **FR-003**: Il sistema MUST validare: nome e cognome non vuoti, lunghezza massima
@@ -167,8 +165,7 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - **FR-005**: Il sistema MUST consentire di sospendere e riattivare un proclamatore.
   Un proclamatore con `sospeso = true` MUST essere escluso dai candidati per le
   assegnazioni (`allAssignableProclaimers`). La sospensione è reversibile.
-  Al momento della sospensione il sistema MUST restituire `SospensioneOutcome` con
-  `futureWeeksWhereAssigned`.
+  Al momento della sospensione il sistema MUST restituire `futureWeeksWhereAssigned`.
 - **FR-006**: Il sistema MUST consentire di configurare l'idoneità alla conduzione
   per ogni proclamatore su base per-tipo-parte. Un nuovo proclamatore NON ha idoneità
   alla conduzione per nessun tipo di parte — deve essere configurata esplicitamente.
@@ -184,8 +181,8 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   conferma, in una singola transazione vengono rimosse tutte le assegnazioni del
   proclamatore e poi il proclamatore stesso. L'operazione è completamente irreversibile
   — nessun dato viene conservato.
-- **FR-011**: Il sistema MUST consentire di attivare/disattivare un proclamatore dalla
-  lista tramite `ImpostaStatoProclamatoreUseCase`.
+- **FR-011**: Il sistema MUST modellare lo stato operativo solo tramite `sospeso`.
+  Il sistema MUST NOT introdurre un secondo flag di stato nel dominio/persistenza.
 - **FR-012**: Nel form proclamatori il sistema MUST esporre un controllo `Seleziona tutto`
   che abilita/disabilita in blocco sia `puoAssistere` sia tutte le idoneità di conduzione
   selezionabili.
@@ -193,16 +190,15 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 ### Key Entities
 
 - **Proclamatore**: id (UUID), nome, cognome, sesso (M/F), sospeso (boolean, default
-  false), attivo (boolean, default true), puoAssistere (boolean, default false).
-  `attivo` e `sospeso` sono entrambi presenti nel modello: `attivo` governa lo stato
-  operativo generale in tabella, `sospeso` governa l'assegnabilità nei flussi di
-  candidatura. Non esiste un flag `eliminato` — l'eliminazione è un hard delete che
-  rimuove il record e lo storico assegnazioni.
+  false), puoAssistere (boolean, default false). Lo stato operativo è espresso solo da
+  `sospeso`, che governa l'assegnabilità nei flussi di candidatura. Non esiste un flag
+  `eliminato` — l'eliminazione è un hard delete che rimuove il record e lo storico
+  assegnazioni.
   Invariante: nome e cognome non vuoti.
   `sospeso = true` esclude dalle candidature per le assegnazioni.
-- **SospensioneOutcome**: `futureWeeksWhereAssigned: List<LocalDate>` — lista delle
-  date di inizio settimana in cui il proclamatore ha assegnazioni future al momento
-  della sospensione. Informativa; le assegnazioni non vengono rimosse automaticamente.
+- **SospensioneInfo**: `futureWeeksWhereAssigned: List<LocalDate>` — lista delle date
+  di inizio settimana in cui il proclamatore ha assegnazioni future al momento della
+  sospensione. Informativa; le assegnazioni non vengono rimosse automaticamente.
 - **IdoneitaConduzione**: per-proclamatore per-tipo-parte, flag `canLead`. Determina
   se il proclamatore è candidato allo slot 1 di quel tipo di parte.
 
@@ -226,9 +222,9 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   progetto; questa spec documenta il comportamento attuale del codice.
 - Q: Cosa succede all'eliminazione di un proclamatore con assegnazioni storiche? → A: **Correzione**: il codice implementa un hard delete (`store.remove` + `assignmentStore.removeAllForPerson` in transazione) — NON un soft delete. Il record e tutte le assegnazioni storiche vengono eliminati definitivamente. La spec è stata aggiornata per riflettere il comportamento reale del codice.
 - Q: Semantica di `sospeso` vs eliminazione: visibilità in elenco e candidature? → A: Sospeso = stato reversibile usato per escludere dai candidati assegnabili; eliminazione = hard delete del record e dello storico assegnazioni.
-- Q: Ruolo del flag `attivo`: serve o va rimosso? → A: Serve — è ancora nel dominio/persistenza e viene gestito da `ImpostaStatoProclamatoreUseCase` (attiva/disattiva da tabella).
+- Q: Ruolo di un flag di stato aggiuntivo: serve o va rimosso? → A: Va rimosso dalla spec: il dominio usa solo `sospeso`; non è previsto `ImpostaStatoProclamatoreUseCase`.
 - Q: Idoneità conduzione default per nuovo proclamatore? → A: Nessuna — deve essere configurata esplicitamente per ogni tipo di parte.
 - Q: Dove si configura idoneità nell'UI: form unico o sezione separata? → A: Form unico — anagrafica, stato sospeso e idoneità nello stesso dialog di creazione/modifica.
-- Q: Come accede l'utente ai proclamatori sospesi? → A: Il campo `sospeso` è gestito nel form; la tabella principale espone invece il toggle `attivo`.
+- Q: Come accede l'utente ai proclamatori sospesi? → A: Il campo `sospeso` è gestito nel form; la tabella mostra lo stato sospeso senza toggle dedicato aggiuntivo.
 - Q: Navigazione UI elenco → form proclamatore? → A: Dialog/modal — click sulla riga apre un dialog con il form completo.
 - Q: Conferma prima dell'hard delete? → A: Sì — dialog di conferma con avvertimento "azione irreversibile".

@@ -33,6 +33,7 @@ val viewModelsModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             aggiornaSchemi = get(),
             aggiornaProgrammaDaSchemi = get(),
+            caricaProgrammiAttivi = get(),
             schemaTemplateStore = get(),
         )
     }
@@ -95,7 +96,6 @@ val viewModelsModule = module {
             impostaIdoneitaConduzione = get(),
             partTypeStore = get(),
             verificaDuplicato = get(),
-            caricaStoricoAssegnazioni = get(),
         )
     }
 }

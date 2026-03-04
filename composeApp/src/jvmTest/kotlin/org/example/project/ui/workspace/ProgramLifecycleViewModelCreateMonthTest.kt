@@ -9,14 +9,21 @@ import kotlin.test.assertEquals
 class ProgramLifecycleViewModelCreateMonthTest {
 
     @Test
-    fun `when no current and no future only current plus one is creatable`() {
+    fun `when no current and no future current plus one and plus two are creatable`() {
         val targets = computeCreatableTargets(
             today = LocalDate.of(2026, 2, 10),
             currentProgram = null,
             futurePrograms = emptyList(),
         )
 
-        assertEquals(listOf(YearMonth.of(2026, 3)), targets)
+        assertEquals(
+            listOf(
+                YearMonth.of(2026, 2),
+                YearMonth.of(2026, 3),
+                YearMonth.of(2026, 4),
+            ),
+            targets,
+        )
     }
 
     @Test
@@ -37,7 +44,7 @@ class ProgramLifecycleViewModelCreateMonthTest {
     }
 
     @Test
-    fun `with current and no futures only plus one is creatable`() {
+    fun `with current and no futures plus one and plus two are creatable`() {
         val targets = computeCreatableTargets(
             today = LocalDate.of(2026, 2, 10),
             currentProgram = fixtureProgramMonth(YearMonth.of(2026, 2)),
@@ -47,6 +54,7 @@ class ProgramLifecycleViewModelCreateMonthTest {
         assertEquals(
             listOf(
                 YearMonth.of(2026, 3),
+                YearMonth.of(2026, 4),
             ),
             targets,
         )

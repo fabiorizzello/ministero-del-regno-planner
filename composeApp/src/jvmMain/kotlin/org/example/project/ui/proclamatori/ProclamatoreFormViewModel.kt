@@ -10,8 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.assignments.application.CaricaStoricoAssegnazioniPersonaUseCase
-import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -45,7 +43,6 @@ internal data class LeadEligibilityOptionUi(
 private data class LoadedProclamatoreData(
     val proclamatore: Proclamatore,
     val options: List<LeadEligibilityOptionUi>,
-    val history: PersonAssignmentHistory,
 )
 
 private class ProclamatoreNotFoundException : Exception("Studente non trovato")
@@ -70,8 +67,6 @@ internal data class ProclamatoreFormUiState(
     val puoAssistere: Boolean = false,
     val leadEligibilityOptions: List<LeadEligibilityOptionUi> = emptyList(),
     val showFieldErrors: Boolean = false,
-    val assignmentHistory: PersonAssignmentHistory? = null,
-    val isHistoryExpanded: Boolean = false,
 ) {
     private fun currentLeadEligibilityByPartType(): Map<PartTypeId, Boolean> {
         return leadEligibilityOptions.associate { option ->
@@ -114,7 +109,6 @@ internal class ProclamatoreFormViewModel(
     private val impostaIdoneitaConduzione: ImpostaIdoneitaConduzioneUseCase,
     private val partTypeStore: PartTypeStore,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
-    private val caricaStoricoAssegnazioni: CaricaStoricoAssegnazioniPersonaUseCase,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoreFormUiState())
     val uiState: StateFlow<ProclamatoreFormUiState> = _uiState.asStateFlow()
@@ -223,10 +217,6 @@ internal class ProclamatoreFormViewModel(
         }
     }
 
-    fun toggleHistoryExpanded() {
-        _uiState.update { it.copy(isHistoryExpanded = !it.isHistoryExpanded) }
-    }
-
     fun clearForm() {
         _uiState.update {
             it.copy(
@@ -273,7 +263,6 @@ internal class ProclamatoreFormViewModel(
                         sospeso = result.proclamatore.sospeso,
                         puoAssistere = result.proclamatore.puoAssistere,
                         leadEligibilityOptions = result.options,
-                        assignmentHistory = result.history,
                         formError = null,
                         duplicateError = null,
                         isCheckingDuplicate = false,
@@ -297,11 +286,9 @@ internal class ProclamatoreFormViewModel(
                         sesso = loaded.sesso,
                         selected = eligibilityByPartType,
                     )
-                    val history = caricaStoricoAssegnazioni(id)
                     LoadedProclamatoreData(
                         proclamatore = loaded,
                         options = options,
-                        history = history,
                     )
                 },
             )

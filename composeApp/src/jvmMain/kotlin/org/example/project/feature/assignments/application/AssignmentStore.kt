@@ -3,7 +3,6 @@ package org.example.project.feature.assignments.application
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.assignments.domain.PersonAssignmentHistory
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -33,5 +32,4 @@ interface AssignmentRanking {
 interface PersonAssignmentLifecycle {
     suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int
     suspend fun removeAllForPerson(personId: ProclamatoreId)
-    suspend fun getAssignmentHistoryForPerson(personId: ProclamatoreId): PersonAssignmentHistory
 }

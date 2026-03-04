@@ -12,6 +12,12 @@ import org.example.project.feature.output.infrastructure.ProgramWeekPrintSection
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
+
+internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
+    WeekPlanStatus.ACTIVE -> "Attiva"
+    WeekPlanStatus.SKIPPED -> "Saltata"
+}
 
 class StampaProgrammaUseCase(
     private val programStore: ProgramStore,
@@ -42,7 +48,7 @@ class StampaProgrammaUseCase(
             }
             ProgramWeekPrintSection(
                 weekStartDate = week.weekStartDate,
-                statusLabel = week.status.name,
+                statusLabel = weekPlanStatusLabel(week.status),
                 lines = lines,
             )
         }

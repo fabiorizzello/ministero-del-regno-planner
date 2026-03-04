@@ -111,7 +111,8 @@ CREATE TABLE week_plan (
     week_start_date TEXT NOT NULL UNIQUE,
     program_id TEXT DEFAULT NULL,
     status TEXT NOT NULL DEFAULT 'ACTIVE',
-    FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL
+    FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL,
+    CHECK(status IN ('ACTIVE', 'SKIPPED'))
 );
 
 CREATE TABLE weekly_part (
@@ -146,7 +147,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
 ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
-allActiveProclaimers:
+allProclaimers:
 SELECT id, first_name, last_name, sex, suspended
 FROM person
 ORDER BY last_name, first_name;
@@ -351,22 +352,6 @@ WHERE weekly_part_id IN (
     SELECT id FROM weekly_part WHERE week_plan_id = ?
 );
 
-assignmentHistoryForPerson:
-SELECT
-    a.id,
-    a.weekly_part_id,
-    a.person_id,
-    a.slot,
-    pt.label AS part_type_label,
-    wpl.week_start_date
-FROM assignment a
-JOIN weekly_part wp ON a.weekly_part_id = wp.id
-JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-JOIN part_type pt ON wp.part_type_id = pt.id
-WHERE a.person_id = ?
-ORDER BY wpl.week_start_date DESC
-LIMIT 20;
-
 -- Ranking queries (M4)
 lastGlobalAssignmentPerPerson:
 SELECT
@@ -378,6 +363,28 @@ LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
 GROUP BY p.id;
 
+lastGlobalAssignmentBeforePerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date <= ?
+GROUP BY p.id;
+
+firstGlobalAssignmentAfterPerPerson:
+SELECT
+    p.id AS person_id,
+    MIN(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date > ?
+GROUP BY p.id;
+
 lastPartTypeAssignmentPerPerson:
 SELECT
     p.id AS person_id,
@@ -387,6 +394,30 @@ LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
     AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+GROUP BY p.id;
+
+lastPartTypeAssignmentBeforePerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date <= ?
+GROUP BY p.id;
+
+firstPartTypeAssignmentAfterPerPerson:
+SELECT
+    p.id AS person_id,
+    MIN(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date > ?
 GROUP BY p.id;
 
 lastSlot1GlobalAssignmentPerPerson:

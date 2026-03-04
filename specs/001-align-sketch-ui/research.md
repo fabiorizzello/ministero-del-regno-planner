@@ -3,7 +3,7 @@
 ## Decision 1: Contratto top bar per drag e doppio click
 
 - **Decision**:
-  - Drag finestra (`primary press + move`) attivo su tutta la superficie non interattiva della top bar.
+  - Drag finestra (`primary press + move`) abilitato su tutta la superficie non interattiva della top bar.
   - Doppio click (`primary double-click`) su area non interattiva: toggle `Maximized <-> Floating`.
   - Controlli interattivi (tab, pulsanti, icone, menu, trigger) esclusi da drag/toggle.
   - Implementazione in `jvmMain` con area drag dedicata separata dai controlli interattivi.
