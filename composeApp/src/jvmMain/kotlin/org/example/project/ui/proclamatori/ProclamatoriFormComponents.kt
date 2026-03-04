@@ -35,9 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Surface
@@ -155,31 +152,35 @@ internal fun ProclamatoriFormContentForm(
                 )
             }
 
-            // ── Genere — segmented control ───────────────────────────────────
+            // ── Genere — pill toggle ─────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Genere",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val segColors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = sketch.accentSoft,
-                        activeContentColor = sketch.accent,
-                        activeBorderColor = sketch.accent,
-                    )
-                    SegmentedButton(
-                        selected = sesso == Sesso.M,
-                        onClick = { onSessoChange(Sesso.M) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        colors = segColors,
-                    ) { Text("Uomo") }
-                    SegmentedButton(
-                        selected = sesso == Sesso.F,
-                        onClick = { onSessoChange(Sesso.F) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        colors = segColors,
-                    ) { Text("Donna") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
+                        val selected = sesso == sVal
+                        Surface(
+                            modifier = Modifier
+                                .clickable { onSessoChange(sVal) }
+                                .handCursorOnHover(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (selected) sketch.accentSoft else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (selected) sketch.accent else sketch.lineStrong,
+                            ),
+                        ) {
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) sketch.accent else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -192,12 +193,10 @@ internal fun ProclamatoriFormContentForm(
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(
                     1.dp,
-                    if (sospeso) sketch.warn.copy(alpha = 0.45f)
-                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.72f),
+                    if (sospeso) sketch.warn.copy(alpha = 0.45f) else sketch.lineStrong,
                 ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (sospeso) sketch.warn.copy(alpha = 0.07f)
-                    else MaterialTheme.colorScheme.surface,
+                    containerColor = if (sospeso) sketch.warn.copy(alpha = 0.07f) else sketch.surfaceMuted,
                 ),
             ) {
                 Row(
@@ -229,15 +228,15 @@ internal fun ProclamatoriFormContentForm(
                             checkedThumbColor = sketch.surface,
                             checkedTrackColor = sketch.warn,
                             checkedBorderColor = sketch.warn,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                            uncheckedThumbColor = MaterialTheme.colorScheme.surface,
-                            uncheckedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.92f),
+                            uncheckedTrackColor = sketch.lineStrong,
+                            uncheckedThumbColor = sketch.surface,
+                            uncheckedBorderColor = sketch.lineStrong,
                             disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
                             disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
                             disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
-                            disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f),
-                            disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.84f),
-                            disabledUncheckedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
+                            disabledUncheckedThumbColor = sketch.surface,
+                            disabledUncheckedTrackColor = sketch.lineSoft,
+                            disabledUncheckedBorderColor = sketch.lineSoft,
                         ),
                     )
                 }
@@ -279,7 +278,7 @@ internal fun ProclamatoriFormContentForm(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            "Studente",
+                            "Per parte",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
@@ -330,6 +329,7 @@ internal fun ProclamatoriFormContentForm(
                         modifier = Modifier.handCursorOnHover(enabled = canSubmitForm),
                         onClick = onSubmit,
                         enabled = canSubmitForm,
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                     ) {
                         Text(if (isNew) "Salva" else "Aggiorna")
                     }
@@ -357,34 +357,12 @@ internal fun ProclamatoriFormContentForm(
 
             // ── Zona pericolosa — solo in modifica ───────────────────────────
             if (!isNew && onDelete != null) {
-                Spacer(Modifier.height(spacing.sm))
-                // Separator
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f)),
-                    )
-                    Text(
-                        "ZONA PERICOLOSA",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = androidx.compose.ui.unit.TextUnit(9f, androidx.compose.ui.unit.TextUnitType.Sp),
-                            letterSpacing = androidx.compose.ui.unit.TextUnit(0.6f, androidx.compose.ui.unit.TextUnitType.Sp),
-                        ),
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f)),
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.workspaceSketch.lineSoft),
+                )
                 OutlinedButton(
                     onClick = onDelete,
                     enabled = !isLoading,
@@ -393,6 +371,7 @@ internal fun ProclamatoriFormContentForm(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                 ) {
                     Text("Elimina studente")
                 }

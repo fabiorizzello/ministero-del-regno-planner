@@ -265,6 +265,10 @@ private class RefreshAssignmentRepository(
         // no-op
     }
 
+    override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {
+        // no-op
+    }
+
     override suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean = false
 
     override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = 0

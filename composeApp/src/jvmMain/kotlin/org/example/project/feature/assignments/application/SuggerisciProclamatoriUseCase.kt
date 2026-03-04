@@ -12,6 +12,7 @@ import java.time.LocalDate
 class SuggerisciProclamatoriUseCase(
     private val weekPlanStore: WeekPlanStore,
     private val assignmentStore: AssignmentRanking,
+    private val assignmentRepository: AssignmentRepository,
     private val eligibilityStore: EligibilityStore,
     private val assignmentSettingsStore: AssignmentSettingsStore,
 ) {
@@ -38,6 +39,9 @@ class SuggerisciProclamatoriUseCase(
                     .any { it.partTypeId == part.partType.id && it.canLead }
             }
 
+        val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
+            .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }
+
         // Filtri hard: regola sesso, idoneita', gia' assegnato nella stessa settimana.
         val eligible = suggestions
             .map { suggestion ->
@@ -45,6 +49,10 @@ class SuggerisciProclamatoriUseCase(
                 val passaSesso = when (part.partType.sexRule) {
                     SexRule.UOMO -> p.sesso == Sesso.M
                     SexRule.LIBERO -> true
+                    SexRule.STESSO_SESSO -> {
+                        val requiredSex = existingPartAssignments.firstOrNull()?.sex
+                        if (requiredSex != null) p.sesso == requiredSex else true
+                    }
                 }
                 val passaIdoneita = if (slot <= 1) {
                     leadEligibilityByPersonId[p.id] == true

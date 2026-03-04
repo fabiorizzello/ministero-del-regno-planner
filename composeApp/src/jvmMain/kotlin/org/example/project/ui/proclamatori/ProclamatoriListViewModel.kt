@@ -351,7 +351,12 @@ internal class ProclamatoriListViewModel(
             _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) }
             return
         }
-        val peopleById = cerca(null).associateBy { it.id }
+        val state = _uiState.value
+        val peopleById = if (state.searchTerm.isBlank()) {
+            state.allItems.associateBy { it.id }
+        } else {
+            cerca(null).associateBy { it.id }
+        }
         val partTypesById = partTypeStore.allWithStatus().associateBy { it.partType.id }
         val mapped = anomalies.map { anomaly ->
             val person = peopleById[anomaly.personId]

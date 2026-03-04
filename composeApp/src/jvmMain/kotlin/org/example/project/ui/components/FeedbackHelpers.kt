@@ -38,3 +38,11 @@ fun partialNotice(details: String): FeedbackBannerModel {
         details = detailsWithTimestamp(details),
     )
 }
+
+fun warningNotice(details: String): FeedbackBannerModel {
+    return FeedbackBannerModel(
+        message = "Attenzione",
+        kind = FeedbackBannerKind.WARNING,
+        details = detailsWithTimestamp(details),
+    )
+}

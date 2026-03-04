@@ -30,6 +30,8 @@ import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
+import org.example.project.ui.components.warningNotice
+import java.time.LocalDate
 
 internal data class LeadEligibilityOptionUi(
     val partTypeId: PartTypeId,
@@ -326,7 +328,7 @@ internal class ProclamatoreFormViewModel(
 
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
-                successUpdate = { currentState, _: Unit ->
+                successUpdate = { currentState, futureWeeks: List<LocalDate> ->
                     val operation = if (capturedRoute == ProclamatoriRoute.Nuovo) {
                         "Studente aggiunto"
                     } else {
@@ -334,7 +336,12 @@ internal class ProclamatoreFormViewModel(
                     }
                     val details = personDetails(capturedNome, capturedCognome)
                     clearForm()
-                    onSuccess(successNotice("$operation: $details"))
+                    val banner = if (futureWeeks.isNotEmpty()) {
+                        warningNotice("$operation: $details — sospeso con ${futureWeeks.size} assegnazioni future da verificare")
+                    } else {
+                        successNotice("$operation: $details")
+                    }
+                    onSuccess(banner)
                     currentState.copy(isLoading = false)
                 },
                 errorUpdate = { currentState, error ->
@@ -349,8 +356,11 @@ internal class ProclamatoreFormViewModel(
                     )
                 },
                 operation = {
-                    val saveResult = if (capturedRoute == ProclamatoriRoute.Nuovo) {
-                        crea(
+                    val futureWeeks: List<LocalDate>
+                    val person: Proclamatore
+
+                    if (capturedRoute == ProclamatoriRoute.Nuovo) {
+                        person = crea(
                             CreaProclamatoreUseCase.Command(
                                 nome = capturedNome,
                                 cognome = capturedCognome,
@@ -358,9 +368,13 @@ internal class ProclamatoreFormViewModel(
                                 sospeso = state.sospeso,
                                 puoAssistere = state.puoAssistere,
                             ),
+                        ).fold(
+                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                            ifRight = { it },
                         )
+                        futureWeeks = emptyList()
                     } else {
-                        aggiorna(
+                        val outcome = aggiorna(
                             AggiornaProclamatoreUseCase.Command(
                                 id = requireNotNull(currentEditId),
                                 nome = capturedNome,
@@ -369,18 +383,19 @@ internal class ProclamatoreFormViewModel(
                                 sospeso = state.sospeso,
                                 puoAssistere = state.puoAssistere,
                             ),
+                        ).fold(
+                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                            ifRight = { it },
                         )
+                        person = outcome.proclamatore
+                        futureWeeks = outcome.futureWeeksWhereAssigned
                     }
-
-                    val person = saveResult.fold(
-                        ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
-                        ifRight = { it },
-                    )
 
                     persistLeadEligibilityAsEither(person, capturedOptions).fold(
                         ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
                         ifRight = { },
                     )
+                    futureWeeks
                 },
             )
         }
@@ -468,6 +483,7 @@ internal class ProclamatoreFormViewModel(
         return when (sexRule) {
             SexRule.UOMO -> sesso == Sesso.M
             SexRule.LIBERO -> true
+            SexRule.STESSO_SESSO -> true
         }
     }
 }

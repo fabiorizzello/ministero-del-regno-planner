@@ -81,8 +81,8 @@ class SchemaManagementViewModelTest {
             LocalDate.of(2026, 4, 6) to listOf("A", "B"),
         )
 
-        val impacted = calculateImpactedFutureProgramIds(
-            futurePrograms = listOf(march, april),
+        val impacted = calculateImpactedProgramIds(
+            allPrograms = listOf(march, april),
             before = before,
             after = after,
         )
@@ -95,8 +95,8 @@ class SchemaManagementViewModelTest {
         val march = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
         val snapshot = mapOf(LocalDate.of(2026, 3, 2) to listOf("A", "B"))
 
-        val impacted = calculateImpactedFutureProgramIds(
-            futurePrograms = listOf(march),
+        val impacted = calculateImpactedProgramIds(
+            allPrograms = listOf(march),
             before = snapshot,
             after = snapshot,
         )

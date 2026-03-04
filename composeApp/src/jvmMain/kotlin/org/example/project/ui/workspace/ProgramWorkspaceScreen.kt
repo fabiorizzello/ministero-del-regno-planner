@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,6 +64,7 @@ import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
@@ -138,11 +140,13 @@ fun ProgramWorkspaceScreen() {
     LaunchedEffect(
         lifecycleState.selectedProgramId,
         lifecycleState.selectedFutureProgram,
+        lifecycleState.currentProgram,
         lifecycleState.futurePrograms,
     ) {
         schemaVM.updateSelection(
             selectedProgramId = lifecycleState.selectedProgramId,
             selectedFutureProgram = lifecycleState.selectedFutureProgram,
+            currentProgram = lifecycleState.currentProgram,
             futurePrograms = lifecycleState.futurePrograms,
         )
     }
@@ -267,7 +271,23 @@ fun ProgramWorkspaceScreen() {
             AlertDialog(
                 onDismissRequest = { pendingAssignmentRemoval = null },
                 title = { Text("Rimuovi assegnazione") },
-                text = { Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.handCursorOnHover().clickable {
+                                assignmentVM.setSkipRemoveConfirm(!assignmentState.skipRemoveConfirm)
+                            },
+                        ) {
+                            Checkbox(
+                                checked = assignmentState.skipRemoveConfirm,
+                                onCheckedChange = { assignmentVM.setSkipRemoveConfirm(it) },
+                            )
+                            Text("Non chiedere più", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                },
                 confirmButton = {
                     DesktopInlineAction(
                         label = "Rimuovi",
@@ -405,6 +425,9 @@ fun ProgramWorkspaceScreen() {
                                     selectedWeekId = null
                                 },
                             )
+                            if (program.id.value in schemaState.impactedProgramIds) {
+                                ProgramMisalignedBadge()
+                            }
                         }
                         lifecycleState.futurePrograms.forEach { program ->
                             ProgramMonthSelectorButton(
@@ -416,6 +439,9 @@ fun ProgramWorkspaceScreen() {
                                     selectedWeekId = null
                                 },
                             )
+                            if (program.id.value in schemaState.impactedProgramIds) {
+                                ProgramMisalignedBadge()
+                            }
                         }
                         lifecycleState.creatableTargets.forEach { target ->
                             val label = formatMonthYearLabel(target.monthValue, target.year)
@@ -525,24 +551,37 @@ fun ProgramWorkspaceScreen() {
                         val weekTotalSlots = selectedWeek.parts.sumOf { it.partType.peopleCount }
                         val weekAssignedSlots = weekAssignments.size
                         val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
-                        val isPast = selectedWeek.weekStartDate < currentMonday
                         val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
                         val isCurrent = selectedWeek.weekStartDate == currentMonday
-                        val canMutate = !isPast && !isSkipped
+                        val canMutate = selectedWeek.canBeMutated(currentMonday)
                         val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
                         val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
 
                         if (pendingSkipWeek) {
+                            val skipHasAssignments = weekAssignments.isNotEmpty()
                             AlertDialog(
                                 onDismissRequest = { pendingSkipWeek = false },
                                 title = { Text("Salta settimana") },
-                                text = { Text("La settimana $weekLabel verrà esclusa dal programma. Le assegnazioni esistenti non verranno rimosse. Continuare?") },
+                                text = {
+                                    if (skipHasAssignments) {
+                                        Text("La settimana $weekLabel ha ${weekAssignments.size} assegnazioni che verranno cancellate. Continuare?")
+                                    } else {
+                                        Text("La settimana $weekLabel verrà esclusa dal programma. Continuare?")
+                                    }
+                                },
                                 confirmButton = {
                                     DesktopInlineAction(
                                         label = "Salta",
                                         onClick = {
                                             pendingSkipWeek = false
-                                            partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
+                                            if (skipHasAssignments) {
+                                                assignmentVM.confirmClearWeekAssignments(
+                                                    weekStartDate = selectedWeek.weekStartDate,
+                                                    onSuccess = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
+                                                )
+                                            } else {
+                                                partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
+                                            }
                                         },
                                         destructive = true,
                                     )
@@ -638,8 +677,11 @@ fun ProgramWorkspaceScreen() {
                                                         },
                                                         onRemoveAssignment = { assignmentId ->
                                                             val assignment = assignmentsById[assignmentId.value]
-                                                            if (assignment != null) pendingAssignmentRemoval = assignment
-                                                            else personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                            if (assignment != null && !assignmentState.skipRemoveConfirm) {
+                                                                pendingAssignmentRemoval = assignment
+                                                            } else {
+                                                                personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                            }
                                                         },
                                                         modifier = Modifier
                                                             .weight(1f)

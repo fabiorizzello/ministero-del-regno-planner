@@ -124,7 +124,7 @@ internal fun ProclamatoriFormDialogComponent(
             shadowElevation = 8.dp,
             modifier = Modifier
                 .padding(spacing.lg)
-                .width(900.dp),
+                .width(640.dp),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),

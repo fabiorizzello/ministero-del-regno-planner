@@ -6,6 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
+import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -16,6 +17,7 @@ class AssegnaPersonaUseCase(
     private val weekPlanStore: WeekPlanStore,
     private val assignmentStore: AssignmentRepository,
     private val transactionRunner: TransactionRunner,
+    private val personStore: ProclamatoriAggregateStore,
 ) {
     suspend operator fun invoke(
         weekStartDate: LocalDate,
@@ -32,6 +34,11 @@ class AssegnaPersonaUseCase(
         if (slot < 1 || slot > part.partType.peopleCount) {
             raise(DomainError.Validation("Slot non valido"))
         }
+
+        val persona = personStore.load(personId)
+            ?: raise(DomainError.Validation("Proclamatore non trovato"))
+        if (!persona.attivo) raise(DomainError.Validation("Proclamatore non attivo"))
+        if (persona.sospeso) raise(DomainError.Validation("Proclamatore sospeso"))
 
         try {
             transactionRunner.runInTransaction {

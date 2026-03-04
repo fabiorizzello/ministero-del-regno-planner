@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import org.example.project.ui.theme.SemanticColors
 
 enum class FeedbackBannerKind {
     SUCCESS,
+    WARNING,
     ERROR,
 }
 
@@ -83,6 +85,12 @@ fun FeedbackBanner(
             icon = Icons.Filled.TaskAlt,
             iconTint = successContentColor,
         )
+        FeedbackBannerKind.WARNING -> FeedbackBannerPalette(
+            contentColor = SemanticColors.warningContentLight,
+            containerColor = SemanticColors.warningContainerLight,
+            icon = Icons.Filled.Warning,
+            iconTint = SemanticColors.warningContentLight,
+        )
         FeedbackBannerKind.ERROR -> FeedbackBannerPalette(
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
             containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -108,7 +116,7 @@ fun FeedbackBanner(
                     contentColor = palette.contentColor,
                 ),
                 border = BorderStroke(1.dp, palette.contentColor.copy(alpha = 0.34f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Row(
                     modifier = Modifier

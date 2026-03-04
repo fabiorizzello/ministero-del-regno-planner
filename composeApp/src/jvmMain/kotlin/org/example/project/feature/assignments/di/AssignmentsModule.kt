@@ -2,6 +2,7 @@ package org.example.project.feature.assignments.di
 
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRanking
+import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.AssignmentSettingsStore
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
@@ -29,10 +30,10 @@ val assignmentsModule = module {
     single { CaricaImpostazioniAssegnatoreUseCase(get()) }
     single { SalvaImpostazioniAssegnatoreUseCase(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
-    single { AssegnaPersonaUseCase(get(), get(), get()) }
+    single { AssegnaPersonaUseCase(get(), get(), get(), get<ProclamatoriAggregateStore>()) }
     single { RimuoviAssegnazioneUseCase(get()) }
-    single { RimuoviAssegnazioniSettimanaUseCase(get(), get(), get()) }
-    single { SuggerisciProclamatoriUseCase(get(), get(), get(), get()) }
+    single { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
+    single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
     single { CaricaStoricoAssegnazioniPersonaUseCase(get()) }

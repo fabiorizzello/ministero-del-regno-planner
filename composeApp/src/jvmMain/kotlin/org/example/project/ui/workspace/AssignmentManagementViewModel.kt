@@ -1,5 +1,6 @@
 package org.example.project.ui.workspace
 
+import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,8 @@ import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.successNotice
 import java.time.LocalDate
+
+private const val KEY_SKIP_REMOVE_CONFIRM = "skip_assignment_removal_confirm"
 
 data class AssignmentSettingsUiState(
     val strictCooldown: Boolean = true,
@@ -44,6 +47,7 @@ internal data class AssignmentManagementUiState(
     val isClearingWeekAssignments: Boolean = false,
     val clearWeekAssignmentsConfirm: Pair<String, Int>? = null,
     val settingsSaved: Boolean = false,
+    val skipRemoveConfirm: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
 
@@ -55,6 +59,7 @@ internal class AssignmentManagementViewModel(
     private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
     private val rimuoviAssegnazioniSettimana: RimuoviAssegnazioniSettimanaUseCase,
     private val stampaProgramma: StampaProgrammaUseCase,
+    private val settings: Settings,
 ) {
     private val _uiState = MutableStateFlow(AssignmentManagementUiState())
     val uiState: StateFlow<AssignmentManagementUiState> = _uiState.asStateFlow()
@@ -63,6 +68,12 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             loadAssignmentSettings()
         }
+        _uiState.update { it.copy(skipRemoveConfirm = settings.getBoolean(KEY_SKIP_REMOVE_CONFIRM, false)) }
+    }
+
+    fun setSkipRemoveConfirm(value: Boolean) {
+        settings.putBoolean(KEY_SKIP_REMOVE_CONFIRM, value)
+        _uiState.update { it.copy(skipRemoveConfirm = value) }
     }
 
     fun dismissNotice() {

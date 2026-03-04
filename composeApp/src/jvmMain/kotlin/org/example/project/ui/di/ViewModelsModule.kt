@@ -46,6 +46,7 @@ val viewModelsModule = module {
             svuotaAssegnazioni = get(),
             rimuoviAssegnazioniSettimana = get(),
             stampaProgramma = get(),
+            settings = get(),
         )
     }
     factory {

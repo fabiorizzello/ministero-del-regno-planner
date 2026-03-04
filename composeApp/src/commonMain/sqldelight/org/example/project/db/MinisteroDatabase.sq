@@ -351,6 +351,12 @@ SELECT COUNT(*) FROM assignment WHERE person_id = ?;
 deleteAssignmentsForPerson:
 DELETE FROM assignment WHERE person_id = ?;
 
+deleteAssignmentsForWeek:
+DELETE FROM assignment
+WHERE weekly_part_id IN (
+    SELECT id FROM weekly_part WHERE week_plan_id = ?
+);
+
 assignmentHistoryForPerson:
 SELECT
     a.id,

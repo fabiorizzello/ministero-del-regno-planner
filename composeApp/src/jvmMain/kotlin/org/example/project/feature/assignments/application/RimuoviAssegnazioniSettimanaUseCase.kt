@@ -9,7 +9,6 @@ import java.time.LocalDate
 class RimuoviAssegnazioniSettimanaUseCase(
     private val weekPlanStore: WeekPlanStore,
     private val assignmentStore: AssignmentRepository,
-    private val rimuoviAssegnazioneUseCase: RimuoviAssegnazioneUseCase,
 ) {
     suspend fun count(weekStartDate: LocalDate): Int {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return 0
@@ -18,20 +17,11 @@ class RimuoviAssegnazioniSettimanaUseCase(
 
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
         try {
-            execute(weekStartDate).bind()
+            val plan = weekPlanStore.findByDate(weekStartDate)
+                ?: raise(DomainError.Validation("Piano settimanale non trovato per la data $weekStartDate"))
+            assignmentStore.removeAllByWeekPlan(plan.id)
         } catch (e: Exception) {
             raise(DomainError.Validation("Errore nella rimozione delle assegnazioni: ${e.message}"))
-        }
-    }
-
-    private suspend fun execute(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
-        val plan = weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Piano settimanale non trovato per la data $weekStartDate"))
-
-        val assignments = assignmentStore.listByWeek(plan.id)
-
-        assignments.forEach { assignment ->
-            rimuoviAssegnazioneUseCase(assignment.id).bind()
         }
     }
 }

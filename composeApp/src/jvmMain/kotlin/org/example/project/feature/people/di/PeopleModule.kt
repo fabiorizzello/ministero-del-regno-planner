@@ -10,7 +10,6 @@ import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
-import org.example.project.feature.people.application.ImpostaSospesoUseCase
 import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
@@ -31,9 +30,8 @@ val peopleModule = module {
     single { CaricaProclamatoreUseCase(get()) }
     single { CreaProclamatoreUseCase(get(), get()) }
     single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
-    single { AggiornaProclamatoreUseCase(get(), get()) }
+    single { AggiornaProclamatoreUseCase(get(), get(), get()) }
     single { ImpostaStatoProclamatoreUseCase(get()) }
-    single { ImpostaSospesoUseCase(get()) }
     single { ImpostaIdoneitaAssistenzaUseCase(get()) }
     single { ImpostaIdoneitaConduzioneUseCase(get()) }
     single { CaricaIdoneitaProclamatoreUseCase(get()) }

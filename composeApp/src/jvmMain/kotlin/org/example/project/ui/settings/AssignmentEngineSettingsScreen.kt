@@ -93,6 +93,10 @@ fun AssignmentEngineSettingsScreen() {
             onSave = { viewModel.saveAssignmentSettings() },
             onDismissSavedFeedback = { viewModel.dismissSettingsSaved() },
         )
+        AssignmentUxSettingsCard(
+            skipRemoveConfirm = state.skipRemoveConfirm,
+            onSkipRemoveConfirmChange = { viewModel.setSkipRemoveConfirm(it) },
+        )
     }
 }
 
@@ -241,6 +245,56 @@ private fun AssignmentEngineSettingsCard(
                         }
                     },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssignmentUxSettingsCard(
+    skipRemoveConfirm: Boolean,
+    onSkipRemoveConfirmChange: (Boolean) -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    val switchPalette = assignmentSettingsSwitchPalette(MaterialTheme.colorScheme)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(spacing.cardRadius),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Text("Preferenze interfaccia", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Switch(
+                    checked = skipRemoveConfirm,
+                    onCheckedChange = onSkipRemoveConfirmChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = switchPalette.checkedThumbColor,
+                        checkedTrackColor = switchPalette.checkedTrackColor,
+                        checkedBorderColor = switchPalette.checkedTrackColor,
+                        uncheckedThumbColor = switchPalette.uncheckedThumbColor,
+                        uncheckedTrackColor = switchPalette.uncheckedTrackColor,
+                        uncheckedBorderColor = switchPalette.uncheckedBorderColor,
+                    ),
+                )
+                Column {
+                    Text("Rimozione assegnazione senza conferma")
+                    Text(
+                        "Se attivo, le assegnazioni vengono rimosse direttamente senza dialogo di conferma.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

@@ -6,10 +6,12 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import java.time.LocalDate
 
 class AggiornaProclamatoreUseCase(
     private val query: ProclamatoriQuery,
     private val store: ProclamatoriAggregateStore,
+    private val eligibilityStore: EligibilityStore,
 ) {
     data class Command(
         val id: ProclamatoreId,
@@ -20,7 +22,12 @@ class AggiornaProclamatoreUseCase(
         val puoAssistere: Boolean = false,
     )
 
-    suspend operator fun invoke(command: Command): Either<DomainError, Proclamatore> = either {
+    data class AggiornamentoOutcome(
+        val proclamatore: Proclamatore,
+        val futureWeeksWhereAssigned: List<LocalDate>,
+    )
+
+    suspend operator fun invoke(command: Command): Either<DomainError, AggiornamentoOutcome> = either {
         val nome = command.nome.trim()
         val cognome = command.cognome.trim()
 
@@ -43,6 +50,13 @@ class AggiornaProclamatoreUseCase(
             puoAssistere = command.puoAssistere,
         )
         store.persist(aggiornato)
-        aggiornato
+
+        val futureWeeks = if (!corrente.sospeso && command.sospeso) {
+            eligibilityStore.listFutureAssignmentWeeks(command.id, LocalDate.now())
+        } else {
+            emptyList()
+        }
+
+        AggiornamentoOutcome(aggiornato, futureWeeks)
     }
 }

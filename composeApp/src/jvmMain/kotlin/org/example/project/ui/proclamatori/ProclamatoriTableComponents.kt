@@ -147,6 +147,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = events.onImportJson,
                     enabled = !isLoading,
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                 ) {
                     Icon(Icons.Filled.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
@@ -191,6 +192,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = events.onGoNuovo,
                     enabled = !isLoading,
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
@@ -230,6 +232,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                         onClick = events.onDismissSchemaAnomalies,
                         enabled = !state.isDismissingSchemaAnomalies,
                         modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                     ) {
                         Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
                     }
@@ -315,7 +318,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(MaterialTheme.workspaceSketch.surfaceMuted)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -406,6 +409,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                             onClick = events.onPreviousPage,
                             enabled = !isLoading && pageIndex > 0,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Pagina precedente", modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(spacing.xs))
@@ -417,6 +421,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                             onClick = events.onNextPage,
                             enabled = !isLoading && pageIndex < totalPages - 1,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                         ) {
                             Text("Succ", style = MaterialTheme.typography.labelSmall)
                             Spacer(Modifier.width(spacing.xs))
@@ -499,6 +504,7 @@ private fun ProclamatoriiBulkBar(
                 enabled = enabled,
                 modifier = Modifier.height(30.dp).handCursorOnHover(enabled = enabled),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
             ) {
                 Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(4.dp))
@@ -509,6 +515,7 @@ private fun ProclamatoriiBulkBar(
                 enabled = enabled,
                 modifier = Modifier.height(30.dp).handCursorOnHover(enabled = enabled),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
             ) {
                 Icon(Icons.Filled.Block, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(4.dp))
@@ -521,6 +528,7 @@ private fun ProclamatoriiBulkBar(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = sketch.bad),
                 border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.5f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(4.dp))
@@ -574,24 +582,17 @@ internal fun ProclamatoriDataRow(
         )
         Spacer(Modifier.width(12.dp))
 
-        // Avatar + nome + genere
+        // Avatar + nome
         Row(
             modifier = Modifier.weight(2.5f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ProclamatoreAvatar(proclamatore.nome, proclamatore.cognome, proclamatore.sesso, proclamatore.attivo)
-            Column {
-                Text(
-                    "${proclamatore.nome} ${proclamatore.cognome}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                )
-                Text(
-                    if (proclamatore.sesso == Sesso.M) "Uomo" else "Donna",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                "${proclamatore.nome} ${proclamatore.cognome}",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            )
         }
 
         // Stato badge

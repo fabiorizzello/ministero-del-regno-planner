@@ -24,3 +24,6 @@ data class WeekPlan(
         }
     }
 }
+
+fun WeekPlan.canBeMutated(referenceDate: LocalDate): Boolean =
+    weekStartDate >= referenceDate && status == WeekPlanStatus.ACTIVE

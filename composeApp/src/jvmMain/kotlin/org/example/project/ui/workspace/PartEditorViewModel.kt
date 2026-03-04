@@ -14,6 +14,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -53,7 +54,8 @@ internal class PartEditorViewModel(
     }
 
     fun openPartEditor(week: WeekPlan) {
-        if (!canMutateWeek(week)) return
+        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        if (!week.canBeMutated(currentMonday)) return
         _state.update {
             it.copy(
                 partEditorWeekId = week.id.value,
@@ -165,7 +167,8 @@ internal class PartEditorViewModel(
     }
 
     fun skipWeek(week: WeekPlan, onSuccess: () -> Unit) {
-        if (!canSkipWeek(week)) return
+        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        if (!week.canBeMutated(currentMonday)) return
         scope.launch {
             var succeeded = false
             _state.executeAsyncOperation(
@@ -181,16 +184,6 @@ internal class PartEditorViewModel(
             )
             if (succeeded) onSuccess()
         }
-    }
-
-    private fun canMutateWeek(week: WeekPlan): Boolean {
-        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        return week.weekStartDate >= currentMonday && week.status == WeekPlanStatus.ACTIVE
-    }
-
-    private fun canSkipWeek(week: WeekPlan): Boolean {
-        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        return week.weekStartDate >= currentMonday && week.status == WeekPlanStatus.ACTIVE
     }
 
     private fun loadPartTypes() {

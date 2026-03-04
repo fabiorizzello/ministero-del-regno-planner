@@ -362,7 +362,7 @@ internal fun ProgramHeader(
     canCreateProgram: Boolean,
     isCreatingProgram: Boolean,
     isRefreshingSchemas: Boolean,
-    futureNeedsSchemaRefresh: Boolean,
+    impactedProgramIds: Set<String>,
     onSelectProgram: (String) -> Unit,
     onCreateNextProgram: () -> Unit,
     onRefreshSchemas: () -> Unit,
@@ -416,31 +416,26 @@ internal fun ProgramHeader(
             ) {
                 current?.let {
                     val isSelected = selectedProgramId == it.id.value
+                    val isImpacted = it.id.value in impactedProgramIds
                     DesktopInlineAction(
                         label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
                         onClick = { if (!isSelected) onSelectProgram(it.id.value) },
                         tone = if (isSelected) DesktopInlineActionTone.Primary else DesktopInlineActionTone.Neutral,
                     )
+                    if (isImpacted) {
+                        ProgramMisalignedBadge()
+                    }
                 }
                 future?.let {
                     val isSelected = selectedProgramId == it.id.value
+                    val isImpacted = it.id.value in impactedProgramIds
                     DesktopInlineAction(
                         label = formatMonthYearLabel(it.month, it.year).replaceFirstChar { c -> c.uppercase() },
                         onClick = { if (!isSelected) onSelectProgram(it.id.value) },
                         tone = if (isSelected) DesktopInlineActionTone.Warn else DesktopInlineActionTone.Neutral,
                     )
-                    if (futureNeedsSchemaRefresh) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                        ) {
-                            Text(
-                                "Template aggiornato, verificare",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            )
-                        }
+                    if (isImpacted) {
+                        ProgramMisalignedBadge()
                     }
                 }
                 if (canCreateProgram) {
@@ -454,6 +449,21 @@ internal fun ProgramHeader(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun ProgramMisalignedBadge() {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+    ) {
+        Text(
+            "Template aggiornato",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
     }
 }
 
@@ -857,9 +867,9 @@ internal fun WeekCoverageStrip(assigned: Int, total: Int, fraction: Float) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(5.dp)
+                    .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(sketch.lineSoft),
+                    .background(sketch.lineStrong),
             ) {
                 if (fraction > 0f) {
                     Box(
@@ -1061,9 +1071,9 @@ internal fun ProgramCoverageCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(5.dp)
+                        .height(6.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(sketch.lineSoft),
+                        .background(sketch.lineStrong),
                 ) {
                     if (fraction > 0f) {
                         Box(

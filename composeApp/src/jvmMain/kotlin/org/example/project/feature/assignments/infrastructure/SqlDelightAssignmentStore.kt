@@ -44,6 +44,10 @@ class SqlDelightAssignmentStore(
         database.ministeroDatabaseQueries.deleteAssignment(assignmentId.value)
     }
 
+    override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {
+        database.ministeroDatabaseQueries.deleteAssignmentsForWeek(weekPlanId.value)
+    }
+
     override suspend fun isPersonAssignedInWeek(
         weekPlanId: WeekPlanId,
         personId: ProclamatoreId,

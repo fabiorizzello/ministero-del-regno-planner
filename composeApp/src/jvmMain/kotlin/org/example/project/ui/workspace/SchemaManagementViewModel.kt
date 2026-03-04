@@ -30,10 +30,11 @@ internal data class SchemaManagementUiState(
     val today: LocalDate = LocalDate.now(),
     val selectedProgramId: String? = null,
     val selectedFutureProgram: ProgramMonth? = null,
+    val currentProgram: ProgramMonth? = null,
     val futurePrograms: List<ProgramMonth> = emptyList(),
     val isRefreshingSchemas: Boolean = false,
     val isRefreshingProgramFromSchemas: Boolean = false,
-    val impactedFutureProgramIds: Set<String> = emptySet(),
+    val impactedProgramIds: Set<String> = emptySet(),
     val futureNeedsSchemaRefresh: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
@@ -55,12 +56,17 @@ internal class SchemaManagementViewModel(
     fun updateSelection(
         selectedProgramId: String?,
         selectedFutureProgram: ProgramMonth?,
+        currentProgram: ProgramMonth?,
         futurePrograms: List<ProgramMonth>,
     ) {
         _state.update {
             val fallbackNeedsRefresh = checkSchemaRefreshNeeded(selectedFutureProgram)
-            val validIds = futurePrograms.map { program -> program.id.value }.toSet()
-            val persistedImpacted = it.impactedFutureProgramIds.intersect(validIds)
+            val allPrograms = buildList {
+                currentProgram?.let { p -> add(p) }
+                addAll(futurePrograms)
+            }
+            val validIds = allPrograms.map { program -> program.id.value }.toSet()
+            val persistedImpacted = it.impactedProgramIds.intersect(validIds)
             val impactedIds = if (
                 persistedImpacted.isEmpty() &&
                 fallbackNeedsRefresh &&
@@ -73,8 +79,9 @@ internal class SchemaManagementViewModel(
             it.copy(
                 selectedProgramId = selectedProgramId,
                 selectedFutureProgram = selectedFutureProgram,
+                currentProgram = currentProgram,
                 futurePrograms = futurePrograms,
-                impactedFutureProgramIds = impactedIds,
+                impactedProgramIds = impactedIds,
                 futureNeedsSchemaRefresh = selectedFutureProgram?.id?.value in impactedIds,
             )
         }
@@ -99,16 +106,20 @@ internal class SchemaManagementViewModel(
                 is Either.Right -> {
                     val result = updateResult.value
                     val after = captureSchemaFingerprint()
-                    val impactedFutureProgramIds = calculateImpactedFutureProgramIds(
-                        futurePrograms = _state.value.futurePrograms,
+                    val allPrograms = buildList {
+                        _state.value.currentProgram?.let { add(it) }
+                        addAll(_state.value.futurePrograms)
+                    }
+                    val impactedProgramIds = calculateImpactedProgramIds(
+                        allPrograms = allPrograms,
                         before = before,
                         after = after,
                     )
                     _state.update { state ->
                         state.copy(
                             isRefreshingSchemas = false,
-                            impactedFutureProgramIds = impactedFutureProgramIds,
-                            futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedFutureProgramIds,
+                            impactedProgramIds = impactedProgramIds,
+                            futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedProgramIds,
                             notice = FeedbackBannerModel(
                                 buildSchemaUpdateNotice(result),
                                 FeedbackBannerKind.SUCCESS,
@@ -131,10 +142,10 @@ internal class SchemaManagementViewModel(
             loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
             successUpdate = { state, report ->
                 val selectedProgramId = state.selectedProgramId
-                val impactedFutureProgramIds = if (selectedProgramId == null) {
-                    state.impactedFutureProgramIds
+                val impactedProgramIds = if (selectedProgramId == null) {
+                    state.impactedProgramIds
                 } else {
-                    state.impactedFutureProgramIds - selectedProgramId
+                    state.impactedProgramIds - selectedProgramId
                 }
                 state.copy(
                     isRefreshingProgramFromSchemas = false,
@@ -142,8 +153,8 @@ internal class SchemaManagementViewModel(
                         "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
                         FeedbackBannerKind.SUCCESS,
                     ),
-                    impactedFutureProgramIds = impactedFutureProgramIds,
-                    futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedFutureProgramIds,
+                    impactedProgramIds = impactedProgramIds,
+                    futureNeedsSchemaRefresh = state.selectedFutureProgram?.id?.value in impactedProgramIds,
                 )
             },
             errorUpdate = { state, error ->
@@ -181,15 +192,15 @@ internal class SchemaManagementViewModel(
 
 }
 
-internal fun calculateImpactedFutureProgramIds(
-    futurePrograms: List<ProgramMonth>,
+internal fun calculateImpactedProgramIds(
+    allPrograms: List<ProgramMonth>,
     before: Map<LocalDate, List<String>>,
     after: Map<LocalDate, List<String>>,
 ): Set<String> {
     val candidateWeeks = (before.keys + after.keys).filter { date -> before[date] != after[date] }.toSet()
     if (candidateWeeks.isEmpty()) return emptySet()
 
-    return futurePrograms
+    return allPrograms
         .filter { program ->
             var weekStart = program.startDate
             while (!weekStart.isAfter(program.endDate)) {
