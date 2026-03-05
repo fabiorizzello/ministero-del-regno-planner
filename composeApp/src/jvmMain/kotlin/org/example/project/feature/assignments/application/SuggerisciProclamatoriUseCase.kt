@@ -3,10 +3,10 @@ package org.example.project.feature.assignments.application
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
-import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.allowsCandidate
+import org.example.project.feature.weeklyparts.domain.isMismatch
 import java.time.LocalDate
 
 class SuggerisciProclamatoriUseCase(
@@ -48,12 +48,11 @@ class SuggerisciProclamatoriUseCase(
         val eligible = suggestions
             .map { suggestion ->
                 val p = suggestion.proclamatore
-                val passaSesso = when (part.partType.sexRule) {
-                    SexRule.UOMO -> p.sesso == Sesso.M
-                    SexRule.STESSO_SESSO -> true
-                }
-                val isSexMismatch = part.partType.sexRule == SexRule.STESSO_SESSO &&
-                    requiredSex != null && p.sesso != requiredSex
+                val passaSesso = part.partType.sexRule.allowsCandidate(p.sesso)
+                val isSexMismatch = part.partType.sexRule.isMismatch(
+                    candidateSex = p.sesso,
+                    requiredSex = requiredSex,
+                )
                 val passaIdoneita = if (slot == 1) {
                     p.id in leadEligiblePersonIds
                 } else {

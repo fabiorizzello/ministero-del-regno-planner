@@ -20,33 +20,23 @@ class RimuoviParteUseCase(
         weeklyPartId: WeeklyPartId,
         referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, WeekPlan> = either {
-        val weekPlan = weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Settimana non trovata"))
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+            ?: raise(DomainError.NotFound("Settimana"))
 
         val currentMonday = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        if (!weekPlan.canBeMutated(currentMonday)) {
-            raise(DomainError.Validation("La settimana non è modificabile (passata o saltata)"))
+        if (!aggregate.weekPlan.canBeMutated(currentMonday)) {
+            raise(DomainError.SettimanaImmutabile)
         }
 
-        val part = weekPlan.parts.find { it.id == weeklyPartId }
-            ?: raise(DomainError.Validation("Parte non trovata"))
-
-        if (part.partType.fixed) {
-            raise(DomainError.Validation("La parte '${part.partType.label}' non puo' essere rimossa"))
+        val updated = aggregate.removePart(weeklyPartId).fold(
+            ifLeft = { raise(it) },
+            ifRight = { it },
+        )
+        transactionRunner.runInTransaction {
+            weekPlanStore.saveAggregate(updated)
         }
 
-        val refreshed = transactionRunner.runInTransaction {
-            weekPlanStore.removePart(weeklyPartId)
-
-            // Ricompatta sort_order contigui 0..n-1 nella stessa transazione.
-            val updatedPlan = weekPlanStore.findByDate(weekStartDate)
-                ?: throw IllegalStateException("Errore nel salvataggio")
-            val reorderedIds = updatedPlan.parts.map { it.id }
-            weekPlanStore.updateSortOrders(reorderedIds.mapIndexed { i, id -> id to i })
-
-            weekPlanStore.findByDate(weekStartDate)
-        }
-
-        refreshed ?: raise(DomainError.Validation("Errore nel salvataggio"))
+        weekPlanStore.loadAggregateByDate(weekStartDate)?.weekPlan
+            ?: raise(DomainError.SalvataggioPartiSettimanaFallito)
     }
 }

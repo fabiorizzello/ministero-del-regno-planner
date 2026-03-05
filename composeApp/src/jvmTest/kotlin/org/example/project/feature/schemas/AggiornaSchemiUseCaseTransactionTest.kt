@@ -82,11 +82,11 @@ private class TrackingTransactionRunner : TransactionRunner {
     var isInsideTransaction: Boolean = false
         private set
 
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T {
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
         invocationCount++
         isInsideTransaction = true
         return try {
-            block()
+            with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
         } finally {
             isInsideTransaction = false
         }

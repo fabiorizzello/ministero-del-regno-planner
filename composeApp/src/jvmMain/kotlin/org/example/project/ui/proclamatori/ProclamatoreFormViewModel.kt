@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
+import org.example.project.core.domain.toMessage
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -333,8 +334,7 @@ internal class ProclamatoreFormViewModel(
                 },
                 errorUpdate = { currentState, error ->
                     val errorMessage = when (error) {
-                        is SubmitFormDomainError -> (error.domainError as? DomainError.Validation)?.message
-                            ?: "Operazione non completata"
+                        is SubmitFormDomainError -> error.domainError.toMessage()
                         else -> "Errore: ${error.message}"
                     }
                     currentState.copy(

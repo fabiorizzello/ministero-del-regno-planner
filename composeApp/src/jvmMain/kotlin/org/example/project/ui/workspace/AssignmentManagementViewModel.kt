@@ -15,11 +15,12 @@ import org.example.project.feature.assignments.application.SalvaImpostazioniAsse
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
-import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
 import java.time.LocalDate
 
@@ -274,7 +275,7 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             _uiState.update { it.copy(clearWeekAssignmentsConfirm = null) }
             var succeeded = false
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isClearingWeekAssignments = true) },
                 successUpdate = { state, _ ->
                     succeeded = true
@@ -286,7 +287,7 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isClearingWeekAssignments = false,
-                        notice = errorNotice("Errore rimozione assegnazioni: ${error.message}"),
+                        notice = errorNotice("Errore rimozione assegnazioni: ${error.toMessage()}"),
                     )
                 },
                 operation = { rimuoviAssegnazioniSettimana(weekStartDate) },

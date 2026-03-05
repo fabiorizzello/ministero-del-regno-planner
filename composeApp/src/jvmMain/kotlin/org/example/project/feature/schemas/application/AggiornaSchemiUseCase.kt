@@ -35,11 +35,7 @@ class AggiornaSchemiUseCase(
             week.partTypeCodes.any { it !in availableCodes }
         }
         if (invalidWeek != null) {
-            raise(
-                DomainError.Validation(
-                    "Schema settimana ${invalidWeek.weekStartDate} contiene partTypeCode non presenti nel catalogo",
-                ),
-            )
+            raise(DomainError.CatalogoSchemiIncoerente(invalidWeek.weekStartDate))
         }
 
         val missingPartTypes = partTypeStore.all().filter { it.code !in availableCodes }
@@ -51,7 +47,7 @@ class AggiornaSchemiUseCase(
         // Validate dates before entering the transaction so errors surface as DomainError.
         val weekStartDates = catalog.weeks.map { remoteWeek ->
             runCatching { LocalDate.parse(remoteWeek.weekStartDate) }
-                .getOrNull() ?: raise(DomainError.Validation("Data schema non valida: ${remoteWeek.weekStartDate}"))
+                .getOrNull() ?: raise(DomainError.DataSchemaNonValida(remoteWeek.weekStartDate))
         }
 
         transactionRunner.runInTransaction {

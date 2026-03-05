@@ -15,3 +15,6 @@ data class SuggestedProclamatore(
     val cooldownRemainingWeeks: Int = 0,
     val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola STESSO_SESSO)
 )
+
+/** Regola conservativa di auto-assegnazione: niente mismatch di sesso e niente cooldown attivo. */
+fun SuggestedProclamatore.canBeAutoAssigned(): Boolean = !sexMismatch && !inCooldown

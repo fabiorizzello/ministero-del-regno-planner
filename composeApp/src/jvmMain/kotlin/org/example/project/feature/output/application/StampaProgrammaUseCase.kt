@@ -9,7 +9,6 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintSection
-import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
@@ -37,8 +36,13 @@ class StampaProgrammaUseCase(
             val assignmentByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
             val lines = week.parts.flatMap { part ->
                 (1..part.partType.peopleCount).map { slot ->
-                    val assigned = assignmentByPartAndSlot[part.id.value to slot]?.fullName ?: "Non assegnato"
-                    val role = if (part.partType.peopleCount > 1) slotToRoleLabel(slot) else ""
+                    val assignment = assignmentByPartAndSlot[part.id.value to slot]
+                    val assigned = assignment?.fullName ?: "Non assegnato"
+                    val role = if (part.partType.peopleCount > 1) {
+                        assignment?.roleLabel ?: if (slot == 1) "Studente" else "Assistente"
+                    } else {
+                        ""
+                    }
                     val rolePrefix = if (role.isBlank()) "" else "[$role] "
                     "- ${part.partType.label}: ${rolePrefix}${assigned}"
                 }

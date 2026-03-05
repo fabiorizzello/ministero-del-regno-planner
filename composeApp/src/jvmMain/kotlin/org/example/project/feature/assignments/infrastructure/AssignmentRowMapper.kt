@@ -6,6 +6,16 @@ import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.slf4j.LoggerFactory
+
+private val logger = LoggerFactory.getLogger("AssignmentRowMapper")
+
+private fun parseSessoOrDefault(sex: String): Sesso =
+    Sesso.entries.find { it.name == sex }
+        ?: run {
+            logger.warn("Sesso sconosciuto '{}' -> fallback a M", sex)
+            Sesso.M
+        }
 
 internal fun mapAssignmentWithPersonRow(
     id: String,
@@ -25,7 +35,7 @@ internal fun mapAssignmentWithPersonRow(
             id = ProclamatoreId(person_id),
             nome = first_name,
             cognome = last_name,
-            sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
+            sesso = parseSessoOrDefault(sex),
         ),
     )
 }

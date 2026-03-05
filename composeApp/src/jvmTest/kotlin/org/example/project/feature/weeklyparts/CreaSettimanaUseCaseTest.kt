@@ -6,16 +6,12 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
-import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
-import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
-import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertIs
@@ -24,26 +20,25 @@ import kotlin.test.assertTrue
 class CreaSettimanaUseCaseTest {
 
     @Test
-    fun `returns validation error when date is not monday`() = runBlocking {
+    fun `returns typed error when date is not monday`() = runBlocking {
         val weekStore = InMemoryWeekPlanStore()
         val partTypeStore = SingleFixedPartTypeStore()
         val useCase = CreaSettimanaUseCase(
             weekPlanStore = weekStore,
             partTypeStore = partTypeStore,
-            transactionRunner = PassthroughTransactionRunner(),
+            transactionRunner = CreaSettimanaTxRunner(),
         )
 
         val result = useCase(LocalDate.of(2026, 3, 3)) // Tuesday
 
         val left = assertIs<Either.Left<DomainError>>(result).value
-        val validation = assertIs<DomainError.Validation>(left)
-        assertTrue(validation.message.contains("lunedi", ignoreCase = true))
+        assertIs<DomainError.DataSettimanaNonLunedi>(left)
         assertTrue(weekStore.savedWeeks.isEmpty())
     }
 }
 
-private class PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T = block()
+private class CreaSettimanaTxRunner : TransactionRunner {
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class SingleFixedPartTypeStore : PartTypeStore {
@@ -68,33 +63,22 @@ private class SingleFixedPartTypeStore : PartTypeStore {
     }
 }
 
-private class InMemoryWeekPlanStore : WeekPlanStore {
+private class InMemoryWeekPlanStore : TestWeekPlanStore() {
     val savedWeeks = mutableListOf<WeekPlan>()
 
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? =
-        savedWeeks.firstOrNull { it.weekStartDate == weekStartDate }
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
+        savedWeeks.firstOrNull { it.weekStartDate == weekStartDate }?.let { week ->
+            WeekPlanAggregate(weekPlan = week, assignments = emptyList())
+        }
 
-    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
-
-    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun save(weekPlan: WeekPlan) {
-        savedWeeks.add(weekPlan)
+    context(org.example.project.core.persistence.TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        savedWeeks.removeAll { week -> week.id == aggregate.weekPlan.id }
+        savedWeeks.add(aggregate.weekPlan)
     }
 
-    override suspend fun delete(weekPlanId: WeekPlanId) {}
-
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId =
-        WeeklyPartId("part-1")
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {}
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {}
-
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {}
-
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: ProgramMonthId, status: WeekPlanStatus) {
-        save(weekPlan)
-    }
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
+        savedWeeks.firstOrNull { week -> week.id == weekPlanId }?.let { week ->
+            WeekPlanAggregate(weekPlan = week, assignments = emptyList())
+        }
 }
-

@@ -2,6 +2,7 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
@@ -24,7 +25,8 @@ class CreaProgrammaMeseTargetUseCaseTest {
 
         val result = useCase(2026, 5, referenceDate)
 
-        assertTrue(result.isLeft())
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.MeseFuoriFinestraCreazione, left)
     }
 
     @Test
@@ -35,7 +37,8 @@ class CreaProgrammaMeseTargetUseCaseTest {
 
         val result = useCase(2026, 4, referenceDate)
 
-        assertTrue(result.isLeft())
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.MeseNonCreabile, left)
     }
 
     @Test
@@ -118,9 +121,6 @@ private class InMemoryProgramStore(
 
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> =
         programs.sortedBy { it.yearMonth }
-
-    override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? =
-        programs.firstOrNull { it.year == year && it.month == month }
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? =
         programs.firstOrNull { it.id == id }

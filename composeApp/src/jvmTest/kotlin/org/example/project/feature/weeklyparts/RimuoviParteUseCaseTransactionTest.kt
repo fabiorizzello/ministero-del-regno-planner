@@ -4,13 +4,12 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
-import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
@@ -43,13 +42,13 @@ private class TrackingTransactionRunner : TransactionRunner {
     var invocationCount: Int = 0
         private set
 
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T {
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
         invocationCount++
-        return block()
+        return with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
     }
 }
 
-private class TransactionAwareWeekPlanStore : WeekPlanStore {
+private class TransactionAwareWeekPlanStore : TestWeekPlanStore() {
     private val partType = PartType(
         id = PartTypeId("pt-1"),
         code = "LETTURA",
@@ -71,35 +70,22 @@ private class TransactionAwareWeekPlanStore : WeekPlanStore {
         parts = listOf(initialPart),
     )
 
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? =
-        if (week.weekStartDate == weekStartDate) week else null
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
+        if (week.weekStartDate == weekStartDate) {
+            WeekPlanAggregate(weekPlan = week, assignments = emptyList())
+        } else {
+            null
+        }
 
-    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
-
-    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun save(weekPlan: WeekPlan) {
-        week = weekPlan
+    context(org.example.project.core.persistence.TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        week = aggregate.weekPlan
     }
 
-    override suspend fun delete(weekPlanId: WeekPlanId) {}
-
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId =
-        WeeklyPartId("unused")
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {
-        week = week.copy(parts = week.parts.filterNot { it.id == weeklyPartId })
-    }
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {
-        val newSortById = parts.toMap()
-        week = week.copy(
-            parts = week.parts
-                .map { part -> part.copy(sortOrder = newSortById[part.id] ?: part.sortOrder) }
-                .sortedBy { it.sortOrder },
-        )
-    }
-
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {}
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
+        if (week.id == weekPlanId) {
+            WeekPlanAggregate(weekPlan = week, assignments = emptyList())
+        } else {
+            null
+        }
 }
-

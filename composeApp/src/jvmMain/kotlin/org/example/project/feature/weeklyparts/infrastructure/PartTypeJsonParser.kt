@@ -7,10 +7,17 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
+import org.slf4j.LoggerFactory
 import java.util.UUID
 
+private val logger = LoggerFactory.getLogger("PartTypeJsonParser")
+
 internal fun parseSexRule(value: String): SexRule =
-    runCatching { SexRule.valueOf(value) }.getOrDefault(SexRule.STESSO_SESSO)
+    SexRule.entries.find { it.name == value }
+        ?: run {
+            logger.warn("SexRule sconosciuto '{}' -> fallback a STESSO_SESSO", value)
+            SexRule.STESSO_SESSO
+        }
 
 /**
  * Parses a single [PartType] from a JSON object.

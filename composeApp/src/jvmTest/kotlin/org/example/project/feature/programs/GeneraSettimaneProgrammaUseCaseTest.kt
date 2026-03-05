@@ -2,26 +2,25 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramCreationContext
-import org.example.project.feature.programs.application.ProgramDeleteImpact
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
+import org.example.project.feature.weeklyparts.TestWeekPlanStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
-import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -97,7 +96,7 @@ internal fun partType(code: String, fixed: Boolean = false): PartType {
 }
 
 internal class ImmediateTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T = block()
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 internal class InMemoryProgramStoreGeneration(
@@ -106,10 +105,6 @@ internal class InMemoryProgramStoreGeneration(
     val templateAppliedUpdates = mutableListOf<Pair<ProgramMonthId, LocalDateTime>>()
 
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> = listOf(program)
-
-    override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? {
-        return if (program.year == year && program.month == month) program else null
-    }
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = if (id == program.id) program else null
 
@@ -125,12 +120,9 @@ internal class InMemoryProgramStoreGeneration(
         templateAppliedUpdates += id to templateAppliedAt
     }
 
-    override suspend fun countDeleteImpact(id: ProgramMonthId): ProgramDeleteImpact = ProgramDeleteImpact(0, 0)
-
     override suspend fun loadCreationContext(referenceDate: LocalDate): ProgramCreationContext {
         return ProgramCreationContext(
             existingByMonth = setOf(program.yearMonth),
-            hasCurrent = true,
             futureMonths = emptySet(),
         )
     }
@@ -173,66 +165,54 @@ internal class InMemoryPartTypeStore(
 
 internal class InMemoryWeekPlanStoreGeneration(
     initialWeeksByProgram: Map<ProgramMonthId, List<WeekPlan>> = emptyMap(),
-) : WeekPlanStore {
+) : TestWeekPlanStore() {
     private val weeksByProgram = initialWeeksByProgram.mapValues { it.value.toMutableList() }.toMutableMap<ProgramMonthId, MutableList<WeekPlan>>()
 
     val deletedPrograms = mutableListOf<ProgramMonthId>()
     val createdWeeks = mutableListOf<WeekPlan>()
     val statusByWeekStart = mutableMapOf<LocalDate, WeekPlanStatus>()
     val partTypeIdsByWeekStart = mutableMapOf<LocalDate, List<PartTypeId>>()
-    private val weekStartById = mutableMapOf<String, LocalDate>()
-
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? = null
-
-    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
-
-    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun save(weekPlan: WeekPlan) {
-        // no-op
-    }
-
-    override suspend fun delete(weekPlanId: WeekPlanId) {
-        weeksByProgram.values.forEach { list -> list.removeIf { it.id == weekPlanId } }
-    }
-
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId {
-        return WeeklyPartId("part")
-    }
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {
-        // no-op
-    }
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {
-        // no-op
-    }
-
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {
-        val weekStart = weekStartById[weekPlanId.value] ?: return
-        partTypeIdsByWeekStart[weekStart] = partTypeIds
-    }
-
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: ProgramMonthId, status: WeekPlanStatus) {
-        val stored = weekPlan.copy(programId = programId, status = status)
-        weeksByProgram.getOrPut(programId) { mutableListOf() }.add(stored)
-        weekStartById[weekPlan.id.value] = weekPlan.weekStartDate
-        createdWeeks += stored
-        statusByWeekStart[weekPlan.weekStartDate] = status
-    }
-
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? {
-        return weeksByProgram[programId]?.firstOrNull { it.weekStartDate == weekStartDate }
-    }
 
     override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> = weeksByProgram[programId].orEmpty()
 
+    override suspend fun listAggregatesByProgram(programId: ProgramMonthId): List<WeekPlanAggregate> =
+        listByProgram(programId).map { week -> WeekPlanAggregate(weekPlan = week, assignments = emptyList()) }
+
+    override suspend fun loadAggregateByDateAndProgram(
+        weekStartDate: LocalDate,
+        programId: ProgramMonthId,
+    ): WeekPlanAggregate? =
+        listByProgram(programId)
+            .firstOrNull { it.weekStartDate == weekStartDate }
+            ?.let { week -> WeekPlanAggregate(weekPlan = week, assignments = emptyList()) }
+
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? = null
+
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? = null
+
+    context(TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        // no-op
+    }
+
+    context(TransactionScope)
+    override suspend fun replaceProgramAggregates(programId: ProgramMonthId, aggregates: List<WeekPlanAggregate>) {
+        deletedPrograms += programId
+        val weeks = aggregates.map { it.weekPlan }
+        weeksByProgram[programId] = weeks.toMutableList()
+        createdWeeks.clear()
+        createdWeeks += weeks
+        statusByWeekStart.clear()
+        partTypeIdsByWeekStart.clear()
+        weeks.forEach { week ->
+            statusByWeekStart[week.weekStartDate] = week.status
+            partTypeIdsByWeekStart[week.weekStartDate] = week.parts.map { part -> part.partType.id }
+        }
+    }
+
+    context(TransactionScope)
     override suspend fun deleteByProgram(programId: ProgramMonthId) {
         deletedPrograms += programId
         weeksByProgram[programId] = mutableListOf()
-    }
-
-    override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {
-        // no-op
     }
 }

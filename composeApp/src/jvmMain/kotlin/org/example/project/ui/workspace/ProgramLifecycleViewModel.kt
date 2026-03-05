@@ -21,7 +21,7 @@ import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.ui.components.FeedbackBannerKind
@@ -74,7 +74,7 @@ internal class ProgramLifecycleViewModel(
     private val eliminaProgramma: EliminaProgrammaUseCase,
     private val generaSettimaneProgramma: GeneraSettimaneProgrammaUseCase,
     private val schemaTemplateStore: SchemaTemplateStore,
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
     private val cercaTipiParte: CercaTipiParteUseCase,
 ) {

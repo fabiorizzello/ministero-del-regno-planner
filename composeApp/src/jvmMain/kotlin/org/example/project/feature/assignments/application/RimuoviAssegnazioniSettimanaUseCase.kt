@@ -3,25 +3,28 @@ package org.example.project.feature.assignments.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import java.time.LocalDate
 
 class RimuoviAssegnazioniSettimanaUseCase(
-    private val weekPlanStore: WeekPlanQueries,
-    private val assignmentStore: AssignmentRepository,
+    private val weekPlanStore: WeekPlanStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend fun count(weekStartDate: LocalDate): Int {
-        val plan = weekPlanStore.findByDate(weekStartDate) ?: return 0
-        return assignmentStore.countAssignmentsForWeek(plan.id)
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate) ?: return 0
+        return aggregate.assignments.size
     }
 
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
         try {
-            val plan = weekPlanStore.findByDate(weekStartDate)
-                ?: raise(DomainError.Validation("Piano settimanale non trovato per la data $weekStartDate"))
-            assignmentStore.removeAllByWeekPlan(plan.id)
+            val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+                ?: raise(DomainError.NotFound("Piano settimanale"))
+            transactionRunner.runInTransaction {
+                weekPlanStore.saveAggregate(aggregate.copy(assignments = emptyList()))
+            }
         } catch (e: Exception) {
-            raise(DomainError.Validation("Errore nella rimozione delle assegnazioni: ${e.message}"))
+            raise(DomainError.RimozioneAssegnazioniFallita(e.message))
         }
     }
 }

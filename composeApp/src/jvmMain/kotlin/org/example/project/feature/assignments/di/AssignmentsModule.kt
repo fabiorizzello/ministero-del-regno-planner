@@ -29,11 +29,11 @@ val assignmentsModule = module {
     single { CaricaImpostazioniAssegnatoreUseCase(get()) }
     single { SalvaImpostazioniAssegnatoreUseCase(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
-    single { AssegnaPersonaUseCase(get(), get(), get(), get<ProclamatoriAggregateStore>()) }
+    single { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
     single { RimuoviAssegnazioneUseCase(get()) }
     single { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
-    single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get()) }
+    single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
     single { SvuotaAssegnazioniProgrammaUseCase(get()) }
 }

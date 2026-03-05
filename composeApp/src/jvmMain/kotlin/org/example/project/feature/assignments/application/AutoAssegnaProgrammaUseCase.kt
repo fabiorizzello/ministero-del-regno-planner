@@ -1,6 +1,9 @@
 package org.example.project.feature.assignments.application
 
 import org.example.project.core.domain.toMessage
+import org.example.project.core.persistence.TransactionScope
+import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.assignments.domain.canBeAutoAssigned
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
@@ -23,12 +26,16 @@ class AutoAssegnaProgrammaUseCase(
     private val assignmentRepository: AssignmentRepository,
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
     private val assegnaPersona: AssegnaPersonaUseCase,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         programId: ProgramMonthId,
         referenceDate: LocalDate,
-    ): AutoAssignProgramResult = doAssign(programId, referenceDate)
+    ): AutoAssignProgramResult = transactionRunner.runInTransaction {
+        doAssign(programId, referenceDate)
+    }
 
+    context(TransactionScope)
     private suspend fun doAssign(
         programId: ProgramMonthId,
         referenceDate: LocalDate,
@@ -56,7 +63,7 @@ class AutoAssegnaProgrammaUseCase(
                         alreadyAssignedIds = alreadyAssignedIds,
                     )
 
-                    val selected = suggestions.firstOrNull { !it.sexMismatch && !it.inCooldown }
+                    val selected = suggestions.firstOrNull { it.canBeAutoAssigned() }
                     if (selected == null) {
                         unresolved += AutoAssignUnresolvedSlot(
                             weekStartDate = week.weekStartDate,
@@ -67,7 +74,7 @@ class AutoAssegnaProgrammaUseCase(
                         continue
                     }
 
-                    val result = assegnaPersona(
+                    val result = assegnaPersona.assignWithoutTransaction(
                         weekStartDate = week.weekStartDate,
                         weeklyPartId = part.id,
                         personId = selected.proclamatore.id,

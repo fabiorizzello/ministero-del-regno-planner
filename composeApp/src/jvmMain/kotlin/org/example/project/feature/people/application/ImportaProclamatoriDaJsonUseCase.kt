@@ -37,14 +37,14 @@ class ImportaProclamatoriDaJsonUseCase(
     suspend operator fun invoke(jsonContent: String): Either<DomainError, Result> = either {
         val presenti = query.cerca(termine = null)
         if (presenti.isNotEmpty()) {
-            raise(DomainError.Validation("Import disponibile solo con archivio proclamatori vuoto"))
+            raise(DomainError.ImportArchivioNonVuoto)
         }
 
         val proclamatori = parseAndValidate(jsonContent).bind()
         try {
             store.persistAll(proclamatori)
         } catch (e: Exception) {
-            raise(DomainError.Validation("Import non completato. Errore durante il salvataggio: ${e.message}"))
+            raise(DomainError.ImportSalvataggioFallito(e.message))
         }
         Result(importati = proclamatori.size, errori = 0)
     }
@@ -53,14 +53,14 @@ class ImportaProclamatoriDaJsonUseCase(
         val dto = try {
             json.decodeFromString<ImportDto>(jsonContent)
         } catch (_: Exception) {
-            raise(DomainError.Validation("File JSON non valido"))
+            raise(DomainError.ImportJsonNonValido)
         }
 
         if (dto.version != 1) {
-            raise(DomainError.Validation("Versione schema non supportata: ${dto.version}"))
+            raise(DomainError.ImportVersioneSchemaNonSupportata(dto.version))
         }
         if (dto.proclamatori.isEmpty()) {
-            raise(DomainError.Validation("Il file non contiene proclamatori da importare"))
+            raise(DomainError.ImportSenzaProclamatori)
         }
 
         val errors = mutableListOf<String>()
@@ -78,7 +78,7 @@ class ImportaProclamatoriDaJsonUseCase(
         if (errors.isNotEmpty()) {
             val preview = errors.take(5).joinToString(" | ")
             val suffix = if (errors.size > 5) " | ..." else ""
-            raise(DomainError.Validation("Import non completato. Errori (${errors.size}): $preview$suffix"))
+            raise(DomainError.ImportContenutoNonValido("Import non completato. Errori (${errors.size}): $preview$suffix"))
         }
 
         results
@@ -108,11 +108,15 @@ class ImportaProclamatoriDaJsonUseCase(
             raise("Elemento #$position duplicato nel file: $nome $cognome")
         }
 
-        Proclamatore(
-            id = ProclamatoreId(UUID.randomUUID().toString()),
-            nome = nome,
-            cognome = cognome,
-            sesso = sesso,
-        )
+        try {
+            Proclamatore(
+                id = ProclamatoreId(UUID.randomUUID().toString()),
+                nome = nome,
+                cognome = cognome,
+                sesso = sesso,
+            )
+        } catch (e: IllegalArgumentException) {
+            raise("Elemento #$position non valido: ${e.message ?: "dati non validi"}")
+        }
     }
 }

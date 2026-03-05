@@ -15,6 +15,7 @@ data class AssignmentWithPerson(
         require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }
     }
 
-    val fullName: String get() = "${proclamatore.nome.trim()} ${proclamatore.cognome.trim()}"
+    val fullName: String get() = proclamatore.fullName
+    val roleLabel: String get() = if (slot == 1) "Studente" else "Assistente"
     val sex get() = proclamatore.sesso
 }

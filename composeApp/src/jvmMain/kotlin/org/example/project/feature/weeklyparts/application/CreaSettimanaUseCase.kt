@@ -5,7 +5,9 @@ import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.UUID
@@ -16,27 +18,28 @@ class CreaSettimanaUseCase(
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, WeekPlan> = either {
-        val existing = weekPlanStore.findByDate(weekStartDate)
-        if (existing != null) raise(DomainError.Validation("La settimana esiste gia'"))
+        val existing = weekPlanStore.loadAggregateByDate(weekStartDate)
+        if (existing != null) raise(DomainError.SettimanaGiaEsistente)
         if (weekStartDate.dayOfWeek != DayOfWeek.MONDAY) {
-            raise(DomainError.Validation("La data della settimana deve essere un lunedi'"))
+            raise(DomainError.DataSettimanaNonLunedi)
         }
 
         val fixedPartType = partTypeStore.findFixed()
-            ?: raise(DomainError.Validation("Catalogo tipi non disponibile. Aggiorna i dati prima."))
-
-        val weekPlan = WeekPlan(
-            id = WeekPlanId(UUID.randomUUID().toString()),
-            weekStartDate = weekStartDate,
-            parts = emptyList(),
-        )
+            ?: raise(DomainError.CatalogoTipiNonDisponibile)
         val revisionId = partTypeStore.getLatestRevisionId(fixedPartType.id)
+
+        val aggregate = WeekPlanAggregate.createWeekWithFixedPart(
+            weekPlanId = WeekPlanId(UUID.randomUUID().toString()),
+            weekStartDate = weekStartDate,
+            fixedPartType = fixedPartType,
+            fixedPartId = WeeklyPartId(UUID.randomUUID().toString()),
+            fixedPartRevisionId = revisionId,
+        )
         transactionRunner.runInTransaction {
-            weekPlanStore.save(weekPlan)
-            weekPlanStore.addPart(weekPlan.id, fixedPartType.id, sortOrder = 0, partTypeRevisionId = revisionId)
+            weekPlanStore.saveAggregate(aggregate)
         }
 
-        weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Errore nel salvataggio della settimana"))
+        weekPlanStore.loadAggregateByDate(weekStartDate)?.weekPlan
+            ?: raise(DomainError.SalvataggioSettimanaFallito)
     }
 }

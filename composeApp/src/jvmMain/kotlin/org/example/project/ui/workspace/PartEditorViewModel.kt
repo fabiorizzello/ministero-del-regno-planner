@@ -6,8 +6,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.example.project.core.domain.toMessage
+import org.example.project.feature.weeklyparts.application.AggiornaPartiSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.ImpostaStatoSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
@@ -19,7 +21,8 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeAsyncOperation
-import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperation
+import org.example.project.ui.components.executeEitherOperationWithNotice
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.UUID
@@ -39,7 +42,8 @@ internal data class PartEditorUiState(
 
 internal class PartEditorViewModel(
     private val scope: CoroutineScope,
-    private val weekPlanStore: WeekPlanStore,
+    private val aggiornaPartiSettimana: AggiornaPartiSettimanaUseCase,
+    private val impostaStatoSettimana: ImpostaStatoSettimanaUseCase,
     private val cercaTipiParte: CercaTipiParteUseCase,
 ) {
     private val _state = MutableStateFlow(PartEditorUiState())
@@ -125,7 +129,7 @@ internal class PartEditorViewModel(
         }
 
         scope.launch {
-            _state.executeAsyncOperationWithNotice(
+            _state.executeEitherOperationWithNotice(
                 loadingUpdate = { it.copy(isSavingPartEditor = true) },
                 noticeUpdate = { state, notice ->
                     state.copy(
@@ -136,9 +140,8 @@ internal class PartEditorViewModel(
                     )
                 },
                 successMessage = "Parti settimana aggiornate",
-                errorMessagePrefix = "Errore salvataggio parti",
                 operation = {
-                    weekPlanStore.replaceAllParts(
+                    aggiornaPartiSettimana(
                         WeekPlanId(weekId),
                         orderedParts.map { it.partType.id },
                     )
@@ -151,16 +154,16 @@ internal class PartEditorViewModel(
     fun reactivateWeek(week: WeekPlan, onSuccess: () -> Unit) {
         scope.launch {
             var succeeded = false
-            _state.executeAsyncOperation(
+            _state.executeEitherOperation(
                 loadingUpdate = { it },
                 successUpdate = { state, _ ->
                     succeeded = true
                     state.copy(notice = null)
                 },
                 errorUpdate = { state, error ->
-                    state.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.message}", FeedbackBannerKind.ERROR))
+                    state.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.toMessage()}", FeedbackBannerKind.ERROR))
                 },
-                operation = { weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.ACTIVE) },
+                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.ACTIVE) },
             )
             if (succeeded) onSuccess()
         }
@@ -171,16 +174,16 @@ internal class PartEditorViewModel(
         if (!week.canBeMutated(currentMonday)) return
         scope.launch {
             var succeeded = false
-            _state.executeAsyncOperation(
+            _state.executeEitherOperation(
                 loadingUpdate = { it },
                 successUpdate = { state, _ ->
                     succeeded = true
                     state.copy(notice = null)
                 },
                 errorUpdate = { state, error ->
-                    state.copy(notice = FeedbackBannerModel("Errore salto settimana: ${error.message}", FeedbackBannerKind.ERROR))
+                    state.copy(notice = FeedbackBannerModel("Errore salto settimana: ${error.toMessage()}", FeedbackBannerKind.ERROR))
                 },
-                operation = { weekPlanStore.updateWeekStatus(week.id, WeekPlanStatus.SKIPPED) },
+                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.SKIPPED) },
             )
             if (succeeded) onSuccess()
         }

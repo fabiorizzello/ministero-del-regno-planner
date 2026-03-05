@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.domain.ProgramMonth
+import org.example.project.feature.programs.domain.ProgramMonthAggregate
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -19,53 +20,20 @@ class CreaProssimoProgrammaUseCase(
         targetMonth: Int,
         referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, ProgramMonth> = either {
-        val referenceMonth = YearMonth.from(referenceDate)
         val target = runCatching { YearMonth.of(targetYear, targetMonth) }.getOrNull()
-            ?: raise(DomainError.Validation("Mese target non valido"))
-        val allowedMax = referenceMonth.plusMonths(2)
-        if (target < referenceMonth || target > allowedMax) {
-            raise(DomainError.Validation("Puoi creare solo mesi nella finestra corrente..+2"))
-        }
-        val context = programStore.loadCreationContext(referenceDate)
-        if (target in context.existingByMonth) {
-            raise(DomainError.Validation("Il programma per ${target.monthValue}/${target.year} esiste già"))
-        }
+            ?: raise(DomainError.MeseTargetNonValido)
 
-        val creatableTargets = computeCreatableTargets(referenceDate, context)
-        if (target !in creatableTargets) {
-            raise(
-                DomainError.Validation(
-                    "Mese non creabile con le regole correnti (finestra consentita o limite futuri)",
-                ),
-            )
-        }
+        val context = programStore.loadCreationContext(referenceDate)
+        ProgramMonthAggregate.validateCreationTarget(
+            target = target,
+            referenceDate = referenceDate,
+            existingByMonth = context.existingByMonth,
+            futureMonths = context.futureMonths,
+        )?.let { raise(it) }
 
         val program = createProgram(target)
         programStore.save(program)
         program
-    }
-
-    private fun computeCreatableTargets(
-        referenceDate: LocalDate,
-        context: ProgramCreationContext,
-    ): List<YearMonth> {
-        val referenceMonth = YearMonth.from(referenceDate)
-        val window = listOf(referenceMonth, referenceMonth.plusMonths(1), referenceMonth.plusMonths(2))
-        val existingByMonth = context.existingByMonth
-        val futureMonths = context.futureMonths
-
-        return window.filter { target ->
-            if (target in existingByMonth) return@filter false
-
-            val isCurrentTarget = target == referenceMonth
-            val futureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
-            if (!isCurrentTarget && futureCount > MAX_FUTURE_PROGRAMS) return@filter false
-
-            // FR-019: corrente+2 richiede che corrente+1 esista
-            if (target == referenceMonth.plusMonths(2) && referenceMonth.plusMonths(1) !in existingByMonth) return@filter false
-
-            true
-        }
     }
 
     private fun calculateProgramDateRange(yearMonth: YearMonth): Pair<LocalDate, LocalDate> {

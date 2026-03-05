@@ -56,9 +56,6 @@ private class SnapshotStore(
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> =
         programs.sortedBy { it.startDate }
 
-    override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? =
-        programs.firstOrNull { it.year == year && it.month == month }
-
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? =
         programs.firstOrNull { it.id == id }
 

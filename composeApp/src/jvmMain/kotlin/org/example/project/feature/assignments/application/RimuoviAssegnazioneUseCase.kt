@@ -12,7 +12,7 @@ class RimuoviAssegnazioneUseCase(
         try {
             assignmentStore.remove(assignmentId)
         } catch (e: Exception) {
-            raise(DomainError.Validation("Errore nella rimozione: ${e.message}"))
+            raise(DomainError.RimozioneAssegnazioniFallita(e.message))
         }
     }
 }

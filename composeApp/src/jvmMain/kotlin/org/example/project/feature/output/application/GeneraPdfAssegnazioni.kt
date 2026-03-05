@@ -7,7 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
-import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -37,7 +36,11 @@ class GeneraPdfAssegnazioni(
                 val partAssignments = assignments.filter { it.weeklyPartId == part.id }
                 val entries = (1..part.partType.peopleCount).map { slot ->
                     val assignment = partAssignments.firstOrNull { it.slot == slot }
-                    val roleLabel = if (part.partType.peopleCount == 1) null else slotToRoleLabel(slot)
+                    val roleLabel = if (part.partType.peopleCount == 1) {
+                        null
+                    } else {
+                        assignment?.roleLabel ?: if (slot == 1) "Studente" else "Assistente"
+                    }
                     val base = assignment?.fullName ?: "Non assegnato"
                     if (roleLabel == null) base else "$roleLabel: $base"
                 }

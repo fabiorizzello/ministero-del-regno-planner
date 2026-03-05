@@ -4,8 +4,8 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.programs.domain.ProgramMonthAggregate
 import org.example.project.feature.programs.domain.ProgramMonthId
-import org.example.project.feature.programs.domain.ProgramTimelineStatus
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import java.time.LocalDate
 
@@ -19,11 +19,11 @@ class EliminaProgrammaUseCase(
         referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, Unit> = either {
         val program = programStore.findById(programId)
-            ?: raise(DomainError.Validation("Programma non trovato"))
+            ?: raise(DomainError.NotFound("Programma"))
 
-        if (program.timelineStatus(referenceDate) == ProgramTimelineStatus.PAST) {
-            raise(DomainError.Validation("Puoi eliminare solo il programma corrente o futuri"))
-        }
+        ProgramMonthAggregate(program)
+            .validateDeletion(referenceDate)
+            ?.let { raise(it) }
 
         transactionRunner.runInTransaction {
             weekPlanStore.deleteByProgram(programId)

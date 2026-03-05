@@ -11,7 +11,6 @@ import org.apache.pdfbox.Loader
 import org.apache.pdfbox.rendering.PDFRenderer
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
-import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -55,7 +54,7 @@ class GeneraImmaginiAssegnazioni(
             val personName = orderedAssignments.first().fullName
             val assignmentsLabels = orderedAssignments.map { assignment ->
                 val part = selectedParts.first { it.id == assignment.weeklyPartId }
-                val roleLabel = if (part.partType.peopleCount == 1) null else slotToRoleLabel(assignment.slot)
+                val roleLabel = if (part.partType.peopleCount == 1) null else assignment.roleLabel
                 val role = roleLabel?.let { " ($it)" } ?: ""
                 "${part.partType.label}$role"
             }

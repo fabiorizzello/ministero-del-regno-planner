@@ -11,6 +11,9 @@ plugins {
 kotlin {
     jvm()
     jvmToolchain(17)
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-receivers")
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -24,6 +27,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.arrow.core)
+            implementation(libs.konform)
             implementation(libs.voyager.navigator)
             implementation(libs.reorderable)
         }

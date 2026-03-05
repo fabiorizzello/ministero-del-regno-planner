@@ -3,11 +3,15 @@ package org.example.project.feature.weeklyparts
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import kotlinx.coroutines.runBlocking
 import org.example.project.db.MinisteroDatabase
+import org.example.project.core.persistence.SqlDelightTransactionRunner
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.infrastructure.SqlDelightPartTypeStore
 import org.example.project.feature.weeklyparts.infrastructure.SqlDelightWeekPlanStore
 import java.time.LocalDate
@@ -39,21 +43,34 @@ class WeeklyPartSnapshotTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
         partTypeStore.upsertAll(listOf(lettura()))
         val ptId = partTypeStore.findByCode("LETTURA")!!.id
         val revisionId = partTypeStore.getLatestRevisionId(ptId)!!
 
-        val weekPlan = WeekPlan(id = WeekPlanId("week-1"), weekStartDate = LocalDate.of(2026, 3, 2), parts = emptyList())
-        weekStore.save(weekPlan)
-        weekStore.addPart(weekPlan.id, ptId, sortOrder = 0, partTypeRevisionId = revisionId)
+        val weekPlan = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = listOf(
+                WeeklyPart(
+                    id = WeeklyPartId("part-1"),
+                    partType = partTypeStore.findByCode("LETTURA")!!,
+                    partTypeRevisionId = revisionId,
+                    sortOrder = 0,
+                ),
+            ),
+        )
+        txRunner.runInTransaction {
+            weekStore.saveAggregate(WeekPlanAggregate(weekPlan = weekPlan, assignments = emptyList()))
+        }
 
         val loaded = weekStore.findByDate(LocalDate.of(2026, 3, 2))!!
         val part = loaded.parts.first()
 
-        assertNotNull(part.snapshot)
-        assertEquals("Lettura", part.snapshot!!.label)
-        assertEquals(1, part.snapshot!!.peopleCount)
+        val snapshot = assertNotNull(part.snapshot)
+        assertEquals("Lettura", snapshot.label)
+        assertEquals(1, snapshot.peopleCount)
     }
 
     @Test
@@ -61,13 +78,26 @@ class WeeklyPartSnapshotTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
         partTypeStore.upsertAll(listOf(lettura()))
         val ptId = partTypeStore.findByCode("LETTURA")!!.id
 
-        val weekPlan = WeekPlan(id = WeekPlanId("week-1"), weekStartDate = LocalDate.of(2026, 3, 2), parts = emptyList())
-        weekStore.save(weekPlan)
-        weekStore.addPart(weekPlan.id, ptId, sortOrder = 0, partTypeRevisionId = null)
+        val weekPlan = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = listOf(
+                WeeklyPart(
+                    id = WeeklyPartId("part-1"),
+                    partType = partTypeStore.findByCode("LETTURA")!!,
+                    partTypeRevisionId = null,
+                    sortOrder = 0,
+                ),
+            ),
+        )
+        txRunner.runInTransaction {
+            weekStore.saveAggregate(WeekPlanAggregate(weekPlan = weekPlan, assignments = emptyList()))
+        }
 
         val loaded = weekStore.findByDate(LocalDate.of(2026, 3, 2))!!
         val part = loaded.parts.first()
@@ -80,6 +110,7 @@ class WeeklyPartSnapshotTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
         // Import v1: label="Lettura", peopleCount=1
         partTypeStore.upsertAll(listOf(lettura(label = "Lettura", peopleCount = 1)))
@@ -87,9 +118,21 @@ class WeeklyPartSnapshotTest {
         val revV1 = partTypeStore.getLatestRevisionId(ptId)!!
 
         // Create week with v1 snapshot
-        val weekPlan = WeekPlan(id = WeekPlanId("week-1"), weekStartDate = LocalDate.of(2026, 3, 2), parts = emptyList())
-        weekStore.save(weekPlan)
-        weekStore.addPart(weekPlan.id, ptId, sortOrder = 0, partTypeRevisionId = revV1)
+        val weekPlan = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = listOf(
+                WeeklyPart(
+                    id = WeeklyPartId("part-1"),
+                    partType = partTypeStore.findByCode("LETTURA")!!,
+                    partTypeRevisionId = revV1,
+                    sortOrder = 0,
+                ),
+            ),
+        )
+        txRunner.runInTransaction {
+            weekStore.saveAggregate(WeekPlanAggregate(weekPlan = weekPlan, assignments = emptyList()))
+        }
 
         // Re-import v2: label cambiato, peopleCount=2
         partTypeStore.upsertAll(listOf(lettura(label = "Lettura Biblica", peopleCount = 2)))
@@ -98,8 +141,8 @@ class WeeklyPartSnapshotTest {
         val loaded = weekStore.findByDate(LocalDate.of(2026, 3, 2))!!
         val part = loaded.parts.first()
 
-        assertNotNull(part.snapshot)
-        assertEquals("Lettura", part.snapshot!!.label)      // NOT "Lettura Biblica"
-        assertEquals(1, part.snapshot!!.peopleCount)         // NOT 2
+        val snapshot = assertNotNull(part.snapshot)
+        assertEquals("Lettura", snapshot.label)      // NOT "Lettura Biblica"
+        assertEquals(1, snapshot.peopleCount)         // NOT 2
     }
 }

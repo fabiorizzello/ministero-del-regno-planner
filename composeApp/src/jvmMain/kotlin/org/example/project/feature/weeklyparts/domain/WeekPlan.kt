@@ -24,6 +24,15 @@ data class WeekPlan(
             "weekStartDate deve essere un lunedì, ricevuto: $weekStartDate (${weekStartDate.dayOfWeek})"
         }
     }
+
+    fun nextSortOrder(): Int =
+        (parts.maxOfOrNull { it.sortOrder } ?: -1) + 1
+
+    fun recompactedSortOrders(): List<Pair<WeeklyPartId, Int>> =
+        parts.mapIndexed { index, part -> part.id to index }
+
+    fun findPart(partId: WeeklyPartId): WeeklyPart? =
+        parts.find { it.id == partId }
 }
 
 fun WeekPlan.canBeMutated(referenceDate: LocalDate): Boolean =

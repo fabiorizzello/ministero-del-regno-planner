@@ -8,7 +8,7 @@ internal fun mapWeeklyPartWithTypeRow(
     id: String,
     _weekPlanId: String,
     part_type_id: String,
-    _part_type_revision_id: String?,
+    part_type_revision_id: String?,
     sort_order: Long,
     part_type_code: String,
     part_type_label: String,
@@ -42,6 +42,7 @@ internal fun mapWeeklyPartWithTypeRow(
             sort_order = part_type_sort_order,
         ),
         snapshot = snapshot,
+        partTypeRevisionId = part_type_revision_id,
         sortOrder = sort_order.toInt(),
     )
 }

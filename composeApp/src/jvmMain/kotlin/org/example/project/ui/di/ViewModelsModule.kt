@@ -61,7 +61,8 @@ val viewModelsModule = module {
     factory {
         PartEditorViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            weekPlanStore = get(),
+            aggiornaPartiSettimana = get(),
+            impostaStatoSettimana = get(),
             cercaTipiParte = get(),
         )
     }

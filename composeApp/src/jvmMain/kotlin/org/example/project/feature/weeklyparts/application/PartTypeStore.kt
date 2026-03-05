@@ -11,6 +11,7 @@ data class PartTypeWithStatus(
 interface PartTypeStore {
     suspend fun all(): List<PartType>
     suspend fun allWithStatus(): List<PartTypeWithStatus> = all().map { PartTypeWithStatus(it, active = true) }
+    suspend fun findById(id: PartTypeId): PartType? = all().firstOrNull { it.id == id }
     suspend fun findByCode(code: String): PartType?
     suspend fun findFixed(): PartType?
     suspend fun upsertAll(partTypes: List<PartType>)
