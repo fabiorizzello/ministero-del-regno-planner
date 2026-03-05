@@ -11,10 +11,6 @@ data class SuggestedProclamatore(
     val lastGlobalAfterWeeks: Int? = null,
     val lastForPartTypeBeforeWeeks: Int? = null,
     val lastForPartTypeAfterWeeks: Int? = null,
-    val lastGlobalDays: Int? = null,
-    val lastForPartTypeDays: Int? = null,
-    val lastGlobalInFuture: Boolean = false,
-    val lastForPartTypeInFuture: Boolean = false,
     val inCooldown: Boolean = false,
     val cooldownRemainingWeeks: Int = 0,
     val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola STESSO_SESSO)

@@ -6,7 +6,10 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.canBeMutated
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 class RimuoviParteUseCase(
     private val weekPlanStore: WeekPlanStore,
@@ -15,9 +18,15 @@ class RimuoviParteUseCase(
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
+        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, WeekPlan> = either {
         val weekPlan = weekPlanStore.findByDate(weekStartDate)
             ?: raise(DomainError.Validation("Settimana non trovata"))
+
+        val currentMonday = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        if (!weekPlan.canBeMutated(currentMonday)) {
+            raise(DomainError.Validation("La settimana non è modificabile (passata o saltata)"))
+        }
 
         val part = weekPlan.parts.find { it.id == weeklyPartId }
             ?: raise(DomainError.Validation("Parte non trovata"))

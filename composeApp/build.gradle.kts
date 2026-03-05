@@ -42,6 +42,11 @@ kotlin {
             implementation(libs.multiplatform.settings)
             implementation(libs.pdfbox)
             implementation(libs.jsoup)
+            implementation(libs.jna.platform)
+            implementation(libs.kotlin.logging)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.java)
+            implementation(libs.ktor.client.logging)
         }
     }
 }

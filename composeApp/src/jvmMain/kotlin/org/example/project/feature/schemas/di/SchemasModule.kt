@@ -16,6 +16,7 @@ val schemasModule = module {
     single<SchemaUpdateAnomalyStore> { SqlDelightSchemaUpdateAnomalyStore(get()) }
     single<SchemaCatalogRemoteSource> {
         GitHubSchemaCatalogDataSource(
+            httpClient = get(),
             schemasCatalogUrl = RemoteConfig.SCHEMAS_CATALOG_URL,
         )
     }

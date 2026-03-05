@@ -3,11 +3,11 @@ package org.example.project.feature.assignments.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import java.time.LocalDate
 
 class RimuoviAssegnazioniSettimanaUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentStore: AssignmentRepository,
 ) {
     suspend fun count(weekStartDate: LocalDate): Int {

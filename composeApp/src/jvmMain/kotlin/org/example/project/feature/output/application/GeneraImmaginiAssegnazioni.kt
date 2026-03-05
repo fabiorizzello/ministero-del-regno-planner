@@ -7,15 +7,16 @@ import javax.imageio.ImageIO
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.Loader
 import org.apache.pdfbox.rendering.PDFRenderer
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
+import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.sundayOf
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 class GeneraImmaginiAssegnazioni(
     private val caricaSettimana: CaricaSettimanaUseCase,
@@ -23,7 +24,7 @@ class GeneraImmaginiAssegnazioni(
     private val renderer: PdfAssignmentsRenderer,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val logger = LoggerFactory.getLogger(GeneraImmaginiAssegnazioni::class.java)
+    private val logger = KotlinLogging.logger {}
 
     suspend operator fun invoke(
         weekStartDate: LocalDate,
@@ -54,11 +55,7 @@ class GeneraImmaginiAssegnazioni(
             val personName = orderedAssignments.first().fullName
             val assignmentsLabels = orderedAssignments.map { assignment ->
                 val part = selectedParts.first { it.id == assignment.weeklyPartId }
-                val roleLabel = when {
-                    part.partType.peopleCount == 1 -> null
-                    assignment.slot == 1 -> "Studente"
-                    else -> "Assistente"
-                }
+                val roleLabel = if (part.partType.peopleCount == 1) null else slotToRoleLabel(assignment.slot)
                 val role = roleLabel?.let { " ($it)" } ?: ""
                 "${part.partType.label}$role"
             }
@@ -109,7 +106,7 @@ class GeneraImmaginiAssegnazioni(
     }
 
     private fun renderPdfToPng(pdfPath: Path, pngPath: Path) {
-        PDDocument.load(pdfPath.toFile()).use { document ->
+        Loader.loadPDF(pdfPath.toFile()).use { document ->
             val renderer = PDFRenderer(document)
             val image: BufferedImage = renderer.renderImageWithDPI(0, 200f)
             ImageIO.write(image, "png", pngPath.toFile())

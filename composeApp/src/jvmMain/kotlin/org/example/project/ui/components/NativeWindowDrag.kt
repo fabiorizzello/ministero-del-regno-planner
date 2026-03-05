@@ -10,11 +10,11 @@ import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 import java.awt.MouseInfo
 import java.awt.Window
 
-private val logger = LoggerFactory.getLogger("NativeWindowDrag")
+private val logger = KotlinLogging.logger("NativeWindowDrag")
 
 private interface Win32User32 : Library {
     companion object {

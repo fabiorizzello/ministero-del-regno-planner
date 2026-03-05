@@ -772,6 +772,7 @@ private fun seedPastProgramsAndAssignments(
                         id = weeklyPartId,
                         week_plan_id = weekPlanId,
                         part_type_id = part.id,
+                        part_type_revision_id = null,
                         sort_order = index.toLong(),
                     )
                     partsInserted += 1

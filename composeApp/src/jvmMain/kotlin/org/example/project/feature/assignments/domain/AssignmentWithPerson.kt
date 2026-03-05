@@ -1,7 +1,7 @@
 package org.example.project.feature.assignments.domain
 
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 
 data class AssignmentWithPerson(
@@ -9,13 +9,12 @@ data class AssignmentWithPerson(
     val weeklyPartId: WeeklyPartId,
     val personId: ProclamatoreId,
     val slot: Int,
-    val firstName: String,
-    val lastName: String,
-    val sex: Sesso,
+    val proclamatore: Proclamatore,
 ) {
     init {
         require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }
     }
 
-    val fullName: String get() = "${firstName.trim()} ${lastName.trim()}"
+    val fullName: String get() = "${proclamatore.nome.trim()} ${proclamatore.cognome.trim()}"
+    val sex get() = proclamatore.sesso
 }

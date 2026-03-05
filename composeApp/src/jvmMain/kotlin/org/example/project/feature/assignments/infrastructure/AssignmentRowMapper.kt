@@ -2,6 +2,7 @@ package org.example.project.feature.assignments.infrastructure
 
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -20,8 +21,11 @@ internal fun mapAssignmentWithPersonRow(
         weeklyPartId = WeeklyPartId(weekly_part_id),
         personId = ProclamatoreId(person_id),
         slot = slot.toInt(),
-        firstName = first_name,
-        lastName = last_name,
-        sex = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
+        proclamatore = Proclamatore(
+            id = ProclamatoreId(person_id),
+            nome = first_name,
+            cognome = last_name,
+            sesso = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
+        ),
     )
 }

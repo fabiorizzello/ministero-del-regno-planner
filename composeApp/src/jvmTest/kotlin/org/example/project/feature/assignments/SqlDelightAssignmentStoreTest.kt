@@ -53,12 +53,14 @@ class SqlDelightAssignmentStoreTest {
             id = "weekly-part-past",
             week_plan_id = "week-past",
             part_type_id = "part-type-1",
+            part_type_revision_id = null,
             sort_order = 0,
         )
         queries.insertWeeklyPart(
             id = "weekly-part-future",
             week_plan_id = "week-future",
             part_type_id = "part-type-1",
+            part_type_revision_id = null,
             sort_order = 0,
         )
         queries.upsertAssignment(
@@ -83,11 +85,7 @@ class SqlDelightAssignmentStoreTest {
 
         assertNotNull(suggestion)
         assertEquals(1, suggestion.lastGlobalWeeks)
-        assertEquals(7, suggestion.lastGlobalDays)
         assertEquals(1, suggestion.lastForPartTypeWeeks)
-        assertEquals(7, suggestion.lastForPartTypeDays)
-        assertTrue(suggestion.lastGlobalInFuture)
-        assertTrue(suggestion.lastForPartTypeInFuture)
         assertEquals(1, suggestion.lastGlobalBeforeWeeks)
         assertEquals(1, suggestion.lastGlobalAfterWeeks)
         assertEquals(1, suggestion.lastForPartTypeBeforeWeeks)
@@ -130,6 +128,7 @@ class SqlDelightAssignmentStoreTest {
             id = "weekly-part-future",
             week_plan_id = "week-future",
             part_type_id = "part-type-1",
+            part_type_revision_id = null,
             sort_order = 0,
         )
         queries.upsertAssignment(
@@ -148,11 +147,7 @@ class SqlDelightAssignmentStoreTest {
 
         assertNotNull(suggestion)
         assertEquals(1, suggestion.lastGlobalWeeks)
-        assertEquals(7, suggestion.lastGlobalDays)
         assertEquals(1, suggestion.lastForPartTypeWeeks)
-        assertEquals(7, suggestion.lastForPartTypeDays)
-        assertTrue(suggestion.lastGlobalInFuture)
-        assertTrue(suggestion.lastForPartTypeInFuture)
         assertEquals(null, suggestion.lastGlobalBeforeWeeks)
         assertEquals(1, suggestion.lastGlobalAfterWeeks)
         assertEquals(null, suggestion.lastForPartTypeBeforeWeeks)

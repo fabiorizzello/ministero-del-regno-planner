@@ -29,15 +29,15 @@ import org.example.project.ui.AppScreen
 import org.jetbrains.compose.resources.painterResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 import java.awt.Dimension
 import java.awt.Frame
 
 fun main() {
     System.getenv("SKIKO_RENDER_API")?.let { System.setProperty("skiko.renderApi", it) }
+    val uncaughtExceptionLogger = KotlinLogging.logger("UncaughtException")
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-        val logger = LoggerFactory.getLogger("UncaughtException")
-        logger.error("Eccezione non gestita nel thread {}", thread.name, throwable)
+        uncaughtExceptionLogger.error(throwable) { "Eccezione non gestita nel thread ${thread.name}" }
     }
 
     AppBootstrap.initialize()

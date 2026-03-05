@@ -28,16 +28,14 @@ class CreaProgrammaMeseTargetUseCaseTest {
     }
 
     @Test
-    fun `allows current plus two when current plus one is missing`() = runBlocking {
+    fun `blocks current plus two when current plus one is missing`() = runBlocking {
         val referenceDate = LocalDate.of(2026, 2, 10)
         val store = InMemoryProgramStore()
         val useCase = CreaProssimoProgrammaUseCase(store)
 
         val result = useCase(2026, 4, referenceDate)
 
-        val created = assertIs<Either.Right<ProgramMonth>>(result).value
-        assertEquals(2026, created.year)
-        assertEquals(4, created.month)
+        assertTrue(result.isLeft())
     }
 
     @Test
@@ -80,6 +78,20 @@ class CreaProgrammaMeseTargetUseCaseTest {
 
         val created = assertIs<Either.Right<ProgramMonth>>(result).value
         assertEquals(2, created.month)
+    }
+
+    @Test
+    fun `allows current plus two when current plus one exists`() = runBlocking {
+        val referenceDate = LocalDate.of(2026, 2, 10)
+        val store = InMemoryProgramStore(
+            programs = mutableListOf(fixtureProgramMonth(YearMonth.of(2026, 3))),
+        )
+        val useCase = CreaProssimoProgrammaUseCase(store)
+
+        val result = useCase(2026, 4, referenceDate)
+
+        val created = assertIs<Either.Right<ProgramMonth>>(result).value
+        assertEquals(4, created.month)
     }
 
     @Test

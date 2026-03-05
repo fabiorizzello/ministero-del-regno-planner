@@ -11,8 +11,6 @@ import java.time.LocalDateTime
 import java.time.YearMonth
 import java.util.UUID
 
-private const val MAX_FUTURE_PROGRAMS = 2
-
 class CreaProssimoProgrammaUseCase(
     private val programStore: ProgramStore,
 ) {
@@ -62,6 +60,9 @@ class CreaProssimoProgrammaUseCase(
             val isCurrentTarget = target == referenceMonth
             val futureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
             if (!isCurrentTarget && futureCount > MAX_FUTURE_PROGRAMS) return@filter false
+
+            // FR-019: corrente+2 richiede che corrente+1 esista
+            if (target == referenceMonth.plusMonths(2) && referenceMonth.plusMonths(1) !in existingByMonth) return@filter false
 
             true
         }

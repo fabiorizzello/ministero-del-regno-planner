@@ -4,13 +4,13 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 
 class SuggerisciProclamatoriUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentStore: AssignmentRanking,
     private val assignmentRepository: AssignmentRepository,
     private val eligibilityStore: EligibilityStore,
@@ -25,19 +25,18 @@ class SuggerisciProclamatoriUseCase(
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
         val settings = assignmentSettingsStore.load()
-        val roleWeight = if (slot <= 1) settings.leadWeight else settings.assistWeight
+        val roleWeight = if (slot == 1) settings.leadWeight else settings.assistWeight
 
         val suggestions = assignmentStore.suggestedProclamatori(
             partTypeId = part.partType.id,
             slot = slot,
             referenceDate = weekStartDate,
         )
-        val leadEligibilityByPersonId = suggestions
-            .map { it.proclamatore.id }
-            .associateWith { personId ->
-                eligibilityStore.listLeadEligibility(personId)
-                    .any { it.partTypeId == part.partType.id && it.canLead }
-            }
+        // Single batch query instead of N individual listLeadEligibility calls.
+        val leadEligiblePersonIds = eligibilityStore
+            .listLeadEligibilityCandidatesForPartTypes(setOf(part.partType.id))
+            .map { it.personId }
+            .toSet()
 
         val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
             .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }
@@ -55,8 +54,8 @@ class SuggerisciProclamatoriUseCase(
                 }
                 val isSexMismatch = part.partType.sexRule == SexRule.STESSO_SESSO &&
                     requiredSex != null && p.sesso != requiredSex
-                val passaIdoneita = if (slot <= 1) {
-                    leadEligibilityByPersonId[p.id] == true
+                val passaIdoneita = if (slot == 1) {
+                    p.id in leadEligiblePersonIds
                 } else {
                     p.puoAssistere
                 }
@@ -64,7 +63,7 @@ class SuggerisciProclamatoriUseCase(
                 val lastWasConductor = suggestion.lastConductorWeeks != null &&
                     suggestion.lastGlobalWeeks != null &&
                     suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
-                val cooldownWeeks = if (lastWasConductor && slot <= 1) settings.leadCooldownWeeks
+                val cooldownWeeks = if (lastWasConductor && slot == 1) settings.leadCooldownWeeks
                                     else settings.assistCooldownWeeks
                 val isInCooldown = cooldownWeeks > 0 && globalWeeks < cooldownWeeks
                 val remaining = if (isInCooldown) cooldownWeeks - globalWeeks else 0
@@ -92,7 +91,7 @@ class SuggerisciProclamatoriUseCase(
     private fun weightedScore(suggestion: SuggestedProclamatore, roleWeight: Int): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
         val safePartWeeks = suggestion.lastForPartTypeWeeks ?: 999
-        val cooldownPenalty = if (suggestion.inCooldown) 10_000 else 0
+        val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
         return safeGlobalWeeks.toLong() * roleWeight.toLong() + safePartWeeks.toLong() - cooldownPenalty
     }
 }

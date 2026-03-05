@@ -11,11 +11,14 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType1Font
-import org.slf4j.LoggerFactory
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts
+import mu.KotlinLogging
 
 class PdfAssignmentsRenderer {
-    private val logger = LoggerFactory.getLogger(PdfAssignmentsRenderer::class.java)
+    private val logger = KotlinLogging.logger {}
     private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
+    private val helvetica = PDType1Font(Standard14Fonts.FontName.HELVETICA)
+    private val helveticaBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
 
     data class RenderedPart(
         val label: String,
@@ -51,7 +54,7 @@ class PdfAssignmentsRenderer {
                     content.setNonStrokingColor(Color.BLACK)
                     drawTextLine(
                         content = content,
-                        font = PDType1Font.HELVETICA_BOLD,
+                        font = helveticaBold,
                         fontSize = 14f,
                         x = margin,
                         y = pageSize.height - margin,
@@ -88,7 +91,7 @@ class PdfAssignmentsRenderer {
 
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA_BOLD,
+                    font = helveticaBold,
                     fontSize = 18f,
                     x = margin,
                     y = y,
@@ -98,7 +101,7 @@ class PdfAssignmentsRenderer {
                 y -= 26f
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA,
+                    font = helvetica,
                     fontSize = 12f,
                     x = margin,
                     y = y,
@@ -108,7 +111,7 @@ class PdfAssignmentsRenderer {
                 y -= 24f
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA_BOLD,
+                    font = helveticaBold,
                     fontSize = 13f,
                     x = margin,
                     y = y,
@@ -124,7 +127,7 @@ class PdfAssignmentsRenderer {
                         if (remaining <= 0) break
                         addAll(
                             wrapText(
-                                font = PDType1Font.HELVETICA,
+                                font = helvetica,
                                 fontSize = 12f,
                                 text = "- $assignment",
                                 maxWidth = contentWidth,
@@ -137,7 +140,7 @@ class PdfAssignmentsRenderer {
                 assignmentLines.forEach { line ->
                     drawTextLine(
                         content = content,
-                        font = PDType1Font.HELVETICA,
+                        font = helvetica,
                         fontSize = 12f,
                         x = margin,
                         y = y,
@@ -174,7 +177,7 @@ class PdfAssignmentsRenderer {
 
         val titleLineHeight = 14f
         val titleLines = wrapText(
-            font = PDType1Font.HELVETICA_BOLD,
+            font = helveticaBold,
             fontSize = 13f,
             text = part.label,
             maxWidth = innerWidth,
@@ -183,7 +186,7 @@ class PdfAssignmentsRenderer {
         titleLines.forEach { line ->
             drawTextLine(
                 content = content,
-                font = PDType1Font.HELVETICA_BOLD,
+                font = helveticaBold,
                 fontSize = 13f,
                 x = innerX,
                 y = y,
@@ -202,7 +205,7 @@ class PdfAssignmentsRenderer {
                 if (remaining <= 0) break
                 addAll(
                     wrapText(
-                        font = PDType1Font.HELVETICA,
+                        font = helvetica,
                         fontSize = 11f,
                         text = assignment,
                         maxWidth = innerWidth,
@@ -215,7 +218,7 @@ class PdfAssignmentsRenderer {
         assignmentLines.forEach { line ->
             drawTextLine(
                 content = content,
-                font = PDType1Font.HELVETICA,
+                font = helvetica,
                 fontSize = 11f,
                 x = innerX,
                 y = y,

@@ -49,6 +49,7 @@ internal data class ProclamatoriListUiState(
     val deleteCandidate: Proclamatore? = null,
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
+    val batchDeleteAssignmentCount: Int = 0,
     val isImporting: Boolean = false,
     val isBatchInProgress: Boolean = false,
     val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
@@ -173,8 +174,14 @@ internal class ProclamatoriListViewModel(
     }
 
     fun requestBatchDeleteConfirm() {
-        if (_uiState.value.selectedIds.isEmpty()) return
-        _uiState.update { it.copy(showBatchDeleteConfirm = true) }
+        val ids = _uiState.value.selectedIds
+        if (ids.isEmpty()) return
+        scope.launch {
+            val total = ids.sumOf { id ->
+                try { contaAssegnazioni(id) } catch (_: Exception) { 0 }
+            }
+            _uiState.update { it.copy(showBatchDeleteConfirm = true, batchDeleteAssignmentCount = total) }
+        }
     }
 
     fun dismissBatchDeleteConfirm() {

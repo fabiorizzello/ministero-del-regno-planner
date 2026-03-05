@@ -84,7 +84,7 @@ private class TransactionAwareWeekPlanStore : WeekPlanStore {
 
     override suspend fun delete(weekPlanId: WeekPlanId) {}
 
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId =
+    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId =
         WeeklyPartId("unused")
 
     override suspend fun removePart(weeklyPartId: WeeklyPartId) {
@@ -100,6 +100,6 @@ private class TransactionAwareWeekPlanStore : WeekPlanStore {
         )
     }
 
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {}
+    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {}
 }
 

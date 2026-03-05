@@ -3,7 +3,7 @@ package org.example.project.core.bootstrap
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
 import org.example.project.core.config.PathsResolver
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 object AppBootstrap {
     @Volatile
@@ -15,7 +15,7 @@ object AppBootstrap {
         val paths = PathsResolver.resolve()
         System.setProperty("app.log.dir", paths.logsDir.toAbsolutePath().toString())
         AppRuntime.initialize(paths)
-        val logger = LoggerFactory.getLogger(AppBootstrap::class.java)
+        val logger = KotlinLogging.logger {}
 
         logger.info("Avvio applicazione versione {}", AppVersion.current)
         logger.info("Percorso database {}", paths.dbFile.toAbsolutePath())

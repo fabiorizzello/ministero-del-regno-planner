@@ -1,6 +1,7 @@
 package org.example.project.feature.weeklyparts.application
 
 import org.example.project.feature.weeklyparts.domain.PartType
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 
 data class PartTypeWithStatus(
     val partType: PartType,
@@ -13,5 +14,6 @@ interface PartTypeStore {
     suspend fun findByCode(code: String): PartType?
     suspend fun findFixed(): PartType?
     suspend fun upsertAll(partTypes: List<PartType>)
+    suspend fun getLatestRevisionId(partTypeId: PartTypeId): String? = null
     suspend fun deactivateMissingCodes(codes: Set<String>) {}
 }

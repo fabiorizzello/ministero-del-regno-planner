@@ -279,21 +279,27 @@ SELECT
     wp.id,
     wp.week_plan_id,
     wp.part_type_id,
+    wp.part_type_revision_id,
     wp.sort_order,
     pt.code AS part_type_code,
     pt.label AS part_type_label,
     pt.people_count AS part_type_people_count,
     pt.sex_rule AS part_type_sex_rule,
     pt.fixed AS part_type_fixed,
-    pt.sort_order AS part_type_sort_order
+    pt.sort_order AS part_type_sort_order,
+    ptr.label AS snapshot_label,
+    ptr.people_count AS snapshot_people_count,
+    ptr.sex_rule AS snapshot_sex_rule,
+    ptr.fixed AS snapshot_fixed
 FROM weekly_part wp
 JOIN part_type pt ON wp.part_type_id = pt.id
+LEFT JOIN part_type_revision ptr ON wp.part_type_revision_id = ptr.id
 WHERE wp.week_plan_id = ?
 ORDER BY wp.sort_order;
 
 insertWeeklyPart:
-INSERT INTO weekly_part(id, week_plan_id, part_type_id, sort_order)
-VALUES (?, ?, ?, ?);
+INSERT INTO weekly_part(id, week_plan_id, part_type_id, part_type_revision_id, sort_order)
+VALUES (?, ?, ?, ?, ?);
 
 deleteWeeklyPart:
 DELETE FROM weekly_part WHERE id = ?;

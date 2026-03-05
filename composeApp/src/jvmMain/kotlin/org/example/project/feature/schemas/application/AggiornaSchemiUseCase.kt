@@ -9,7 +9,6 @@ import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeParseException
 
 data class AggiornaSchemiResult(
     val version: String?,
@@ -49,6 +48,12 @@ class AggiornaSchemiUseCase(
         val eligibilityCleanupCandidates = eligibilityStore
             .listLeadEligibilityCandidatesForPartTypes(missingPartTypeIds)
 
+        // Validate dates before entering the transaction so errors surface as DomainError.
+        val weekStartDates = catalog.weeks.map { remoteWeek ->
+            runCatching { LocalDate.parse(remoteWeek.weekStartDate) }
+                .getOrNull() ?: raise(DomainError.Validation("Data schema non valida: ${remoteWeek.weekStartDate}"))
+        }
+
         transactionRunner.runInTransaction {
             if (eligibilityCleanupCandidates.isNotEmpty()) {
                 eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
@@ -68,16 +73,10 @@ class AggiornaSchemiUseCase(
             partTypeStore.upsertAll(catalog.partTypes)
             partTypeStore.deactivateMissingCodes(availableCodes)
 
-            val storedTemplates = catalog.weeks.map { remoteWeek ->
-                val weekStartDate = try {
-                    LocalDate.parse(remoteWeek.weekStartDate)
-                } catch (_: DateTimeParseException) {
-                    throw IllegalArgumentException("Data schema non valida: ${remoteWeek.weekStartDate}")
-                }
+            val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
                 val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                    val partType = partTypeStore.findByCode(code)
-                        ?: throw IllegalArgumentException("Part type non trovato dopo import: $code")
-                    partType.id
+                    // All codes were validated against availableCodes above; this lookup should not be null.
+                    checkNotNull(partTypeStore.findByCode(code)) { "Part type non trovato dopo import: $code" }.id
                 }
                 StoredSchemaWeekTemplate(
                     weekStartDate = weekStartDate,

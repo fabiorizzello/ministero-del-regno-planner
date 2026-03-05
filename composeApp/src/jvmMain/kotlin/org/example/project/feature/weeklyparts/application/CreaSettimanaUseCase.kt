@@ -30,9 +30,10 @@ class CreaSettimanaUseCase(
             weekStartDate = weekStartDate,
             parts = emptyList(),
         )
+        val revisionId = partTypeStore.getLatestRevisionId(fixedPartType.id)
         transactionRunner.runInTransaction {
             weekPlanStore.save(weekPlan)
-            weekPlanStore.addPart(weekPlan.id, fixedPartType.id, sortOrder = 0)
+            weekPlanStore.addPart(weekPlan.id, fixedPartType.id, sortOrder = 0, partTypeRevisionId = revisionId)
         }
 
         weekPlanStore.findByDate(weekStartDate)

@@ -76,6 +76,12 @@ fun ProclamatoriScreen() {
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Questa azione e' irreversibile.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }
@@ -87,7 +93,25 @@ fun ProclamatoriScreen() {
             onConfirm = { listVm.confirmBatchDelete() },
             onDismiss = { listVm.dismissBatchDeleteConfirm() },
         ) {
-            Text("Confermi rimozione di ${listState.selectedIds.size} studenti selezionati?")
+            Column {
+                Text("Confermi rimozione di ${listState.selectedIds.size} studenti selezionati?")
+                val batchCount = listState.batchDeleteAssignmentCount
+                if (batchCount > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (batchCount == 1) "Attenzione: 1 assegnazione verra' cancellata."
+                               else "Attenzione: $batchCount assegnazioni verranno cancellate.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Questa azione e' irreversibile.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
     }
 

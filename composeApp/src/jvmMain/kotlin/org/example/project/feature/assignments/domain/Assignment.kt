@@ -16,3 +16,6 @@ data class Assignment(
         require(slot >= 1) { "slot deve essere >= 1, ricevuto: $slot" }
     }
 }
+
+/** Slot 1 = "Studente", slot >= 2 = "Assistente" (spec 005, edge cases). */
+fun slotToRoleLabel(slot: Int): String = if (slot == 1) "Studente" else "Assistente"

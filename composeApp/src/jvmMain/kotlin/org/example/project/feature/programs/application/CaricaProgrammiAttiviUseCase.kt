@@ -22,5 +22,3 @@ class CaricaProgrammiAttiviUseCase(
         return ProgramSelectionSnapshot(current = current, futures = futures)
     }
 }
-
-private const val MAX_FUTURE_PROGRAMS = 2

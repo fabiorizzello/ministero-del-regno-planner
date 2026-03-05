@@ -5,7 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 private const val CHECK_INTERVAL_MS = 30 * 60 * 1000L
 
@@ -13,7 +13,7 @@ class UpdateScheduler(
     private val scope: CoroutineScope,
     private val verificaAggiornamenti: VerificaAggiornamenti,
 ) {
-    private val logger = LoggerFactory.getLogger(UpdateScheduler::class.java)
+    private val logger = KotlinLogging.logger {}
     private var job: Job? = null
 
     init {

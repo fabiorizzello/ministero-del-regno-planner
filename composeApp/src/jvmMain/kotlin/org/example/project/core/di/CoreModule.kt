@@ -9,6 +9,8 @@ import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
 import org.example.project.core.persistence.SqlDelightTransactionRunner
 import org.example.project.core.persistence.TransactionRunner
+import io.ktor.client.HttpClient
+import org.example.project.core.infrastructure.createAppHttpClient
 import org.koin.dsl.module
 
 val coreModule = module {
@@ -21,6 +23,8 @@ val coreModule = module {
 
     single { DatabaseProvider.database() }
     single<TransactionRunner> { SqlDelightTransactionRunner(get()) }
+
+    single<HttpClient> { createAppHttpClient() }
 
     // Shared state
     single { SharedWeekState() }

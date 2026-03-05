@@ -7,11 +7,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
+import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.sundayOf
-import org.slf4j.LoggerFactory
+import mu.KotlinLogging
 
 class GeneraPdfAssegnazioni(
     private val caricaSettimana: CaricaSettimanaUseCase,
@@ -19,7 +20,7 @@ class GeneraPdfAssegnazioni(
     private val renderer: PdfAssignmentsRenderer,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val logger = LoggerFactory.getLogger(GeneraPdfAssegnazioni::class.java)
+    private val logger = KotlinLogging.logger {}
 
     suspend operator fun invoke(
         weekStartDate: LocalDate,
@@ -36,11 +37,7 @@ class GeneraPdfAssegnazioni(
                 val partAssignments = assignments.filter { it.weeklyPartId == part.id }
                 val entries = (1..part.partType.peopleCount).map { slot ->
                     val assignment = partAssignments.firstOrNull { it.slot == slot }
-                    val roleLabel = when {
-                        part.partType.peopleCount == 1 -> null
-                        slot == 1 -> "Studente"
-                        else -> "Assistente"
-                    }
+                    val roleLabel = if (part.partType.peopleCount == 1) null else slotToRoleLabel(slot)
                     val base = assignment?.fullName ?: "Non assegnato"
                     if (roleLabel == null) base else "$roleLabel: $base"
                 }
@@ -56,6 +53,7 @@ class GeneraPdfAssegnazioni(
 
         renderer.renderWeeklyAssignmentsPdf(weekStartDate, weekEnd, parts, outputPath)
         logger.info("PDF assegnazioni creato: {}", outputPath.toAbsolutePath())
+        apriFile(outputPath)
         outputPath
     }
 }

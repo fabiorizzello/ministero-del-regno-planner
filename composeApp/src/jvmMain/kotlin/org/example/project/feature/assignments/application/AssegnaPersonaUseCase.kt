@@ -8,13 +8,13 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.util.UUID
 
 class AssegnaPersonaUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentStore: AssignmentRepository,
     private val transactionRunner: TransactionRunner,
     private val personStore: ProclamatoriAggregateStore,
@@ -39,12 +39,12 @@ class AssegnaPersonaUseCase(
             ?: raise(DomainError.Validation("Proclamatore non trovato"))
         if (persona.sospeso) raise(DomainError.Validation("Proclamatore sospeso"))
 
+        if (assignmentStore.isPersonAssignedInWeek(plan.id, personId)) {
+            raise(DomainError.Validation("Proclamatore gia' assegnato in questa settimana"))
+        }
+
         try {
             transactionRunner.runInTransaction {
-                if (assignmentStore.isPersonAssignedInWeek(plan.id, personId)) {
-                    throw IllegalStateException("Proclamatore gia' assegnato in questa settimana")
-                }
-
                 assignmentStore.save(
                     Assignment(
                         id = AssignmentId(UUID.randomUUID().toString()),
@@ -54,8 +54,6 @@ class AssegnaPersonaUseCase(
                     )
                 )
             }
-        } catch (e: IllegalStateException) {
-            raise(DomainError.Validation(e.message ?: "Errore nell'assegnazione"))
         } catch (e: Exception) {
             raise(DomainError.Validation("Errore nel salvataggio: ${e.message}"))
         }

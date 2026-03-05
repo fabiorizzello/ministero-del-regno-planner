@@ -16,5 +16,5 @@ val programsModule = module {
     single { CaricaProgrammiAttiviUseCase(get()) }
     single { EliminaProgrammaUseCase(get(), get(), get()) }
     single { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }
-    single { AggiornaProgrammaDaSchemiUseCase(get(), get(), get(), get(), get()) }
+    single { AggiornaProgrammaDaSchemiUseCase(get(), get(), get(), get(), get(), get()) }
 }

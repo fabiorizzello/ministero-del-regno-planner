@@ -60,6 +60,7 @@ class StampaProgrammaUseCase(
             outputPath = outputPath,
         )
 
+        apriFile(outputPath)
         outputPath
     }
 }

@@ -194,7 +194,8 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   `sospeso`, che governa l'assegnabilità nei flussi di candidatura. Non esiste un flag
   `eliminato` — l'eliminazione è un hard delete che rimuove il record e lo storico
   assegnazioni.
-  Invariante: nome e cognome non vuoti.
+  Invariante (enforced in `Proclamatore.init`): nome e cognome non vuoti (isNotBlank)
+  e lunghezza massima 100 caratteri ciascuno.
   `sospeso = true` esclude dalle candidature per le assegnazioni.
 - **SospensioneInfo**: `futureWeeksWhereAssigned: List<LocalDate>` — lista delle date
   di inizio settimana in cui il proclamatore ha assegnazioni future al momento della
@@ -228,3 +229,11 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - Q: Come accede l'utente ai proclamatori sospesi? → A: Il campo `sospeso` è gestito nel form; la tabella mostra lo stato sospeso senza toggle dedicato aggiuntivo.
 - Q: Navigazione UI elenco → form proclamatore? → A: Dialog/modal — click sulla riga apre un dialog con il form completo.
 - Q: Conferma prima dell'hard delete? → A: Sì — dialog di conferma con avvertimento "azione irreversibile".
+
+### Session 2026-03-05
+
+- Q: La validazione max-length 100 è solo nei use case o anche nel domain model? → A:
+  Ora è nel domain model: `Proclamatore.init` esegue sia `isNotBlank()` che
+  `length <= 100` per nome e cognome. Questo garantisce che nessun path di creazione
+  (incluso `ImportaProclamatoriDaJsonUseCase`) possa produrre un `Proclamatore` invalido
+  indipendentemente da quale use case lo costruisce (parse-don't-validate).

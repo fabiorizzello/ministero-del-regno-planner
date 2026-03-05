@@ -10,6 +10,7 @@ import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDType1Font
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 
 data class ProgramWeekPrintSection(
     val weekStartDate: LocalDate,
@@ -19,6 +20,8 @@ data class ProgramWeekPrintSection(
 
 class PdfProgramRenderer {
     private val dateFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.ITALIAN)
+    private val helvetica = PDType1Font(Standard14Fonts.FontName.HELVETICA)
+    private val helveticaBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
 
     fun renderMonthlyProgramPdf(
         title: String,
@@ -35,7 +38,7 @@ class PdfProgramRenderer {
                 val lineHeight = 12f
 
                 content.setNonStrokingColor(Color.BLACK)
-                content.setFont(PDType1Font.HELVETICA_BOLD, 16f)
+                content.setFont(helveticaBold, 16f)
                 content.beginText()
                 content.newLineAtOffset(margin, y)
                 content.showText(title)
@@ -44,7 +47,7 @@ class PdfProgramRenderer {
                 y -= 24f
                 sections.forEach { section ->
                     if (y < margin + 20f) return@forEach
-                    content.setFont(PDType1Font.HELVETICA_BOLD, 11f)
+                    content.setFont(helveticaBold, 11f)
                     content.beginText()
                     content.newLineAtOffset(margin, y)
                     val weekHeader = "Settimana ${section.weekStartDate.format(dateFormatter)} - ${section.statusLabel}"
@@ -54,7 +57,7 @@ class PdfProgramRenderer {
                     y -= lineHeight
                     section.lines.forEach { line ->
                         if (y < margin + 8f) return@forEach
-                        content.setFont(PDType1Font.HELVETICA, 10f)
+                        content.setFont(helvetica, 10f)
                         content.beginText()
                         content.newLineAtOffset(margin + 10f, y)
                         content.showText(line.take(120))
