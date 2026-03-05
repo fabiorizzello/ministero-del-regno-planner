@@ -9,6 +9,7 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
+import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
@@ -30,6 +31,7 @@ private data class WeekRefreshCandidate(
     val weekId: WeekPlanId,
     val weekStartDate: LocalDate,
     val partTypeIds: List<PartTypeId>,
+    val revisionIds: List<String?>,
     val assignmentSnapshot: Map<AssignmentKey, List<Assignment>>,
 )
 
@@ -37,15 +39,16 @@ class AggiornaProgrammaDaSchemiUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanStore,
     private val schemaTemplateStore: SchemaTemplateStore,
+    private val partTypeStore: PartTypeStore,
     private val assignmentRepository: AssignmentRepository,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
-        programId: String,
+        programId: ProgramMonthId,
         referenceDate: LocalDate = LocalDate.now(),
         dryRun: Boolean = false,
     ): Either<DomainError, SchemaRefreshReport> = either {
-        val program = programStore.findById(ProgramMonthId(programId))
+        val program = programStore.findById(programId)
             ?: raise(DomainError.Validation("Programma non trovato"))
 
         val refreshCandidates = mutableListOf<WeekRefreshCandidate>()
@@ -90,10 +93,12 @@ class AggiornaProgrammaDaSchemiUseCase(
             ?: return null
         if (template.partTypeIds.isEmpty()) return null
 
+        val revisionIds = template.partTypeIds.map { partTypeStore.getLatestRevisionId(it) }
         return WeekRefreshCandidate(
             weekId = week.id,
             weekStartDate = week.weekStartDate,
             partTypeIds = template.partTypeIds,
+            revisionIds = revisionIds,
             assignmentSnapshot = snapshotAssignmentsByKey(week),
         )
     }
@@ -129,12 +134,13 @@ class AggiornaProgrammaDaSchemiUseCase(
     }
 
     private suspend fun applyRefreshCandidate(
-        programId: String,
+        programId: ProgramMonthId,
         candidate: WeekRefreshCandidate,
     ) {
-        weekPlanStore.replaceAllParts(candidate.weekId, candidate.partTypeIds)
-        val refreshedWeek = weekPlanStore.findByDateAndProgram(candidate.weekStartDate, programId)
-            ?: return
+        weekPlanStore.replaceAllParts(candidate.weekId, candidate.partTypeIds, candidate.revisionIds)
+        val refreshedWeek = checkNotNull(weekPlanStore.findByDateAndProgram(candidate.weekStartDate, programId)) {
+            "Settimana non trovata dopo aggiornamento parti: ${candidate.weekStartDate}"
+        }
 
         refreshedWeek.parts.forEach { newPart ->
             val key = newPart.partType.id to newPart.sortOrder

@@ -306,7 +306,15 @@ fun ProgramWorkspaceScreen() {
                 onDismissRequest = { lifecycleVM.dismissDeleteSelectedProgram() },
                 title = { Text("Elimina mese") },
                 text = {
-                    Text(buildDeleteProgramImpactMessage(impact))
+                    Column {
+                        Text(buildDeleteProgramImpactMessage(impact))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Questa azione e' irreversibile.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 },
                 confirmButton = {
                     DesktopInlineAction(
@@ -350,9 +358,9 @@ fun ProgramWorkspaceScreen() {
             ) {
                 val selectedId = lifecycleState.selectedProgramId
                 when (selectedId) {
-                    lifecycleState.currentProgram?.id?.value -> lifecycleState.currentProgram
+                    lifecycleState.currentProgram?.id -> lifecycleState.currentProgram
                     else -> {
-                        lifecycleState.futurePrograms.firstOrNull { it.id.value == selectedId }
+                        lifecycleState.futurePrograms.firstOrNull { it.id == selectedId }
                             ?: lifecycleState.currentProgram
                             ?: lifecycleState.futurePrograms.firstOrNull()
                     }
@@ -412,28 +420,28 @@ fun ProgramWorkspaceScreen() {
                         lifecycleState.currentProgram?.let { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = lifecycleState.selectedProgramId == program.id.value,
+                                selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 onClick = {
-                                    lifecycleVM.selectProgram(program.id.value)
+                                    lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
-                            if (program.id.value in schemaState.impactedProgramIds) {
+                            if (program.id in schemaState.impactedProgramIds) {
                                 ProgramMisalignedBadge()
                             }
                         }
                         lifecycleState.futurePrograms.forEach { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = lifecycleState.selectedProgramId == program.id.value,
+                                selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 onClick = {
-                                    lifecycleVM.selectProgram(program.id.value)
+                                    lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
-                            if (program.id.value in schemaState.impactedProgramIds) {
+                            if (program.id in schemaState.impactedProgramIds) {
                                 ProgramMisalignedBadge()
                             }
                         }

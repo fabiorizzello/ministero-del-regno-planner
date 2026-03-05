@@ -11,6 +11,7 @@ import org.example.project.core.domain.toMessage
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.domain.ProgramMonth
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
 import org.example.project.feature.schemas.application.SchemaTemplateStore
@@ -30,7 +31,7 @@ internal data class SchemaManagementUiState(
     val today: LocalDate = LocalDate.now(),
     val isRefreshingSchemas: Boolean = false,
     val isRefreshingProgramFromSchemas: Boolean = false,
-    val impactedProgramIds: Set<String> = emptySet(),
+    val impactedProgramIds: Set<ProgramMonthId> = emptySet(),
     val notice: FeedbackBannerModel? = null,
 )
 
@@ -48,7 +49,7 @@ internal class SchemaManagementViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    fun refreshSchemasAndProgram(selectedProgramId: String?, onProgramRefreshComplete: () -> Unit = {}) {
+    fun refreshSchemasAndProgram(selectedProgramId: ProgramMonthId?, onProgramRefreshComplete: () -> Unit = {}) {
         if (_state.value.isRefreshingSchemas || _state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
             val before = captureSchemaFingerprint()
@@ -81,7 +82,7 @@ internal class SchemaManagementViewModel(
                             onProgramRefreshComplete()
                             return@launch
                         }
-                    val validProgramIds = allPrograms.map { program -> program.id.value }.toSet()
+                    val validProgramIds = allPrograms.map { program -> program.id }.toSet()
                     val impactedProgramIds = calculateImpactedProgramIds(
                         allPrograms = allPrograms,
                         before = before,
@@ -107,7 +108,7 @@ internal class SchemaManagementViewModel(
         }
     }
 
-    private suspend fun applyProgramRefresh(programId: String, onComplete: () -> Unit) {
+    private suspend fun applyProgramRefresh(programId: ProgramMonthId, onComplete: () -> Unit) {
         _state.executeEitherOperation(
             loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
             successUpdate = { state, report ->
@@ -161,7 +162,7 @@ internal fun calculateImpactedProgramIds(
     allPrograms: List<ProgramMonth>,
     before: Map<LocalDate, List<String>>,
     after: Map<LocalDate, List<String>>,
-): Set<String> {
+): Set<ProgramMonthId> {
     val candidateWeeks = (before.keys + after.keys).filter { date -> before[date] != after[date] }.toSet()
     if (candidateWeeks.isEmpty()) return emptySet()
 
@@ -174,6 +175,6 @@ internal fun calculateImpactedProgramIds(
             }
             false
         }
-        .map { program -> program.id.value }
+        .map { program -> program.id }
         .toSet()
 }

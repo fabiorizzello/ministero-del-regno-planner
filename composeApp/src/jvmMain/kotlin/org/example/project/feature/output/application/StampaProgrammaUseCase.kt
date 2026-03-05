@@ -9,9 +9,10 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintSection
+import org.example.project.feature.assignments.domain.slotToRoleLabel
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 
 internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
@@ -21,13 +22,13 @@ internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status)
 
 class StampaProgrammaUseCase(
     private val programStore: ProgramStore,
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
     private val renderer: PdfProgramRenderer,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    suspend operator fun invoke(programId: String): Path = withContext(dispatcher) {
-        val program = programStore.findById(ProgramMonthId(programId))
+    suspend operator fun invoke(programId: ProgramMonthId): Path = withContext(dispatcher) {
+        val program = programStore.findById(programId)
             ?: throw IllegalStateException("Programma non trovato")
 
         val weeks = weekPlanStore.listByProgram(programId)
@@ -37,11 +38,7 @@ class StampaProgrammaUseCase(
             val lines = week.parts.flatMap { part ->
                 (1..part.partType.peopleCount).map { slot ->
                     val assigned = assignmentByPartAndSlot[part.id.value to slot]?.fullName ?: "Non assegnato"
-                    val role = if (part.partType.peopleCount > 1) {
-                        if (slot == 1) "Studente" else "Assistente"
-                    } else {
-                        ""
-                    }
+                    val role = if (part.partType.peopleCount > 1) slotToRoleLabel(slot) else ""
                     val rolePrefix = if (role.isBlank()) "" else "[$role] "
                     "- ${part.partType.label}: ${rolePrefix}${assigned}"
                 }

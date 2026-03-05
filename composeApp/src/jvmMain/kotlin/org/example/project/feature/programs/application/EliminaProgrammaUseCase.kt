@@ -26,10 +26,7 @@ class EliminaProgrammaUseCase(
         }
 
         transactionRunner.runInTransaction {
-            // Cancellare la settimana rimuove in cascade anche weekly_part e assignment_weekly_part.
-            weekPlanStore.listByProgram(programId.value).forEach { week ->
-                weekPlanStore.delete(week.id)
-            }
+            weekPlanStore.deleteByProgram(programId)
             programStore.delete(programId)
         }
     }

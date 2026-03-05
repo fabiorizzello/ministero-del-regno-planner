@@ -11,6 +11,7 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.infrastructure.mapProclamatoreAssignableRow
 import org.example.project.feature.people.infrastructure.mapProclamatoreRow
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
@@ -117,12 +118,6 @@ class SqlDelightAssignmentStore(
                 val nextGlobalAfterDate = globalAfterRanking[p.id.value]
                 val lastPartBeforeDate = partTypeBeforeRanking[p.id.value]
                 val nextPartAfterDate = partTypeAfterRanking[p.id.value]
-                val signedGlobalDays = lastGlobalDate?.let {
-                    ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt()
-                }
-                val signedPartDays = lastPartDate?.let {
-                    ChronoUnit.DAYS.between(LocalDate.parse(it), referenceDate).toInt()
-                }
                 val signedGlobalWeeks = lastGlobalDate?.let {
                     ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
                 }
@@ -154,10 +149,6 @@ class SqlDelightAssignmentStore(
                     lastGlobalAfterWeeks = globalAfterWeeks,
                     lastForPartTypeBeforeWeeks = partBeforeWeeks,
                     lastForPartTypeAfterWeeks = partAfterWeeks,
-                    lastGlobalDays = signedGlobalDays?.let(::abs),
-                    lastForPartTypeDays = signedPartDays?.let(::abs),
-                    lastGlobalInFuture = signedGlobalDays?.let { it < 0 } ?: false,
-                    lastForPartTypeInFuture = signedPartDays?.let { it < 0 } ?: false,
                 )
             }
         }
@@ -190,18 +181,18 @@ class SqlDelightAssignmentStore(
         database.ministeroDatabaseQueries.deleteAssignmentsForPerson(personId.value)
     }
 
-    override suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int {
+    override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int {
         val count = database.ministeroDatabaseQueries
-            .countAssignmentsByProgramFromDate(programId, fromDate.toString())
+            .countAssignmentsByProgramFromDate(programId.value, fromDate.toString())
             .executeAsOne().toInt()
         database.ministeroDatabaseQueries
-            .deleteAssignmentsByProgramFromDate(programId, fromDate.toString())
+            .deleteAssignmentsByProgramFromDate(programId.value, fromDate.toString())
         return count
     }
 
-    override suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int {
+    override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int {
         return database.ministeroDatabaseQueries
-            .countAssignmentsByProgramFromDate(programId, fromDate.toString())
+            .countAssignmentsByProgramFromDate(programId.value, fromDate.toString())
             .executeAsOne().toInt()
     }
 

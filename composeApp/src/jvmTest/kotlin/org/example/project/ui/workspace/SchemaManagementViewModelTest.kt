@@ -87,7 +87,7 @@ class SchemaManagementViewModelTest {
             after = after,
         )
 
-        assertEquals(setOf("march"), impacted)
+        assertEquals(setOf(ProgramMonthId("march")), impacted)
     }
 
     @Test

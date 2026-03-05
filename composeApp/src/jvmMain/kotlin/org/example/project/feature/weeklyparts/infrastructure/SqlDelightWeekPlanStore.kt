@@ -1,6 +1,7 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
 import org.example.project.db.MinisteroDatabase
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
@@ -68,12 +69,14 @@ class SqlDelightWeekPlanStore(
         weekPlanId: WeekPlanId,
         partTypeId: PartTypeId,
         sortOrder: Int,
+        partTypeRevisionId: String?,
     ): WeeklyPartId {
         val id = UUID.randomUUID().toString()
         database.ministeroDatabaseQueries.insertWeeklyPart(
             id = id,
             week_plan_id = weekPlanId.value,
             part_type_id = partTypeId.value,
+            part_type_revision_id = partTypeRevisionId,
             sort_order = sortOrder.toLong(),
         )
         return WeeklyPartId(id)
@@ -97,6 +100,7 @@ class SqlDelightWeekPlanStore(
     override suspend fun replaceAllParts(
         weekPlanId: WeekPlanId,
         partTypeIds: List<PartTypeId>,
+        revisionIds: List<String?>,
     ) {
         database.ministeroDatabaseQueries.transaction {
             database.ministeroDatabaseQueries.deleteAllPartsForWeek(weekPlanId.value)
@@ -105,24 +109,25 @@ class SqlDelightWeekPlanStore(
                     id = UUID.randomUUID().toString(),
                     week_plan_id = weekPlanId.value,
                     part_type_id = partTypeId.value,
+                    part_type_revision_id = revisionIds.getOrNull(index),
                     sort_order = index.toLong(),
                 )
             }
         }
     }
 
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: String, status: WeekPlanStatus) {
+    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: ProgramMonthId, status: WeekPlanStatus) {
         database.ministeroDatabaseQueries.insertWeekPlanWithProgram(
             id = weekPlan.id.value,
             week_start_date = weekPlan.weekStartDate.toString(),
-            program_id = programId,
+            program_id = programId.value,
             status = status.name,
         )
     }
 
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? {
         val row = database.ministeroDatabaseQueries
-            .findWeekPlanByDateAndProgram(weekStartDate.toString(), programId)
+            .findWeekPlanByDateAndProgram(weekStartDate.toString(), programId.value)
             .executeAsOneOrNull() ?: return null
 
         val parts = database.ministeroDatabaseQueries
@@ -134,14 +139,14 @@ class SqlDelightWeekPlanStore(
             id = WeekPlanId(row.id),
             weekStartDate = LocalDate.parse(row.week_start_date),
             parts = parts,
-            programId = row.program_id,
+            programId = row.program_id?.let { ProgramMonthId(it) },
             status = status,
         )
     }
 
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> {
         return database.ministeroDatabaseQueries
-            .listWeekPlansByProgram(programId)
+            .listWeekPlansByProgram(programId.value)
             .executeAsList()
             .map { row ->
                 val parts = database.ministeroDatabaseQueries
@@ -152,14 +157,14 @@ class SqlDelightWeekPlanStore(
                     id = WeekPlanId(row.id),
                     weekStartDate = LocalDate.parse(row.week_start_date),
                     parts = parts,
-                    programId = row.program_id,
+                    programId = row.program_id?.let { ProgramMonthId(it) },
                     status = status,
                 )
             }
     }
 
-    override suspend fun deleteByProgram(programId: String) {
-        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId)
+    override suspend fun deleteByProgram(programId: ProgramMonthId) {
+        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId.value)
     }
 
     override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {

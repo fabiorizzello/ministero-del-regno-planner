@@ -7,6 +7,7 @@ import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
@@ -17,6 +18,8 @@ import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
+import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -42,7 +45,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         val useCase = buildUseCase(fixture)
 
         val result = useCase(
-            programId = fixture.program.id.value,
+            programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
         )
@@ -60,7 +63,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         val useCase = buildUseCase(fixture)
 
         val result = useCase(
-            programId = fixture.program.id.value,
+            programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = false,
         )
@@ -82,7 +85,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         val useCase = buildUseCase(fixture)
 
         val result = useCase(
-            programId = fixture.program.id.value,
+            programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
         )
@@ -99,6 +102,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programStore = fixture.programStore,
             weekPlanStore = fixture.weekStore,
             schemaTemplateStore = fixture.schemaStore,
+            partTypeStore = NoopPartTypeStore(),
             assignmentRepository = fixture.assignmentRepository,
             transactionRunner = ImmediateTxRunner(),
         )
@@ -118,7 +122,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
                 WeeklyPart(WeeklyPartId("old-a"), partA, sortOrder = 0),
                 WeeklyPart(WeeklyPartId("old-b"), partB, sortOrder = 1),
             ),
-            programId = program.id.value,
+            programId = program.id,
             status = weekStatus,
         )
 
@@ -128,18 +132,14 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
                 weeklyPartId = WeeklyPartId("old-a"),
                 personId = ProclamatoreId("p1"),
                 slot = 1,
-                firstName = "Mario",
-                lastName = "Rossi",
-                sex = Sesso.M,
+                proclamatore = Proclamatore(ProclamatoreId("p1"), "Mario", "Rossi", Sesso.M),
             ),
             AssignmentWithPerson(
                 id = AssignmentId("as-2"),
                 weeklyPartId = WeeklyPartId("old-b"),
                 personId = ProclamatoreId("p2"),
                 slot = 1,
-                firstName = "Luigi",
-                lastName = "Verdi",
-                sex = Sesso.M,
+                proclamatore = Proclamatore(ProclamatoreId("p2"), "Luigi", "Verdi", Sesso.M),
             ),
         )
 
@@ -155,7 +155,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         return RefreshFixture(
             program = program,
             programStore = RefreshProgramStore(program),
-            weekStore = RefreshWeekStore(program.id.value, week, partA, partC),
+            weekStore = RefreshWeekStore(program.id, week, partA, partC),
             schemaStore = schemaStore,
             assignmentRepository = RefreshAssignmentRepository(weekId, assignments),
         )
@@ -206,7 +206,7 @@ private class RefreshProgramStore(
 }
 
 private class RefreshWeekStore(
-    private val programId: String,
+    private val programId: ProgramMonthId,
     initialWeek: WeekPlan,
     private val partA: PartType,
     private val partC: PartType,
@@ -227,7 +227,7 @@ private class RefreshWeekStore(
         // no-op
     }
 
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId = WeeklyPartId("unused")
+    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId = WeeklyPartId("unused")
 
     override suspend fun removePart(weeklyPartId: WeeklyPartId) {
         // no-op
@@ -237,7 +237,7 @@ private class RefreshWeekStore(
         // no-op
     }
 
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {
+    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {
         val first = WeeklyPart(
             id = WeeklyPartId("new-a"),
             partType = partA,
@@ -251,12 +251,12 @@ private class RefreshWeekStore(
         week = week.copy(parts = listOf(first, second))
     }
 
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? {
         if (programId != this.programId) return null
         return if (week.weekStartDate == weekStartDate) week else null
     }
 
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> {
         if (programId != this.programId) return emptyList()
         return listOf(week)
     }
@@ -294,7 +294,14 @@ private class RefreshAssignmentRepository(
 
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
 
-    override suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int = 0
+    override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
 
-    override suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int = 0
+    override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
+}
+
+private class NoopPartTypeStore : PartTypeStore {
+    override suspend fun all(): List<PartType> = emptyList()
+    override suspend fun findByCode(code: String): PartType? = null
+    override suspend fun findFixed(): PartType? = null
+    override suspend fun upsertAll(partTypes: List<PartType>) {}
 }

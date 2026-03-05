@@ -30,7 +30,7 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "current")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
+            val weekStore = DeleteWeekStore(program.id)
             val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
@@ -47,7 +47,7 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
+            val weekStore = DeleteWeekStore(program.id)
             val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
@@ -62,7 +62,7 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 1), id = "past")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
+            val weekStore = DeleteWeekStore(program.id)
             val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
@@ -103,7 +103,7 @@ private class DeleteProgramStore(
 }
 
 private class DeleteWeekStore(
-    private val programId: String,
+    private val programId: ProgramMonthId,
 ) : WeekPlanStore {
     val deletedWeeks = mutableListOf<WeekPlanId>()
 
@@ -121,7 +121,7 @@ private class DeleteWeekStore(
         deletedWeeks.add(weekPlanId)
     }
 
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId {
+    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId {
         return WeeklyPartId("part")
     }
 
@@ -133,11 +133,11 @@ private class DeleteWeekStore(
         // no-op
     }
 
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {
+    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {
         // no-op
     }
 
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> {
         if (programId != this.programId) return emptyList()
         return listOf(
             WeekPlan(

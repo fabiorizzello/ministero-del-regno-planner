@@ -15,6 +15,7 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviUse
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
+import org.example.project.feature.programs.application.MAX_FUTURE_PROGRAMS
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -31,8 +32,6 @@ import org.example.project.ui.components.executeEitherOperationWithNotice
 import java.time.LocalDate
 import java.time.YearMonth
 
-private const val MAX_FUTURE_PROGRAMS = 2
-
 internal data class DeleteProgramImpact(
     val year: Int,
     val month: Int,
@@ -46,7 +45,7 @@ internal data class ProgramLifecycleUiState(
     val currentProgram: ProgramMonth? = null,
     val futurePrograms: List<ProgramMonth> = emptyList(),
     val creatableTargets: List<YearMonth> = emptyList(),
-    val selectedProgramId: String? = null,
+    val selectedProgramId: ProgramMonthId? = null,
     val selectedProgramWeeks: List<WeekPlan> = emptyList(),
     val selectedProgramAssignments: Map<String, List<AssignmentWithPerson>> = emptyMap(),
     val partTypes: List<PartType> = emptyList(),
@@ -59,11 +58,11 @@ internal data class ProgramLifecycleUiState(
     val canCreateProgram: Boolean get() = creatableTargets.isNotEmpty()
     val selectedProgram: ProgramMonth?
         get() = when (selectedProgramId) {
-            currentProgram?.id?.value -> currentProgram
-            else -> futurePrograms.firstOrNull { it.id.value == selectedProgramId }
+            currentProgram?.id -> currentProgram
+            else -> futurePrograms.firstOrNull { it.id == selectedProgramId }
         }
     val selectedFutureProgram: ProgramMonth?
-        get() = futurePrograms.firstOrNull { it.id.value == selectedProgramId }
+        get() = futurePrograms.firstOrNull { it.id == selectedProgramId }
     val canDeleteSelectedProgram: Boolean
         get() = selectedProgram != null
 }
@@ -94,7 +93,7 @@ internal class ProgramLifecycleViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    fun selectProgram(programId: String) {
+    fun selectProgram(programId: ProgramMonthId) {
         _state.update { it.copy(selectedProgramId = programId) }
         loadWeeksForSelectedProgram()
     }
@@ -131,7 +130,7 @@ internal class ProgramLifecycleViewModel(
                         loadingUpdate = { it },
                         noticeUpdate = { state, notice -> state.copy(notice = notice) },
                         successMessage = null,
-                        operation = { generaSettimaneProgramma(program.id.value) },
+                        operation = { generaSettimaneProgramma(program.id) },
                         onSuccess = { loadProgramsAndWeeks() },
                     )
                 },
@@ -173,7 +172,7 @@ internal class ProgramLifecycleViewModel(
                     )
                 },
                 successMessage = null,
-                operation = { eliminaProgramma(ProgramMonthId(selectedProgramId), _state.value.today) },
+                operation = { eliminaProgramma(selectedProgramId, _state.value.today) },
                 onSuccess = { loadProgramsAndWeeks() },
             )
         }
@@ -230,18 +229,18 @@ internal class ProgramLifecycleViewModel(
 }
 
 internal fun resolveSelectedProgramId(
-    previousSelectedId: String?,
+    previousSelectedId: ProgramMonthId?,
     currentProgram: ProgramMonth?,
     futurePrograms: List<ProgramMonth>,
-): String? {
+): ProgramMonthId? {
     val ids = buildSet {
-        currentProgram?.let { add(it.id.value) }
-        futurePrograms.forEach { add(it.id.value) }
+        currentProgram?.let { add(it.id) }
+        futurePrograms.forEach { add(it.id) }
     }
     return when {
         previousSelectedId != null && previousSelectedId in ids -> previousSelectedId
-        currentProgram != null -> currentProgram.id.value
-        else -> futurePrograms.firstOrNull()?.id?.value
+        currentProgram != null -> currentProgram.id
+        else -> futurePrograms.firstOrNull()?.id
     }
 }
 
@@ -264,6 +263,10 @@ internal fun computeCreatableTargets(
         val isCurrentTarget = target == referenceMonth
         val projectedFutureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
         if (!isCurrentTarget && projectedFutureCount > MAX_FUTURE_PROGRAMS) return@filter false
+
+        // FR-019: non mostrare CTA corrente+2 se corrente+1 non esiste ancora
+        if (target == referenceMonth.plusMonths(2) && referenceMonth.plusMonths(1) !in existingByMonth) return@filter false
+
         true
     }
 }

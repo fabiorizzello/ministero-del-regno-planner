@@ -8,7 +8,7 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.window.WindowDraggableArea
+import org.example.project.ui.components.nativeWindowDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -181,14 +181,15 @@ fun WindowScope.AppScreen(
                                         .height(48.dp)
                                         .testTag(TAG_TOP_BAR),
                                 ) {
-                                    WindowDraggableArea(
+                                    Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight()
                                             .windowToggleOnDoubleClick(
                                                 enabled = topBarPolicy.canToggleWindowOnDoubleClick(TopBarHitTarget.NonInteractive),
                                                 onToggle = onRequestToggleMaximize,
-                                            ),
+                                            )
+                                            .nativeWindowDrag(window),
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),

@@ -5,6 +5,7 @@ import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
@@ -17,8 +18,8 @@ interface AssignmentRepository {
     suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean
     suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int
     suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int>
-    suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int
-    suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int
+    suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int
+    suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int
 }
 
 interface AssignmentRanking {

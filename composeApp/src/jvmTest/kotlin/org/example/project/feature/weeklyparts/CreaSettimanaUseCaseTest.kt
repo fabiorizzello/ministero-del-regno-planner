@@ -7,6 +7,7 @@ import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
@@ -83,16 +84,16 @@ private class InMemoryWeekPlanStore : WeekPlanStore {
 
     override suspend fun delete(weekPlanId: WeekPlanId) {}
 
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId =
+    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId =
         WeeklyPartId("part-1")
 
     override suspend fun removePart(weeklyPartId: WeeklyPartId) {}
 
     override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {}
 
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {}
+    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {}
 
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: String, status: WeekPlanStatus) {
+    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: ProgramMonthId, status: WeekPlanStatus) {
         save(weekPlan)
     }
 }

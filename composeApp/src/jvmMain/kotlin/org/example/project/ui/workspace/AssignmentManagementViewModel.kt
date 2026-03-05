@@ -14,6 +14,7 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioniSe
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
@@ -139,7 +140,7 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun autoAssignSelectedProgram(programId: String, referenceDate: LocalDate, onSuccess: () -> Unit) {
+    fun autoAssignSelectedProgram(programId: ProgramMonthId, referenceDate: LocalDate, onSuccess: () -> Unit) {
         if (_uiState.value.isAutoAssigning) return
         scope.launch {
             var shouldReload = false
@@ -178,7 +179,7 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun printSelectedProgram(programId: String) {
+    fun printSelectedProgram(programId: ProgramMonthId) {
         if (_uiState.value.isPrintingProgram) return
         scope.launch {
             _uiState.executeAsyncOperation(
@@ -200,7 +201,7 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun requestClearAssignments(programId: String, referenceDate: LocalDate) {
+    fun requestClearAssignments(programId: ProgramMonthId, referenceDate: LocalDate) {
         if (_uiState.value.isClearingAssignments) return
         scope.launch {
             _uiState.executeAsyncOperation(
@@ -219,7 +220,7 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun confirmClearAssignments(programId: String, referenceDate: LocalDate, onSuccess: () -> Unit) {
+    fun confirmClearAssignments(programId: ProgramMonthId, referenceDate: LocalDate, onSuccess: () -> Unit) {
         scope.launch {
             _uiState.update { it.copy(clearAssignmentsConfirm = null) }
             var shouldReload = false
@@ -272,9 +273,11 @@ internal class AssignmentManagementViewModel(
     fun confirmClearWeekAssignments(weekStartDate: LocalDate, onSuccess: () -> Unit) {
         scope.launch {
             _uiState.update { it.copy(clearWeekAssignmentsConfirm = null) }
+            var succeeded = false
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isClearingWeekAssignments = true) },
                 successUpdate = { state, _ ->
+                    succeeded = true
                     state.copy(
                         isClearingWeekAssignments = false,
                         notice = null,
@@ -288,7 +291,7 @@ internal class AssignmentManagementViewModel(
                 },
                 operation = { rimuoviAssegnazioniSettimana(weekStartDate) },
             )
-            onSuccess()
+            if (succeeded) onSuccess()
         }
     }
 

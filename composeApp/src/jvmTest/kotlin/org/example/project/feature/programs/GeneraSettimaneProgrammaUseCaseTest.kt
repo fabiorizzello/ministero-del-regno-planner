@@ -59,7 +59,7 @@ class GeneraSettimaneProgrammaUseCaseTest {
         )
 
         val result = useCase(
-            programId = program.id.value,
+            programId = program.id,
             skippedWeeks = setOf(LocalDate.of(2026, 2, 9)),
         )
 
@@ -172,11 +172,11 @@ internal class InMemoryPartTypeStore(
 }
 
 internal class InMemoryWeekPlanStoreGeneration(
-    initialWeeksByProgram: Map<String, List<WeekPlan>> = emptyMap(),
+    initialWeeksByProgram: Map<ProgramMonthId, List<WeekPlan>> = emptyMap(),
 ) : WeekPlanStore {
-    private val weeksByProgram = initialWeeksByProgram.mapValues { it.value.toMutableList() }.toMutableMap()
+    private val weeksByProgram = initialWeeksByProgram.mapValues { it.value.toMutableList() }.toMutableMap<ProgramMonthId, MutableList<WeekPlan>>()
 
-    val deletedPrograms = mutableListOf<String>()
+    val deletedPrograms = mutableListOf<ProgramMonthId>()
     val createdWeeks = mutableListOf<WeekPlan>()
     val statusByWeekStart = mutableMapOf<LocalDate, WeekPlanStatus>()
     val partTypeIdsByWeekStart = mutableMapOf<LocalDate, List<PartTypeId>>()
@@ -196,7 +196,7 @@ internal class InMemoryWeekPlanStoreGeneration(
         weeksByProgram.values.forEach { list -> list.removeIf { it.id == weekPlanId } }
     }
 
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId {
+    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int, partTypeRevisionId: String?): WeeklyPartId {
         return WeeklyPartId("part")
     }
 
@@ -208,12 +208,12 @@ internal class InMemoryWeekPlanStoreGeneration(
         // no-op
     }
 
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {
+    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>, revisionIds: List<String?>) {
         val weekStart = weekStartById[weekPlanId.value] ?: return
         partTypeIdsByWeekStart[weekStart] = partTypeIds
     }
 
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: String, status: WeekPlanStatus) {
+    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: ProgramMonthId, status: WeekPlanStatus) {
         val stored = weekPlan.copy(programId = programId, status = status)
         weeksByProgram.getOrPut(programId) { mutableListOf() }.add(stored)
         weekStartById[weekPlan.id.value] = weekPlan.weekStartDate
@@ -221,13 +221,13 @@ internal class InMemoryWeekPlanStoreGeneration(
         statusByWeekStart[weekPlan.weekStartDate] = status
     }
 
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? {
         return weeksByProgram[programId]?.firstOrNull { it.weekStartDate == weekStartDate }
     }
 
-    override suspend fun listByProgram(programId: String): List<WeekPlan> = weeksByProgram[programId].orEmpty()
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> = weeksByProgram[programId].orEmpty()
 
-    override suspend fun deleteByProgram(programId: String) {
+    override suspend fun deleteByProgram(programId: ProgramMonthId) {
         deletedPrograms += programId
         weeksByProgram[programId] = mutableListOf()
     }

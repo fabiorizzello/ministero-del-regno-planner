@@ -1,7 +1,8 @@
 package org.example.project.feature.assignments.application
 
 import org.example.project.core.domain.toMessage
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
 
@@ -18,18 +19,18 @@ data class AutoAssignProgramResult(
 )
 
 class AutoAssegnaProgrammaUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
     private val assegnaPersona: AssegnaPersonaUseCase,
 ) {
     suspend operator fun invoke(
-        programId: String,
+        programId: ProgramMonthId,
         referenceDate: LocalDate,
     ): AutoAssignProgramResult = doAssign(programId, referenceDate)
 
     private suspend fun doAssign(
-        programId: String,
+        programId: ProgramMonthId,
         referenceDate: LocalDate,
     ): AutoAssignProgramResult {
         val weeks = weekPlanStore.listByProgram(programId)

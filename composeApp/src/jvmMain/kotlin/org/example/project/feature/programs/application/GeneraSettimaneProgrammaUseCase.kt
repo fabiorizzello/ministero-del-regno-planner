@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
@@ -23,17 +24,17 @@ class GeneraSettimaneProgrammaUseCase(
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
-        programId: String,
+        programId: ProgramMonthId,
         skippedWeeks: Set<LocalDate> = emptySet(),
     ): Either<DomainError, Unit> = either {
-        val program = programStore.findById(org.example.project.feature.programs.domain.ProgramMonthId(programId))
+        val program = programStore.findById(programId)
             ?: raise(DomainError.Validation("Programma non trovato"))
 
         val fixedPart = partTypeStore.findFixed()
 
         // Pre-compute part type IDs per week BEFORE the transaction
         // so we can raise() in the either context if validation fails
-        data class WeekSpec(val weekStartDate: LocalDate, val partTypeIds: List<PartTypeId>, val status: WeekPlanStatus)
+        data class WeekSpec(val weekStartDate: LocalDate, val partTypeIds: List<PartTypeId>, val revisionIds: List<String?>, val status: WeekPlanStatus)
 
         val weekSpecs = buildList {
             var currentWeek = program.startDate
@@ -43,16 +44,17 @@ class GeneraSettimaneProgrammaUseCase(
                 if (partTypeIds.isEmpty()) {
                     raise(DomainError.Validation("Nessun template e nessuna parte fissa per $currentWeek"))
                 }
+                val revisionIds = partTypeIds.map { partTypeStore.getLatestRevisionId(it) }
                 add(WeekSpec(
                     weekStartDate = currentWeek,
                     partTypeIds = partTypeIds,
+                    revisionIds = revisionIds,
                     status = if (currentWeek in skippedWeeks) WeekPlanStatus.SKIPPED else WeekPlanStatus.ACTIVE,
                 ))
                 currentWeek = currentWeek.plusWeeks(1)
             }
         }
 
-        val programMonthId = org.example.project.feature.programs.domain.ProgramMonthId(programId)
         transactionRunner.runInTransaction {
             weekPlanStore.deleteByProgram(programId)
 
@@ -70,10 +72,10 @@ class GeneraSettimaneProgrammaUseCase(
                     programId = programId,
                     status = weekPlan.status,
                 )
-                weekPlanStore.replaceAllParts(weekPlan.id, spec.partTypeIds)
+                weekPlanStore.replaceAllParts(weekPlan.id, spec.partTypeIds, spec.revisionIds)
             }
 
-            programStore.updateTemplateAppliedAt(programMonthId, LocalDateTime.now())
+            programStore.updateTemplateAppliedAt(programId, LocalDateTime.now())
         }
     }
 }

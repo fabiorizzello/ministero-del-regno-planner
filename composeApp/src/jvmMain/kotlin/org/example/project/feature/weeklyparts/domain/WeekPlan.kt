@@ -2,6 +2,7 @@ package org.example.project.feature.weeklyparts.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import org.example.project.feature.programs.domain.ProgramMonthId
 
 @JvmInline
 value class WeekPlanId(val value: String)
@@ -15,7 +16,7 @@ data class WeekPlan(
     val id: WeekPlanId,
     val weekStartDate: LocalDate,
     val parts: List<WeeklyPart>,
-    val programId: String? = null,
+    val programId: ProgramMonthId? = null,
     val status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
 ) {
     init {
