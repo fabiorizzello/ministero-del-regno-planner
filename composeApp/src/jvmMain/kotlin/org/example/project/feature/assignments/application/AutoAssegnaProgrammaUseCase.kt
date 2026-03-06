@@ -4,11 +4,12 @@ import org.example.project.core.domain.toMessage
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.domain.canBeAutoAssigned
+import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
-import org.example.project.feature.weeklyparts.domain.PartTypeId
 
 data class AutoAssignUnresolvedSlot(
     val weekStartDate: LocalDate,
@@ -29,6 +30,7 @@ class AutoAssegnaProgrammaUseCase(
     private val assegnaPersona: AssegnaPersonaUseCase,
     private val transactionRunner: TransactionRunner,
     private val assignmentRanking: AssignmentRanking,
+    private val eligibilityStore: EligibilityStore,
 ) {
     suspend operator fun invoke(
         programId: ProgramMonthId,
@@ -48,6 +50,8 @@ class AutoAssegnaProgrammaUseCase(
 
         val partTypeIds: Set<PartTypeId> = weeks.flatMap { w -> w.parts.map { it.partType.id } }.toSet()
         val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
+        // Eligibility is static for the duration of the run: no write path touches it during auto-assign.
+        val eligibilityCache = eligibilityStore.preloadLeadEligibilityByPartType(partTypeIds)
 
         var assignedCount = 0
         val unresolved = mutableListOf<AutoAssignUnresolvedSlot>()
@@ -72,6 +76,7 @@ class AutoAssegnaProgrammaUseCase(
                         slot = slot,
                         alreadyAssignedIds = alreadyAssignedIds,
                         rankingCache = rankingCache,
+                        eligibilityCache = eligibilityCache,
                     )
 
                     val selected = suggestions.firstOrNull { it.canBeAutoAssigned() }

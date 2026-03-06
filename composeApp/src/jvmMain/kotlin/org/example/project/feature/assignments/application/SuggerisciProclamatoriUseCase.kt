@@ -4,6 +4,7 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.domain.allowsCandidate
 import org.example.project.feature.weeklyparts.domain.isMismatch
@@ -22,6 +23,7 @@ class SuggerisciProclamatoriUseCase(
         slot: Int,
         alreadyAssignedIds: Set<ProclamatoreId> = emptySet(),
         rankingCache: SuggestionRankingCache? = null,
+        eligibilityCache: Map<PartTypeId, Set<ProclamatoreId>>? = null,
     ): List<SuggestedProclamatore> {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
@@ -34,11 +36,14 @@ class SuggerisciProclamatoriUseCase(
             referenceDate = weekStartDate,
             rankingCache = rankingCache,
         )
-        // Single batch query instead of N individual listLeadEligibility calls.
-        val leadEligiblePersonIds = eligibilityStore
-            .listLeadEligibilityCandidatesForPartTypes(setOf(part.partType.id))
-            .map { it.personId }
-            .toSet()
+        val leadEligiblePersonIds: Set<ProclamatoreId> = if (eligibilityCache != null) {
+            eligibilityCache[part.partType.id] ?: emptySet()
+        } else {
+            eligibilityStore
+                .listLeadEligibilityCandidatesForPartTypes(setOf(part.partType.id))
+                .map { it.personId }
+                .toSet()
+        }
 
         val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
             .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }

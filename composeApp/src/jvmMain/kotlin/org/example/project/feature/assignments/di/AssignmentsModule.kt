@@ -33,7 +33,7 @@ val assignmentsModule = module {
     single { RimuoviAssegnazioneUseCase(get(), get()) }
     single { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
-    single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get(), get()) }
+    single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
     single { SvuotaAssegnazioniProgrammaUseCase(get()) }
 }

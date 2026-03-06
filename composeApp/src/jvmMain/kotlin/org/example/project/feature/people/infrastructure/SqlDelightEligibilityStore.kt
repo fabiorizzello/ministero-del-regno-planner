@@ -60,6 +60,18 @@ class SqlDelightEligibilityStore(
             }
     }
 
+    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> {
+        if (partTypeIds.isEmpty()) return emptyMap()
+        return database.ministeroDatabaseQueries
+            .leadEligibilityCandidatesByPartTypes(partTypeIds.map { it.value })
+            .executeAsList()
+            .groupBy(
+                keySelector = { PartTypeId(it.part_type_id) },
+                valueTransform = { ProclamatoreId(it.person_id) },
+            )
+            .mapValues { (_, ids) -> ids.toSet() }
+    }
+
     override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {
         if (partTypeIds.isEmpty()) return
         database.ministeroDatabaseQueries.deleteLeadEligibilityByPartTypes(partTypeIds.map { it.value })

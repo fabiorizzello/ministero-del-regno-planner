@@ -66,6 +66,7 @@ class SexMismatchPolicyTest {
                 override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
             },
             assignmentRanking = fixture.staticRanking,
+            eligibilityStore = fixture.eligibilityStore,
         )
 
         val result = autoAssign(
@@ -129,14 +130,15 @@ private class SexMismatchFixture {
     )
 
     val staticRanking = StaticAssignmentRanking(rankingSuggestions)
+    val eligibilityStore = StaticEligibilityStore(
+        eligible = setOf(EligibilityCleanupCandidate(candidateFemale.id, part.partType.id)),
+    )
 
     fun createSuggestUseCase(): SuggerisciProclamatoriUseCase = SuggerisciProclamatoriUseCase(
         weekPlanStore = weekQueries,
         assignmentStore = staticRanking,
         assignmentRepository = assignmentRepository,
-        eligibilityStore = StaticEligibilityStore(
-            eligible = setOf(EligibilityCleanupCandidate(candidateFemale.id, part.partType.id)),
-        ),
+        eligibilityStore = eligibilityStore,
         assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = true)),
     )
 }
@@ -219,6 +221,9 @@ private class StaticEligibilityStore(
 
     override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> =
         eligible.filter { it.partTypeId in partTypeIds }
+
+    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
+        eligible.groupBy({ it.partTypeId }, { it.personId }).mapValues { (_, ids) -> ids.toSet() }
 
     override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
 

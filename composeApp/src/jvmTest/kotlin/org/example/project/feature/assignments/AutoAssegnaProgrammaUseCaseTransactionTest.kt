@@ -108,6 +108,7 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
                 ),
             ),
         )
+        val eligibility = SingleCandidateEligibilityStore(candidate.id, partType.id)
         val useCase = AutoAssegnaProgrammaUseCase(
             weekPlanStore = weekStore,
             assignmentRepository = EmptyAssignmentsRepository,
@@ -115,6 +116,7 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
             assegnaPersona = assignUseCase,
             transactionRunner = autoAssignTx,
             assignmentRanking = ranking,
+            eligibilityStore = eligibility,
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
@@ -235,6 +237,9 @@ private class SingleCandidateEligibilityStore(
             emptyList()
         }
     }
+
+    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
+        mapOf(partTypeId to setOf(personId))
 
     override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
 
