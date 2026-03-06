@@ -14,10 +14,11 @@ class RiordinaPartiUseCase(
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         orderedPartIds: List<WeeklyPartId>,
+        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, Unit> = either {
         val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
             ?: raise(DomainError.NotFound("Settimana"))
-        val reordered = aggregate.reorderParts(orderedPartIds).fold(
+        val reordered = aggregate.reorderParts(orderedPartIds, referenceDate).fold(
             ifLeft = { raise(it) },
             ifRight = { it },
         )

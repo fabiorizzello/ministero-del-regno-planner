@@ -85,7 +85,7 @@ class WeekPlanAggregateTest {
             ),
         )
 
-        val result = aggregate.removePart(WeeklyPartId("fixed-part"))
+        val result = aggregate.removePart(WeeklyPartId("fixed-part"), LocalDate.of(2026, 3, 2))
         val left = assertIs<arrow.core.Either.Left<DomainError>>(result).value
         assertEquals(DomainError.ParteFissa("Parte Fissa"), left)
     }
@@ -101,7 +101,7 @@ class WeekPlanAggregateTest {
             ),
         )
 
-        val result = aggregate.removePart(WeeklyPartId("part-a"))
+        val result = aggregate.removePart(WeeklyPartId("part-a"), LocalDate.of(2026, 3, 2))
         val updated = assertIs<arrow.core.Either.Right<WeekPlanAggregate>>(result).value
 
         assertEquals(1, updated.weekPlan.parts.size)
@@ -120,6 +120,7 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.reorderParts(
             orderedPartIds = listOf(WeeklyPartId("part-a"), WeeklyPartId("missing")),
+            referenceDate = LocalDate.of(2026, 3, 2),
         )
 
         val left = assertIs<arrow.core.Either.Left<DomainError>>(result).value
@@ -137,6 +138,7 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.reorderParts(
             orderedPartIds = listOf(WeeklyPartId("part-b"), WeeklyPartId("part-a")),
+            referenceDate = LocalDate.of(2026, 3, 2),
         )
 
         val updated = assertIs<arrow.core.Either.Right<WeekPlanAggregate>>(result).value
@@ -152,10 +154,13 @@ class WeekPlanAggregateTest {
             ),
         )
 
-        val updated = aggregate.addPart(
-            partType = partType(id = "new"),
-            partId = WeeklyPartId("part-new"),
-        )
+        val updated = assertIs<arrow.core.Either.Right<WeekPlanAggregate>>(
+            aggregate.addPart(
+                partType = partType(id = "new"),
+                partId = WeeklyPartId("part-new"),
+                referenceDate = LocalDate.of(2026, 3, 2),
+            ),
+        ).value
 
         assertEquals(2, updated.weekPlan.parts.size)
         assertEquals(WeeklyPartId("part-new"), updated.weekPlan.parts.last().id)

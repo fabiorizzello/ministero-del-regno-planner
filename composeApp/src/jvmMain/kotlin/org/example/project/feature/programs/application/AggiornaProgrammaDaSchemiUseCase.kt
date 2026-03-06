@@ -89,7 +89,7 @@ class AggiornaProgrammaDaSchemiUseCase(
         if (!dryRun) {
             transactionRunner.runInTransaction {
                 for (candidate in refreshCandidates) {
-                    applyRefreshCandidate(candidate)
+                    applyRefreshCandidate(candidate, referenceDate)
                 }
                 programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
             }
@@ -126,8 +126,8 @@ class AggiornaProgrammaDaSchemiUseCase(
     }
 
     context(TransactionScope)
-    private suspend fun applyRefreshCandidate(candidate: WeekRefreshCandidate) {
-        val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes) {
+    private suspend fun applyRefreshCandidate(candidate: WeekRefreshCandidate, referenceDate: LocalDate) {
+        val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes, referenceDate) {
             WeeklyPartId(UUID.randomUUID().toString())
         }.fold(
             ifLeft = { error -> throw IllegalStateException("Refresh non valido: $error") },

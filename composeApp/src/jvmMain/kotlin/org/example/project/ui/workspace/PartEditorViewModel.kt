@@ -170,8 +170,6 @@ internal class PartEditorViewModel(
     }
 
     fun skipWeek(week: WeekPlan, onSuccess: () -> Unit) {
-        val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        if (!week.canBeMutated(currentMonday)) return
         scope.launch {
             var succeeded = false
             _state.executeEitherOperation(

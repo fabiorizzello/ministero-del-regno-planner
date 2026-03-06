@@ -25,26 +25,17 @@ class CreaProclamatoreUseCase(
         val nome = command.nome.trim()
         val cognome = command.cognome.trim()
 
-        if (nome.isBlank()) raise(DomainError.NomeObbligatorio)
-        if (nome.length > 100) raise(DomainError.NomeTroppoLungo(max = 100))
-        if (cognome.isBlank()) raise(DomainError.CognomeObbligatorio)
-        if (cognome.length > 100) raise(DomainError.CognomeTroppoLungo(max = 100))
-
         val duplicato = query.esisteConNomeCognome(nome, cognome)
         if (duplicato) raise(DomainError.ProclamatoreDuplicato)
 
-        val nuovo = try {
-            ProclamatoreAggregate.create(
-                id = ProclamatoreId(UUID.randomUUID().toString()),
-                nome = nome,
-                cognome = cognome,
-                sesso = command.sesso,
-                sospeso = command.sospeso,
-                puoAssistere = command.puoAssistere,
-            ).person
-        } catch (e: IllegalArgumentException) {
-            raise(DomainError.Validation(e.message ?: "Dati proclamatore non validi"))
-        }
+        val nuovo = ProclamatoreAggregate.create(
+            id = ProclamatoreId(UUID.randomUUID().toString()),
+            nome = nome,
+            cognome = cognome,
+            sesso = command.sesso,
+            sospeso = command.sospeso,
+            puoAssistere = command.puoAssistere,
+        ).bind().person
         store.persist(nuovo)
         nuovo
     }

@@ -1,8 +1,10 @@
 package org.example.project.feature.people.domain
 
+import arrow.core.Either
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class ProclamatoreAggregateTest {
@@ -18,13 +20,15 @@ class ProclamatoreAggregateTest {
             ),
         )
 
-        val updated = aggregate.updateProfile(
-            nome = "Luigi",
-            cognome = "Verdi",
-            sesso = Sesso.M,
-            sospeso = true,
-            puoAssistere = true,
-        )
+        val updated = assertIs<Either.Right<ProclamatoreAggregate>>(
+            aggregate.updateProfile(
+                nome = "Luigi",
+                cognome = "Verdi",
+                sesso = Sesso.M,
+                sospeso = true,
+                puoAssistere = true,
+            ),
+        ).value
 
         assertEquals("Luigi", updated.person.nome)
         assertEquals("Verdi", updated.person.cognome)

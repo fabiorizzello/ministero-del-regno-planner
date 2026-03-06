@@ -8,26 +8,34 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
 
 data class WeekPlanAggregate(
     val weekPlan: WeekPlan,
     val assignments: List<Assignment>,
 ) {
+    private fun currentMonday(referenceDate: LocalDate): LocalDate =
+        referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
     fun addPart(
         partType: PartType,
         partId: WeeklyPartId,
         partTypeRevisionId: String? = null,
-    ): WeekPlanAggregate {
+        referenceDate: LocalDate,
+    ): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
         val newPart = WeeklyPart(
             id = partId,
             partType = partType,
             partTypeRevisionId = partTypeRevisionId,
             sortOrder = weekPlan.nextSortOrder(),
         )
-        return copy(weekPlan = weekPlan.copy(parts = weekPlan.parts + newPart))
+        return copy(weekPlan = weekPlan.copy(parts = weekPlan.parts + newPart)).right()
     }
 
-    fun removePart(weeklyPartId: WeeklyPartId): Either<DomainError, WeekPlanAggregate> {
+    fun removePart(weeklyPartId: WeeklyPartId, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
         val part = weekPlan.findPart(weeklyPartId)
             ?: return DomainError.NotFound("Parte").left()
         if (part.partType.fixed) {
@@ -45,7 +53,8 @@ data class WeekPlanAggregate(
         ).right()
     }
 
-    fun reorderParts(orderedPartIds: List<WeeklyPartId>): Either<DomainError, WeekPlanAggregate> {
+    fun reorderParts(orderedPartIds: List<WeeklyPartId>, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
         val existingIds = weekPlan.parts.map { part -> part.id }
         if (orderedPartIds.size != existingIds.size || orderedPartIds.toSet() != existingIds.toSet()) {
             return DomainError.OrdinePartiNonValido.left()
@@ -79,8 +88,10 @@ data class WeekPlanAggregate(
 
     fun replaceParts(
         orderedPartTypes: List<Pair<PartType, String?>>,
+        referenceDate: LocalDate,
         partIdFactory: () -> WeeklyPartId,
     ): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
         if (orderedPartTypes.isEmpty()) {
             return DomainError.OrdinePartiNonValido.left()
         }
@@ -97,6 +108,21 @@ data class WeekPlanAggregate(
             assignments = emptyList(),
         ).right()
     }
+
+    fun addAssignment(
+        assignment: Assignment,
+        personSuspended: Boolean,
+    ): Either<DomainError, WeekPlanAggregate> {
+        validateAssignment(
+            weeklyPartId = assignment.weeklyPartId,
+            personId = assignment.personId,
+            personSuspended = personSuspended,
+            slot = assignment.slot,
+        )?.let { return it.left() }
+        return copy(assignments = assignments + assignment).right()
+    }
+
+    fun clearAssignments(): WeekPlanAggregate = copy(assignments = emptyList())
 
     fun setStatus(status: WeekPlanStatus): WeekPlanAggregate =
         if (weekPlan.status == status) this else copy(weekPlan = weekPlan.copy(status = status))

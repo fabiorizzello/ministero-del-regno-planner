@@ -15,9 +15,9 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviUse
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
-import org.example.project.feature.programs.application.MAX_FUTURE_PROGRAMS
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonth
+import org.example.project.feature.programs.domain.ProgramMonthAggregate
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
@@ -256,18 +256,8 @@ internal fun computeCreatableTargets(
         futurePrograms.forEach { add(it.yearMonth) }
     }
     val futureMonths = futurePrograms.map { it.yearMonth }.toSet()
-
     return window.filter { target ->
-        if (target in existingByMonth) return@filter false
-
-        val isCurrentTarget = target == referenceMonth
-        val projectedFutureCount = futureMonths.size + if (isCurrentTarget) 0 else 1
-        if (!isCurrentTarget && projectedFutureCount > MAX_FUTURE_PROGRAMS) return@filter false
-
-        // FR-019: non mostrare CTA corrente+2 se corrente+1 non esiste ancora
-        if (target == referenceMonth.plusMonths(2) && referenceMonth.plusMonths(1) !in existingByMonth) return@filter false
-
-        true
+        ProgramMonthAggregate.validateCreationTarget(target, today, existingByMonth, futureMonths) == null
     }
 }
 

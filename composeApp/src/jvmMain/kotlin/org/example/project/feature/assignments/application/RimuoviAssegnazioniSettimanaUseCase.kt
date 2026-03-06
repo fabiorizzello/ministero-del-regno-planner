@@ -21,7 +21,7 @@ class RimuoviAssegnazioniSettimanaUseCase(
             val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
                 ?: raise(DomainError.NotFound("Piano settimanale"))
             transactionRunner.runInTransaction {
-                weekPlanStore.saveAggregate(aggregate.copy(assignments = emptyList()))
+                weekPlanStore.saveAggregate(aggregate.clearAssignments())
             }
         } catch (e: Exception) {
             raise(DomainError.RimozioneAssegnazioniFallita(e.message))
