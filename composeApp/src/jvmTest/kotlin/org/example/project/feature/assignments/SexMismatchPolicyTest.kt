@@ -65,6 +65,7 @@ class SexMismatchPolicyTest {
             transactionRunner = object : TransactionRunner {
                 override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
             },
+            assignmentRanking = fixture.staticRanking,
         )
 
         val result = autoAssign(
@@ -127,9 +128,11 @@ private class SexMismatchFixture {
         ),
     )
 
+    val staticRanking = StaticAssignmentRanking(rankingSuggestions)
+
     fun createSuggestUseCase(): SuggerisciProclamatoriUseCase = SuggerisciProclamatoriUseCase(
         weekPlanStore = weekQueries,
-        assignmentStore = StaticAssignmentRanking(rankingSuggestions),
+        assignmentStore = staticRanking,
         assignmentRepository = assignmentRepository,
         eligibilityStore = StaticEligibilityStore(
             eligible = setOf(EligibilityCleanupCandidate(candidateFemale.id, part.partType.id)),
@@ -182,7 +185,23 @@ private class StaticAssignmentRanking(
         partTypeId: PartTypeId,
         slot: Int,
         referenceDate: LocalDate,
+        rankingCache: org.example.project.feature.assignments.application.SuggestionRankingCache?,
     ): List<SuggestedProclamatore> = suggestions
+
+    override suspend fun preloadSuggestionRanking(
+        referenceDates: Set<LocalDate>,
+        partTypeIds: Set<PartTypeId>,
+    ): org.example.project.feature.assignments.application.SuggestionRankingCache =
+        org.example.project.feature.assignments.application.SuggestionRankingCache(
+            globalLast = emptyMap(),
+            conductorLast = emptyMap(),
+            allActive = emptyList(),
+            globalBeforeByDate = emptyMap(),
+            globalAfterByDate = emptyMap(),
+            partTypeLastByType = emptyMap(),
+            partTypeBeforeByTypeAndDate = emptyMap(),
+            partTypeAfterByTypeAndDate = emptyMap(),
+        )
 }
 
 private class StaticEligibilityStore(

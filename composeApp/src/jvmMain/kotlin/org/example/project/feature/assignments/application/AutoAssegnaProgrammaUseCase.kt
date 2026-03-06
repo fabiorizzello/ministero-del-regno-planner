@@ -8,6 +8,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 
 data class AutoAssignUnresolvedSlot(
     val weekStartDate: LocalDate,
@@ -27,6 +28,7 @@ class AutoAssegnaProgrammaUseCase(
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
     private val assegnaPersona: AssegnaPersonaUseCase,
     private val transactionRunner: TransactionRunner,
+    private val assignmentRanking: AssignmentRanking,
 ) {
     suspend operator fun invoke(
         programId: ProgramMonthId,
@@ -43,6 +45,10 @@ class AutoAssegnaProgrammaUseCase(
         val weeks = weekPlanStore.listByProgram(programId)
             .filter { it.weekStartDate >= referenceDate }
             .filter { it.status == WeekPlanStatus.ACTIVE }
+
+        val referenceDates = weeks.map { it.weekStartDate }.toSet()
+        val partTypeIds: Set<PartTypeId> = weeks.flatMap { w -> w.parts.map { it.partType.id } }.toSet()
+        val rankingCache = assignmentRanking.preloadSuggestionRanking(referenceDates, partTypeIds)
 
         var assignedCount = 0
         val unresolved = mutableListOf<AutoAssignUnresolvedSlot>()
@@ -61,6 +67,7 @@ class AutoAssegnaProgrammaUseCase(
                         weeklyPartId = part.id,
                         slot = slot,
                         alreadyAssignedIds = alreadyAssignedIds,
+                        rankingCache = rankingCache,
                     )
 
                     val selected = suggestions.firstOrNull { it.canBeAutoAssigned() }

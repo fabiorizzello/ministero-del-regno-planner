@@ -4,6 +4,7 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -21,12 +22,33 @@ interface AssignmentRepository {
     suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int
 }
 
+/**
+ * Pre-fetched ranking data for all (partTypeId, referenceDate) combinations needed by a single
+ * auto-assign run. Avoids repeating 7 full-table-scan queries per slot.
+ */
+data class SuggestionRankingCache(
+    val globalLast: Map<String, String?>,
+    val conductorLast: Map<String, String?>,
+    val allActive: List<Proclamatore>,
+    val globalBeforeByDate: Map<LocalDate, Map<String, String?>>,
+    val globalAfterByDate: Map<LocalDate, Map<String, String?>>,
+    val partTypeLastByType: Map<PartTypeId, Map<String, String?>>,
+    val partTypeBeforeByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
+    val partTypeAfterByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
+)
+
 interface AssignmentRanking {
     suspend fun suggestedProclamatori(
         partTypeId: PartTypeId,
         slot: Int,
         referenceDate: LocalDate,
+        rankingCache: SuggestionRankingCache? = null,
     ): List<SuggestedProclamatore>
+
+    suspend fun preloadSuggestionRanking(
+        referenceDates: Set<LocalDate>,
+        partTypeIds: Set<PartTypeId>,
+    ): SuggestionRankingCache
 }
 
 interface PersonAssignmentLifecycle {

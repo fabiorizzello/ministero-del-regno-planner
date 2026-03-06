@@ -98,12 +98,23 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
             eligibilityStore = SingleCandidateEligibilityStore(candidate.id, partType.id),
             assignmentSettingsStore = StaticSettingsStore,
         )
+        val ranking = SingleSuggestionRanking(
+            suggestions = listOf(
+                SuggestedProclamatore(
+                    proclamatore = candidate,
+                    lastGlobalWeeks = 6,
+                    lastForPartTypeWeeks = 4,
+                    lastConductorWeeks = 6,
+                ),
+            ),
+        )
         val useCase = AutoAssegnaProgrammaUseCase(
             weekPlanStore = weekStore,
             assignmentRepository = EmptyAssignmentsRepository,
             suggerisciProclamatori = suggestUseCase,
             assegnaPersona = assignUseCase,
             transactionRunner = autoAssignTx,
+            assignmentRanking = ranking,
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
@@ -167,7 +178,23 @@ private class SingleSuggestionRanking(
         partTypeId: PartTypeId,
         slot: Int,
         referenceDate: LocalDate,
+        rankingCache: org.example.project.feature.assignments.application.SuggestionRankingCache?,
     ): List<SuggestedProclamatore> = suggestions
+
+    override suspend fun preloadSuggestionRanking(
+        referenceDates: Set<LocalDate>,
+        partTypeIds: Set<PartTypeId>,
+    ): org.example.project.feature.assignments.application.SuggestionRankingCache =
+        org.example.project.feature.assignments.application.SuggestionRankingCache(
+            globalLast = emptyMap(),
+            conductorLast = emptyMap(),
+            allActive = emptyList(),
+            globalBeforeByDate = emptyMap(),
+            globalAfterByDate = emptyMap(),
+            partTypeLastByType = emptyMap(),
+            partTypeBeforeByTypeAndDate = emptyMap(),
+            partTypeAfterByTypeAndDate = emptyMap(),
+        )
 }
 
 private object EmptyAssignmentsRepository : AssignmentRepository {

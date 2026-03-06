@@ -21,6 +21,7 @@ class SuggerisciProclamatoriUseCase(
         weeklyPartId: WeeklyPartId,
         slot: Int,
         alreadyAssignedIds: Set<ProclamatoreId> = emptySet(),
+        rankingCache: SuggestionRankingCache? = null,
     ): List<SuggestedProclamatore> {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
@@ -31,6 +32,7 @@ class SuggerisciProclamatoriUseCase(
             partTypeId = part.partType.id,
             slot = slot,
             referenceDate = weekStartDate,
+            rankingCache = rankingCache,
         )
         // Single batch query instead of N individual listLeadEligibility calls.
         val leadEligiblePersonIds = eligibilityStore

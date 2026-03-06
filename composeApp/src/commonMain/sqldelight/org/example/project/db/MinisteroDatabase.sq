@@ -140,6 +140,12 @@ CREATE TABLE assignment (
 CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx
 ON weekly_part(week_plan_id);
 
+CREATE INDEX IF NOT EXISTS weekly_part_part_type_id_idx
+ON weekly_part(part_type_id);
+
+CREATE INDEX IF NOT EXISTS week_plan_program_id_idx
+ON week_plan(program_id);
+
 CREATE INDEX IF NOT EXISTS assignment_person_id_idx
 ON assignment(person_id);
 
