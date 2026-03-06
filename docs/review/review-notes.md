@@ -75,9 +75,9 @@ Produci i findings ordinati per severità.
    - La classe inietta `CaricaSettimanaUseCase` e `CaricaAssegnazioniUseCase` come dipendenze — i use case non dovrebbero comporre altri use case; dovrebbero dipendere da store/repository diretti.
    - Evidenza: `GeneraImmaginiAssegnazioni.kt:107-112` e `:13-15`.
 
-5. `StampaProgrammaUseCase`: N+1 query (1 `listByWeek` per ogni settimana del programma).
-   - 4-5 settimane = 5-6 query invece di 1-2. Dovrebbe caricare tutte le assegnazioni del programma in batch.
-   - Evidenza: `StampaProgrammaUseCase.kt:33-35`.
+5. `StampaProgrammaUseCase`: N+1 query. **[RISOLTO — 2026-03-06]**
+   - Ora usa `assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())` per batch-load tutte le settimane in una query.
+   - Evidenza: `StampaProgrammaUseCase.kt:35` (fix).
 
 6. `AppRuntime.paths()` chiamato direttamente nei use case di output (singleton globale non iniettato).
    - Non testabile; viola dependency inversion. `AppPaths` dovrebbe essere iniettato nel costruttore.
@@ -120,6 +120,22 @@ Produci i findings ordinati per severità.
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, +22 test coverage gaps)
 - Totale test JVM: `131` | Failure: `0` | Error: `0`
 - Kover baseline: Line 39.9%, Method 35.8%, Branch 33.4% (filtri: esclusi ui/, db/, core/cli/)
+- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, ralph-loop ciclo 1: fix Medium-5 N+1 StampaProgrammaUseCase)
+- Totale test JVM: `202` | Failure: `0` | Error: `0`
+
+## Findings ciclo 1 ralph-loop (2026-03-06)
+
+### Qualità test (post-run 2)
+
+- **ViewModel tests** (`AssignmentManagementViewModelTest`, `ProclamatoreFormViewModelTest`, `SchemaManagementViewModelTest`, `ProgramLifecycleViewModelTest`): tutti solidi — coprono busy-guard, debounce, onSuccess/onError, state management. Nessun ridondante rimosso perché ogni test verifica un comportamento distinto.
+- **`StampaProgrammaUseCaseTest`**: misleadingly named — testa solo `weekPlanStatusLabel()` (helper interno), non `StampaProgrammaUseCase` in sé. Rinomina opzionale: `WeekPlanStatusLabelTest`. Non è grave ma genera false aspettative sulla coverage dell'use case.
+- **`SuggerisciProclamatoriUseCaseTest`** test 4 (sospeso): testa che la persona sospesa non appaia nel ranking — corretto dal punto di vista comportamentale, ma il commento chiarisce che il filtro è SQL, non in-use-case. Il test è valido come contratto del boundary.
+- **Warnings `@ExperimentalCoroutinesApi`**: i test ViewModel usano `advanceTimeBy`/`advanceUntilIdle` senza `@OptIn`. Non rompono, ma sono warnings. Aggiungere `@OptIn(ExperimentalCoroutinesApi::class)` file-level sulle classi test ViewModel — non urgente.
+
+### Correzioni applicate
+
+- **MEMORY.md**: corretto nota SexRule errata — esiste anche `UOMO` (hard filter per `Sesso.M`), non solo `STESSO_SESSO`.
+- **Medium-5 risolto**: `StampaProgrammaUseCase` — N+1 eliminato con `listByWeekPlanIds` batch.
 
 ## Stato finale sintetico
 

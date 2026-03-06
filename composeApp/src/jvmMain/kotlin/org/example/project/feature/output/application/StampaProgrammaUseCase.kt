@@ -32,8 +32,9 @@ class StampaProgrammaUseCase(
             ?: throw IllegalStateException("Programma non trovato")
 
         val weeks = weekPlanStore.listByProgram(programId)
+        val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
         val sections = weeks.map { week ->
-            val assignments = assignmentRepository.listByWeek(week.id)
+            val assignments = assignmentsByWeek[week.id] ?: emptyList()
             val assignmentByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
             val lines = week.parts.flatMap { part ->
                 (1..part.partType.peopleCount).map { slot ->
