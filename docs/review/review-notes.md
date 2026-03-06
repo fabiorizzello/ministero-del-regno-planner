@@ -3,12 +3,33 @@
 ## Prompt sorgente di oggi
 
 ```text
-Valuta il progetto su: features complete, DDD vertical slices, rich domain models, invarianti,
-aggregate-root centrico, aggregato puro con use case per IO e services per logica trasversale.
-Test coverage sulla logica pura e integration test sui boundary. Usa concetti DDD funzionale:
-Arrow, Either, DomainError; valuta optics, monoid, semigroup, newtypes, ADT/GADT dove utili.
-Verifica production-readiness (1 utente, 1 sessione, no saga, transazione unica per use case).
-Controlla assenza di codice orfano, legacy, TODO, violazioni DRY/SOLID/DDD e spec non allineate.
+Valuta il progetto su:
+
+Architettura DDD:
+- Vertical slices, aggregate-root centrico, invarianti garantite dall'aggregato (no IO interno)
+- Use case (1:1 con azione utente, confine transazionale) per orchestrazione IO
+- Application service (riusabile da più entry point) se la stessa logica serve UI + batch + eventi
+- Domain service per logica pura che attraversa più aggregati (mai IO)
+- Infrastructure service: implementa contratti dichiarati dal dominio (DB, HTTP, PDF, file system)
+
+Modello funzionale:
+- Arrow, Either, DomainError usati correttamente
+- Valuta se optics, newtypes, ADT/GADT migliorerebbero l'espressività — solo segnala, non implementare
+
+Test:
+- Coverage sulla logica pura (domain + use case)
+- Integration test sui boundary esterni (HTTP, DB, PDF)
+
+Qualità:
+- Assenza di codice orfano, legacy, TODO
+- Nessuna violazione DRY/SOLID/DDD
+- Spec allineate al codice — in caso di disallineamento segnala senza correggere
+
+Produzione:
+- 1 utente, 1 sessione, no saga, transazione unica per use case mutante
+
+Se i task di analisi sono indipendenti, usa agenti paralleli.
+Produci i findings ordinati per severità.
 ```
 
 ## Findings aperti (ordinati per severità)
