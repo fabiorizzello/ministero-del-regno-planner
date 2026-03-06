@@ -57,22 +57,11 @@ Produci i findings ordinati per severità.
    - Pattern inconsistente con tutto il resto del codebase; il ViewModel usa `runCatching` come workaround.
    - Evidenze: `StampaProgrammaUseCase.kt:31`, `GeneraPdfAssegnazioni.kt:29`, `GeneraImmaginiAssegnazioni.kt:33`.
 
-~~3. `RimuoviAssegnazioneUseCase`: operazione mutante senza `runInTransaction`. **[RISOLTO]**~~
-
-~~4. `AggiornaProgrammaDaSchemiUseCase`: `throw IllegalStateException` dentro `context(TransactionScope)`. **[RISOLTO]**~~
-
 ### Medium
-
-~~1. Performance aperta su auto-assign (N+1 query). **[RISOLTO]**~~
-   - Ranking: `SuggestionRankingCache` ricaricata una volta per settimana (non per run, per correttezza cross-week). Indici: `week_plan(program_id)`, `weekly_part(part_type_id)`. Assegnazioni: `listByWeekPlanIds` batch.
-   - Eligibility: `preloadLeadEligibilityByPartType` caricata una volta per run (dati statici: nessun write path la modifica durante auto-assign).
-   - N+1 residuo: `assignmentRepository.listByWeek` per sex matching — necessariamente live perché legge assegnazioni appena scritte nella stessa transazione (SQLite read-your-own-writes garantisce visibilità). Non cachabile correttamente.
 
 2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
    - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `StampaProgrammaUseCaseTest.kt:9`.
-
-~~3. `apriFile()` collocata in `output/application/` ma contiene IO OS (Desktop.open, ProcessBuilder xdg-open). **[RISOLTO]**~~
 
 4. `GeneraImmaginiAssegnazioni`: logica di rendering PDF→PNG (`renderPdfToPng`) nel layer application.
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
@@ -87,14 +76,11 @@ Produci i findings ordinati per severità.
    - Non testabile; viola dependency inversion. `AppPaths` dovrebbe essere iniettato nel costruttore.
    - Evidenze: `StampaProgrammaUseCase.kt:57`, `GeneraPdfAssegnazioni.kt:55`, `GeneraImmaginiAssegnazioni.kt:47`.
 
-~~7. `RimuoviParteUseCase`: caricamento post-transazione fuori dal contesto transazionale. **[RISOLTO]**~~
-
 9. Nessun test per i ViewModel (layer UI-logic).
    - `AssignmentManagementViewModel`, `PartEditorViewModel`, `ProclamatoreFormViewModel`, `ProgramLifecycleViewModel`, `PersonPickerViewModel`, `SchemaManagementViewModel` — zero test.
    - La logica testabile senza display è rilevante: busy-guard (doppia invocazione bloccata), propagazione `onSuccess()` solo su risultato ok, formato testi banner, sequenze di stato async.
    - Dipendenza mancante: `kotlinx-coroutines-test` (stessa versione di `kotlinx-coroutines = "1.10.2"`). Pattern: `runTest { vm.action(); advanceUntilIdle(); assertEquals(..., vm.uiState.value) }`.
    - I ViewModel sono già costruibili con fake use case (interfacce pulite) — nessuna infrastruttura aggiuntiva richiesta.
-   - Test Compose UI (`compose.uiTest`) non prioritari: i composable sono dichiarativi, la logica è già coperta dai test ViewModel.
 
 8. Copertura test: gap residui su use case non critici.
    - Coperti nella sessione 2026-03-06: `AssegnaPersonaUseCase` (happy path), `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `ImpostaStatoSettimanaUseCase`, `AggiornaProclamatoreUseCase` (happy path + suspension outcome), `ProclamatoreAggregate.create/updateProfile` (smart constructor paths).
