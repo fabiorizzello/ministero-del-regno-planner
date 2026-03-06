@@ -14,12 +14,40 @@ import org.example.project.feature.weeklyparts.infrastructure.SqlDelightWeekPlan
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SqlDelightAssignmentStoreTest {
+
+    @Test
+    fun `save propagates persistence exception without IllegalStateException wrapper`() = runBlocking {
+        val driver = JdbcSqliteDriver(
+            url = JdbcSqliteDriver.IN_MEMORY,
+            schema = MinisteroDatabase.Schema,
+        )
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+        val database = MinisteroDatabase(driver)
+        val store = SqlDelightAssignmentStore(database)
+
+        val assignment = Assignment(
+            id = AssignmentId("assignment-missing-fk"),
+            weeklyPartId = WeeklyPartId("missing-weekly-part"),
+            personId = ProclamatoreId("missing-person"),
+            slot = 1,
+        )
+
+        val error = assertFailsWith<Exception> {
+            store.save(assignment)
+        }
+
+        assertTrue(
+            error !is IllegalStateException,
+            "Expected original persistence exception, got IllegalStateException wrapper: ${error::class.simpleName}",
+        )
+    }
 
     @Test
     fun `suggestedProclamatori uses absolute distance when latest assignment is in the future`() = runBlocking {

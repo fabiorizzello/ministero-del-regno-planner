@@ -488,7 +488,10 @@ private fun loadPartTypesFromCatalog(catalogFile: File): List<SeedPartType> {
         ?: error("Campo 'partTypes' non trovato in ${catalogFile.absolutePath}")
 
     return partTypes.mapIndexed { index, element ->
-        val parsed = parsePartTypeFromJson(element.jsonObject, index)
+        val parsed = parsePartTypeFromJson(element.jsonObject, index).fold(
+            ifLeft = { error(it.details) },
+            ifRight = { it },
+        )
         val normalizedCode = parsed.code
             .lowercase()
             .replace("[^a-z0-9]+".toRegex(), "-")

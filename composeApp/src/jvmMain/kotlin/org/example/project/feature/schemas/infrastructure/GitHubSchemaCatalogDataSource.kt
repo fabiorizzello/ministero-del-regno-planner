@@ -12,6 +12,7 @@ import org.example.project.feature.schemas.application.RemoteWeekSchemaTemplate
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.infrastructure.parsePartTypeFromJson
+import java.io.IOException
 
 @Serializable
 private data class CatalogDto(
@@ -40,12 +41,15 @@ class GitHubSchemaCatalogDataSource(
     override suspend fun fetchCatalog(): RemoteSchemaCatalog {
         val response = httpClient.get(schemasCatalogUrl)
         if (!response.status.isSuccess()) {
-            throw RuntimeException("HTTP ${response.status.value} fetching $schemasCatalogUrl")
+            throw IOException("HTTP ${response.status.value} fetching $schemasCatalogUrl")
         }
         val dto = json.decodeFromString<CatalogDto>(response.bodyAsText())
 
         val partTypes: List<PartType> = dto.partTypes.mapIndexed { index, obj ->
-            parsePartTypeFromJson(obj, index)
+            parsePartTypeFromJson(obj, index).fold(
+                ifLeft = { error -> throw IOException(error.details) },
+                ifRight = { parsed -> parsed },
+            )
         }
         val weeks = dto.weeks.map { week ->
             RemoteWeekSchemaTemplate(

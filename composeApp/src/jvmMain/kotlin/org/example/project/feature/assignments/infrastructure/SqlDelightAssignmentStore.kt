@@ -41,16 +41,12 @@ class SqlDelightAssignmentStore(
     }
 
     override suspend fun save(assignment: Assignment) {
-        try {
-            database.ministeroDatabaseQueries.upsertAssignment(
-                id = assignment.id.value,
-                weekly_part_id = assignment.weeklyPartId.value,
-                person_id = assignment.personId.value,
-                slot = assignment.slot.toLong(),
-            )
-        } catch (e: Exception) {
-            throw IllegalStateException("Errore nel salvataggio dell'assegnazione: ${e.message}", e)
-        }
+        database.ministeroDatabaseQueries.upsertAssignment(
+            id = assignment.id.value,
+            weekly_part_id = assignment.weeklyPartId.value,
+            person_id = assignment.personId.value,
+            slot = assignment.slot.toLong(),
+        )
     }
 
     override suspend fun remove(assignmentId: AssignmentId) {

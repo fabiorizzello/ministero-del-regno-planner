@@ -1,4 +1,4 @@
-# Review Notes — Consolidato e Deduplicato (2026-03-05)
+# Review Notes — Consolidato e Deduplicato (2026-03-06)
 
 ## Prompt sorgente di oggi
 
@@ -112,13 +112,9 @@ Produci i findings ordinati per severità.
 12. `GeneraPdfAssegnazioni` inietta use case invece di store (stesso problema di Medium 4).
     - Evidenza: `GeneraPdfAssegnazioni.kt:17-18`.
 
-13. `GitHubSchemaCatalogDataSource.fetchCatalog()` lancia `RuntimeException` non mappata.
-    - In caso di risposta HTTP 4xx/5xx, lancia `RuntimeException` invece di `DomainError.Network`.
-    - Evidenza: `GitHubSchemaCatalogDataSource.kt:40-62`.
-
 14. `KonformValidation.requireValid()` lancia `IllegalArgumentException` invece di restituire `Either`.
-    - Violazione della regola "domain non lancia eccezioni".
-    - Evidenza: `core/domain/KonformValidation.kt:10`.
+   - Violazione della regola "domain non lancia eccezioni".
+   - Evidenza: `core/domain/KonformValidation.kt:10`.
 
 15. `feature/updates` — zero test coverage.
     - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient`, `UpdateScheduler` non hanno nessun test.
@@ -128,27 +124,17 @@ Produci i findings ordinati per severità.
     - La firma restituisce `Int` invece di `Either<DomainError, Int>` — il ViewModel gestisce errori via `runCatching`.
     - Evidenze: `SvuotaAssegnazioniProgrammaUseCase.kt:12-13`, `AssignmentManagementViewModel.kt:243`.
 
-19. `SqlDelightAssignmentStore.save()` rilancia `IllegalStateException` invece di propagare l'errore nativamente.
-    - Evidenza: `SqlDelightAssignmentStore.kt:51-53`.
-
 21. `SuggerisciProclamatoriUseCase` — N+1 residuo su `assignmentRepository.listByWeek()` per rilevazione `requiredSex`.
-    - In `AutoAssegnaProgrammaUseCase` genera N×M query extra; i dati sono già in `assignmentsByWeek` ma non passati al figlio.
-    - Evidenze: `SuggerisciProclamatoriUseCase.kt:48`, `AutoAssegnaProgrammaUseCase.kt:65-80`.
-
-23. `ProgramLifecycleViewModel.loadAssignmentsByWeek()` — silenzioso fallimento su errori DB.
-    - `runCatching { }.getOrElse { emptyList() }` — la settimana appare con zero assegnazioni senza notifica.
-    - Evidenza: `ProgramLifecycleViewModel.kt:223`.
+   - In `AutoAssegnaProgrammaUseCase` genera N×M query extra; i dati sono già in `assignmentsByWeek` ma non passati al figlio.
+   - Evidenze: `SuggerisciProclamatoriUseCase.kt:48`, `AutoAssegnaProgrammaUseCase.kt:65-80`.
 
 ### Low
 
 - `SqlDelightSchemaUpdateAnomalyStore.append()` non è idempotente: ogni chiamata genera nuovo UUID, retry accumula duplicati.
-- Test transazionale `AggiornaSchemiUseCaseTransactionTest` non simula rollback a metà operazione.
 - **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alcuni test passano date non-lunedì senza conseguenze visibili oggi. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
   - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
 - **Finding 25**: `AssignmentWithPerson` init block lancia `IllegalArgumentException` se `slot < 1`. Se un record DB corrotto ha `slot=0`, l'app crasha nel load invece di restituire un `DomainError`.
   - Evidenze: `AssignmentWithPerson.kt:15`, `SqlDelightAssignmentStore.kt:36`.
-- **Finding 26**: `PartTypeJsonParser.parsePartTypeFromJson()` usa `error()` per campi JSON mancanti invece di `Either`.
-  - Evidenza: `PartTypeJsonParser.kt:28-34`.
 - **Finding 29**: `ImportaProclamatoriDaJsonUseCase` — nessuna outer transaction; `persistAll` apre la propria (High 17). Import di N proclamatori non è atomico.
   - Evidenze: `ImportaProclamatoriDaJsonUseCase.kt:44-48`, `SqlDelightProclamatoriStore.kt:22-28`.
 
@@ -167,11 +153,16 @@ Produci i findings ordinati per severità.
 - **Finding 28** test persona sospesa — rinominato in `persona non inclusa nel ranking SQL non compare nei suggeriti`.
 - **Medium 20** `AggiungiParteUseCase` N+1 post-save — restituisce `updated.weekPlan` in-memory.
 - **Medium 22** `PartEditorViewModel.loadPartTypes()` — `try/catch` → `executeAsyncOperation`.
+- **Medium 13** `GitHubSchemaCatalogDataSource.fetchCatalog()` — `RuntimeException` → `IOException`, con mapping coerente a `DomainError.Network` via `AggiornaSchemiUseCase`. Aggiunto `GitHubSchemaCatalogDataSourceTest`.
+- **Medium 19** `SqlDelightAssignmentStore.save()` — rimosso wrapper `IllegalStateException`, ora propaga l'errore DB nativo.
+- **Medium 23** `ProgramLifecycleViewModel.loadAssignmentsByWeek()` — rimosso fallback silenzioso: ora mostra notice di errore e non maschera fault DB. Aggiunto `ProgramLifecycleViewModelLoadAssignmentsErrorTest`.
+- **Low (rollback test)** `AggiornaSchemiUseCaseTransactionTest` ora copre rollback a metà transazione (`replaceAll` failure).
+- **Finding 26** `PartTypeJsonParser.parsePartTypeFromJson()` — `error()` sostituito con `Either<DomainError.ImportContenutoNonValido, PartType>`. Aggiunto `PartTypeJsonParserTest`.
 
 ## Verifiche eseguite
 
-- `./gradlew :composeApp:jvmTest --rerun-tasks` → `BUILD SUCCESSFUL` (2026-03-06, post-fix low effort ciclo 3)
-- Totale test JVM: `202` | Failure: `0` | Error: `0`
+- `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-06, post-fix low effort ciclo 4)
+- Totale test JVM: `208` | Failure: `0` | Error: `0`
 - Kover baseline: Line 39.9%, Method 35.8%, Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`)
 
 ## Stato finale sintetico

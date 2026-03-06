@@ -28,6 +28,7 @@ import java.util.UUID
 import java.util.prefs.Preferences
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -73,6 +74,68 @@ class AggiornaSchemiUseCaseTransactionTest {
         assertIs<Either.Right<AggiornaSchemiResult>>(result)
         assertEquals(1, txRunner.invocationCount)
         assertTrue(settings.putTimestampInsideTransaction)
+    }
+
+    @Test
+    fun `rolls back part types and templates when replaceAll fails mid-transaction`() = runBlocking {
+        val existingPartType = PartType(
+            id = PartTypeId("pt-existing"),
+            code = "ESISTENTE",
+            label = "Esistente",
+            peopleCount = 1,
+            sexRule = SexRule.STESSO_SESSO,
+            fixed = false,
+            sortOrder = 0,
+        )
+        val importedPartType = PartType(
+            id = PartTypeId("pt-imported"),
+            code = "NUOVO",
+            label = "Nuovo",
+            peopleCount = 1,
+            sexRule = SexRule.STESSO_SESSO,
+            fixed = false,
+            sortOrder = 0,
+        )
+        val existingTemplate = StoredSchemaWeekTemplate(
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            partTypeIds = listOf(existingPartType.id),
+        )
+        val partTypeStore = RollbackAwarePartTypeStore(listOf(existingPartType))
+        val templateStore = RollbackAwareSchemaTemplateStore(
+            initialTemplates = listOf(existingTemplate),
+            failOnReplace = true,
+        )
+        val settings = RollbackAwareSettings()
+        val txRunner = SnapshotTransactionRunner(partTypeStore, templateStore, settings)
+        val remote = FakeSchemaCatalogRemoteSource(
+            RemoteSchemaCatalog(
+                version = "v2",
+                partTypes = listOf(importedPartType),
+                weeks = listOf(
+                    RemoteWeekSchemaTemplate(
+                        weekStartDate = "2026-03-09",
+                        partTypeCodes = listOf(importedPartType.code),
+                    ),
+                ),
+            ),
+        )
+        val useCase = AggiornaSchemiUseCase(
+            remoteSource = remote,
+            partTypeStore = partTypeStore,
+            eligibilityStore = NoopEligibilityStore(),
+            schemaTemplateStore = templateStore,
+            schemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore(),
+            transactionRunner = txRunner,
+            settings = settings,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            useCase()
+        }
+
+        assertEquals(listOf(existingPartType.code), partTypeStore.all().map { it.code })
+        assertEquals(listOf(existingTemplate.weekStartDate), templateStore.listAll().map { it.weekStartDate })
+        assertTrue(settings.getStringOrNull("last_schema_import_at") == null)
     }
 }
 
@@ -166,4 +229,106 @@ private class NoopSchemaUpdateAnomalyStore : SchemaUpdateAnomalyStore {
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
     override suspend fun dismissAllOpen() {}
+}
+
+private interface SnapshotParticipant {
+    fun snapshot()
+    fun rollback()
+}
+
+private class SnapshotTransactionRunner(
+    vararg participants: SnapshotParticipant,
+) : TransactionRunner {
+    private val participants = participants.toList()
+
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
+        participants.forEach { it.snapshot() }
+        return try {
+            with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
+        } catch (error: Throwable) {
+            participants.forEach { it.rollback() }
+            throw error
+        }
+    }
+}
+
+private class RollbackAwarePartTypeStore(
+    initial: List<PartType>,
+) : PartTypeStore, SnapshotParticipant {
+    private val byCode = linkedMapOf<String, PartType>()
+    private var snapshotByCode: Map<String, PartType> = emptyMap()
+
+    init {
+        initial.forEach { byCode[it.code] = it }
+    }
+
+    override fun snapshot() {
+        snapshotByCode = LinkedHashMap(byCode)
+    }
+
+    override fun rollback() {
+        byCode.clear()
+        byCode.putAll(snapshotByCode)
+    }
+
+    override suspend fun all(): List<PartType> = byCode.values.toList()
+
+    override suspend fun findByCode(code: String): PartType? = byCode[code]
+
+    override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
+
+    override suspend fun upsertAll(partTypes: List<PartType>) {
+        partTypes.forEach { byCode[it.code] = it }
+    }
+}
+
+private class RollbackAwareSchemaTemplateStore(
+    initialTemplates: List<StoredSchemaWeekTemplate>,
+    private val failOnReplace: Boolean,
+) : SchemaTemplateStore, SnapshotParticipant {
+    private var templates: List<StoredSchemaWeekTemplate> = initialTemplates
+    private var snapshotTemplates: List<StoredSchemaWeekTemplate> = initialTemplates
+
+    override fun snapshot() {
+        snapshotTemplates = templates.toList()
+    }
+
+    override fun rollback() {
+        templates = snapshotTemplates.toList()
+    }
+
+    override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
+        if (failOnReplace) {
+            throw IllegalStateException("forced replaceAll failure")
+        }
+        this.templates = templates
+    }
+
+    override suspend fun listAll(): List<StoredSchemaWeekTemplate> = templates
+
+    override suspend fun findByWeekStartDate(weekStartDate: LocalDate): StoredSchemaWeekTemplate? =
+        templates.firstOrNull { it.weekStartDate == weekStartDate }
+
+    override suspend fun isEmpty(): Boolean = templates.isEmpty()
+}
+
+private class RollbackAwareSettings(
+    private val delegate: Settings = PreferencesSettings(
+        Preferences.userRoot().node("aggiorna-schemi-rollback-${UUID.randomUUID()}"),
+    ),
+) : Settings by delegate, SnapshotParticipant {
+    private var snapshotLastImportAt: String? = null
+
+    override fun snapshot() {
+        snapshotLastImportAt = delegate.getStringOrNull("last_schema_import_at")
+    }
+
+    override fun rollback() {
+        val value = snapshotLastImportAt
+        if (value == null) {
+            delegate.remove("last_schema_import_at")
+        } else {
+            delegate.putString("last_schema_import_at", value)
+        }
+    }
 }

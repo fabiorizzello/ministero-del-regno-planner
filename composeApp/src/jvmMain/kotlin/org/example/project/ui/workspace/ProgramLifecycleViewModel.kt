@@ -205,14 +205,36 @@ internal class ProgramLifecycleViewModel(
         weeksJob?.cancel()
         weeksJob = scope.launch {
             val selectedProgramId = _state.value.selectedProgramId ?: return@launch
-            val weeks = weekPlanStore.listByProgram(selectedProgramId)
-            val assignmentsByWeek = loadAssignmentsByWeek(weeks)
-            _state.update {
-                it.copy(
-                    selectedProgramWeeks = weeks,
-                    selectedProgramAssignments = assignmentsByWeek,
-                )
-            }
+            val weeks = runCatching { weekPlanStore.listByProgram(selectedProgramId) }
+                .getOrElse { error ->
+                    _state.update {
+                        it.copy(
+                            selectedProgramWeeks = emptyList(),
+                            selectedProgramAssignments = emptyMap(),
+                            notice = errorNotice("Errore caricamento settimane programma: ${error.message}"),
+                        )
+                    }
+                    return@launch
+                }
+
+            runCatching { loadAssignmentsByWeek(weeks) }
+                .onSuccess { assignmentsByWeek ->
+                    _state.update {
+                        it.copy(
+                            selectedProgramWeeks = weeks,
+                            selectedProgramAssignments = assignmentsByWeek,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            selectedProgramWeeks = weeks,
+                            selectedProgramAssignments = emptyMap(),
+                            notice = errorNotice("Errore caricamento assegnazioni: ${error.message}"),
+                        )
+                    }
+                }
         }
     }
 
@@ -220,7 +242,7 @@ internal class ProgramLifecycleViewModel(
         if (weeks.isEmpty()) return@coroutineScope emptyMap()
         val deferredByWeekId = weeks.associate { week ->
             week.id.value to async {
-                runCatching { caricaAssegnazioni(week.weekStartDate) }.getOrElse { emptyList() }
+                caricaAssegnazioni(week.weekStartDate)
             }
         }
         deferredByWeekId.mapValues { (_, deferred) -> deferred.await() }
