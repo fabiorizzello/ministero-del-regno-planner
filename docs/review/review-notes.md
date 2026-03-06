@@ -12,7 +12,7 @@ fai valutazione del progetto dimmi come è messo riguardo features complete, DDD
 rieffettua verifica per capire se abbiamo tralasciato qualcosa. bugs, orfani legacy, todo, non DRY SOLID DDD vertical slice rich domain e spec non allineate
 ```
 
-## Findings deduplicati (ordinati per severità)
+## Findings aperti (ordinati per severità)
 
 ### High
 
@@ -22,25 +22,21 @@ rieffettua verifica per capire se abbiamo tralasciato qualcosa. bugs, orfani leg
 
 ### Medium
 
-1. Rich domain model non uniforme tra bounded context.
-   - `WeekPlanAggregate` più maturo; `ProgramMonth` e `Person` ancora parziali.
-   - Evidenze: `WeekPlanAggregate.kt`, `ProgramMonthAggregate.kt:11`, `ProclamatoreAggregate.kt:3`.
-
-2. Invarianti settimana non sempre incapsulate nel root.
-   - Controllo mutabilità presente in alcuni use case ma non uniforme sui mutator.
-   - Evidenze: `WeekPlan.kt:38`, `AggiornaPartiSettimanaUseCase.kt:24`, `RiordinaPartiUseCase.kt:18`, `ImpostaStatoSettimanaUseCase.kt:18`.
-
-3. Duplicazione regole tra dominio e UI (DRY parziale).
-   - Regole creazione mese replicate in viewmodel e aggregate.
-   - Evidenze: `ProgramLifecycleViewModel.kt:252`, `ProgramMonthAggregate.kt:25`.
-
-4. Performance aperta su auto-assign (N+1 query).
-   - ~7 query per slot via `suggerisciProclamatori`.
+1. Performance aperta su auto-assign (N+1 query).
+   - 8 query per slot via `suggerisciProclamatori`; un mese standard genera ~128 query.
    - Evidenze: `SqlDelightAssignmentStore.kt:57`, `AutoAssegnaProgrammaUseCase.kt:52`.
 
-5. Copertura integration migliorabile sui boundary esterni.
+2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
    - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `StampaProgrammaUseCaseTest.kt:9`.
+
+## Findings risolti (commit e71ca70 — 2026-03-06)
+
+- **DRY creazione mese**: `computeCreatableTargets` delegava la logica duplicata — ora delega a `ProgramMonthAggregate.validateCreationTarget`.
+- **Smart constructor proclamatore**: `ProclamatoreAggregate.create` e `updateProfile` restituiscono `Either<DomainError, ...>`; validazione nome/cognome spostata dall'application al domain layer.
+- **Invarianti settimana auto-protette**: mutatori `addPart`, `removePart`, `reorderParts`, `replaceParts` verificano `canBeMutated` internamente; `AggiornaPartiSettimana` e `RiordinaParti` ora coperti (prima senza guardia); `ImpostaStatoSettimana` blocca solo SKIPPED (riattivazione libera).
+- **Encapsulamento assegnazioni**: aggiunti `addAssignment` e `clearAssignments` all'aggregato; `AssegnaPersonaUseCase` e `RimuoviAssegnazioniSettimana` non usano più `aggregate.copy()` diretto.
+- **VM layer violation**: `PartEditorViewModel.skipWeek` non applica più regole domain; `openPartEditor` mantiene la guardia UX (nessun use case corrispondente).
 
 ## Verifiche eseguite
 
