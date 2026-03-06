@@ -62,7 +62,7 @@ data class WeekPlanAggregate(
 
         val partsById = weekPlan.parts.associateBy { part -> part.id }
         val reordered = orderedPartIds.mapIndexed { index, partId ->
-            checkNotNull(partsById[partId]).copy(sortOrder = index)
+            partsById.getValue(partId).copy(sortOrder = index)
         }
         return copy(weekPlan = weekPlan.copy(parts = reordered)).right()
     }

@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -217,7 +218,7 @@ fun WindowScope.AppScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                navigationSections.forEach { section ->
+                                                navigationSections.filter { it != AppSection.DIAGNOSTICS }.forEach { section ->
                                                     TopBarSectionButton(
                                                         selected = currentSection == section,
                                                         onClick = { navigateToSection(section) },
@@ -235,6 +236,14 @@ fun WindowScope.AppScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
                                             ) {
+                                                ToolbarIconAction(
+                                                    onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
+                                                    icon = Icons.Filled.BugReport,
+                                                    contentDescription = "Diagnostica",
+                                                    modifier = Modifier.alpha(
+                                                        if (currentSection == AppSection.DIAGNOSTICS) 0.75f else 0.35f
+                                                    ),
+                                                )
                                                 Box {
                                                     ToolbarIconAction(
                                                         onClick = {

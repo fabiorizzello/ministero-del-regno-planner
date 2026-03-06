@@ -27,8 +27,9 @@ class AggiornaSchemiUseCase(
     private val settings: Settings,
 ) {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
-        val catalog = runCatching { remoteSource.fetchCatalog() }
-            .getOrElse { raise(DomainError.Network("Errore nel download schemi: ${it.message}")) }
+        val catalog = Either.catch { remoteSource.fetchCatalog() }
+            .mapLeft { DomainError.Network("Errore nel download schemi: ${it.message}") }
+            .bind()
 
         val availableCodes = catalog.partTypes.map { it.code }.toSet()
         val invalidWeek = catalog.weeks.firstOrNull { week ->

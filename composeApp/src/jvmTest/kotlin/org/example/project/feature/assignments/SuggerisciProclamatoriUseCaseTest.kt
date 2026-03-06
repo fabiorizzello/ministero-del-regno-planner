@@ -220,7 +220,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `persona sospesa non compare nei suggeriti`() = runBlocking {
+    fun `persona non inclusa nel ranking SQL non compare nei suggeriti`() = runBlocking {
         val personSospesa = person(id = "p-sospeso", nome = "Giulia", cognome = "Neri", sesso = Sesso.F, sospeso = true)
         val personAttiva = person(id = "p-attivo", nome = "Marco", cognome = "Blu", sesso = Sesso.M)
 

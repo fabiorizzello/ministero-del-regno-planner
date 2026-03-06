@@ -189,19 +189,19 @@ internal class PartEditorViewModel(
 
     private fun loadPartTypes() {
         scope.launch {
-            try {
-                val types = cercaTipiParte()
-                _state.update { it.copy(partTypes = types) }
-            } catch (error: Exception) {
-                _state.update {
-                    it.copy(
+            _state.executeAsyncOperation(
+                loadingUpdate = { it },
+                successUpdate = { state, types -> state.copy(partTypes = types) },
+                errorUpdate = { state, error ->
+                    state.copy(
                         notice = FeedbackBannerModel(
                             "Errore nel caricamento tipi parte: ${error.message}",
                             FeedbackBannerKind.ERROR,
                         ),
                     )
-                }
-            }
+                },
+                operation = { cercaTipiParte() },
+            )
         }
     }
 }

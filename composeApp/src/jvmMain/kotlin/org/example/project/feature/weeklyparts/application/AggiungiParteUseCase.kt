@@ -39,7 +39,6 @@ class AggiungiParteUseCase(
             weekPlanStore.saveAggregate(updated)
         }
 
-        weekPlanStore.loadAggregateByDate(weekStartDate)?.weekPlan
-            ?: raise(DomainError.SalvataggioPartiSettimanaFallito)
+        updated.weekPlan
     }
 }

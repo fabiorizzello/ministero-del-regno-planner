@@ -60,85 +60,122 @@ Produci i findings ordinati per severità.
    - Use case e DI presenti, wiring UI incompleto.
    - Evidenze: `ProgramWorkspaceScreen.kt:725`, `AssignmentManagementViewModel.kt:182`, `feature/output/di/OutputModule.kt:14`.
 
-2. feature/output: tutti e tre i use case usano `throw IllegalStateException` invece di `Either<DomainError, T>`.
+2. `feature/output`: tutti e tre i use case usano `throw IllegalStateException` invece di `Either<DomainError, T>`.
    - Pattern inconsistente con tutto il resto del codebase; il ViewModel usa `runCatching` come workaround.
    - Evidenze: `StampaProgrammaUseCase.kt:31`, `GeneraPdfAssegnazioni.kt:29`, `GeneraImmaginiAssegnazioni.kt:33`.
+
+3. `SqlDelightSchemaTemplateStore.replaceAll()` e `SqlDelightSchemaUpdateAnomalyStore.append()` aprono transazione manuale interna.
+   - `database.ministeroDatabaseQueries.transaction { }` in entrambi crea una transazione **nidificata** dentro `transactionRunner.runInTransaction { }` di `AggiornaSchemiUseCase`.
+   - Viola il pattern "esattamente 1 transazione per use case mutante". L'atomicità non è garantita.
+   - Evidenze: `SqlDelightSchemaTemplateStore.kt:15`, `SqlDelightSchemaUpdateAnomalyStore.kt:16`, `AggiornaSchemiUseCase.kt:56,82`.
+
+4. `AggiornaSchemiUseCase.kt:75` — `checkNotNull()` dentro transazione non mappato a `DomainError`.
+   - Se succede, lancia `IllegalStateException` non catturata. Unico punto nel codebase dove un errore interno alla transazione bypassa il modello Either. Fix richiede aggiungere `allByCode()` allo store o ristrutturare la tx (medium effort, misclassificato inizialmente).
+   - Evidenza: `AggiornaSchemiUseCase.kt:75`.
+
+5. `core/config/UpdateSettingsStore.kt` importa da `feature/updates` — dipendenza di layer invertita.
+   - `UpdateChannel` dovrebbe stare in `core/domain` o `core/config`. Crea accoppiamento circolare logico.
+   - Evidenza: `core/config/UpdateSettingsStore.kt:5`.
+
+16. `AggiornaProclamatoreUseCase` e `CreaProclamatoreUseCase` — mutazioni senza transazione.
+    - Entrambi modificano la persistenza (`store.persist(...)`) senza aprire `transactionRunner.runInTransaction { }`.
+    - Per `AggiornaProclamatoreUseCase`: il profilo può essere persistito mentre la lettura di `listFutureAssignmentWeeks` fallisce — stato inconsistente.
+    - Evidenze: `AggiornaProclamatoreUseCase.kt:48`, `CreaProclamatoreUseCase.kt:39`.
+
+17. `SqlDelightProclamatoriStore.persistAll()` e `SqlDelightPartTypeStore.upsertAll()` / `deactivateMissingCodes()` aprono transazioni interne — nidificata come High-3.
+    - Quando chiamati da dentro `AggiornaSchemiUseCase` (già in `runInTransaction`), il commit interno avviene prima dell'outer. Colpisce anche `ImportaProclamatoriDaJsonUseCase` (nessuna outer transaction).
+    - Evidenze: `SqlDelightProclamatoriStore.kt:23`, `SqlDelightPartTypeStore.kt:46,97`, `AggiornaSchemiUseCase.kt:69-70`, `ImportaProclamatoriDaJsonUseCase.kt:45`.
 
 ### Medium
 
 2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
-   - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `StampaProgrammaUseCaseTest.kt:9`.
+   - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`.
 
-4. `GeneraImmaginiAssegnazioni`: logica di rendering PDF→PNG (`renderPdfToPng`) nel layer application.
+4. `GeneraImmaginiAssegnazioni`: logica PDF→PNG (`renderPdfToPng`) nel layer application; inietta use case invece di store.
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
-   - La classe inietta `CaricaSettimanaUseCase` e `CaricaAssegnazioniUseCase` come dipendenze — i use case non dovrebbero comporre altri use case; dovrebbero dipendere da store/repository diretti.
-   - Evidenza: `GeneraImmaginiAssegnazioni.kt:107-112` e `:13-15`.
-
-5. `StampaProgrammaUseCase`: N+1 query. **[RISOLTO — 2026-03-06]**
-   - Ora usa `assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())` per batch-load tutte le settimane in una query.
-   - Evidenza: `StampaProgrammaUseCase.kt:35` (fix).
+   - Evidenza: `GeneraImmaginiAssegnazioni.kt:107-112`, `:13-15`.
 
 6. `AppRuntime.paths()` chiamato direttamente nei use case di output (singleton globale non iniettato).
-   - Non testabile; viola dependency inversion. `AppPaths` dovrebbe essere iniettato nel costruttore.
+   - Non testabile; viola dependency inversion.
    - Evidenze: `StampaProgrammaUseCase.kt:57`, `GeneraPdfAssegnazioni.kt:55`, `GeneraImmaginiAssegnazioni.kt:47`.
 
-9. Nessun test per i ViewModel (layer UI-logic).
-   - `AssignmentManagementViewModel`, `PartEditorViewModel`, `ProclamatoreFormViewModel`, `ProgramLifecycleViewModel`, `PersonPickerViewModel`, `SchemaManagementViewModel` — zero test.
-   - La logica testabile senza display è rilevante: busy-guard (doppia invocazione bloccata), propagazione `onSuccess()` solo su risultato ok, formato testi banner, sequenze di stato async.
-   - Dipendenza mancante: `kotlinx-coroutines-test` (stessa versione di `kotlinx-coroutines = "1.10.2"`). Pattern: `runTest { vm.action(); advanceUntilIdle(); assertEquals(..., vm.uiState.value) }`.
-   - I ViewModel sono già costruibili con fake use case (interfacce pulite) — nessuna infrastruttura aggiuntiva richiesta.
+10. `TransactionRunner.kt:29-30` — `runBlocking` dentro la coroutine della transazione.
+    - `@Suppress("BlockingMethodInNonBlockingContext")` nasconde il problema. `@Suppress("UNCHECKED_CAST")` a riga 39 nasconde un unsafe cast di `Any` a `T`.
+    - Basso rischio in produzione (desktop single-user), ma fragilità architettonica.
+    - Evidenza: `core/persistence/TransactionRunner.kt:29,39`.
 
-8. Copertura test: gap residui su use case non critici. **[SOSTANZIALMENTE RISOLTO]**
-   - Coperti run 1: `AssegnaPersonaUseCase`, `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `ImpostaStatoSettimanaUseCase`, `AggiornaProclamatoreUseCase`, `ProclamatoreAggregate.create/updateProfile`.
-   - Coperti run 2: `SuggerisciProclamatoriUseCase` (cooldown scoring, sex filter, lead eligibility), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase`, `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
-   - DRY test helpers consolidati in `AssignmentTestFixtures.kt`.
-   - `SqlDelightAssignmentStoreTest` esteso: cross-parts check (in-memory su aggregato), `preloadSuggestionRanking` cache.
-   - **Bug critico trovato e risolto**: `kotlinx.serialization` compiler plugin mancante — `ImportaProclamatoriDaJsonUseCase` silenziosamente rotta (qualsiasi JSON → `ImportJsonNonValido`). Plugin aggiunto a `libs.versions.toml` e `composeApp/build.gradle.kts`. Beneficia anche `GitHubSchemaCatalogDataSource` e `GitHubReleasesClient`.
-   - **Bug risolto**: `RimuoviAssegnazioniSettimanaUseCase` — `raise(NotFound)` spostato fuori dal `try/catch`.
-   - Kover baseline: Line 39.9% / Method 35.8% / Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`).
-   - Totale test: **202, 0 failure**.
+11. `VerificaAggiornamenti` non usa `Either<DomainError, T>`.
+    - Restituisce `UpdateCheckResult` con `error: String?` invece di `Either`. Inconsistente con il resto del codebase.
+    - Evidenza: `feature/updates/application/VerificaAggiornamenti.kt:21-59`.
 
-## Findings risolti (commit e71ca70 — 2026-03-06)
+12. `GeneraPdfAssegnazioni` inietta use case invece di store (stesso problema di Medium 4).
+    - Evidenza: `GeneraPdfAssegnazioni.kt:17-18`.
 
-- **DRY creazione mese**: `computeCreatableTargets` delegava la logica duplicata — ora delega a `ProgramMonthAggregate.validateCreationTarget`.
-- **Smart constructor proclamatore**: `ProclamatoreAggregate.create` e `updateProfile` restituiscono `Either<DomainError, ...>`; validazione nome/cognome spostata dall'application al domain layer.
-- **Invarianti settimana auto-protette**: mutatori `addPart`, `removePart`, `reorderParts`, `replaceParts` verificano `canBeMutated` internamente; `AggiornaPartiSettimana` e `RiordinaParti` ora coperti (prima senza guardia); `ImpostaStatoSettimana` blocca solo SKIPPED (riattivazione libera).
-- **Encapsulamento assegnazioni**: aggiunti `addAssignment` e `clearAssignments` all'aggregato; `AssegnaPersonaUseCase` e `RimuoviAssegnazioniSettimana` non usano più `aggregate.copy()` diretto.
-- **VM layer violation**: `PartEditorViewModel.skipWeek` non applica più regole domain; `openPartEditor` mantiene la guardia UX (nessun use case corrispondente).
+13. `GitHubSchemaCatalogDataSource.fetchCatalog()` lancia `RuntimeException` non mappata.
+    - In caso di risposta HTTP 4xx/5xx, lancia `RuntimeException` invece di `DomainError.Network`.
+    - Evidenza: `GitHubSchemaCatalogDataSource.kt:40-62`.
+
+14. `KonformValidation.requireValid()` lancia `IllegalArgumentException` invece di restituire `Either`.
+    - Violazione della regola "domain non lancia eccezioni".
+    - Evidenza: `core/domain/KonformValidation.kt:10`.
+
+15. `feature/updates` — zero test coverage.
+    - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient`, `UpdateScheduler` non hanno nessun test.
+    - Evidenza: `feature/updates/application/*.kt`, `feature/updates/infrastructure/*.kt`.
+
+18. `SvuotaAssegnazioniProgrammaUseCase.execute()` — mutazione senza transazione e senza `Either<DomainError, T>`.
+    - La firma restituisce `Int` invece di `Either<DomainError, Int>` — il ViewModel gestisce errori via `runCatching`.
+    - Evidenze: `SvuotaAssegnazioniProgrammaUseCase.kt:12-13`, `AssignmentManagementViewModel.kt:243`.
+
+19. `SqlDelightAssignmentStore.save()` rilancia `IllegalStateException` invece di propagare l'errore nativamente.
+    - Evidenza: `SqlDelightAssignmentStore.kt:51-53`.
+
+21. `SuggerisciProclamatoriUseCase` — N+1 residuo su `assignmentRepository.listByWeek()` per rilevazione `requiredSex`.
+    - In `AutoAssegnaProgrammaUseCase` genera N×M query extra; i dati sono già in `assignmentsByWeek` ma non passati al figlio.
+    - Evidenze: `SuggerisciProclamatoriUseCase.kt:48`, `AutoAssegnaProgrammaUseCase.kt:65-80`.
+
+23. `ProgramLifecycleViewModel.loadAssignmentsByWeek()` — silenzioso fallimento su errori DB.
+    - `runCatching { }.getOrElse { emptyList() }` — la settimana appare con zero assegnazioni senza notifica.
+    - Evidenza: `ProgramLifecycleViewModel.kt:223`.
+
+### Low
+
+- `SqlDelightSchemaUpdateAnomalyStore.append()` non è idempotente: ogni chiamata genera nuovo UUID, retry accumula duplicati.
+- Test transazionale `AggiornaSchemiUseCaseTransactionTest` non simula rollback a metà operazione.
+- **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alcuni test passano date non-lunedì senza conseguenze visibili oggi. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
+  - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
+- **Finding 25**: `AssignmentWithPerson` init block lancia `IllegalArgumentException` se `slot < 1`. Se un record DB corrotto ha `slot=0`, l'app crasha nel load invece di restituire un `DomainError`.
+  - Evidenze: `AssignmentWithPerson.kt:15`, `SqlDelightAssignmentStore.kt:36`.
+- **Finding 26**: `PartTypeJsonParser.parsePartTypeFromJson()` usa `error()` per campi JSON mancanti invece di `Either`.
+  - Evidenza: `PartTypeJsonParser.kt:28-34`.
+- **Finding 29**: `ImportaProclamatoriDaJsonUseCase` — nessuna outer transaction; `persistAll` apre la propria (High 17). Import di N proclamatori non è atomico.
+  - Evidenze: `ImportaProclamatoriDaJsonUseCase.kt:44-48`, `SqlDelightProclamatoriStore.kt:22-28`.
+
+---
+
+## Findings risolti
+
+- **DRY creazione mese**, **smart constructor proclamatore**, **invarianti settimana auto-protette**, **encapsulamento assegnazioni**, **VM layer violation** — commit `e71ca70`.
+- **Medium 5** `StampaProgrammaUseCase` N+1 — batch con `listByWeekPlanIds`. Commit `e4791ef`.
+- **Medium 8** Copertura test gap residui — 202 test, 0 failure. Baseline Kover: Line 39.9% / Method 35.8% / Branch 33.4%.
+- **Medium 9** Nessun test ViewModel — aggiunti `AssignmentManagementViewModelTest`, `ProclamatoreFormViewModelTest`, `SchemaManagementViewModelTest`, `ProgramLifecycleViewModelTest`.
+- **Bug critico**: `kotlinx.serialization` compiler plugin mancante → `ImportaProclamatoriDaJsonUseCase` silenziosamente rotta. Plugin aggiunto.
+- **Bug**: `RimuoviAssegnazioniSettimanaUseCase` — `raise(NotFound)` spostato fuori dal `try/catch`.
+- **Low `AggiornaSchemiUseCase.kt:30`** — `runCatching` → `Either.catch + mapLeft + bind`.
+- **Finding 27** `WeekPlanAggregate.reorderParts()` — `checkNotNull` → `getValue` (unreachable path).
+- **Finding 28** test persona sospesa — rinominato in `persona non inclusa nel ranking SQL non compare nei suggeriti`.
+- **Medium 20** `AggiungiParteUseCase` N+1 post-save — restituisce `updated.weekPlan` in-memory.
+- **Medium 22** `PartEditorViewModel.loadPartTypes()` — `try/catch` → `executeAsyncOperation`.
 
 ## Verifiche eseguite
 
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06)
-- Totale test JVM: `109`
-- Failure: `0`
-- Error: `0`
-- Use case totali: `36`; con test diretto: `7 (19%)`; con test indiretto: `13 (36%)`; senza test: `16 (44%)`
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-fix High 3+4, Medium 3+7)
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-perf ranking+assignment batch)
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-eligibility cache)
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, +22 test coverage gaps)
-- Totale test JVM: `131` | Failure: `0` | Error: `0`
-- Kover baseline: Line 39.9%, Method 35.8%, Branch 33.4% (filtri: esclusi ui/, db/, core/cli/)
-- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, ralph-loop ciclo 1: fix Medium-5 N+1 StampaProgrammaUseCase)
+- `./gradlew :composeApp:jvmTest --rerun-tasks` → `BUILD SUCCESSFUL` (2026-03-06, post-fix low effort ciclo 3)
 - Totale test JVM: `202` | Failure: `0` | Error: `0`
-
-## Findings ciclo 1 ralph-loop (2026-03-06)
-
-### Qualità test (post-run 2)
-
-- **ViewModel tests** (`AssignmentManagementViewModelTest`, `ProclamatoreFormViewModelTest`, `SchemaManagementViewModelTest`, `ProgramLifecycleViewModelTest`): tutti solidi — coprono busy-guard, debounce, onSuccess/onError, state management. Nessun ridondante rimosso perché ogni test verifica un comportamento distinto.
-- **`StampaProgrammaUseCaseTest`**: misleadingly named — testa solo `weekPlanStatusLabel()` (helper interno), non `StampaProgrammaUseCase` in sé. Rinomina opzionale: `WeekPlanStatusLabelTest`. Non è grave ma genera false aspettative sulla coverage dell'use case.
-- **`SuggerisciProclamatoriUseCaseTest`** test 4 (sospeso): testa che la persona sospesa non appaia nel ranking — corretto dal punto di vista comportamentale, ma il commento chiarisce che il filtro è SQL, non in-use-case. Il test è valido come contratto del boundary.
-- **Warnings `@ExperimentalCoroutinesApi`**: i test ViewModel usano `advanceTimeBy`/`advanceUntilIdle` senza `@OptIn`. Non rompono, ma sono warnings. Aggiungere `@OptIn(ExperimentalCoroutinesApi::class)` file-level sulle classi test ViewModel — non urgente.
-
-### Correzioni applicate
-
-- **MEMORY.md**: corretto nota SexRule errata — esiste anche `UOMO` (hard filter per `Sesso.M`), non solo `STESSO_SESSO`.
-- **Medium-5 risolto**: `StampaProgrammaUseCase` — N+1 eliminato con `listByWeekPlanIds` batch.
+- Kover baseline: Line 39.9%, Method 35.8%, Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`)
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **non ancora production-ready**.
 
-Aree più problematiche: (1) feature/output completamente fuori dal modello Either (High 2, aperto), (2) copertura test insufficiente su use case mutanti (Medium 8).
+Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) transazioni nidificate/mancanti in people + schemas (High 3, 16, 17), (3) dipendenza invertita core←feature/updates (High 5), (4) copertura test zero su feature/updates (Medium 15).
