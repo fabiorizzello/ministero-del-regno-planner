@@ -46,15 +46,18 @@ class AutoAssegnaProgrammaUseCase(
             .filter { it.weekStartDate >= referenceDate }
             .filter { it.status == WeekPlanStatus.ACTIVE }
 
-        val referenceDates = weeks.map { it.weekStartDate }.toSet()
         val partTypeIds: Set<PartTypeId> = weeks.flatMap { w -> w.parts.map { it.partType.id } }.toSet()
-        val rankingCache = assignmentRanking.preloadSuggestionRanking(referenceDates, partTypeIds)
         val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
 
         var assignedCount = 0
         val unresolved = mutableListOf<AutoAssignUnresolvedSlot>()
 
         for (week in weeks) {
+            // Reload ranking per week so assignments made in earlier weeks are reflected.
+            val rankingCache = assignmentRanking.preloadSuggestionRanking(
+                referenceDates = setOf(week.weekStartDate),
+                partTypeIds = partTypeIds,
+            )
             val assignments = assignmentsByWeek[week.id] ?: emptyList()
             val existingByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
             val alreadyAssignedIds = assignments.map { it.personId }.toMutableSet()
