@@ -89,9 +89,18 @@ Produci i findings ordinati per severità.
 
 ~~7. `RimuoviParteUseCase`: caricamento post-transazione fuori dal contesto transazionale. **[RISOLTO]**~~
 
-8. Copertura test: 44% dei use case senza alcun test (16 su 36).
-   - Use case critici non coperti: `AssegnaPersonaUseCase`, `SuggerisciProclamatoriUseCase`, `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `AggiornaProclamatoreUseCase` (outcome `futureWeeksWhereAssigned`), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase`, `ImpostaStatoSettimanaUseCase`, `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
-   - Il domain layer è ben coperto; il gap è sui boundary con la persistence.
+9. Nessun test per i ViewModel (layer UI-logic).
+   - `AssignmentManagementViewModel`, `PartEditorViewModel`, `ProclamatoreFormViewModel`, `ProgramLifecycleViewModel`, `PersonPickerViewModel`, `SchemaManagementViewModel` — zero test.
+   - La logica testabile senza display è rilevante: busy-guard (doppia invocazione bloccata), propagazione `onSuccess()` solo su risultato ok, formato testi banner, sequenze di stato async.
+   - Dipendenza mancante: `kotlinx-coroutines-test` (stessa versione di `kotlinx-coroutines = "1.10.2"`). Pattern: `runTest { vm.action(); advanceUntilIdle(); assertEquals(..., vm.uiState.value) }`.
+   - I ViewModel sono già costruibili con fake use case (interfacce pulite) — nessuna infrastruttura aggiuntiva richiesta.
+   - Test Compose UI (`compose.uiTest`) non prioritari: i composable sono dichiarativi, la logica è già coperta dai test ViewModel.
+
+8. Copertura test: gap residui su use case non critici.
+   - Coperti nella sessione 2026-03-06: `AssegnaPersonaUseCase` (happy path), `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `ImpostaStatoSettimanaUseCase`, `AggiornaProclamatoreUseCase` (happy path + suspension outcome), `ProclamatoreAggregate.create/updateProfile` (smart constructor paths).
+   - Ancora senza test diretto: `SuggerisciProclamatoriUseCase` (cooldown scoring), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase` (use case, non aggregato), `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
+   - **Bug latente trovato**: `RimuoviAssegnazioniSettimanaUseCase` wrappa tutto in `try/catch(Exception)` che intercetta anche l'eccezione interna di Arrow `raise()` — settimana non trovata produce `RimozioneAssegnazioniFallita` invece di `NotFound`. Documentato nel test con commento.
+   - Kover aggiunto (v0.9.1): baseline Line 39.9% / Method 35.8% / Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`).
 
 ## Findings risolti (commit e71ca70 — 2026-03-06)
 
@@ -111,6 +120,9 @@ Produci i findings ordinati per severità.
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-fix High 3+4, Medium 3+7)
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-perf ranking+assignment batch)
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-eligibility cache)
+- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, +22 test coverage gaps)
+- Totale test JVM: `131` | Failure: `0` | Error: `0`
+- Kover baseline: Line 39.9%, Method 35.8%, Branch 33.4% (filtri: esclusi ui/, db/, core/cli/)
 
 ## Stato finale sintetico
 
