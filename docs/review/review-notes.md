@@ -2,14 +2,13 @@
 
 ## Prompt sorgente di oggi
 
-### Prompt utente principale
 ```text
-fai valutazione del progetto dimmi come è messo riguardo features complete, DDD vertical slices, rich domain models, invariant, aggregate root centrico. aggregato puro e use case per orchestrazine IO, services per servizi trasversali. test coverage soprattutto di logica pura e poi integration tests. il progetto dovrebbe usare concetti DDD rich model e funzionale, arrow, either, domain error. valuta se necessari optics in applicazione o altre migliorie per scandire meglio il domain(es monoid, semigroup, newtypes, adt, gadt ecc). fammi valutazione se production ready. 1 utente 1 sessione, no saga, unica transazione per use case. valuta assenza codice orfano o legacy. se necessario separa questa attività in più agenti paralleli ordinati e coesi
-```
-
-### Prompt operativo complementare
-```text
-rieffettua verifica per capire se abbiamo tralasciato qualcosa. bugs, orfani legacy, todo, non DRY SOLID DDD vertical slice rich domain e spec non allineate
+Valuta il progetto su: features complete, DDD vertical slices, rich domain models, invarianti,
+aggregate-root centrico, aggregato puro con use case per IO e services per logica trasversale.
+Test coverage sulla logica pura e integration test sui boundary. Usa concetti DDD funzionale:
+Arrow, Either, DomainError; valuta optics, monoid, semigroup, newtypes, ADT/GADT dove utili.
+Verifica production-readiness (1 utente, 1 sessione, no saga, transazione unica per use case).
+Controlla assenza di codice orfano, legacy, TODO, violazioni DRY/SOLID/DDD e spec non allineate.
 ```
 
 ## Findings aperti (ordinati per severità)
