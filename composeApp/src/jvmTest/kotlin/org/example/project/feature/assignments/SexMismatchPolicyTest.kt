@@ -162,6 +162,8 @@ private class StaticAssignmentRepository(
     private val assignments: List<AssignmentWithPerson>,
 ) : AssignmentRepository {
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = assignments
+    override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> =
+        weekPlanIds.associateWith { assignments }
 
     override suspend fun save(assignment: Assignment) {}
 

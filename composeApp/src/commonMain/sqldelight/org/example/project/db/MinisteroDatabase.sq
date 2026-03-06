@@ -329,6 +329,22 @@ JOIN weekly_part wp ON a.weekly_part_id = wp.id
 WHERE wp.week_plan_id = ?
 ORDER BY wp.sort_order, a.slot;
 
+assignmentsForWeekPlanIds:
+SELECT
+    a.id,
+    a.weekly_part_id,
+    a.person_id,
+    a.slot,
+    p.first_name,
+    p.last_name,
+    p.sex,
+    wp.week_plan_id
+FROM assignment a
+JOIN person p ON a.person_id = p.id
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+WHERE wp.week_plan_id IN ?
+ORDER BY wp.week_plan_id, wp.sort_order, a.slot;
+
 upsertAssignment:
 INSERT INTO assignment(id, weekly_part_id, person_id, slot)
 VALUES (?, ?, ?, ?)

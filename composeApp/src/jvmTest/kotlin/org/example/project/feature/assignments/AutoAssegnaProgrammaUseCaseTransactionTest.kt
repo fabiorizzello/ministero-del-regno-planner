@@ -199,6 +199,7 @@ private class SingleSuggestionRanking(
 
 private object EmptyAssignmentsRepository : AssignmentRepository {
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = emptyList()
+    override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> = emptyMap()
 
     override suspend fun save(assignment: Assignment) {}
 

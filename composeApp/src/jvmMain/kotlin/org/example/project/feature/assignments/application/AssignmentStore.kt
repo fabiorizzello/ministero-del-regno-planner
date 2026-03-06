@@ -13,6 +13,7 @@ import java.time.LocalDate
 
 interface AssignmentRepository {
     suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson>
+    suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>>
     suspend fun save(assignment: Assignment)
     suspend fun remove(assignmentId: AssignmentId)
     suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId)
