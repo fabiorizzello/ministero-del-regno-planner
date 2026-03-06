@@ -30,7 +30,7 @@ val assignmentsModule = module {
     single { SalvaImpostazioniAssegnatoreUseCase(get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
-    single { RimuoviAssegnazioneUseCase(get()) }
+    single { RimuoviAssegnazioneUseCase(get(), get()) }
     single { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get()) }

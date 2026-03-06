@@ -24,6 +24,7 @@ class StampaProgrammaUseCase(
     private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
     private val renderer: PdfProgramRenderer,
+    private val fileOpener: FileOpener,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend operator fun invoke(programId: ProgramMonthId): Path = withContext(dispatcher) {
@@ -64,7 +65,7 @@ class StampaProgrammaUseCase(
             outputPath = outputPath,
         )
 
-        apriFile(outputPath)
+        fileOpener.open(outputPath)
         outputPath
     }
 }

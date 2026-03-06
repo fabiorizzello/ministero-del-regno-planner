@@ -33,7 +33,7 @@ class RimuoviParteUseCaseTransactionTest {
             weeklyPartId = weekStore.initialPart.id,
         )
 
-        assertIs<Either.Right<WeekPlan>>(result)
+        assertIs<Either.Right<Unit>>(result)
         assertEquals(1, txRunner.invocationCount)
     }
 }

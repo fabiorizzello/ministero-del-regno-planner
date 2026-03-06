@@ -4,7 +4,6 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
-import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 
@@ -16,7 +15,7 @@ class RimuoviParteUseCase(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
         referenceDate: LocalDate = LocalDate.now(),
-    ): Either<DomainError, WeekPlan> = either {
+    ): Either<DomainError, Unit> = either {
         val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
             ?: raise(DomainError.NotFound("Settimana"))
 
@@ -27,8 +26,5 @@ class RimuoviParteUseCase(
         transactionRunner.runInTransaction {
             weekPlanStore.saveAggregate(updated)
         }
-
-        weekPlanStore.loadAggregateByDate(weekStartDate)?.weekPlan
-            ?: raise(DomainError.SalvataggioPartiSettimanaFallito)
     }
 }

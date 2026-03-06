@@ -118,6 +118,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
                         error("db down")
                     }
                 },
+                transactionRunner = PassthroughTransactionRunner,
             )
 
             val result = useCase(AssignmentId("a1"))

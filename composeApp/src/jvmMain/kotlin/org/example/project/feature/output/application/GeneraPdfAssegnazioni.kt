@@ -17,6 +17,7 @@ class GeneraPdfAssegnazioni(
     private val caricaSettimana: CaricaSettimanaUseCase,
     private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
     private val renderer: PdfAssignmentsRenderer,
+    private val fileOpener: FileOpener,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val logger = KotlinLogging.logger {}
@@ -56,7 +57,7 @@ class GeneraPdfAssegnazioni(
 
         renderer.renderWeeklyAssignmentsPdf(weekStartDate, weekEnd, parts, outputPath)
         logger.info("PDF assegnazioni creato: {}", outputPath.toAbsolutePath())
-        apriFile(outputPath)
+        fileOpener.open(outputPath)
         outputPath
     }
 }
