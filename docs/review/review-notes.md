@@ -57,13 +57,9 @@ Produci i findings ordinati per severità.
    - Pattern inconsistente con tutto il resto del codebase; il ViewModel usa `runCatching` come workaround.
    - Evidenze: `StampaProgrammaUseCase.kt:31`, `GeneraPdfAssegnazioni.kt:29`, `GeneraImmaginiAssegnazioni.kt:33`.
 
-3. `RimuoviAssegnazioneUseCase`: operazione mutante (`assignmentStore.remove(id)`) senza `runInTransaction`.
-   - Use case mutante che non apre transazione: viola il contratto "1 mutant use case = 1 transaction". L'errore viene catturato da un `try/catch` inside `either{}`, ma la singola write non è protetta.
-   - Evidenza: `RimuoviAssegnazioneUseCase.kt:11-18`.
+~~3. `RimuoviAssegnazioneUseCase`: operazione mutante senza `runInTransaction`. **[RISOLTO]**~~
 
-4. `AggiornaProgrammaDaSchemiUseCase`: `throw IllegalStateException` dentro `context(TransactionScope)` function.
-   - La lambda transazionale lancia un'eccezione non tipata anziché tornare `Either.Left`; il rollback avviene ma il caller riceve un'eccezione non strutturata, non un `DomainError`. La firma `Either<DomainError, SchemaRefreshReport>` non può mai produrre `Left` da dentro la transazione.
-   - Evidenza: `AggiornaProgrammaDaSchemiUseCase.kt:133` (`ifLeft = { throw IllegalStateException(...) }`).
+~~4. `AggiornaProgrammaDaSchemiUseCase`: `throw IllegalStateException` dentro `context(TransactionScope)`. **[RISOLTO]**~~
 
 ### Medium
 
@@ -75,9 +71,7 @@ Produci i findings ordinati per severità.
    - HTTP client e PDF rendering ancora poco coperti.
    - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `StampaProgrammaUseCaseTest.kt:9`.
 
-3. `apriFile()` collocata in `output/application/` ma contiene IO OS (Desktop.open, ProcessBuilder xdg-open).
-   - È un infrastructure service, non logica di applicazione. Dovrebbe essere un'interfaccia dichiarata in application e implementata in infrastructure, iniettata nei use case.
-   - Evidenze: `ApriFile.kt:9-19`, chiamata diretta da `StampaProgrammaUseCase.kt:67` e `GeneraPdfAssegnazioni.kt:59`.
+~~3. `apriFile()` collocata in `output/application/` ma contiene IO OS (Desktop.open, ProcessBuilder xdg-open). **[RISOLTO]**~~
 
 4. `GeneraImmaginiAssegnazioni`: logica di rendering PDF→PNG (`renderPdfToPng`) nel layer application.
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
@@ -92,9 +86,7 @@ Produci i findings ordinati per severità.
    - Non testabile; viola dependency inversion. `AppPaths` dovrebbe essere iniettato nel costruttore.
    - Evidenze: `StampaProgrammaUseCase.kt:57`, `GeneraPdfAssegnazioni.kt:55`, `GeneraImmaginiAssegnazioni.kt:47`.
 
-7. `RimuoviParteUseCase`: caricamento post-transazione fuori dal contesto transazionale.
-   - Dopo il salvataggio, il use case rilegge l'aggregato fuori transazione per verifica — la verifica è inaffidabile (race window) e l'eventuale errore non è gestito via Either.
-   - Evidenza: `RimuoviParteUseCase.kt:31-32`.
+~~7. `RimuoviParteUseCase`: caricamento post-transazione fuori dal contesto transazionale. **[RISOLTO]**~~
 
 8. Copertura test: 44% dei use case senza alcun test (16 su 36).
    - Use case critici non coperti: `AssegnaPersonaUseCase`, `SuggerisciProclamatoriUseCase`, `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `AggiornaProclamatoreUseCase` (outcome `futureWeeksWhereAssigned`), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase`, `ImpostaStatoSettimanaUseCase`, `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
@@ -115,9 +107,10 @@ Produci i findings ordinati per severità.
 - Failure: `0`
 - Error: `0`
 - Use case totali: `36`; con test diretto: `7 (19%)`; con test indiretto: `13 (36%)`; senza test: `16 (44%)`
+- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-fix High 3+4, Medium 3+7)
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **non ancora production-ready**.
 
-Aree più problematiche: (1) feature/output completamente fuori dal modello Either, (2) throw dentro TransactionScope in AggiornaProgrammaDaSchemi, (3) copertura test insufficiente su use case mutanti.
+Aree più problematiche: (1) feature/output completamente fuori dal modello Either (High 2, aperto), (2) copertura test insufficiente su use case mutanti (Medium 8).

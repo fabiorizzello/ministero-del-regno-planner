@@ -28,6 +28,8 @@ data class SchemaRefreshReport(
 
 private typealias AssignmentKey = Pair<PartTypeId, Int>
 
+private class RefreshFailed(val error: DomainError) : Exception()
+
 private data class WeekRefreshCandidate(
     val aggregate: WeekPlanAggregate,
     val orderedPartTypes: List<Pair<PartType, String?>>, // ordered by sort
@@ -87,11 +89,15 @@ class AggiornaProgrammaDaSchemiUseCase(
         }
 
         if (!dryRun) {
-            transactionRunner.runInTransaction {
-                for (candidate in refreshCandidates) {
-                    applyRefreshCandidate(candidate, referenceDate)
+            try {
+                transactionRunner.runInTransaction {
+                    for (candidate in refreshCandidates) {
+                        applyRefreshCandidate(candidate, referenceDate)
+                    }
+                    programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
                 }
-                programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
+            } catch (e: RefreshFailed) {
+                raise(e.error)
             }
         }
 
@@ -130,7 +136,7 @@ class AggiornaProgrammaDaSchemiUseCase(
         val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes, referenceDate) {
             WeeklyPartId(UUID.randomUUID().toString())
         }.fold(
-            ifLeft = { error -> throw IllegalStateException("Refresh non valido: $error") },
+            ifLeft = { error -> throw RefreshFailed(error) },
             ifRight = { it },
         )
 
