@@ -162,10 +162,12 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   100 caratteri ciascuno.
 - **FR-004**: Il sistema MUST consentire la modifica di nome, cognome e sesso, con
   ri-verifica del duplicato escludendo il proclamatore stesso.
-- **FR-005**: Il sistema MUST consentire di sospendere e riattivare un proclamatore.
-  Un proclamatore con `sospeso = true` MUST essere escluso dai candidati per le
-  assegnazioni (`allAssignableProclaimers`). La sospensione è reversibile.
-  Al momento della sospensione il sistema MUST restituire `futureWeeksWhereAssigned`.
+- **FR-005**: Il sistema MUST consentire di sospendere e riattivare un proclamatore
+  tramite il campo `sospeso` nel form di modifica (gestito da `AggiornaProclamatoreUseCase`,
+  non da un use case separato). Un proclamatore con `sospeso = true` MUST essere escluso
+  dai candidati per le assegnazioni (`allAssignableProclaimers`). La sospensione è
+  reversibile. Al momento della sospensione (transizione `false → true`) il sistema MUST
+  restituire `futureWeeksWhereAssigned` nell'`AggiornamentoOutcome`.
 - **FR-006**: Il sistema MUST consentire di configurare l'idoneità alla conduzione
   per ogni proclamatore su base per-tipo-parte. Un nuovo proclamatore NON ha idoneità
   alla conduzione per nessun tipo di parte — deve essere configurata esplicitamente.
@@ -197,9 +199,11 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   Invariante (enforced in `Proclamatore.init`): nome e cognome non vuoti (isNotBlank)
   e lunghezza massima 100 caratteri ciascuno.
   `sospeso = true` esclude dalle candidature per le assegnazioni.
-- **SospensioneInfo**: `futureWeeksWhereAssigned: List<LocalDate>` — lista delle date
-  di inizio settimana in cui il proclamatore ha assegnazioni future al momento della
-  sospensione. Informativa; le assegnazioni non vengono rimosse automaticamente.
+- **AggiornamentoOutcome** (`AggiornaProclamatoreUseCase.AggiornamentoOutcome`):
+  `proclamatore: Proclamatore`, `futureWeeksWhereAssigned: List<LocalDate>` — lista
+  delle date di inizio settimana in cui il proclamatore ha assegnazioni future al momento
+  della sospensione. Popolata solo quando `sospeso` passa da `false` a `true`; altrimenti
+  lista vuota. Informativa: le assegnazioni non vengono rimosse automaticamente.
 - **IdoneitaConduzione**: per-proclamatore per-tipo-parte, flag `canLead`. Determina
   se il proclamatore è candidato allo slot 1 di quel tipo di parte.
 
@@ -237,3 +241,12 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   `length <= 100` per nome e cognome. Questo garantisce che nessun path di creazione
   (incluso `ImportaProclamatoriDaJsonUseCase`) possa produrre un `Proclamatore` invalido
   indipendentemente da quale use case lo costruisce (parse-don't-validate).
+
+### Session 2026-03-06
+
+- Q: Esiste `ImpostaSospesoUseCase`? → A: **No.** La sospensione è gestita interamente
+  da `AggiornaProclamatoreUseCase` tramite il campo `sospeso` nel `Command`. Il ritorno
+  è `AggiornamentoOutcome(proclamatore, futureWeeksWhereAssigned)` — `futureWeeksWhereAssigned`
+  è popolata solo quando `sospeso` passa `false → true`, altrimenti lista vuota.
+  Non esiste né `ImpostaSospesoUseCase` né un tipo `SospensioneInfo` separato nel codice.
+  La spec è stata corretta per allinearsi al codice reale.

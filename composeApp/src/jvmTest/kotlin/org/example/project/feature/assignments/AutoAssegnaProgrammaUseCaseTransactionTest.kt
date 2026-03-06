@@ -1,21 +1,10 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
-import org.example.project.feature.assignments.application.AssignmentRanking
-import org.example.project.feature.assignments.application.AssignmentRepository
-import org.example.project.feature.assignments.application.AssignmentSettings
-import org.example.project.feature.assignments.application.AssignmentSettingsStore
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
-import org.example.project.feature.assignments.domain.Assignment
-import org.example.project.feature.assignments.domain.AssignmentId
-import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
-import org.example.project.feature.people.application.EligibilityCleanupCandidate
-import org.example.project.feature.people.application.EligibilityStore
-import org.example.project.feature.people.application.LeadEligibility
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -82,32 +71,20 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
             transactionRunner = assignmentTx,
             personStore = TransactionTestPersonStore(candidate),
         )
+        val candidateSuggestion = SuggestedProclamatore(
+            proclamatore = candidate,
+            lastGlobalWeeks = 6,
+            lastForPartTypeWeeks = 4,
+            lastConductorWeeks = 6,
+        )
         val suggestUseCase = SuggerisciProclamatoriUseCase(
             weekPlanStore = weekStore,
-            assignmentStore = SingleSuggestionRanking(
-                suggestions = listOf(
-                    SuggestedProclamatore(
-                        proclamatore = candidate,
-                        lastGlobalWeeks = 6,
-                        lastForPartTypeWeeks = 4,
-                        lastConductorWeeks = 6,
-                    ),
-                ),
-            ),
+            assignmentStore = StaticAssignmentRanking(listOf(candidateSuggestion)),
             assignmentRepository = EmptyAssignmentsRepository,
             eligibilityStore = SingleCandidateEligibilityStore(candidate.id, partType.id),
             assignmentSettingsStore = StaticSettingsStore,
         )
-        val ranking = SingleSuggestionRanking(
-            suggestions = listOf(
-                SuggestedProclamatore(
-                    proclamatore = candidate,
-                    lastGlobalWeeks = 6,
-                    lastForPartTypeWeeks = 4,
-                    lastConductorWeeks = 6,
-                ),
-            ),
-        )
+        val ranking = StaticAssignmentRanking(listOf(candidateSuggestion))
         val eligibility = SingleCandidateEligibilityStore(candidate.id, partType.id)
         val useCase = AutoAssegnaProgrammaUseCase(
             weekPlanStore = weekStore,
@@ -151,16 +128,6 @@ private class InMemoryWeekPlanStore(
     }
 }
 
-private class CountingTransactionRunner : TransactionRunner {
-    var calls: Int = 0
-        private set
-
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
-        calls += 1
-        return with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-    }
-}
-
 private class TransactionTestPersonStore(
     private val person: Proclamatore,
 ) : ProclamatoriAggregateStore {
@@ -173,81 +140,3 @@ private class TransactionTestPersonStore(
     override suspend fun remove(id: ProclamatoreId) {}
 }
 
-private class SingleSuggestionRanking(
-    private val suggestions: List<SuggestedProclamatore>,
-) : AssignmentRanking {
-    override suspend fun suggestedProclamatori(
-        partTypeId: PartTypeId,
-        slot: Int,
-        referenceDate: LocalDate,
-        rankingCache: org.example.project.feature.assignments.application.SuggestionRankingCache?,
-    ): List<SuggestedProclamatore> = suggestions
-
-    override suspend fun preloadSuggestionRanking(
-        referenceDates: Set<LocalDate>,
-        partTypeIds: Set<PartTypeId>,
-    ): org.example.project.feature.assignments.application.SuggestionRankingCache =
-        org.example.project.feature.assignments.application.SuggestionRankingCache(
-            globalLast = emptyMap(),
-            conductorLast = emptyMap(),
-            allActive = emptyList(),
-            globalBeforeByDate = emptyMap(),
-            globalAfterByDate = emptyMap(),
-            partTypeLastByType = emptyMap(),
-            partTypeBeforeByTypeAndDate = emptyMap(),
-            partTypeAfterByTypeAndDate = emptyMap(),
-        )
-}
-
-private object EmptyAssignmentsRepository : AssignmentRepository {
-    override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = emptyList()
-    override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> = emptyMap()
-
-    override suspend fun save(assignment: Assignment) {}
-
-    override suspend fun remove(assignmentId: AssignmentId) {}
-
-    override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
-
-    override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = 0
-
-    override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
-
-    override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
-}
-
-private class SingleCandidateEligibilityStore(
-    private val personId: ProclamatoreId,
-    private val partTypeId: PartTypeId,
-) : EligibilityStore {
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
-
-    override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
-
-    override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
-
-    override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
-
-    override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> {
-        return if (partTypeId in partTypeIds) {
-            listOf(EligibilityCleanupCandidate(personId = personId, partTypeId = partTypeId))
-        } else {
-            emptyList()
-        }
-    }
-
-    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
-        mapOf(partTypeId to setOf(personId))
-
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
-
-    override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
-}
-
-private object StaticSettingsStore : AssignmentSettingsStore {
-    override suspend fun load(): AssignmentSettings = AssignmentSettings(strictCooldown = true)
-
-    override suspend fun save(settings: AssignmentSettings) {}
-}

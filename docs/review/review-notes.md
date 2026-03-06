@@ -25,6 +25,13 @@ Modello funzionale:
 Test:
 - Coverage sulla logica pura (domain + use case)
 - Integration test sui boundary esterni (HTTP, DB, PDF)
+- Qualità dei test esistenti: valuta se ogni test è necessario e porta valore reale.
+  Per ogni test considera: testa un comportamento distinto o è ridondante con un altro?
+  Può essere rimosso perché copre solo un dettaglio implementativo fragile?
+  Può essere accorpato con un test simile senza perdere leggibilità?
+  Può essere rafforzato (asserzione più specifica, scenario più rappresentativo)?
+  Può essere ridenominato per chiarire meglio l'intento?
+  Segnala test che danno falsa sicurezza (passano sempre, non possono fallire per regression reali).
 
 Qualità:
 - Assenza di codice orfano, legacy, TODO
@@ -82,11 +89,15 @@ Produci i findings ordinati per severità.
    - Dipendenza mancante: `kotlinx-coroutines-test` (stessa versione di `kotlinx-coroutines = "1.10.2"`). Pattern: `runTest { vm.action(); advanceUntilIdle(); assertEquals(..., vm.uiState.value) }`.
    - I ViewModel sono già costruibili con fake use case (interfacce pulite) — nessuna infrastruttura aggiuntiva richiesta.
 
-8. Copertura test: gap residui su use case non critici.
-   - Coperti nella sessione 2026-03-06: `AssegnaPersonaUseCase` (happy path), `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `ImpostaStatoSettimanaUseCase`, `AggiornaProclamatoreUseCase` (happy path + suspension outcome), `ProclamatoreAggregate.create/updateProfile` (smart constructor paths).
-   - Ancora senza test diretto: `SuggerisciProclamatoriUseCase` (cooldown scoring), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase` (use case, non aggregato), `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
-   - **Bug latente trovato**: `RimuoviAssegnazioniSettimanaUseCase` wrappa tutto in `try/catch(Exception)` che intercetta anche l'eccezione interna di Arrow `raise()` — settimana non trovata produce `RimozioneAssegnazioniFallita` invece di `NotFound`. Documentato nel test con commento.
-   - Kover aggiunto (v0.9.1): baseline Line 39.9% / Method 35.8% / Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`).
+8. Copertura test: gap residui su use case non critici. **[SOSTANZIALMENTE RISOLTO]**
+   - Coperti run 1: `AssegnaPersonaUseCase`, `SvuotaAssegnazioniProgrammaUseCase`, `RimuoviAssegnazioniSettimanaUseCase`, `ImpostaStatoSettimanaUseCase`, `AggiornaProclamatoreUseCase`, `ProclamatoreAggregate.create/updateProfile`.
+   - Coperti run 2: `SuggerisciProclamatoriUseCase` (cooldown scoring, sex filter, lead eligibility), `ImportaProclamatoriDaJsonUseCase`, `AggiornaPartiSettimanaUseCase`, `RimuoviParteUseCase`, `CreaProssimoProgrammaUseCase`, `AggiornaSchemiUseCase`.
+   - DRY test helpers consolidati in `AssignmentTestFixtures.kt`.
+   - `SqlDelightAssignmentStoreTest` esteso: cross-parts check (in-memory su aggregato), `preloadSuggestionRanking` cache.
+   - **Bug critico trovato e risolto**: `kotlinx.serialization` compiler plugin mancante — `ImportaProclamatoriDaJsonUseCase` silenziosamente rotta (qualsiasi JSON → `ImportJsonNonValido`). Plugin aggiunto a `libs.versions.toml` e `composeApp/build.gradle.kts`. Beneficia anche `GitHubSchemaCatalogDataSource` e `GitHubReleasesClient`.
+   - **Bug risolto**: `RimuoviAssegnazioniSettimanaUseCase` — `raise(NotFound)` spostato fuori dal `try/catch`.
+   - Kover baseline: Line 39.9% / Method 35.8% / Branch 33.4% (esclusi `ui/`, `db/`, `core/cli/`).
+   - Totale test: **202, 0 failure**.
 
 ## Findings risolti (commit e71ca70 — 2026-03-06)
 

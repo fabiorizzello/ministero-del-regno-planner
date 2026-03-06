@@ -17,9 +17,9 @@ class RimuoviAssegnazioniSettimanaUseCase(
     }
 
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+            ?: raise(DomainError.NotFound("Piano settimanale"))
         try {
-            val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
-                ?: raise(DomainError.NotFound("Piano settimanale"))
             transactionRunner.runInTransaction {
                 weekPlanStore.saveAggregate(aggregate.clearAssignments())
             }

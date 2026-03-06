@@ -19,6 +19,7 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class DomainErrorPeopleUseCaseTest {
 
@@ -60,6 +61,59 @@ class DomainErrorPeopleUseCaseTest {
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         assertEquals(DomainError.NotFound("Proclamatore"), left)
+    }
+
+    @Test
+    fun `crea proclamatore returns ProclamatoreDuplicato when nome e cognome esistono gia`() = runBlocking {
+        val useCase = CreaProclamatoreUseCase(
+            query = FakeProclamatoriQuery(duplicate = true),
+            store = InMemoryProclamatoriStore(),
+        )
+
+        val result = useCase(
+            CreaProclamatoreUseCase.Command(
+                nome = "Mario",
+                cognome = "Rossi",
+                sesso = Sesso.M,
+            ),
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.ProclamatoreDuplicato, left)
+    }
+
+    @Test
+    fun `aggiorna proclamatore happy path restituisce proclamatore aggiornato`() = runBlocking {
+        val personId = ProclamatoreId("p1")
+        val esistente = Proclamatore(
+            id = personId,
+            nome = "Mario",
+            cognome = "Rossi",
+            sesso = Sesso.M,
+        )
+        val store = InMemoryProclamatoriStore(initial = listOf(esistente))
+        val useCase = AggiornaProclamatoreUseCase(
+            query = FakeProclamatoriQuery(duplicate = false, people = listOf(esistente)),
+            store = store,
+            eligibilityStore = NoopEligibilityStore,
+        )
+
+        val result = useCase(
+            AggiornaProclamatoreUseCase.Command(
+                id = personId,
+                nome = "Luigi",
+                cognome = "Verdi",
+                sesso = Sesso.F,
+                puoAssistere = true,
+            ),
+        )
+
+        val outcome = assertIs<Either.Right<AggiornaProclamatoreUseCase.AggiornamentoOutcome>>(result).value
+        assertEquals("Luigi", outcome.proclamatore.nome)
+        assertEquals("Verdi", outcome.proclamatore.cognome)
+        assertEquals(Sesso.F, outcome.proclamatore.sesso)
+        assertTrue(outcome.proclamatore.puoAssistere)
+        assertEquals(emptyList(), outcome.futureWeeksWhereAssigned)
     }
 
     @Test

@@ -32,6 +32,31 @@ import kotlin.test.assertIs
 class DomainErrorMappingAssignmentsUseCaseTest {
 
     @Test
+    fun `assegna persona happy path saves assignment with correct slot and personId`() = runBlocking {
+        val week = sampleWeek(peopleCount = 2)
+        val store = SingleWeekStore(week, assignments = emptyList())
+        val useCase = AssegnaPersonaUseCase(
+            weekPlanStore = store,
+            transactionRunner = PassthroughTransactionRunner,
+            personStore = SinglePersonStore(activePerson("p1")),
+        )
+
+        val result = useCase(
+            weekStartDate = week.weekStartDate,
+            weeklyPartId = week.parts.first().id,
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+
+        assertIs<Either.Right<Unit>>(result)
+        val savedAssignments = store.aggregate.assignments
+        assertEquals(1, savedAssignments.size)
+        assertEquals(ProclamatoreId("p1"), savedAssignments.single().personId)
+        assertEquals(1, savedAssignments.single().slot)
+        assertEquals(week.parts.first().id, savedAssignments.single().weeklyPartId)
+    }
+
+    @Test
     fun `assegna persona maps suspended to PersonaSospesa`() = runBlocking {
         val week = sampleWeek(peopleCount = 2)
         val useCase = AssegnaPersonaUseCase(
@@ -163,7 +188,7 @@ private class SingleWeekStore(
     private val week: WeekPlan,
     assignments: List<Assignment>,
 ) : TestWeekPlanStore() {
-    private var aggregate = WeekPlanAggregate(
+    var aggregate = WeekPlanAggregate(
         weekPlan = week,
         assignments = assignments,
     )
@@ -206,6 +231,3 @@ private class SinglePersonStore(
     override suspend fun remove(id: ProclamatoreId) {}
 }
 
-private object PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-}
