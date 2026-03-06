@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -34,6 +35,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        jvmTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.mockk)
+        }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
@@ -51,6 +56,25 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.java)
             implementation(libs.ktor.client.logging)
+        }
+    }
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                packages(
+                    "org.example.project.ui",
+                    "org.example.project.db",
+                    "org.example.project.core.cli",
+                )
+            }
+        }
+        total {
+            html {
+                onCheck = false
+            }
         }
     }
 }
