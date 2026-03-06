@@ -63,9 +63,10 @@ Produci i findings ordinati per severità.
 
 ### Medium
 
-~~1. Performance aperta su auto-assign (N+1 query). **[PARZIALMENTE RISOLTO]**~~
-   - Ranking: pre-fetch `SuggestionRankingCache` una volta per run (da ~336 a ~56 query). Indici aggiunti: `week_plan(program_id)`, `weekly_part(part_type_id)`. Assegnazioni: `listByWeekPlanIds` batch-loaded prima del loop (N settimane → 1 query).
-   - N+1 residui non critici in `SuggerisciProclamatoriUseCase` per ogni slot: `listByWeek` (sex matching live, necessariamente non cachabile) + `listLeadEligibilityCandidatesForPartTypes` (cachabile, ~48 query/mese, ~24ms).
+~~1. Performance aperta su auto-assign (N+1 query). **[RISOLTO]**~~
+   - Ranking: `SuggestionRankingCache` ricaricata una volta per settimana (non per run, per correttezza cross-week). Indici: `week_plan(program_id)`, `weekly_part(part_type_id)`. Assegnazioni: `listByWeekPlanIds` batch.
+   - Eligibility: `preloadLeadEligibilityByPartType` caricata una volta per run (dati statici: nessun write path la modifica durante auto-assign).
+   - N+1 residuo: `assignmentRepository.listByWeek` per sex matching — necessariamente live perché legge assegnazioni appena scritte nella stessa transazione (SQLite read-your-own-writes garantisce visibilità). Non cachabile correttamente.
 
 2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
@@ -109,6 +110,7 @@ Produci i findings ordinati per severità.
 - Use case totali: `36`; con test diretto: `7 (19%)`; con test indiretto: `13 (36%)`; senza test: `16 (44%)`
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-fix High 3+4, Medium 3+7)
 - `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-perf ranking+assignment batch)
+- `./gradlew :composeApp:jvmTest --rerun-tasks` => `BUILD SUCCESSFUL` (2026-03-06, post-eligibility cache)
 
 ## Stato finale sintetico
 
