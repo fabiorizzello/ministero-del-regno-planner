@@ -189,11 +189,6 @@ fun ProclamatoriScreen() {
             val showErrorState = !listState.isLoading &&
                 listState.allItems.isEmpty() &&
                 listState.notice?.kind == FeedbackBannerKind.ERROR
-            val showEmptyState = !listState.isLoading &&
-                listState.allItems.isEmpty() &&
-                listState.notice == null &&
-                listState.searchTerm.isBlank()
-
             when {
                 showLoadingState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Loading,
@@ -202,10 +197,6 @@ fun ProclamatoriScreen() {
                 showErrorState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Error,
                     message = "Impossibile caricare l'elenco studenti.",
-                )
-                showEmptyState -> WorkspaceStatePane(
-                    kind = WorkspaceStateKind.Empty,
-                    message = "Nessun studente disponibile.",
                 )
             }
 

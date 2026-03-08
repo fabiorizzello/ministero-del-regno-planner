@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
@@ -29,8 +30,11 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperationWithNotice
+import org.example.project.core.domain.toMessage
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 internal data class DeleteProgramImpact(
     val year: Int,
@@ -111,27 +115,45 @@ internal class ProgramLifecycleViewModel(
             if (schemaTemplateStore.isEmpty()) {
                 _state.update {
                     it.copy(
-                        notice = FeedbackBannerModel(
-                            "Aggiorna schemi prima di creare il programma",
-                            FeedbackBannerKind.ERROR,
-                        ),
+                        notice = errorNotice("Aggiorna schemi prima di creare il programma"),
                     )
                 }
                 return@launch
             }
 
-            _state.executeEitherOperationWithNotice(
-                loadingUpdate = { it.copy(isCreatingProgram = true) },
-                noticeUpdate = { state, notice -> state.copy(isCreatingProgram = false, notice = notice) },
-                successMessage = null,
-                operation = { creaProssimoProgramma(targetYear, targetMonth, _state.value.today) },
-                onSuccess = { program ->
-                    _state.executeEitherOperationWithNotice(
-                        loadingUpdate = { it },
-                        noticeUpdate = { state, notice -> state.copy(notice = notice) },
-                        successMessage = null,
-                        operation = { generaSettimaneProgramma(program.id) },
-                        onSuccess = { loadProgramsAndWeeks() },
+            _state.update { it.copy(isCreatingProgram = true, notice = null) }
+
+            creaProssimoProgramma(targetYear, targetMonth, _state.value.today).fold(
+                ifLeft = { error ->
+                    _state.update {
+                        it.copy(
+                            isCreatingProgram = false,
+                            notice = errorNotice(error.toMessage()),
+                        )
+                    }
+                },
+                ifRight = { program ->
+                    generaSettimaneProgramma(program.id).fold(
+                        ifLeft = { error ->
+                            val rollbackError = eliminaProgramma(program.id, _state.value.today)
+                                .fold(
+                                    ifLeft = { it },
+                                    ifRight = { null },
+                                )
+                            _state.update {
+                                it.copy(
+                                    isCreatingProgram = false,
+                                    notice = buildProgramCreationFailureNotice(
+                                        error = error,
+                                        rollbackError = rollbackError,
+                                    ),
+                                )
+                            }
+                        },
+                        ifRight = {
+                            _state.update { state -> state.copy(isCreatingProgram = false, notice = null) }
+                            loadProgramsAndWeeks()
+                        },
                     )
                 },
             )
@@ -248,6 +270,31 @@ internal class ProgramLifecycleViewModel(
         deferredByWeekId.mapValues { (_, deferred) -> deferred.await() }
     }
 
+}
+
+private fun buildProgramCreationFailureNotice(
+    error: DomainError,
+    rollbackError: DomainError? = null,
+): FeedbackBannerModel {
+    val baseDetails = when (error) {
+        is DomainError.SettimanaSenzaTemplateENessunaParteFissa -> {
+            val formattedDate = error.weekStartDate.format(
+                DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN),
+            )
+            "Schemi non aggiornati per la settimana del $formattedDate. Aggiorna schemi e riprova."
+        }
+        is DomainError.CatalogoSchemiIncoerente -> {
+            "Catalogo schemi incoerente per la settimana ${error.weekStartDate}. Aggiorna schemi e riprova."
+        }
+        DomainError.CatalogoTipiNonDisponibile -> {
+            "Catalogo parti non disponibile. Aggiorna schemi e riprova."
+        }
+        else -> error.toMessage()
+    }
+    val details = rollbackError?.let { rollback ->
+        "$baseDetails | Ripristino automatico del mese non riuscito: ${rollback.toMessage()}"
+    } ?: baseDetails
+    return errorNotice(details)
 }
 
 internal fun resolveSelectedProgramId(

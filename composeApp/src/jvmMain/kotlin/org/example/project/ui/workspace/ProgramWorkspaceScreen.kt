@@ -68,6 +68,7 @@ import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
+import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
@@ -120,20 +121,25 @@ fun ProgramWorkspaceScreen() {
         personPickerState.notice,
         partEditorState.notice,
     )
-    val noticeSignature = incomingNotices.joinToString(separator = "|") { "${it.kind}:${it.message}:${it.details.orEmpty()}" }
-
-    LaunchedEffect(Unit) {
-        lifecycleVM.onScreenEntered()
-        assignmentVM.onScreenEntered()
+    val activeNotice = incomingNotices.maxByOrNull { notice ->
+        when (notice.kind) {
+            FeedbackBannerKind.ERROR -> 3
+            FeedbackBannerKind.WARNING -> 2
+            FeedbackBannerKind.SUCCESS -> 1
+        }
     }
 
-    LaunchedEffect(noticeSignature) {
-        if (incomingNotices.isEmpty()) return@LaunchedEffect
+    fun dismissAllNotices() {
         lifecycleVM.dismissNotice()
         schemaVM.dismissNotice()
         assignmentVM.dismissNotice()
         personPickerVM.dismissNotice()
         partEditorVM.dismissNotice()
+    }
+
+    LaunchedEffect(Unit) {
+        lifecycleVM.onScreenEntered()
+        assignmentVM.onScreenEntered()
     }
 
     // Reload callback for operations that modify data
@@ -333,18 +339,16 @@ fun ProgramWorkspaceScreen() {
         }
 
         val showLoadingState = lifecycleState.isLoading
-        val showErrorState = !showLoadingState &&
-            lifecycleState.selectedProgramWeeks.isEmpty() &&
-            incomingNotices.any { it.kind == FeedbackBannerKind.ERROR }
+
+        FeedbackBanner(
+            model = activeNotice,
+            onDismissRequest = ::dismissAllNotices,
+        )
+
         when {
             showLoadingState -> WorkspaceStatePane(
                 kind = WorkspaceStateKind.Loading,
                 message = "Caricamento programma in corso...",
-                modifier = Modifier.fillMaxWidth(),
-            )
-            showErrorState -> WorkspaceStatePane(
-                kind = WorkspaceStateKind.Error,
-                message = "Impossibile caricare il programma selezionato.",
                 modifier = Modifier.fillMaxWidth(),
             )
             else -> {
