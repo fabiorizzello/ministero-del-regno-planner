@@ -862,6 +862,7 @@ internal fun ProgramRightPanelButton(
     icon: ImageVector,
     isPrimary: Boolean,
     enabled: Boolean,
+    iconColor: Color? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -885,6 +886,7 @@ internal fun ProgramRightPanelButton(
         else -> sketch.lineSoft.copy(alpha = alpha)
     }
     val contentColor = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha)
+    val iconTint = (iconColor ?: contentColor).copy(alpha = alpha)
     Surface(
         modifier = modifier
             .handCursorOnHover(enabled)
@@ -910,7 +912,7 @@ internal fun ProgramRightPanelButton(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = contentColor,
+                tint = iconTint,
                 modifier = Modifier.size(13.dp),
             )
             Text(

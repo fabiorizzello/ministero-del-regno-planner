@@ -8,25 +8,33 @@
 
 ### User Story 1 - Stampa del programma mensile in PDF (Priority: P1)
 
-L'utente vuole generare un file PDF del programma mensile con settimane, parti e
+L'utente vuole generare e aprire un PDF del programma mensile con settimane, parti e
 assegnazioni correnti, pronto per la distribuzione.
 
-**Why this priority**: È il flusso principale esposto in UX (`Stampa programma`) e
+**Why this priority**: E il flusso principale esposto in UX (`Stampa PDF programma`) e
 produce l'artefatto operativo finale.
 
-**Independent Test**: Con un programma mensile esistente con settimane/assegnazioni →
-avviare la stampa → verificare creazione PDF in export con nome e contenuto coerenti.
+**Independent Test**: Con un programma mensile esistente con settimane/assegnazioni ->
+avviare la stampa -> verificare creazione PDF in export, apertura del file e contenuto
+coerente con il programma selezionato.
 
 **Acceptance Scenarios**:
 
 1. **Given** un programma con settimane e assegnazioni, **When** si avvia la stampa,
    **Then** viene generato un PDF in `<exports>/programmi/programma-YYYY-MM.pdf`.
 2. **Given** una settimana con slot non assegnati, **When** si stampa il programma,
-   **Then** nel PDF gli slot mancanti appaiono come "Non assegnato".
-3. **Given** una parte con più slot, **When** si stampa, **Then** slot 1 è etichettato
-   "Studente" e slot successivi "Assistente".
-4. **Given** il programma non esiste, **When** si avvia la stampa, **Then** l'operazione
-   termina con errore "Programma non trovato".
+   **Then** nel PDF gli slot mancanti appaiono come `Non assegnato`.
+3. **Given** una parte con un solo slot, **When** si stampa, **Then** il ruolo viene
+   mostrato come `Studente`.
+4. **Given** una parte con piu slot, **When** si stampa, **Then** slot 1 e etichettato
+   `Studente` e gli slot successivi `Assistente`.
+5. **Given** una settimana marcata come saltata/disattivata, **When** si stampa il
+   programma, **Then** la sezione settimana mostra `Settimana non assegnata`.
+6. **Given** esistono PDF mensili precedenti in `<exports>/programmi`, **When** si
+   genera il PDF del programma corrente, **Then** il sistema mantiene il file corrente e
+   tenta di eliminare gli altri `programma-*.pdf`.
+7. **Given** il programma non esiste, **When** si avvia la stampa, **Then** l'operazione
+   termina con errore `Programma non trovato`.
 
 ---
 
@@ -38,8 +46,8 @@ solo alcune parti selezionate.
 **Why this priority**: Permette output rapido focalizzato sulla singola settimana,
 utile per condivisione locale o verifica.
 
-**Independent Test**: Selezionare una settimana con assegnazioni → esportare PDF con
-insieme parti vuoto (tutte) e con subset parti → verificare contenuto e naming file.
+**Independent Test**: Selezionare una settimana con assegnazioni -> esportare PDF con
+insieme parti vuoto (tutte) e con subset parti -> verificare contenuto e naming file.
 
 **Acceptance Scenarios**:
 
@@ -48,7 +56,7 @@ insieme parti vuoto (tutte) e con subset parti → verificare contenuto e naming
 2. **Given** un sottoinsieme di parti selezionate, **When** si esporta, **Then**
    il PDF include solo le parti selezionate.
 3. **Given** la settimana non esiste, **When** si esporta, **Then** l'operazione
-   fallisce con errore "Settimana non trovata per <data>".
+   fallisce con errore `Settimana non trovata per <data>`.
 4. **Given** l'export completato, **When** il file viene salvato, **Then** il nome
    rispetta il formato `assegnazioni-YYYY-MM-DD-YYYY-MM-DD.pdf`.
 
@@ -61,8 +69,8 @@ settimana, con l'elenco delle parti assegnate.
 
 **Why this priority**: Utile per distribuzioni individuali rapide senza aprire PDF.
 
-**Independent Test**: Con una settimana con più proclamatori assegnati → avviare export
-immagini → verificare che venga prodotto un PNG per ciascun proclamatore coinvolto.
+**Independent Test**: Con una settimana con piu proclamatori assegnati -> avviare export
+immagini -> verificare che venga prodotto un PNG per ciascun proclamatore coinvolto.
 
 **Acceptance Scenarios**:
 
@@ -72,7 +80,7 @@ immagini → verificare che venga prodotto un PNG per ciascun proclamatore coinv
    ogni PNG include solo le assegnazioni appartenenti alle parti selezionate.
 3. **Given** un errore durante rendering/conversione, **When** l'operazione fallisce,
    **Then** viene restituito un errore con contesto del proclamatore e path coinvolti.
-4. **Given** l'export immagini termina, **When** il file temporaneo PDF non serve più,
+4. **Given** l'export immagini termina, **When** il file temporaneo PDF non serve piu,
    **Then** il sistema tenta la pulizia del temporaneo.
 
 ---
@@ -81,11 +89,14 @@ immagini → verificare che venga prodotto un PNG per ciascun proclamatore coinv
 
 - Programma non trovato per `programId` in stampa mensile.
 - Settimana non trovata per `weekStartDate` negli export settimanali.
-- `selectedPartIds` vuoto negli export settimanali: interpretato come "tutte le parti".
-- Parti con `peopleCount = 1`: nessuna etichetta ruolo aggiuntiva.
+- `selectedPartIds` vuoto negli export settimanali: interpretato come `tutte le parti`.
+- Parti con `peopleCount = 1`: il PDF mensile mostra comunque il ruolo `Studente`.
+- Settimane `SKIPPED`: nessuna card parte, solo testo `Settimana non assegnata`.
 - Nome proclamatore con caratteri speciali: normalizzazione nel nome file PNG.
+- Errore di cleanup dei vecchi PDF programma: il fallimento viene loggato ma non blocca
+  la creazione del nuovo PDF.
 - Errore di cleanup del PDF temporaneo nella generazione immagini: il fallimento viene
-  loggato ma non annulla automaticamente i PNG già prodotti.
+  loggato ma non annulla automaticamente i PNG gia prodotti.
 
 ## Requirements *(mandatory)*
 
@@ -95,56 +106,83 @@ immagini → verificare che venga prodotto un PNG per ciascun proclamatore coinv
   `programId`.
 - **FR-002**: La stampa mensile MUST produrre un PDF con una sezione per settimana
   ordinata per data.
-- **FR-003**: Ogni riga di parte nel PDF mensile MUST mostrare etichetta parte, ruolo
-  (quando applicabile) e nominativo assegnato o "Non assegnato".
-- **FR-004**: Il PDF mensile MUST essere salvato in
+- **FR-003**: Il PDF mensile MUST usare un layout tipografico a griglia, con card parte
+  distribuite su righe fino a 3 colonne per settimana.
+- **FR-004**: Ogni card parte nel PDF mensile MUST mostrare numero parte, etichetta parte,
+  ruolo e nominativo assegnato oppure `Non assegnato`.
+- **FR-005**: Le settimane `SKIPPED` MUST essere stampate come sezione senza card, con
+  il testo `Settimana non assegnata`.
+- **FR-006**: Il PDF mensile MUST essere salvato in
   `<exportsDir>/programmi/programma-YYYY-MM.pdf`.
-- **FR-005**: Il sistema MUST restituire il `Path` del PDF mensile generato.
-- **FR-006**: Il sistema MUST consentire export PDF settimanale assegnazioni dato
+- **FR-007**: Prima di salvare il PDF mensile corrente, il sistema MUST tentare la
+  pulizia degli altri file `programma-*.pdf` presenti nella cartella export mensile.
+- **FR-008**: Il sistema MUST restituire il `Path` del PDF mensile generato e MUST
+  tentare l'apertura del file tramite integrazione desktop.
+- **FR-009**: La UI MUST poter avviare la stampa mensile senza mostrare un banner di
+  successo obbligatorio al termine; gli errori restano invece visibili.
+- **FR-010**: Il sistema MUST consentire export PDF settimanale assegnazioni dato
   `weekStartDate` e un set opzionale di `selectedPartIds`.
-- **FR-007**: L'export PDF settimanale MUST salvare in `<exportsDir>/assegnazioni/`
+- **FR-011**: L'export PDF settimanale MUST salvare in `<exportsDir>/assegnazioni/`
   con formato `assegnazioni-<weekStart>-<weekEnd>.pdf`.
-- **FR-008**: L'export PDF settimanale MUST includere solo le parti selezionate; se
-  nessuna selezione è passata, MUST includere tutte le parti della settimana.
-- **FR-009**: Il sistema MUST consentire export immagini PNG per proclamatore a partire
+- **FR-012**: L'export PDF settimanale MUST includere solo le parti selezionate; se
+  nessuna selezione e passata, MUST includere tutte le parti della settimana.
+- **FR-013**: Il sistema MUST consentire export immagini PNG per proclamatore a partire
   dalle assegnazioni della settimana (con filtro parti opzionale).
-- **FR-010**: L'export immagini MUST produrre file `.png` in `<exportsDir>/assegnazioni/`
+- **FR-014**: L'export immagini MUST produrre file `.png` in `<exportsDir>/assegnazioni/`
   e restituire la lista dei `Path` generati.
-- **FR-011**: Le operazioni di output MUST essere eseguite su contesto IO per evitare
+- **FR-015**: Le operazioni di output MUST essere eseguite su contesto IO per evitare
   blocchi del thread UI.
-- **FR-012**: In caso di dati mancanti (programma/settimana), il sistema MUST fallire
+- **FR-016**: In caso di dati mancanti (programma/settimana), il sistema MUST fallire
   con errore esplicito e messaggio diagnostico.
 
 ### Key Entities
 
-- **ProgramWeekPrintSection**: weekStartDate, statusLabel, lines; sezione logica del PDF
-  mensile.
-- **RenderedPart**: label + righe assegnazioni già materializzate per PDF settimanale.
-- **PersonSheet**: fullName, weekStart, weekEnd, assignments; modello intermedio per
-  la scheda individuale esportata in PNG.
+- **ProgramWeekPrintSection**: `weekStartDate`, `weekEndDate`, `statusLabel`, `cards`,
+  `emptyStateLabel`; sezione logica del PDF mensile.
+- **ProgramWeekPrintCard**: `displayNumber`, `partLabel`, `status`, `statusLabel`,
+  `slots`; card parte renderizzata nel PDF mensile.
+- **ProgramWeekPrintSlot**: `roleLabel`, `assignedTo`, `isAssigned`; riga ruolo/persona
+  della card.
+- **RenderedPart**: label + righe assegnazioni gia materializzate per PDF settimanale.
+- **PersonSheet**: `fullName`, `weekStart`, `weekEnd`, `assignments`; modello intermedio
+  per la scheda individuale esportata in PNG.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: La stampa PDF mensile (4-5 settimane) completa in meno di 5 secondi.
-- **SC-002**: L'export PDF settimanale completa in meno di 3 secondi su una settimana
+- **SC-002**: Il PDF mensile standard resta contenuto in 1 pagina A4 per dataset mensile
+  normale (4-5 settimane, layout attuale a griglia).
+- **SC-003**: L'export PDF settimanale completa in meno di 3 secondi su una settimana
   standard.
-- **SC-003**: L'export immagini produce 1 PNG per proclamatore assegnato con tasso di
+- **SC-004**: L'export immagini produce 1 PNG per proclamatore assegnato con tasso di
   successo del 100% su input validi.
-- **SC-004**: Durante ogni export, la UI resta responsiva (nessun freeze percepibile).
+- **SC-005**: Durante ogni export, la UI resta responsiva (nessun freeze percepibile).
 
 ## Clarifications
 
 ### Session 2026-02-25
 
-- Q: Le spec sono reverse-engineered dal codice esistente? → A: Sì.
-- Q: Esiste solo la stampa mensile? → A: No. Oltre a `StampaProgrammaUseCase`, il codice
+- Q: Le spec sono reverse-engineered dal codice esistente? -> A: Si.
+- Q: Esiste solo la stampa mensile? -> A: No. Oltre a `StampaProgrammaUseCase`, il codice
   implementa anche `GeneraPdfAssegnazioni` (settimanale) e `GeneraImmaginiAssegnazioni`
   (schede PNG per proclamatore).
 
 ### Session 2026-03-03
 
-- Q: Qual è il label di ruolo per slot 1 nei PDF? → A: "Studente" per slot 1,
-  "Assistente" per slot >= 2. Uniformato in `StampaProgrammaUseCase`, `GeneraPdfAssegnazioni`
-  e `GeneraImmaginiAssegnazioni`. Parti con `peopleCount = 1` non mostrano etichetta ruolo.
+- Q: Qual e il label di ruolo nei PDF? -> A: `Studente` per slot singolo o slot 1,
+  `Assistente` per slot >= 2. Uniformato in `StampaProgrammaUseCase`.
+
+### Session 2026-03-08
+
+- Q: Come viene impaginato oggi il PDF mensile? -> A: In 1 pagina A4 con sezioni
+  settimana e griglia tipografica di card parte fino a 3 colonne.
+- Q: Cosa succede alle settimane disattivate? -> A: Vengono stampate come sezione con il
+  solo testo `Settimana non assegnata`.
+- Q: Dove viene salvato il PDF mensile? -> A: In
+  `<exportsDir>/programmi/programma-YYYY-MM.pdf`.
+- Q: I vecchi PDF mensili restano nella cartella export? -> A: Il sistema tenta la
+  pulizia degli altri `programma-*.pdf` prima di salvare il file corrente.
+- Q: La UI mostra conferma positiva dopo la stampa? -> A: No, il flusso standard apre il
+  file senza banner di successo obbligatorio; gli errori restano visibili.

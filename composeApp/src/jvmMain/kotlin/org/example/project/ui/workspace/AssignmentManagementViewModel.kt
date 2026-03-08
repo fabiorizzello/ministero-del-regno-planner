@@ -185,10 +185,9 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isPrintingProgram = true) },
-                successUpdate = { state, path ->
+                successUpdate = { state, _ ->
                     state.copy(
                         isPrintingProgram = false,
-                        notice = successNotice("Programma stampato: ${path.fileName}"),
                     )
                 },
                 errorUpdate = { state, error ->

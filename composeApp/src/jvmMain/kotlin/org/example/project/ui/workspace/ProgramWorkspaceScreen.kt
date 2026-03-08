@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -737,6 +738,19 @@ fun ProgramWorkspaceScreen() {
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
                                             assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
+                                    icon = Icons.Filled.PictureAsPdf,
+                                    isPrimary = false,
+                                    iconColor = MaterialTheme.workspaceSketch.bad,
+                                    enabled = !assignmentState.isPrintingProgram,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.printSelectedProgram(programId)
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),

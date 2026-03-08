@@ -7,6 +7,7 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import java.nio.file.Paths
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
@@ -208,6 +209,20 @@ class AssignmentManagementViewModelTest {
         assertNull(vm.uiState.value.clearAssignmentsConfirm)
     }
 
+    @Test
+    fun `printSelectedProgram apre pdf senza mostrare banner di successo`() = runTest {
+        val stampa = mockk<StampaProgrammaUseCase>()
+        coEvery { stampa(programId) } returns Paths.get("C:\\temp\\programma.pdf")
+
+        val vm = makeViewModel(scope = this, stampa = stampa)
+        vm.printSelectedProgram(programId)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isPrintingProgram)
+        assertNull(vm.uiState.value.notice)
+        coVerify(exactly = 1) { stampa(programId) }
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private fun makeViewModel(
@@ -215,6 +230,7 @@ class AssignmentManagementViewModelTest {
         autoAssegna: AutoAssegnaProgrammaUseCase = mockk(relaxed = true),
         salva: SalvaImpostazioniAssegnatoreUseCase = mockk(relaxed = true),
         svuota: SvuotaAssegnazioniProgrammaUseCase = mockk(relaxed = true),
+        stampa: StampaProgrammaUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
         scope = scope,
         autoAssegnaProgramma = autoAssegna,
@@ -222,7 +238,7 @@ class AssignmentManagementViewModelTest {
         salvaImpostazioniAssegnatore = salva,
         svuotaAssegnazioni = svuota,
         rimuoviAssegnazioniSettimana = mockk<RimuoviAssegnazioniSettimanaUseCase>(relaxed = true),
-        stampaProgramma = mockk<StampaProgrammaUseCase>(relaxed = true),
+        stampaProgramma = stampa,
         settings = mockk<Settings>(relaxed = true),
     )
 }
