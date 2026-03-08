@@ -15,6 +15,6 @@ val outputModule = module {
     single { PdfProgramRenderer() }
     single<FileOpener> { DesktopFileOpener() }
     single { GeneraPdfAssegnazioni(get(), get(), get(), get()) }
-    single { GeneraImmaginiAssegnazioni(get(), get(), get()) }
+    single { GeneraImmaginiAssegnazioni(get(), get(), get(), get()) }
     single { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
 }

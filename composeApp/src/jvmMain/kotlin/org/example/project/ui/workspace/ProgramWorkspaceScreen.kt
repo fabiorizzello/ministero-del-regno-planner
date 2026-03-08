@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -201,6 +202,16 @@ fun ProgramWorkspaceScreen() {
                 onDismiss = { partEditorVM.dismissPartEditor() },
             )
         }
+    }
+
+    if (assignmentState.isAssignmentTicketsDialogOpen) {
+        AssignmentTicketsDialog(
+            monthLabel = lifecycleState.selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: "",
+            tickets = assignmentState.assignmentTickets,
+            isLoading = assignmentState.isLoadingAssignmentTickets,
+            errorMessage = assignmentState.assignmentTicketsError,
+            onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
+        )
     }
 
     Column(
@@ -738,6 +749,18 @@ fun ProgramWorkspaceScreen() {
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
                                             assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isLoadingAssignmentTickets) "Generazione biglietti..." else "Biglietti assegnazioni",
+                                    icon = Icons.Filled.Image,
+                                    isPrimary = false,
+                                    enabled = !assignmentState.isLoadingAssignmentTickets,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.openAssignmentTickets(programId)
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),

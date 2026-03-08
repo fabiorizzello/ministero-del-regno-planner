@@ -13,6 +13,8 @@ import org.example.project.feature.assignments.application.CaricaImpostazioniAss
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
+import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.core.domain.toMessage
@@ -41,6 +43,10 @@ data class AssignmentSettingsUiState(
 internal data class AssignmentManagementUiState(
     val isAutoAssigning: Boolean = false,
     val isPrintingProgram: Boolean = false,
+    val isLoadingAssignmentTickets: Boolean = false,
+    val isAssignmentTicketsDialogOpen: Boolean = false,
+    val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
+    val assignmentTicketsError: String? = null,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -61,6 +67,7 @@ internal class AssignmentManagementViewModel(
     private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
     private val rimuoviAssegnazioniSettimana: RimuoviAssegnazioniSettimanaUseCase,
     private val stampaProgramma: StampaProgrammaUseCase,
+    private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
     private val settings: Settings,
 ) {
     private val _uiState = MutableStateFlow(AssignmentManagementUiState())
@@ -197,6 +204,51 @@ internal class AssignmentManagementViewModel(
                     )
                 },
                 operation = { stampaProgramma(programId) },
+            )
+        }
+    }
+
+    fun openAssignmentTickets(programId: ProgramMonthId) {
+        if (_uiState.value.isLoadingAssignmentTickets) return
+        scope.launch {
+            _uiState.executeAsyncOperation(
+                loadingUpdate = {
+                    it.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = true,
+                        assignmentTickets = emptyList(),
+                        assignmentTicketsError = null,
+                    )
+                },
+                successUpdate = { state, tickets ->
+                    state.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = false,
+                        assignmentTickets = tickets,
+                        assignmentTicketsError = null,
+                    )
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = false,
+                        assignmentTickets = emptyList(),
+                        assignmentTicketsError = error.message ?: "Errore generazione biglietti",
+                        notice = errorNotice("Errore biglietti assegnazioni: ${error.message}"),
+                    )
+                },
+                operation = { generaImmaginiAssegnazioni.generateProgramTickets(programId) },
+            )
+        }
+    }
+
+    fun closeAssignmentTicketsDialog() {
+        _uiState.update {
+            it.copy(
+                isAssignmentTicketsDialogOpen = false,
+                isLoadingAssignmentTickets = false,
+                assignmentTickets = emptyList(),
+                assignmentTicketsError = null,
             )
         }
     }

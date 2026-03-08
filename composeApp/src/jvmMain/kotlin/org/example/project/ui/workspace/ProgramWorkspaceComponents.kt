@@ -3,9 +3,11 @@ package org.example.project.ui.workspace
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -28,10 +31,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
@@ -58,31 +65,58 @@ import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draganddrop.DragAndDropTransferAction
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.DragAndDropTransferable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.rememberDialogState
+import java.awt.GraphicsEnvironment
+import java.awt.Toolkit
+import java.awt.RenderingHints
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.file.Path
+import javax.imageio.ImageIO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.domain.AssignmentId
+import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.components.workspace.WorkspaceStateKind
+import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -365,6 +399,355 @@ internal fun PartEditorDialog(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+internal fun AssignmentTicketsDialog(
+    monthLabel: String,
+    tickets: List<AssignmentTicketImage>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val dialogState = rememberDialogState(width = 1440.dp, height = 920.dp)
+
+    DialogWindow(
+        onCloseRequest = onDismiss,
+        state = dialogState,
+        title = if (monthLabel.isBlank()) "Biglietti assegnazioni" else "Biglietti assegnazioni - $monthLabel",
+        resizable = true,
+    ) {
+        LaunchedEffect(window) {
+            maximizeDialogWindow(window)
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = sketch.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            "Biglietti assegnazioni",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.8).sp,
+                            ),
+                            color = sketch.ink,
+                        )
+                        Text(
+                            monthLabel.ifBlank { "Mese selezionato" },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = sketch.inkSoft,
+                        )
+                        Text(
+                            "Trascina una card fuori dall'app per copiare il PNG sul desktop o in un'altra area drop.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = sketch.inkMuted,
+                        )
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = sketch.surfaceMuted,
+                            border = BorderStroke(1.dp, sketch.lineSoft),
+                        ) {
+                            Text(
+                                "${tickets.size} PNG",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = sketch.inkSoft,
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(36.dp).handCursorOnHover(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Chiudi biglietti assegnazioni",
+                                tint = sketch.inkSoft,
+                            )
+                        }
+                    }
+                }
+
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            WorkspaceStatePane(
+                                kind = WorkspaceStateKind.Loading,
+                                message = "Generazione biglietti del mese in corso...",
+                                modifier = Modifier.width(420.dp),
+                            )
+                        }
+                    }
+                    errorMessage != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            WorkspaceStatePane(
+                                kind = WorkspaceStateKind.Error,
+                                message = errorMessage,
+                                modifier = Modifier.width(480.dp),
+                            )
+                        }
+                    }
+                    tickets.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            WorkspaceStatePane(
+                                kind = WorkspaceStateKind.Empty,
+                                message = "Nessun biglietto disponibile per il mese selezionato.",
+                                modifier = Modifier.width(420.dp),
+                            )
+                        }
+                    }
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 360.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            gridItems(
+                                items = tickets,
+                                key = { ticket -> ticket.imagePath.toAbsolutePath().toString() },
+                            ) { ticket ->
+                                AssignmentTicketCard(
+                                    ticket = ticket,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun AssignmentTicketCard(
+    ticket: AssignmentTicketImage,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val preview = rememberAssignmentTicketPreview(ticket.imagePath)
+
+    Surface(
+        modifier = modifier
+            .handCursorOnHover()
+            .hoverable(interactionSource)
+            .dragAndDropSource {
+                DragAndDropTransferData(
+                    transferable = DragAndDropTransferable(
+                        FileListTransferable(listOf(ticket.imagePath.toFile())),
+                    ),
+                    supportedActions = listOf(DragAndDropTransferAction.Copy),
+                )
+            },
+        shape = RoundedCornerShape(18.dp),
+        color = if (hovered) sketch.surface else sketch.surfaceMuted,
+        border = BorderStroke(
+            1.dp,
+            if (hovered) sketch.accent.copy(alpha = 0.45f) else sketch.lineSoft,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    formatWeekRangeLabel(ticket.weekStart, ticket.weekEnd),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.35.sp,
+                    ),
+                    color = sketch.accent,
+                )
+                Text(
+                    ticket.fullName,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.4).sp,
+                    ),
+                    color = sketch.ink,
+                )
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(232.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = sketch.surface,
+                border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = 0.85f)),
+            ) {
+                if (preview != null) {
+                    Image(
+                        bitmap = preview,
+                        contentDescription = "Anteprima biglietto ${ticket.fullName}",
+                        modifier = Modifier.fillMaxSize().background(Color.White),
+                        contentScale = ContentScale.Fit,
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Image,
+                                contentDescription = null,
+                                tint = sketch.inkMuted,
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Text(
+                                "Anteprima PNG",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = sketch.inkMuted,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ticket.assignments.forEach { line ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            line.partLabel,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = sketch.inkSoft,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            line.roleLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = sketch.inkMuted,
+                        )
+                    }
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.DragIndicator,
+                    contentDescription = null,
+                    tint = sketch.inkMuted,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    "Trascina per copiare il PNG",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberAssignmentTicketPreview(path: Path): ImageBitmap? {
+    val preview by produceState<ImageBitmap?>(initialValue = null, path) {
+        value = withContext(Dispatchers.IO) {
+            loadAssignmentTicketPreview(path)
+        }
+    }
+    return preview
+}
+
+private fun loadAssignmentTicketPreview(
+    path: Path,
+    maxPreviewWidth: Int = 540,
+): ImageBitmap? = runCatching {
+    val source = ImageIO.read(path.toFile()) ?: return null
+    val scale = minOf(1.0, maxPreviewWidth.toDouble() / source.width.toDouble())
+    val targetWidth = (source.width * scale).toInt().coerceAtLeast(1)
+    val targetHeight = (source.height * scale).toInt().coerceAtLeast(1)
+    val scaled = BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB)
+    val graphics = scaled.createGraphics()
+    try {
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        graphics.drawImage(source, 0, 0, targetWidth, targetHeight, null)
+    } finally {
+        graphics.dispose()
+    }
+
+    ByteArrayOutputStream().use { output ->
+        ImageIO.write(scaled, "png", output)
+        output.toByteArray().decodeToImageBitmap()
+    }
+}.getOrNull()
+
+private fun maximizeDialogWindow(window: java.awt.Window) {
+    val configuration = window.graphicsConfiguration
+        ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice.defaultConfiguration
+    val bounds = configuration.bounds
+    val insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration)
+    window.setLocation(bounds.x + insets.left, bounds.y + insets.top)
+    window.setSize(
+        bounds.width - insets.left - insets.right,
+        bounds.height - insets.top - insets.bottom,
+    )
+}
+
+private class FileListTransferable(
+    private val files: List<File>,
+) : Transferable {
+    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.javaFileListFlavor)
+
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor
+
+    override fun getTransferData(flavor: DataFlavor): Any {
+        if (!isDataFlavorSupported(flavor)) {
+            throw UnsupportedFlavorException(flavor)
+        }
+        return files
     }
 }
 
