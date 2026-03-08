@@ -31,7 +31,6 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import mu.KotlinLogging
 import java.awt.Dimension
-import java.awt.Frame
 
 fun main() {
     System.getenv("SKIKO_RENDER_API")?.let { System.setProperty("skiko.renderApi", it) }
@@ -87,8 +86,8 @@ fun main() {
 
         Window(
             state = windowState,
-            undecorated = true,
-            transparent = true,
+            undecorated = false,
+            transparent = false,
             onCloseRequest = {
                 settingsStore.save(windowState.toSettingsSnapshot())
                 exitApplication()
@@ -105,21 +104,6 @@ fun main() {
             AppScreen(
                 initialUiScale = initialUiScale,
                 onUiScaleChange = settingsStore::saveUiScale,
-                isWindowMaximized = windowState.placement == WindowPlacement.Maximized,
-                onRequestMinimize = {
-                    window.extendedState = window.extendedState or Frame.ICONIFIED
-                },
-                onRequestToggleMaximize = {
-                    windowState.placement = if (windowState.placement == WindowPlacement.Maximized) {
-                        WindowPlacement.Floating
-                    } else {
-                        WindowPlacement.Maximized
-                    }
-                },
-                onRequestClose = {
-                    settingsStore.save(windowState.toSettingsSnapshot())
-                    exitApplication()
-                },
             )
         }
     }

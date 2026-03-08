@@ -8,7 +8,6 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import org.example.project.ui.components.nativeWindowDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,13 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.FilterNone
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,10 +63,7 @@ import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
 import kotlin.math.roundToInt
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.workspace.TopBarHitTarget
-import org.example.project.ui.components.workspace.TopBarInteractionPolicy
 import org.example.project.ui.components.workspace.WorkspaceShellBar
-import org.example.project.ui.components.workspace.windowToggleOnDoubleClick
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.theme.AppTheme
@@ -105,16 +97,11 @@ internal enum class AppSection(
 fun WindowScope.AppScreen(
     initialUiScale: Float = 1f,
     onUiScaleChange: (Float) -> Unit = {},
-    isWindowMaximized: Boolean = false,
-    onRequestMinimize: () -> Unit = {},
-    onRequestToggleMaximize: () -> Unit = {},
-    onRequestClose: () -> Unit = {},
 ) {
     AppTheme {
         val spacing = MaterialTheme.spacing
         val workspaceTokens = MaterialTheme.workspaceTokens
         val sketch = MaterialTheme.workspaceSketch
-        val topBarPolicy = remember { TopBarInteractionPolicy() }
         var uiScale by rememberSaveable(initialUiScale) {
             mutableFloatStateOf(initialUiScale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
         }
@@ -143,6 +130,12 @@ fun WindowScope.AppScreen(
                     LocalDensity provides scaledDensity,
                 ) {
                     val navigateToSection = LocalSectionNavigator.current
+                    val windowShape = RoundedCornerShape(
+                        topStart = 0.dp,
+                        topEnd = 0.dp,
+                        bottomStart = workspaceTokens.windowRadius,
+                        bottomEnd = workspaceTokens.windowRadius,
+                    )
 
                     fun applyUiScale(value: Float) {
                         val updatedScale = snapUiScale(value)
@@ -165,13 +158,13 @@ fun WindowScope.AppScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(workspaceTokens.windowRadius))
+                            .clip(windowShape)
                             .background(windowBackdrop),
                     ) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxSize(),
-                            shape = RoundedCornerShape(workspaceTokens.windowRadius),
+                            shape = windowShape,
                             color = sketch.windowBackground,
                             border = BorderStroke(1.dp, sketch.windowBorder),
                             shadowElevation = 12.dp,
@@ -185,35 +178,36 @@ fun WindowScope.AppScreen(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .fillMaxHeight()
-                                            .windowToggleOnDoubleClick(
-                                                enabled = topBarPolicy.canToggleWindowOnDoubleClick(TopBarHitTarget.NonInteractive),
-                                                onToggle = onRequestToggleMaximize,
-                                            )
-                                            .nativeWindowDrag(window),
+                                            .fillMaxHeight(),
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                                         ) {
-                                            Surface(
-                                                shape = RoundedCornerShape(workspaceTokens.controlRadius),
-                                                color = sketch.toolbarSelectedBg,
-                                                border = BorderStroke(1.dp, sketch.toolbarSelectedBorder.copy(alpha = 0.55f)),
+                                            Row(
+                                                modifier = Modifier.fillMaxHeight(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                                             ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(workspaceTokens.controlRadius),
+                                                    color = sketch.toolbarSelectedBg,
+                                                    border = BorderStroke(1.dp, sketch.toolbarSelectedBorder.copy(alpha = 0.55f)),
+                                                ) {
+                                                    Text(
+                                                        text = "S",
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = sketch.toolbarSelectedInk,
+                                                    )
+                                                }
                                                 Text(
-                                                    text = "S",
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = sketch.toolbarSelectedInk,
+                                                    text = "Scuola di ministero",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = sketch.toolbarInk,
                                                 )
                                             }
-                                            Text(
-                                                text = "Scuola di ministero",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = sketch.toolbarInk,
-                                            )
                                             Row(
                                                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -231,7 +225,11 @@ fun WindowScope.AppScreen(
                                                     )
                                                 }
                                             }
-                                            Spacer(Modifier.weight(1f))
+                                            Spacer(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                            )
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -344,33 +342,17 @@ fun WindowScope.AppScreen(
                                                             }
                                                     }
                                                 }
-                                                WindowActionButton(
-                                                    onClick = onRequestMinimize,
-                                                    icon = Icons.Filled.Remove,
-                                                    contentDescription = "Minimizza finestra",
-                                                )
-                                                WindowActionButton(
-                                                    onClick = onRequestToggleMaximize,
-                                                    icon = if (isWindowMaximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
-                                                    contentDescription = if (isWindowMaximized) "Ripristina finestra" else "Massimizza finestra",
-                                                )
-                                                WindowActionButton(
-                                                    onClick = onRequestClose,
-                                                    icon = Icons.Filled.Close,
-                                                    contentDescription = "Chiudi finestra",
-                                                    isDestructive = true,
-                                                )
                                             }
                                         }
                                     }
-                            }
+                                }
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize(),
-                            ) {
-                                CurrentScreen()
-                            }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize(),
+                                ) {
+                                    CurrentScreen()
+                                }
                             }
                         }
                     }
@@ -378,6 +360,7 @@ fun WindowScope.AppScreen(
             }
         }
     }
+
 @Composable
 private fun TopBarSectionButton(
     selected: Boolean,
@@ -446,22 +429,6 @@ private fun TopBarSectionButton(
             )
         }
     }
-}
-
-@Composable
-private fun WindowActionButton(
-    onClick: () -> Unit,
-    icon: ImageVector,
-    contentDescription: String,
-    isDestructive: Boolean = false,
-) {
-    ToolbarIconAction(
-        onClick = onClick,
-        icon = icon,
-        contentDescription = contentDescription,
-        isDestructive = isDestructive,
-        fillHeight = true,
-    )
 }
 
 private data object ProclamatoriSectionScreen : Screen {

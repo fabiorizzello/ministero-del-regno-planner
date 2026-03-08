@@ -19,7 +19,6 @@ pdfbox = "3.0.4"
 kotlin-logging = "3.0.5"
 ktor = "3.0.3"
 jsoup = "1.18.3"
-jna = "5.14.0"
 kover = "0.9.1"
 mockk = "1.13.17"
 
@@ -48,7 +47,6 @@ voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
-jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 kotlin-logging = { module = "io.github.microutils:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
