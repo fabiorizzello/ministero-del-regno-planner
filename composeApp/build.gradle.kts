@@ -1,4 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.api.tasks.JavaExec
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JvmVendorSpec
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -12,7 +15,10 @@ plugins {
 
 kotlin {
     jvm()
-    jvmToolchain(17)
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+        vendor.set(JvmVendorSpec.JETBRAINS)
+    }
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-receivers")
     }
@@ -42,6 +48,9 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+            implementation(libs.jna.platform)
+            implementation(libs.jewel.int.ui.standalone)
+            implementation(libs.jewel.int.ui.decorated.window)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.sqlite.driver)
@@ -58,6 +67,15 @@ kotlin {
             implementation(libs.ktor.client.logging)
         }
     }
+}
+
+val jetbrainsRuntimeLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(21))
+    vendor.set(JvmVendorSpec.JETBRAINS)
+}
+
+tasks.withType<JavaExec>().configureEach {
+    javaLauncher.set(jetbrainsRuntimeLauncher)
 }
 
 kover {

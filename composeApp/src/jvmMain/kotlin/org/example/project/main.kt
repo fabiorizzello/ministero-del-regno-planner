@@ -3,12 +3,12 @@ package org.example.project
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpSize
 import efficaci_nel_ministero.composeapp.generated.resources.Res
 import efficaci_nel_ministero.composeapp.generated.resources.icon
 import org.example.project.core.bootstrap.AppBootstrap
@@ -24,9 +24,24 @@ import org.example.project.feature.schemas.di.schemasModule
 import org.example.project.feature.updates.di.updatesModule
 import org.example.project.feature.weeklyparts.di.weeklyPartsModule
 import org.example.project.ui.di.viewModelsModule
+import org.example.project.ui.theme.WorkspaceSketchPalette
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.example.project.ui.AppScreen
+import org.jetbrains.jewel.foundation.theme.JewelTheme
+import org.jetbrains.jewel.intui.standalone.theme.IntUiTheme
+import org.jetbrains.jewel.intui.standalone.theme.default
+import org.jetbrains.jewel.intui.standalone.theme.lightThemeDefinition
+import org.jetbrains.jewel.intui.window.decoratedWindow
+import org.jetbrains.jewel.intui.window.styling.defaults
+import org.jetbrains.jewel.intui.window.styling.light
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.jewel.ui.ComponentStyling
+import org.jetbrains.jewel.window.DecoratedWindow
+import org.jetbrains.jewel.window.styling.DecoratedWindowColors
+import org.jetbrains.jewel.window.styling.DecoratedWindowStyle
+import org.jetbrains.jewel.window.styling.TitleBarColors
+import org.jetbrains.jewel.window.styling.TitleBarMetrics
+import org.jetbrains.jewel.window.styling.TitleBarStyle
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import mu.KotlinLogging
@@ -77,6 +92,38 @@ fun main() {
             placement = initialWindowSettings.placement,
             position = initialPosition,
         )
+        val jewelThemeDefinition = remember {
+            JewelTheme.lightThemeDefinition()
+        }
+        val workspaceSketch = remember { WorkspaceSketchPalette() }
+        val jewelWindowStyle = remember(workspaceSketch) {
+            DecoratedWindowStyle.light(
+                colors = DecoratedWindowColors.light(
+                    borderColor = workspaceSketch.windowBorder,
+                    inactiveBorderColor = workspaceSketch.toolbarBorder,
+                ),
+            )
+        }
+        val jewelTitleBarStyle = TitleBarStyle.light(
+            colors = TitleBarColors.light(
+                backgroundColor = workspaceSketch.toolbarBackground,
+                inactiveBackground = workspaceSketch.surfaceMuted,
+                contentColor = workspaceSketch.toolbarInk,
+                borderColor = workspaceSketch.toolbarBorder,
+                titlePaneButtonHoveredBackground = workspaceSketch.toolbarSurface,
+                titlePaneButtonPressedBackground = workspaceSketch.lineSoft,
+                titlePaneCloseButtonHoveredBackground = workspaceSketch.bad,
+                titlePaneCloseButtonPressedBackground = workspaceSketch.bad.copy(alpha = 0.82f),
+                iconButtonHoveredBackground = workspaceSketch.toolbarSurface,
+                iconButtonPressedBackground = workspaceSketch.lineSoft,
+                dropdownHoveredBackground = workspaceSketch.toolbarSurface,
+                dropdownPressedBackground = workspaceSketch.lineSoft,
+            ),
+            metrics = TitleBarMetrics.defaults(
+                height = 48.dp,
+                titlePaneButtonSize = DpSize(48.dp, 48.dp),
+            ),
+        )
 
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.toSettingsSnapshot() }
@@ -84,27 +131,34 @@ fun main() {
                 .collect(settingsStore::save)
         }
 
-        Window(
-            state = windowState,
-            undecorated = false,
-            transparent = false,
-            onCloseRequest = {
-                settingsStore.save(windowState.toSettingsSnapshot())
-                exitApplication()
-            },
-            title = "Scuola di ministero",
-            icon = painterResource(Res.drawable.icon),
+        IntUiTheme(
+            theme = jewelThemeDefinition,
+            styling = ComponentStyling.default().decoratedWindow(
+                windowStyle = jewelWindowStyle,
+                titleBarStyle = jewelTitleBarStyle,
+            ),
         ) {
-            LaunchedEffect(Unit) {
-                window.minimumSize = Dimension(
-                    WindowSettings.MIN_WIDTH_DP,
-                    WindowSettings.MIN_HEIGHT_DP,
+            DecoratedWindow(
+                state = windowState,
+                style = jewelWindowStyle,
+                onCloseRequest = {
+                    settingsStore.save(windowState.toSettingsSnapshot())
+                    exitApplication()
+                },
+                title = "Scuola di ministero",
+                icon = painterResource(Res.drawable.icon),
+            ) {
+                LaunchedEffect(Unit) {
+                    window.minimumSize = Dimension(
+                        WindowSettings.MIN_WIDTH_DP,
+                        WindowSettings.MIN_HEIGHT_DP,
+                    )
+                }
+                AppScreen(
+                    initialUiScale = initialUiScale,
+                    onUiScaleChange = settingsStore::saveUiScale,
                 )
             }
-            AppScreen(
-                initialUiScale = initialUiScale,
-                onUiScaleChange = settingsStore::saveUiScale,
-            )
         }
     }
 }
