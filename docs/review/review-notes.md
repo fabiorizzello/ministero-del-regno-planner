@@ -6,19 +6,29 @@
 
 2. `feature/output`: tutti e tre i use case usano `throw IllegalStateException` invece di `Either<DomainError, T>`.
    - Pattern inconsistente con tutto il resto del codebase; il ViewModel usa `runCatching` come workaround.
-   - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` (line 258-261) — espansione del problema con nuovi metodi.
-   - Evidenze: `StampaProgrammaUseCase.kt:117`, `GeneraPdfAssegnazioni.kt:30`, `GeneraImmaginiAssegnazioni.kt:83,104,258-261`.
+   - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` — espansione del problema con nuovi metodi.
+   - Evidenze (righe aggiornate): `StampaProgrammaUseCase.kt:116`, `GeneraImmaginiAssegnazioni.kt:86,107,264`.
 
+46. `DiagnosticsViewModel` bypassa use case e chiama direttamente `MinisteroDatabase` per mutazioni e letture.
+    - `database.ministeroDatabaseQueries.deleteWeekPlansBeforeDate()` (riga 224) è una mutazione senza TransactionRunner e senza use case. Le letture count (righe 430-432) bypassano analogamente il layer application.
+    - Il modulo DI wira `MinisteroDatabase` direttamente nel ViewModel (ViewModelsModule.kt:84).
+    - Soluzione: estrarre `EliminaStoricoUseCase` (mutante, con TransactionRunner) e `ContaStoricoUseCase` (read-only).
+    - Evidenze: `DiagnosticsViewModel.kt:224,430-432`, `ui/di/ViewModelsModule.kt:84`.
+
+47. `AggiornaApplicazione.kt:31` — `throw IllegalStateException()` in use case invece di `Either<DomainError, T>`.
+    - Viola il pattern Arrow Either adottato da tutti gli altri use case dell'application layer.
+    - Evidenza: `feature/updates/application/AggiornaApplicazione.kt:31`.
 
 ### Medium
 
 2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
-   - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`.
+   - `PdfAssignmentsRenderer` ha zero test unitari su `renderWeeklyAssignmentsPdf()` e `renderPersonSheetPdf()`.
+   - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `PdfAssignmentsRenderer.kt`.
 
-4. `GeneraImmaginiAssegnazioni`: logica PDF→PNG (`renderPdfToPng`) nel layer application; inietta use case invece di store.
+4. `GeneraImmaginiAssegnazioni`: logica PDF→PNG (`renderPdfToPngFile`) nel layer application.
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
-   - Evidenza: `GeneraImmaginiAssegnazioni.kt:107-112`, `:13-15`.
+   - Evidenza: `GeneraImmaginiAssegnazioni.kt:335-341`, `:13-14`.
 
 10. `TransactionRunner.kt:29-30` — `runBlocking` dentro la coroutine della transazione.
     - `@Suppress("BlockingMethodInNonBlockingContext")` nasconde il problema. `@Suppress("UNCHECKED_CAST")` a riga 39 nasconde un unsafe cast di `Any` a `T`.
@@ -41,14 +51,18 @@
 ### Low
 
 - `SqlDelightSchemaUpdateAnomalyStore.append()` non è idempotente: ogni chiamata genera nuovo UUID, retry accumula duplicati.
-- **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alcuni test passano date non-lunedì senza conseguenze visibili oggi. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
+- **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
   - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
-- **Finding 43** (emerso da review post-fix Medium 21/38): `PersonPickerViewModel` porta parametri inutilizzati `selectedProgramWeeks`/`selectedProgramAssignments` in `openPersonPicker`, `loadSuggestions`, `reloadSuggestions` e i campi `storedProgramWeeks`/`storedProgramAssignments`. Dead code confusionario dopo il fix che ha spostato il carico degli assignments dentro il use case. Il caller `ProgramWorkspaceScreen.kt` passa ancora questi valori inutilmente.
-  - Evidenze: `PersonPickerViewModel.kt:51-52,65-66,147-148`, `ProgramWorkspaceScreen.kt:698-699`.
-- **Finding 44** (emerso da review post-fix Finding 25): `mapAssignmentWithPersonRow` in `AssignmentRowMapper.kt` è `internal` ma ancora callable direttamente dal package `infrastructure`, bypassando la guard `slot >= 1` in `toAssignmentWithPersonOrNull()`. Considerare renderla `private`.
+- **Finding 43**: `PersonPickerViewModel` porta parametri inutilizzati `selectedProgramWeeks`/`selectedProgramAssignments` in `openPersonPicker`, `loadSuggestions`, `reloadSuggestions` e i campi `storedProgramWeeks`/`storedProgramAssignments`. Dead code. Il caller `ProgramWorkspaceScreen.kt` passa ancora questi valori inutilmente.
+  - Evidenze: `PersonPickerViewModel.kt:51-52,62-66,82,147-148`, `ProgramWorkspaceScreen.kt:698-699`.
+- **Finding 44**: `mapAssignmentWithPersonRow` in `AssignmentRowMapper.kt` è `internal` ma callable direttamente dal package `infrastructure`, bypassando la guard `slot >= 1` in `toAssignmentWithPersonOrNull()`. Renderla `private`.
   - Evidenza: `AssignmentRowMapper.kt`.
-- **Finding 45** (emerso da review post-fix Finding 37/25): `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` usa `.getOrElse { throw RuntimeException(...) }` + `runCatching` invece di propagare l'Either direttamente. Anti-pattern wrapping/unwrapping non necessario.
-  - Evidenza: `SchemaManagementViewModel.kt`.
+- **Finding 45**: `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` usa `.getOrElse { throw RuntimeException(...) }` + `runCatching`. Anti-pattern wrapping/unwrapping.
+  - Evidenza: `SchemaManagementViewModel.kt:72-85,154`.
+- **Finding 48**: `PdfAssignmentsRenderer.kt:76-77,157-158` e `PdfProgramRenderer.kt:111-112` — `mkdirs()` result non controllato. Il codice verifica il booleano ma non fallisce esplicitamente se la directory non viene creata (nessun log/exception). Nuova occorrenza distinta dal Finding 34 già risolto (che riguardava un file diverso).
+  - Evidenza: `PdfAssignmentsRenderer.kt:76-77,157-158`, `PdfProgramRenderer.kt:111-112`.
+- **Finding 49**: `AggiornaApplicazione.kt:47-57` — fallback `"explorer.exe"` hardcoded per apertura file; non funziona su Linux/macOS. `UpdateScheduler.kt:28` — `runCatching` con solo `WARN` log; failure silenzioso se il check aggiornamenti fallisce.
+  - Evidenza: `AggiornaApplicazione.kt:47-57`, `UpdateScheduler.kt:28`.
 
 ## Verifiche eseguite
 
