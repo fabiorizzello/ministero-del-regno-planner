@@ -12,10 +12,8 @@ import org.example.project.feature.assignments.application.CaricaAssegnazioniUse
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.domain.AssignmentId
-import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -48,8 +46,6 @@ internal class PersonPickerViewModel(
     val state: StateFlow<PersonPickerUiState> = _state.asStateFlow()
 
     private var pickerSuggestionsJob: Job? = null
-    private var storedProgramWeeks: List<WeekPlan> = emptyList()
-    private var storedProgramAssignments: Map<String, List<AssignmentWithPerson>> = emptyMap()
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
@@ -59,11 +55,7 @@ internal class PersonPickerViewModel(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
         slot: Int,
-        selectedProgramWeeks: List<WeekPlan>,
-        selectedProgramAssignments: Map<String, List<AssignmentWithPerson>>,
     ) {
-        storedProgramWeeks = selectedProgramWeeks
-        storedProgramAssignments = selectedProgramAssignments
         _state.update {
             it.copy(
                 pickerWeekStartDate = weekStartDate,
@@ -75,11 +67,11 @@ internal class PersonPickerViewModel(
                 isPickerLoading = true,
             )
         }
-        loadSuggestions(selectedProgramWeeks, selectedProgramAssignments)
+        loadSuggestions()
     }
 
     fun reloadSuggestions() {
-        if (_state.value.isPickerOpen) loadSuggestions(storedProgramWeeks, storedProgramAssignments)
+        if (_state.value.isPickerOpen) loadSuggestions()
     }
 
     fun closePersonPicker() {
@@ -143,10 +135,7 @@ internal class PersonPickerViewModel(
         }
     }
 
-    private fun loadSuggestions(
-        selectedProgramWeeks: List<WeekPlan>,
-        selectedProgramAssignments: Map<String, List<AssignmentWithPerson>>,
-    ) {
+    private fun loadSuggestions() {
         val pickerWeekStartDate = _state.value.pickerWeekStartDate ?: return
         val pickerWeeklyPartId = _state.value.pickerWeeklyPartId ?: return
         val pickerSlot = _state.value.pickerSlot ?: return
