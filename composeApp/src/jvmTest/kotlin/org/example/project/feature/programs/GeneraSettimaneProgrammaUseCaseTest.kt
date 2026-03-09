@@ -131,6 +131,7 @@ internal class InMemoryProgramStoreGeneration(
 internal class InMemorySchemaTemplateStore(
     private val templates: Map<LocalDate, StoredSchemaWeekTemplate>,
 ) : SchemaTemplateStore {
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
         // no-op
     }

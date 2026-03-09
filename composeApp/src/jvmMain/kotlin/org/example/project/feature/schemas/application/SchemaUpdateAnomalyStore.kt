@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.application
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 
@@ -21,6 +22,7 @@ data class SchemaUpdateAnomalyDraft(
 )
 
 interface SchemaUpdateAnomalyStore {
+    context(tx: TransactionScope)
     suspend fun append(items: List<SchemaUpdateAnomalyDraft>)
     suspend fun listOpen(): List<SchemaUpdateAnomaly>
     suspend fun dismissAllOpen()

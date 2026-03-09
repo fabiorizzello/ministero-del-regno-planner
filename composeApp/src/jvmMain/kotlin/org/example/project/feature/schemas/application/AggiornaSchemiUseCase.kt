@@ -72,8 +72,12 @@ class AggiornaSchemiUseCase(
 
             val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
                 val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                    // All codes were validated against availableCodes above; this lookup should not be null.
-                    checkNotNull(partTypeStore.findByCode(code)) { "Part type non trovato dopo import: $code" }.id
+                    // All codes were validated against availableCodes above and upserted just above.
+                    // If findByCode returns null here it is a programming error (upsertAll did not
+                    // persist the code). error() escapes the lambda, TransactionRunner catches it
+                    // and triggers rollback before re-throwing.
+                    partTypeStore.findByCode(code)?.id
+                        ?: error("PartType con codice $code non trovato dopo upsertAll — stato impossibile")
                 }
                 StoredSchemaWeekTemplate(
                     weekStartDate = weekStartDate,

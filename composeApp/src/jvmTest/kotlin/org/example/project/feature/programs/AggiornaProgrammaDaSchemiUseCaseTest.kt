@@ -242,6 +242,7 @@ private class RefreshWeekStore(
 private class RefreshSchemaTemplateStore(
     private val templates: Map<LocalDate, StoredSchemaWeekTemplate>,
 ) : SchemaTemplateStore {
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
         // no-op
     }
