@@ -1,59 +1,5 @@
 # Review Notes — Consolidato e Deduplicato (2026-03-09)
 
-## Prompt sorgente di oggi
-
-```text
-Prima di iniziare:
-1. Leggi docs/review/review-notes.md per conoscere i findings già trattati — non ripetere ciò che è già risolto.
-   Verifica anche i findings aperti: se un finding non è più valido (codice cambiato, problema risolto incidentalmente,
-   finding superato da refactor), rimuovilo dalla lista e spostalo in "Findings risolti" con una nota sintetica.
-2. Identifica le zone "oscure" del codebase: feature o file poco esplorati nelle iterazioni precedenti,
-   use case non coperti da test, moduli con nessuna review esistente (es. feature/output, feature/schemas,
-   feature/planning, core/). Dai priorità a queste zone nell'analisi.
-
-Valuta il progetto su:
-
-Architettura DDD:
-- Vertical slices, aggregate-root centrico, invarianti garantite dall'aggregato (no IO interno)
-- Use case (1:1 con azione utente, confine transazionale) per orchestrazione IO
-- Application service (riusabile da più entry point) se la stessa logica serve UI + batch + eventi
-- Domain service per logica pura che attraversa più aggregati (mai IO)
-- Infrastructure service: implementa contratti dichiarati dal dominio (DB, HTTP, PDF, file system)
-
-Modello funzionale:
-- Arrow, Either, DomainError usati correttamente
-- Valuta se optics, newtypes, ADT/GADT migliorerebbero l'espressività — solo segnala, non implementare
-
-Test:
-- Coverage sulla logica pura (domain + use case)
-- Integration test sui boundary esterni (HTTP, DB, PDF)
-- Qualità dei test esistenti: valuta se ogni test è necessario e porta valore reale.
-  Per ogni test considera: testa un comportamento distinto o è ridondante con un altro?
-  Può essere rimosso perché copre solo un dettaglio implementativo fragile?
-  Può essere accorpato con un test simile senza perdere leggibilità?
-  Può essere rafforzato (asserzione più specifica, scenario più rappresentativo)?
-  Può essere ridenominato per chiarire meglio l'intento?
-  Segnala test che danno falsa sicurezza (passano sempre, non possono fallire per regression reali).
-
-Qualità:
-- Assenza di codice orfano, legacy, TODO
-- Nessuna violazione DRY/SOLID/DDD
-- Spec allineate al codice — in caso di disallineamento segnala senza correggere
-
-Produzione:
-- 1 utente, 1 sessione, no saga
-- Ogni use case mutante apre esattamente 1 transazione via `TransactionRunner.runInTransaction { }`.
-  Il blocco lambda riceve implicitamente `TransactionScope` come receiver: le funzioni di store
-  dichiarate `context(TransactionScope)` possono essere chiamate solo dentro quel blocco —
-  il compilatore lo forza staticamente (capability token pattern).
-  Conseguenze verificabili: nessun use case deve aprire transazioni annidate; nessuna funzione
-  `context(TransactionScope)` deve essere chiamata fuori da `runInTransaction`; use case read-only
-  non richiedono transazione.
-
-Se i task di analisi sono indipendenti, usa agenti paralleli.
-Produci i findings ordinati per severità.
-```
-
 ## Findings aperti (ordinati per severità)
 
 ### High
