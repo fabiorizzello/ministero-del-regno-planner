@@ -106,6 +106,22 @@ Rispondi alle seguenti domande per il codice modificato:
 4. **I test aggiornati/aggiunti sono sufficienti?** Valuta qualità e copertura rispetto al comportamento modificato.
 5. **Ci sono caller o dipendenti non aggiornati?** Verifica che la modifica non abbia lasciato codice incoerente altrove.
 
+#### Anti-pattern noti — cerca attivamente nei file toccati
+
+Durante la review post-fix, scansiona esplicitamente il codice modificato alla ricerca di questi pattern. Ogni occorrenza è un finding bloccante se non giustificata:
+
+| Anti-pattern | Segnale nel codice | Pattern corretto |
+|---|---|---|
+| Private exception come control flow | `private class XyzError(val e: DomainError) : Exception()` | `raise(DomainError.xxx)` dentro `either {}` |
+| `throw` / `error()` per domain errors | `throw IllegalStateException(...)` in use case / domain | `raise(DomainError.xxx)` o `Either.Left(...)` |
+| `runCatching` come workaround Either | `runCatching { useCase() }.fold(...)` nel ViewModel | Use case restituisce `Either` direttamente |
+| Unwrap con throw | `.getOrElse { throw RuntimeException(...) }` | Propaga `Either` verso il chiamante |
+| `raise()` dentro `either {}` dentro `runInTransaction {}` per rollback | Codice si aspetta rollback ma usa Arrow raise | Usa `error()` per uscire da `either {}` e triggerare TransactionRunner |
+| Nested transaction | `database.xxx.transaction {}` dentro `runInTransaction {}` | Rimuovi la transazione interna — il boundary è già garantito dall'esterno |
+| Mutation senza `context(TransactionScope)` sull'interfaccia | `suspend fun save(...)` senza `context(tx: TransactionScope)` | `context(tx: TransactionScope) suspend fun save(...)` |
+| Override context mancante | `override suspend fun save(...)` senza ripetere il context | `context(tx: TransactionScope) override suspend fun save(...)` |
+| Test fake senza context | Fake implementa interfaccia con context ma la override non lo porta | Aggiungere `context(tx: TransactionScope)` sull'override |
+
 Se il fix supera tutti i punti senza nuovi finding: **"Fix approvato."**
 Se emergono problemi: elencali come finding con severità, e indica se bloccano il merge o sono separabili.
 
