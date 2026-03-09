@@ -21,7 +21,15 @@ class SuggerisciProclamatoriUseCase(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
         slot: Int,
-        alreadyAssignedIds: Set<ProclamatoreId> = emptySet(),
+        /**
+         * IDs of people assigned **in-progress** (not yet persisted to DB) during the current
+         * operation. The use case always loads persisted assignments from the repository
+         * internally; callers only need to pass IDs of assignments made within the same
+         * in-flight transaction that are not yet visible to the repository.
+         *
+         * For interactive (ViewModel) callers this should be left as the default emptySet().
+         */
+        additionalExcludedIds: Set<ProclamatoreId> = emptySet(),
         rankingCache: SuggestionRankingCache? = null,
         eligibilityCache: Map<PartTypeId, Set<ProclamatoreId>>? = null,
     ): List<SuggestedProclamatore> {
@@ -45,10 +53,15 @@ class SuggerisciProclamatoriUseCase(
                 .toSet()
         }
 
-        val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
+        // Load assignments for this week from the repository in a single query.
+        // This derives both requiredSex (for STESSO_SESSO rule) and the set of
+        // already-assigned person IDs, eliminating the N+1 and the fragile caller contract.
+        val weekAssignments = assignmentRepository.listByWeek(plan.id)
+        val existingPartAssignments = weekAssignments
             .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }
-
         val requiredSex = existingPartAssignments.firstOrNull()?.sex
+        val alreadyAssignedInWeek: Set<ProclamatoreId> = weekAssignments.map { it.personId }.toSet()
+        val excludedIds = alreadyAssignedInWeek + additionalExcludedIds
 
         // Filtri hard: regola sesso UOMO, idoneita', gia' assegnato nella stessa settimana.
         // STESSO_SESSO = stesso sesso preferito (soft): non filtra, ma annota sexMismatch.
@@ -78,7 +91,7 @@ class SuggerisciProclamatoriUseCase(
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
                     sexMismatch = isSexMismatch,
                 )
-                Triple(annotated, passaSesso && passaIdoneita && p.id !in alreadyAssignedIds, roleWeight)
+                Triple(annotated, passaSesso && passaIdoneita && p.id !in excludedIds, roleWeight)
             }
             .filter { (_, allowed, _) -> allowed }
             .map { (suggestion, _, weight) -> suggestion to weightedScore(suggestion, weight) }

@@ -5,6 +5,7 @@ import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.domain.canBeAutoAssigned
 import org.example.project.feature.people.application.EligibilityStore
+import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -64,7 +65,9 @@ class AutoAssegnaProgrammaUseCase(
             )
             val assignments = assignmentsByWeek[week.id] ?: emptyList()
             val existingByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
-            val alreadyAssignedIds = assignments.map { it.personId }.toMutableSet()
+            // Tracks only in-progress assignments (not yet persisted) made within this loop.
+            // Pre-existing DB assignments are loaded internally by SuggerisciProclamatoriUseCase.
+            val inProgressAssignedIds = mutableSetOf<ProclamatoreId>()
 
             for (part in week.parts) {
                 for (slot in 1..part.partType.peopleCount) {
@@ -74,7 +77,7 @@ class AutoAssegnaProgrammaUseCase(
                         weekStartDate = week.weekStartDate,
                         weeklyPartId = part.id,
                         slot = slot,
-                        alreadyAssignedIds = alreadyAssignedIds,
+                        additionalExcludedIds = inProgressAssignedIds,
                         rankingCache = rankingCache,
                         eligibilityCache = eligibilityCache,
                     )
@@ -108,7 +111,7 @@ class AutoAssegnaProgrammaUseCase(
                         },
                         ifRight = {
                             assignedCount += 1
-                            alreadyAssignedIds += selected.proclamatore.id
+                            inProgressAssignedIds += selected.proclamatore.id
                         },
                     )
                 }
