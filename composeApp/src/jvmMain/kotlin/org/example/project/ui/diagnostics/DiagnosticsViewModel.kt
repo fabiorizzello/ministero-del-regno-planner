@@ -33,6 +33,9 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
 import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.db.MinisteroDatabase
+import arrow.core.Either
+import org.example.project.core.domain.DomainError
+import org.example.project.core.domain.toMessage
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.core.config.UpdateChannel
@@ -244,20 +247,10 @@ internal class DiagnosticsViewModel(
     fun checkUpdates() {
         if (_state.value.isCheckingUpdates) return
         scope.launch {
-            _state.executeAsyncOperation(
-                loadingUpdate = { it.copy(isCheckingUpdates = true) },
-                successUpdate = { state, result ->
-                    applyUpdateResult(result)
-                    state.copy(isCheckingUpdates = false)
-                },
-                errorUpdate = { state, error ->
-                    state.copy(
-                        isCheckingUpdates = false,
-                        notice = errorNotice("Verifica aggiornamenti non riuscita: ${error.message}"),
-                    )
-                },
-                operation = { verificaAggiornamenti() },
-            )
+            _state.update { it.copy(isCheckingUpdates = true) }
+            val result = verificaAggiornamenti()
+            applyUpdateResult(result)
+            _state.update { it.copy(isCheckingUpdates = false) }
         }
     }
 
@@ -311,21 +304,27 @@ internal class DiagnosticsViewModel(
         }
     }
 
-    private fun applyUpdateResult(result: UpdateCheckResult) {
-        val statusText = when {
-            !result.error.isNullOrBlank() -> "Errore verifica: ${result.error}"
-            result.latestVersion.isNullOrBlank() -> "Nessuna release trovata"
-            result.updateAvailable -> "Aggiornamento disponibile: ${result.latestVersion}"
-            else -> "App aggiornata (v${result.currentVersion})"
-        }
-        _state.update {
-            it.copy(
-                updateAvailable = result.updateAvailable,
-                updateLatestVersion = result.latestVersion,
-                updateLastCheck = result.checkedAt,
-                updateStatusText = statusText,
-                updateAsset = result.asset,
-            )
+    private fun applyUpdateResult(result: Either<DomainError, UpdateCheckResult>) {
+        _state.update { state ->
+            when (result) {
+                is Either.Left -> state.copy(
+                    updateStatusText = "Errore verifica: ${result.value.toMessage()}",
+                )
+                is Either.Right -> {
+                    val r = result.value
+                    state.copy(
+                        updateAvailable = r.updateAvailable,
+                        updateLatestVersion = r.latestVersion,
+                        updateLastCheck = r.checkedAt,
+                        updateStatusText = when {
+                            r.latestVersion.isNullOrBlank() -> "Nessuna release trovata"
+                            r.updateAvailable -> "Aggiornamento disponibile: ${r.latestVersion}"
+                            else -> "App aggiornata (v${r.currentVersion})"
+                        },
+                        updateAsset = r.asset,
+                    )
+                }
+            }
         }
     }
 
