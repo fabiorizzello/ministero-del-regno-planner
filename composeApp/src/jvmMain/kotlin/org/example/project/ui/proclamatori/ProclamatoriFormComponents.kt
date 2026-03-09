@@ -8,8 +8,10 @@ package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,22 +19,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
@@ -40,8 +45,12 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Sesso
@@ -80,21 +89,27 @@ internal fun ProclamatoriFormContentForm(
     formError: String?,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
+    onDelete: (() -> Unit)? = null,
+    showTitle: Boolean = true,
 ) {
     val isNew = route == ProclamatoriRoute.Nuovo
     val sketch = MaterialTheme.workspaceSketch
     val spacing = MaterialTheme.spacing
+    val nameFr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { nameFr.requestFocus() }
 
-    Text(
-        if (isNew) "Nuovo proclamatore" else "Modifica proclamatore",
-        style = MaterialTheme.typography.headlineMedium,
-    )
-    Spacer(Modifier.height(spacing.lg))
+    if (showTitle) {
+        Text(
+            if (isNew) "Nuovo studente" else "Modifica studente",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Spacer(Modifier.height(spacing.lg))
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -111,7 +126,7 @@ internal fun ProclamatoriFormContentForm(
                     onValueChange = { if (it.length <= NAME_MAX_LENGTH) onNomeChange(it) },
                     label = { Text("Nome *") },
                     isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(nameFr),
                     singleLine = true,
                     supportingText = {
                         if (showFieldErrors && nomeTrim.isBlank()) {
@@ -143,24 +158,35 @@ internal fun ProclamatoriFormContentForm(
                 )
             }
 
-            // ── Genere — segmented control ───────────────────────────────────
+            // ── Genere — pill toggle ─────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Genere",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = sesso == Sesso.M,
-                        onClick = { onSessoChange(Sesso.M) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    ) { Text("Uomo") }
-                    SegmentedButton(
-                        selected = sesso == Sesso.F,
-                        onClick = { onSessoChange(Sesso.F) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    ) { Text("Donna") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
+                        val selected = sesso == sVal
+                        Surface(
+                            modifier = Modifier
+                                .clickable { onSessoChange(sVal) }
+                                .handCursorOnHover(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (selected) sketch.accentSoft else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (selected) sketch.accent else sketch.lineStrong,
+                            ),
+                        ) {
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) sketch.accent else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -168,17 +194,15 @@ internal fun ProclamatoriFormContentForm(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onSospesoChange(!sospeso) }
-                    .handCursorOnHover(),
+                    .clickable(enabled = !isLoading) { onSospesoChange(!sospeso) }
+                    .handCursorOnHover(enabled = !isLoading),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(
                     1.dp,
-                    if (sospeso) sketch.warn.copy(alpha = 0.45f)
-                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                    if (sospeso) sketch.warn.copy(alpha = 0.45f) else sketch.lineStrong,
                 ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (sospeso) sketch.warn.copy(alpha = 0.07f)
-                    else MaterialTheme.colorScheme.surface,
+                    containerColor = if (sospeso) sketch.warn.copy(alpha = 0.07f) else sketch.surfaceMuted,
                 ),
             ) {
                 Row(
@@ -205,6 +229,21 @@ internal fun ProclamatoriFormContentForm(
                     Switch(
                         checked = sospeso,
                         onCheckedChange = onSospesoChange,
+                        enabled = !isLoading,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = sketch.surface,
+                            checkedTrackColor = sketch.warn,
+                            checkedBorderColor = sketch.warn,
+                            uncheckedTrackColor = sketch.lineStrong,
+                            uncheckedThumbColor = sketch.surface,
+                            uncheckedBorderColor = sketch.lineStrong,
+                            disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
+                            disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
+                            disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
+                            disabledUncheckedThumbColor = sketch.surface,
+                            disabledUncheckedTrackColor = sketch.lineSoft,
+                            disabledUncheckedBorderColor = sketch.lineSoft,
+                        ),
                     )
                 }
             }
@@ -215,48 +254,63 @@ internal fun ProclamatoriFormContentForm(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Idoneità", style = MaterialTheme.typography.titleSmall)
-                FlowRow(
+                Text(
+                    "Seleziona i ruoli che può svolgere.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Meta controls: Tutti + Assistente
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // "Tutti" chip
-                    FilterChip(
+                    EligibilityFilterChip(
                         selected = allEligibilitySelected,
                         onClick = { onSetAllEligibilityChange(!allEligibilitySelected) },
-                        label = { Text("Tutti") },
+                        label = "Tutti",
                         modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
                     )
-                    // Assistente chip
-                    FilterChip(
+                    EligibilityFilterChip(
                         selected = puoAssistere,
                         onClick = { onPuoAssistereChange(!puoAssistere) },
-                        label = { Text("Assistente") },
+                        label = "Assistente",
                         modifier = Modifier.handCursorOnHover(),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = sketch.accentSoft,
-                            selectedLabelColor = sketch.accent,
-                        ),
                     )
-                    // Lead part type chips
-                    leadEligibilityOptions.forEach { option ->
-                        FilterChip(
-                            selected = option.checked,
-                            onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
-                            label = { Text(option.label) },
-                            enabled = option.canSelect,
-                            modifier = Modifier.handCursorOnHover(enabled = option.canSelect),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = sketch.accentSoft,
-                                selectedLabelColor = sketch.accent,
-                            ),
+                }
+                if (leadEligibilityOptions.isNotEmpty()) {
+                    // Separator between meta controls and role-specific chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            "Per parte",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                         )
                     }
-                }
-                if (leadEligibilityOptions.isEmpty()) {
+                    // Lead part type chips
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        leadEligibilityOptions.forEach { option ->
+                            EligibilityFilterChip(
+                                selected = option.checked,
+                                onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
+                                label = option.label,
+                                enabled = option.canSelect,
+                                modifier = Modifier.handCursorOnHover(enabled = option.canSelect),
+                            )
+                        }
+                    }
+                } else {
                     Text(
                         "Nessun ruolo disponibile. Usa Aggiorna schemi.",
                         style = MaterialTheme.typography.bodySmall,
@@ -281,6 +335,7 @@ internal fun ProclamatoriFormContentForm(
                         modifier = Modifier.handCursorOnHover(enabled = canSubmitForm),
                         onClick = onSubmit,
                         enabled = canSubmitForm,
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                     ) {
                         Text(if (isNew) "Salva" else "Aggiorna")
                     }
@@ -305,6 +360,93 @@ internal fun ProclamatoriFormContentForm(
                     Text(formError, color = MaterialTheme.colorScheme.error)
                 }
             }
+
+            // ── Zona pericolosa — solo in modifica ───────────────────────────
+            if (!isNew && onDelete != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.workspaceSketch.lineSoft),
+                )
+                OutlinedButton(
+                    onClick = onDelete,
+                    enabled = !isLoading,
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                ) {
+                    Text("Elimina studente")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EligibilityFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) {
+        primary
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.78f)
+    }
+    val disabledBorderColor = if (selected) {
+        primary.copy(alpha = 0.44f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.44f)
+    }
+
+    Surface(
+        modifier = modifier
+            .heightIn(min = 36.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = if (enabled) containerColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.5.dp, if (enabled) borderColor else disabledBorderColor),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = null,
+                enabled = enabled,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = primary,
+                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledCheckedColor = primary.copy(alpha = 0.52f),
+                    disabledUncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                ),
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+            )
         }
     }
 }

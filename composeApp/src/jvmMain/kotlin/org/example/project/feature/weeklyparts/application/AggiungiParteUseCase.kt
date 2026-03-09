@@ -4,27 +4,41 @@ import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import java.time.LocalDate
+import java.util.UUID
 
 class AggiungiParteUseCase(
     private val weekPlanStore: WeekPlanStore,
+    private val partTypeStore: PartTypeStore,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         partTypeId: PartTypeId,
+        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, WeekPlan> = either {
-        val weekPlan = weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Settimana non trovata"))
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+            ?: raise(DomainError.NotFound("Settimana"))
 
-        val nextOrder = (weekPlan.parts.maxOfOrNull { it.sortOrder } ?: -1) + 1
+        val partType = partTypeStore.findById(partTypeId)
+            ?: raise(DomainError.NotFound("Tipo parte"))
+        val revisionId = partTypeStore.getLatestRevisionId(partTypeId)
+        val updated = aggregate.addPart(
+            partType = partType,
+            partId = WeeklyPartId(UUID.randomUUID().toString()),
+            partTypeRevisionId = revisionId,
+            referenceDate = referenceDate,
+        ).fold(
+            ifLeft = { raise(it) },
+            ifRight = { it },
+        )
         transactionRunner.runInTransaction {
-            weekPlanStore.addPart(weekPlan.id, partTypeId, nextOrder)
+            weekPlanStore.saveAggregate(updated)
         }
 
-        weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Errore nel salvataggio"))
+        updated.weekPlan
     }
 }

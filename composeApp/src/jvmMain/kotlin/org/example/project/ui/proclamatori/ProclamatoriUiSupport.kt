@@ -13,7 +13,7 @@ import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.partialNotice
 import org.example.project.ui.components.successNotice
 
-internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, ATTIVO }
+internal enum class ProclamatoriSortField { NOME, COGNOME, SESSO, SOSPESO }
 internal enum class SortDirection { ASC, DESC }
 internal data class ProclamatoriSort(
     val field: ProclamatoriSortField = ProclamatoriSortField.COGNOME,
@@ -25,7 +25,7 @@ internal fun personDetails(nome: String, cognome: String): String {
         .filter { it.isNotEmpty() }
         .joinToString(" ")
         .ifBlank { "-" }
-    return "Proclamatore: $fullName"
+    return "Studente: $fullName"
 }
 
 internal data class MultiActionResult(
@@ -79,22 +79,6 @@ internal fun noticeForMultiAction(
     }
 }
 
-internal fun sortFieldForColumn(index: Int): ProclamatoriSortField? {
-    return when (index) {
-        1 -> ProclamatoriSortField.NOME
-        2 -> ProclamatoriSortField.COGNOME
-        3 -> ProclamatoriSortField.SESSO
-        4 -> ProclamatoriSortField.ATTIVO
-        else -> null
-    }
-}
-
-internal fun sortIndicatorForColumn(index: Int, sort: ProclamatoriSort): String? {
-    val field = sortFieldForColumn(index) ?: return null
-    if (field != sort.field) return null
-    return if (sort.direction == SortDirection.ASC) "^" else "v"
-}
-
 internal fun toggleSort(current: ProclamatoriSort, field: ProclamatoriSortField): ProclamatoriSort {
     return if (current.field == field) {
         current.copy(direction = if (current.direction == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC)
@@ -112,7 +96,7 @@ internal fun List<Proclamatore>.applySort(sort: ProclamatoriSort): List<Proclama
         ProclamatoriSortField.SESSO -> compareBy<Proclamatore> { it.sesso.name }
             .thenBy { it.cognome.lowercase() }
             .thenBy { it.nome.lowercase() }
-        ProclamatoriSortField.ATTIVO -> compareBy<Proclamatore> { if (it.attivo) 0 else 1 }
+        ProclamatoriSortField.SOSPESO -> compareBy<Proclamatore> { if (it.sospeso) 1 else 0 }
             .thenBy { it.cognome.lowercase() }
             .thenBy { it.nome.lowercase() }
     }

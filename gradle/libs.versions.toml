@@ -1,21 +1,28 @@
 [versions]
 androidx-lifecycle = "2.9.6"
 composeHotReload = "1.0.0"
-composeMultiplatform = "1.10.0"
-kotlin = "2.3.0"
+composeMultiplatform = "1.10.1"
+kotlin = "2.3.10"
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.8.1"
+kotlinx-serialization = "1.10.0"
 material3 = "1.10.0-alpha05"
-arrow = "2.1.2"
-sqldelight = "2.1.0"
+arrow = "2.2.1.1"
+konform = "0.11.1"
+sqldelight = "2.2.1"
 slf4j = "2.0.17"
-logback = "1.5.18"
-koin = "3.5.6"
-multiplatform-settings = "1.1.1"
+logback = "1.5.32"
+koin = "4.1.1"
+multiplatform-settings = "1.3.0"
 voyager = "1.0.0"
 reorderable = "3.0.0"
-pdfbox = "2.0.32"
+pdfbox = "3.0.6"
+kotlin-logging = "8.0.01"
+ktor = "3.4.0"
 jsoup = "1.18.3"
+jna = "5.18.1"
+jewel = "0.34.0-253.31033.149"
+kover = "0.9.7"
+mockk = "1.14.9"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -30,6 +37,7 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+konform = { module = "io.konform:konform", version.ref = "konform" }
 sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
 sqldelight-dialect-sqlite338 = { module = "app.cash.sqldelight:sqlite-3-38-dialect", version.ref = "sqldelight" }
@@ -41,10 +49,21 @@ voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+jewel-int-ui-standalone = { module = "org.jetbrains.jewel:jewel-int-ui-standalone", version.ref = "jewel" }
+jewel-int-ui-decorated-window = { module = "org.jetbrains.jewel:jewel-int-ui-decorated-window", version.ref = "jewel" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 [plugins]
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

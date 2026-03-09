@@ -33,8 +33,8 @@ val viewModelsModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             aggiornaSchemi = get(),
             aggiornaProgrammaDaSchemi = get(),
+            caricaProgrammiAttivi = get(),
             schemaTemplateStore = get(),
-            settings = get(),
         )
     }
     factory {
@@ -46,6 +46,8 @@ val viewModelsModule = module {
             svuotaAssegnazioni = get(),
             rimuoviAssegnazioniSettimana = get(),
             stampaProgramma = get(),
+            generaImmaginiAssegnazioni = get(),
+            settings = get(),
         )
     }
     factory {
@@ -60,7 +62,8 @@ val viewModelsModule = module {
     factory {
         PartEditorViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            weekPlanStore = get(),
+            aggiornaPartiSettimana = get(),
+            impostaStatoSettimana = get(),
             cercaTipiParte = get(),
         )
     }
@@ -68,7 +71,6 @@ val viewModelsModule = module {
         ProclamatoriListViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             cerca = get(),
-            impostaStato = get(),
             elimina = get(),
             importaDaJson = get(),
             contaAssegnazioni = get(),
@@ -96,7 +98,6 @@ val viewModelsModule = module {
             impostaIdoneitaConduzione = get(),
             partTypeStore = get(),
             verificaDuplicato = get(),
-            caricaStoricoAssegnazioni = get(),
         )
     }
 }

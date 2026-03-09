@@ -3,15 +3,17 @@ package org.example.project.feature.assignments.application
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
-import org.example.project.feature.weeklyparts.domain.SexRule
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.allowsCandidate
+import org.example.project.feature.weeklyparts.domain.isMismatch
 import java.time.LocalDate
 
 class SuggerisciProclamatoriUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentStore: AssignmentRanking,
+    private val assignmentRepository: AssignmentRepository,
     private val eligibilityStore: EligibilityStore,
     private val assignmentSettingsStore: AssignmentSettingsStore,
 ) {
@@ -20,44 +22,61 @@ class SuggerisciProclamatoriUseCase(
         weeklyPartId: WeeklyPartId,
         slot: Int,
         alreadyAssignedIds: Set<ProclamatoreId> = emptySet(),
+        rankingCache: SuggestionRankingCache? = null,
+        eligibilityCache: Map<PartTypeId, Set<ProclamatoreId>>? = null,
     ): List<SuggestedProclamatore> {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
         val settings = assignmentSettingsStore.load()
-        val cooldownWeeks = if (slot <= 1) settings.leadCooldownWeeks else settings.assistCooldownWeeks
-        val roleWeight = if (slot <= 1) settings.leadWeight else settings.assistWeight
+        val roleWeight = if (slot == 1) settings.leadWeight else settings.assistWeight
 
         val suggestions = assignmentStore.suggestedProclamatori(
             partTypeId = part.partType.id,
             slot = slot,
             referenceDate = weekStartDate,
+            rankingCache = rankingCache,
         )
-        val leadEligibilityByPersonId = suggestions
-            .map { it.proclamatore.id }
-            .associateWith { personId ->
-                eligibilityStore.listLeadEligibility(personId)
-                    .any { it.partTypeId == part.partType.id && it.canLead }
-            }
+        val leadEligiblePersonIds: Set<ProclamatoreId> = if (eligibilityCache != null) {
+            eligibilityCache[part.partType.id] ?: emptySet()
+        } else {
+            eligibilityStore
+                .listLeadEligibilityCandidatesForPartTypes(setOf(part.partType.id))
+                .map { it.personId }
+                .toSet()
+        }
 
-        // Filtri hard: regola sesso, idoneita', gia' assegnato nella stessa settimana.
+        val existingPartAssignments = assignmentRepository.listByWeek(plan.id)
+            .filter { it.weeklyPartId == weeklyPartId && it.slot != slot }
+
+        val requiredSex = existingPartAssignments.firstOrNull()?.sex
+
+        // Filtri hard: regola sesso UOMO, idoneita', gia' assegnato nella stessa settimana.
+        // STESSO_SESSO = stesso sesso preferito (soft): non filtra, ma annota sexMismatch.
         val eligible = suggestions
             .map { suggestion ->
                 val p = suggestion.proclamatore
-                val passaSesso = when (part.partType.sexRule) {
-                    SexRule.UOMO -> p.sesso == Sesso.M
-                    SexRule.LIBERO -> true
-                }
-                val passaIdoneita = if (slot <= 1) {
-                    leadEligibilityByPersonId[p.id] == true
+                val passaSesso = part.partType.sexRule.allowsCandidate(p.sesso)
+                val isSexMismatch = part.partType.sexRule.isMismatch(
+                    candidateSex = p.sesso,
+                    requiredSex = requiredSex,
+                )
+                val passaIdoneita = if (slot == 1) {
+                    p.id in leadEligiblePersonIds
                 } else {
                     p.puoAssistere
                 }
                 val globalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE
+                val lastWasConductor = suggestion.lastConductorWeeks != null &&
+                    suggestion.lastGlobalWeeks != null &&
+                    suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
+                val cooldownWeeks = if (lastWasConductor && slot == 1) settings.leadCooldownWeeks
+                                    else settings.assistCooldownWeeks
                 val isInCooldown = cooldownWeeks > 0 && globalWeeks < cooldownWeeks
                 val remaining = if (isInCooldown) cooldownWeeks - globalWeeks else 0
                 val annotated = suggestion.copy(
                     inCooldown = isInCooldown,
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
+                    sexMismatch = isSexMismatch,
                 )
                 Triple(annotated, passaSesso && passaIdoneita && p.id !in alreadyAssignedIds, roleWeight)
             }
@@ -78,7 +97,7 @@ class SuggerisciProclamatoriUseCase(
     private fun weightedScore(suggestion: SuggestedProclamatore, roleWeight: Int): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
         val safePartWeeks = suggestion.lastForPartTypeWeeks ?: 999
-        val cooldownPenalty = if (suggestion.inCooldown) 10_000 else 0
+        val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
         return safeGlobalWeeks.toLong() * roleWeight.toLong() + safePartWeeks.toLong() - cooldownPenalty
     }
 }

@@ -11,11 +11,14 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType1Font
-import org.slf4j.LoggerFactory
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class PdfAssignmentsRenderer {
-    private val logger = LoggerFactory.getLogger(PdfAssignmentsRenderer::class.java)
+    private val logger = KotlinLogging.logger {}
     private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
+    private val helvetica = PDType1Font(Standard14Fonts.FontName.HELVETICA)
+    private val helveticaBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
 
     data class RenderedPart(
         val label: String,
@@ -35,7 +38,7 @@ class PdfAssignmentsRenderer {
         parts: List<RenderedPart>,
         outputPath: Path,
     ) {
-        logger.info("Generazione PDF assegnazioni: {}", outputPath.toAbsolutePath())
+        logger.info { "Generazione PDF assegnazioni: ${outputPath.toAbsolutePath()}" }
         PDDocument().use { document ->
             val pageSize = PDRectangle.A4
             val margin = 40f
@@ -51,7 +54,7 @@ class PdfAssignmentsRenderer {
                     content.setNonStrokingColor(Color.BLACK)
                     drawTextLine(
                         content = content,
-                        font = PDType1Font.HELVETICA_BOLD,
+                        font = helveticaBold,
                         fontSize = 14f,
                         x = margin,
                         y = pageSize.height - margin,
@@ -69,13 +72,16 @@ class PdfAssignmentsRenderer {
                 }
             }
 
-            outputPath.toFile().parentFile?.mkdirs()
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw java.io.IOException("Impossibile creare la directory di output: $parentDir")
+            }
             document.save(outputPath.toFile())
         }
     }
 
     fun renderPersonSheetPdf(sheet: PersonSheet, outputPath: Path) {
-        logger.info("Generazione PDF persona: {}", outputPath.toAbsolutePath())
+        logger.info { "Generazione PDF persona: ${outputPath.toAbsolutePath()}" }
         PDDocument().use { document ->
             val page = PDPage(PDRectangle.A4)
             document.addPage(page)
@@ -88,7 +94,7 @@ class PdfAssignmentsRenderer {
 
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA_BOLD,
+                    font = helveticaBold,
                     fontSize = 18f,
                     x = margin,
                     y = y,
@@ -98,7 +104,7 @@ class PdfAssignmentsRenderer {
                 y -= 26f
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA,
+                    font = helvetica,
                     fontSize = 12f,
                     x = margin,
                     y = y,
@@ -108,7 +114,7 @@ class PdfAssignmentsRenderer {
                 y -= 24f
                 drawTextLine(
                     content = content,
-                    font = PDType1Font.HELVETICA_BOLD,
+                    font = helveticaBold,
                     fontSize = 13f,
                     x = margin,
                     y = y,
@@ -124,7 +130,7 @@ class PdfAssignmentsRenderer {
                         if (remaining <= 0) break
                         addAll(
                             wrapText(
-                                font = PDType1Font.HELVETICA,
+                                font = helvetica,
                                 fontSize = 12f,
                                 text = "- $assignment",
                                 maxWidth = contentWidth,
@@ -137,7 +143,7 @@ class PdfAssignmentsRenderer {
                 assignmentLines.forEach { line ->
                     drawTextLine(
                         content = content,
-                        font = PDType1Font.HELVETICA,
+                        font = helvetica,
                         fontSize = 12f,
                         x = margin,
                         y = y,
@@ -147,7 +153,10 @@ class PdfAssignmentsRenderer {
                 }
             }
 
-            outputPath.toFile().parentFile?.mkdirs()
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw java.io.IOException("Impossibile creare la directory di output: $parentDir")
+            }
             document.save(outputPath.toFile())
         }
     }
@@ -174,7 +183,7 @@ class PdfAssignmentsRenderer {
 
         val titleLineHeight = 14f
         val titleLines = wrapText(
-            font = PDType1Font.HELVETICA_BOLD,
+            font = helveticaBold,
             fontSize = 13f,
             text = part.label,
             maxWidth = innerWidth,
@@ -183,7 +192,7 @@ class PdfAssignmentsRenderer {
         titleLines.forEach { line ->
             drawTextLine(
                 content = content,
-                font = PDType1Font.HELVETICA_BOLD,
+                font = helveticaBold,
                 fontSize = 13f,
                 x = innerX,
                 y = y,
@@ -202,7 +211,7 @@ class PdfAssignmentsRenderer {
                 if (remaining <= 0) break
                 addAll(
                     wrapText(
-                        font = PDType1Font.HELVETICA,
+                        font = helvetica,
                         fontSize = 11f,
                         text = assignment,
                         maxWidth = innerWidth,
@@ -215,7 +224,7 @@ class PdfAssignmentsRenderer {
         assignmentLines.forEach { line ->
             drawTextLine(
                 content = content,
-                font = PDType1Font.HELVETICA,
+                font = helvetica,
                 fontSize = 11f,
                 x = innerX,
                 y = y,

@@ -1,62 +1,175 @@
 package org.example.project.feature.output.application
 
+import java.nio.file.Files
 import java.nio.file.Path
-import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.output.infrastructure.PdfProgramRenderer
+import org.example.project.feature.output.infrastructure.ProgramWeekPrintCard
+import org.example.project.feature.output.infrastructure.ProgramWeekPrintCardStatus
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintSection
+import org.example.project.feature.output.infrastructure.ProgramWeekPrintSlot
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 
-class StampaProgrammaUseCase(
-    private val programStore: ProgramStore,
-    private val weekPlanStore: WeekPlanStore,
-    private val assignmentRepository: AssignmentRepository,
-    private val renderer: PdfProgramRenderer,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
-    suspend operator fun invoke(programId: String): Path = withContext(dispatcher) {
-        val program = programStore.findById(ProgramMonthId(programId))
-            ?: throw IllegalStateException("Programma non trovato")
+private val monthTitleFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ITALIAN)
 
-        val weeks = weekPlanStore.listByProgram(programId)
-        val sections = weeks.map { week ->
-            val assignments = assignmentRepository.listByWeek(week.id)
-            val assignmentByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
-            val lines = week.parts.flatMap { part ->
-                (1..part.partType.peopleCount).map { slot ->
-                    val assigned = assignmentByPartAndSlot[part.id.value to slot]?.fullName ?: "Non assegnato"
-                    val role = if (part.partType.peopleCount > 1) {
-                        if (slot == 1) "Conducente" else "Assistente"
-                    } else {
-                        ""
-                    }
-                    val rolePrefix = if (role.isBlank()) "" else "[$role] "
-                    "- ${part.partType.label}: ${rolePrefix}${assigned}"
-                }
+internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
+    WeekPlanStatus.ACTIVE -> "Attiva"
+    WeekPlanStatus.SKIPPED -> "Saltata"
+}
+
+internal fun partSlotRoleLabel(
+    peopleCount: Int,
+    slot: Int,
+): String? = when {
+    peopleCount <= 1 -> "Studente"
+    slot == 1 -> "Studente"
+    else -> "Assistente"
+}
+
+internal fun partCardStatusLabel(status: ProgramWeekPrintCardStatus): String = when (status) {
+    ProgramWeekPrintCardStatus.EMPTY -> "Vuota"
+    ProgramWeekPrintCardStatus.PARTIAL -> "Parziale"
+    ProgramWeekPrintCardStatus.ASSIGNED -> "Assegnata"
+}
+
+internal fun buildProgramWeekPrintSection(
+    week: WeekPlan,
+    assignments: List<AssignmentWithPerson>,
+): ProgramWeekPrintSection {
+    if (week.status == WeekPlanStatus.SKIPPED) {
+        return ProgramWeekPrintSection(
+            weekStartDate = week.weekStartDate,
+            weekEndDate = week.weekStartDate.plusDays(6),
+            statusLabel = weekPlanStatusLabel(week.status),
+            cards = emptyList(),
+            emptyStateLabel = "Settimana non assegnata",
+        )
+    }
+
+    val assignmentByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
+    val cards = week.parts
+        .sortedBy { it.sortOrder }
+        .map { part ->
+            val slots = (1..part.partType.peopleCount).map { slot ->
+                val assignment = assignmentByPartAndSlot[part.id.value to slot]
+                ProgramWeekPrintSlot(
+                    roleLabel = partSlotRoleLabel(part.partType.peopleCount, slot),
+                    assignedTo = assignment?.fullName ?: "Non assegnato",
+                    isAssigned = assignment != null,
+                )
             }
-            ProgramWeekPrintSection(
-                weekStartDate = week.weekStartDate,
-                statusLabel = week.status.name,
-                lines = lines,
+            val filledSlots = slots.count { it.isAssigned }
+            val status = when {
+                filledSlots == 0 -> ProgramWeekPrintCardStatus.EMPTY
+                filledSlots < slots.size -> ProgramWeekPrintCardStatus.PARTIAL
+                else -> ProgramWeekPrintCardStatus.ASSIGNED
+            }
+
+            ProgramWeekPrintCard(
+                displayNumber = part.sortOrder + PART_DISPLAY_NUMBER_OFFSET,
+                partLabel = part.snapshot?.label ?: part.partType.label,
+                status = status,
+                statusLabel = partCardStatusLabel(status),
+                slots = slots,
             )
         }
 
-        val outputPath = AppRuntime.paths().exportsDir
-            .resolve("programmi")
-            .resolve("programma-${program.year}-${program.month.toString().padStart(2, '0')}.pdf")
+    return ProgramWeekPrintSection(
+        weekStartDate = week.weekStartDate,
+        weekEndDate = week.weekStartDate.plusDays(6),
+        statusLabel = weekPlanStatusLabel(week.status),
+        cards = cards,
+        emptyStateLabel = if (cards.isEmpty()) {
+            "Nessuna parte configurata"
+        } else {
+            null
+        },
+    )
+}
+
+class StampaProgrammaUseCase(
+    private val programStore: ProgramStore,
+    private val weekPlanStore: WeekPlanQueries,
+    private val assignmentRepository: AssignmentRepository,
+    private val renderer: PdfProgramRenderer,
+    private val fileOpener: FileOpener,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val programExportDirProvider: () -> Path = { AppRuntime.paths().exportsDir.resolve("programmi") },
+) {
+    private val logger = KotlinLogging.logger {}
+
+    suspend operator fun invoke(programId: ProgramMonthId): Path = withContext(dispatcher) {
+        val program = programStore.findById(programId)
+            ?: throw IllegalStateException("Programma non trovato")
+
+        val weeks = weekPlanStore.listByProgram(programId).sortedBy { it.weekStartDate }
+        val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
+        val sections = weeks.map { week ->
+            buildProgramWeekPrintSection(
+                week = week,
+                assignments = assignmentsByWeek[week.id] ?: emptyList(),
+            )
+        }
+
+        val outputFileName = buildMonthlyProgramFileName(program.year, program.month)
+        val outputPath = prepareMonthlyProgramOutputPath(
+            outputDir = programExportDirProvider(),
+            outputFileName = outputFileName,
+        )
 
         renderer.renderMonthlyProgramPdf(
-            title = "Programma ${program.month}/${program.year}",
+            title = "Programma ${YearMonth.of(program.year, program.month).format(monthTitleFormatter)}",
             sections = sections,
             outputPath = outputPath,
         )
 
+        fileOpener.open(outputPath)
         outputPath
+    }
+
+    private fun prepareMonthlyProgramOutputPath(
+        outputDir: Path,
+        outputFileName: String,
+    ): Path {
+        Files.createDirectories(outputDir)
+        cleanupMonthlyProgramExports(
+            outputDir = outputDir,
+            keepFileName = outputFileName,
+        ) { path, error ->
+            logger.warn { "Cleanup PDF programma non riuscito (${path.fileName}): ${error.message}" }
+        }
+        return outputDir.resolve(outputFileName)
+    }
+}
+
+internal fun buildMonthlyProgramFileName(
+    year: Int,
+    month: Int,
+): String = "programma-$year-${month.toString().padStart(2, '0')}.pdf"
+
+internal fun cleanupMonthlyProgramExports(
+    outputDir: Path,
+    keepFileName: String,
+    onFailure: ((Path, Throwable) -> Unit)? = null,
+) {
+    Files.newDirectoryStream(outputDir, "programma-*.pdf").use { paths ->
+        for (path in paths) {
+            if (path.fileName.toString() == keepFileName) continue
+            runCatching { Files.deleteIfExists(path) }
+                .onFailure { error -> onFailure?.invoke(path, error) }
+        }
     }
 }

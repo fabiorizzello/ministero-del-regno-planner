@@ -7,6 +7,7 @@ object SemanticColors {
     val green = Color(0xFF2D9A63)
     val grey = Color(0xFF66758E)
     val amber = Color(0xFFCF8A24)
+    val purple = Color(0xFF7B5EA7)
 
     // Alert colors
     val orange = Color(0xFFFF9800)
@@ -22,4 +23,8 @@ object SemanticColors {
     // Success banner colors (dark mode)
     val successContentDark = Color(0xFFC9ECD7)
     val successContainerDark = Color(0xFF1D4732)
+
+    // Warning banner colors (light mode)
+    val warningContentLight = Color(0xFF7A4E00)
+    val warningContainerLight = Color(0xFFFFF3E0)
 }

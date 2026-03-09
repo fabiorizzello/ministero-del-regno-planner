@@ -3,10 +3,8 @@ CREATE TABLE person (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     sex TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1,
     suspended INTEGER NOT NULL DEFAULT 0,
     can_assist INTEGER NOT NULL DEFAULT 0,
-    CHECK(active IN (0, 1)),
     CHECK(suspended IN (0, 1)),
     CHECK(can_assist IN (0, 1))
 );
@@ -113,7 +111,8 @@ CREATE TABLE week_plan (
     week_start_date TEXT NOT NULL UNIQUE,
     program_id TEXT DEFAULT NULL,
     status TEXT NOT NULL DEFAULT 'ACTIVE',
-    FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL
+    FOREIGN KEY (program_id) REFERENCES program_monthly(id) ON DELETE SET NULL,
+    CHECK(status IN ('ACTIVE', 'SKIPPED'))
 );
 
 CREATE TABLE weekly_part (
@@ -141,6 +140,12 @@ CREATE TABLE assignment (
 CREATE INDEX IF NOT EXISTS weekly_part_week_plan_id_idx
 ON weekly_part(week_plan_id);
 
+CREATE INDEX IF NOT EXISTS weekly_part_part_type_id_idx
+ON weekly_part(part_type_id);
+
+CREATE INDEX IF NOT EXISTS week_plan_program_id_idx
+ON week_plan(program_id);
+
 CREATE INDEX IF NOT EXISTS assignment_person_id_idx
 ON assignment(person_id);
 
@@ -148,21 +153,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
 ON assignment(weekly_part_id, slot);
 
 -- Person queries (existing)
-allActiveProclaimers:
-SELECT id, first_name, last_name, sex, active
-FROM person
-WHERE active = 1
-ORDER BY last_name, first_name;
-
 allAssignableProclaimers:
-SELECT id, first_name, last_name, sex, active, suspended, can_assist
+SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
-WHERE active = 1
-  AND suspended = 0
+WHERE suspended = 0
 ORDER BY last_name, first_name;
 
 searchProclaimers:
-SELECT id, first_name, last_name, sex, active, suspended
+SELECT id, first_name, last_name, sex, suspended
 FROM person
 WHERE (
     ? = 1
@@ -172,13 +170,8 @@ WHERE (
   )
 ORDER BY last_name, first_name;
 
-findProclaimerById:
-SELECT id, first_name, last_name, sex, active
-FROM person
-WHERE id = ?;
-
 findProclaimerByIdExtended:
-SELECT id, first_name, last_name, sex, active, suspended, can_assist
+SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
 WHERE id = ?;
 
@@ -196,13 +189,12 @@ WHERE first_name = ? COLLATE NOCASE
   AND id != ?;
 
 upsertProclaimer:
-INSERT INTO person(id, first_name, last_name, sex, active, suspended, can_assist)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO person(id, first_name, last_name, sex, suspended, can_assist)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     first_name = excluded.first_name,
     last_name = excluded.last_name,
     sex = excluded.sex,
-    active = excluded.active,
     suspended = excluded.suspended,
     can_assist = excluded.can_assist;
 
@@ -239,8 +231,13 @@ ON CONFLICT(code) DO UPDATE SET
     active = 1;
 
 -- Week plan queries
+findWeekPlanById:
+SELECT id, week_start_date, program_id, status
+FROM week_plan
+WHERE id = ?;
+
 findWeekPlanByDate:
-SELECT id, week_start_date
+SELECT id, week_start_date, program_id, status
 FROM week_plan
 WHERE week_start_date = ?;
 
@@ -274,6 +271,14 @@ insertWeekPlan:
 INSERT INTO week_plan(id, week_start_date)
 VALUES (?, ?);
 
+upsertWeekPlan:
+INSERT INTO week_plan(id, week_start_date, program_id, status)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    week_start_date = excluded.week_start_date,
+    program_id = excluded.program_id,
+    status = excluded.status;
+
 deleteWeekPlan:
 DELETE FROM week_plan WHERE id = ?;
 
@@ -283,30 +288,30 @@ SELECT
     wp.id,
     wp.week_plan_id,
     wp.part_type_id,
+    wp.part_type_revision_id,
     wp.sort_order,
     pt.code AS part_type_code,
     pt.label AS part_type_label,
     pt.people_count AS part_type_people_count,
     pt.sex_rule AS part_type_sex_rule,
     pt.fixed AS part_type_fixed,
-    pt.sort_order AS part_type_sort_order
+    pt.sort_order AS part_type_sort_order,
+    ptr.label AS snapshot_label,
+    ptr.people_count AS snapshot_people_count,
+    ptr.sex_rule AS snapshot_sex_rule,
+    ptr.fixed AS snapshot_fixed
 FROM weekly_part wp
 JOIN part_type pt ON wp.part_type_id = pt.id
+LEFT JOIN part_type_revision ptr ON wp.part_type_revision_id = ptr.id
 WHERE wp.week_plan_id = ?
 ORDER BY wp.sort_order;
 
 insertWeeklyPart:
-INSERT INTO weekly_part(id, week_plan_id, part_type_id, sort_order)
-VALUES (?, ?, ?, ?);
-
-deleteWeeklyPart:
-DELETE FROM weekly_part WHERE id = ?;
+INSERT INTO weekly_part(id, week_plan_id, part_type_id, part_type_revision_id, sort_order)
+VALUES (?, ?, ?, ?, ?);
 
 deleteAllPartsForWeek:
 DELETE FROM weekly_part WHERE week_plan_id = ?;
-
-updateWeeklyPartSortOrder:
-UPDATE weekly_part SET sort_order = ? WHERE id = ?;
 
 -- Assignment queries
 assignmentsForWeek:
@@ -317,13 +322,28 @@ SELECT
     a.slot,
     p.first_name,
     p.last_name,
-    p.sex,
-    p.active
+    p.sex
 FROM assignment a
 JOIN person p ON a.person_id = p.id
 JOIN weekly_part wp ON a.weekly_part_id = wp.id
 WHERE wp.week_plan_id = ?
 ORDER BY wp.sort_order, a.slot;
+
+assignmentsForWeekPlanIds:
+SELECT
+    a.id,
+    a.weekly_part_id,
+    a.person_id,
+    a.slot,
+    p.first_name,
+    p.last_name,
+    p.sex,
+    wp.week_plan_id
+FROM assignment a
+JOIN person p ON a.person_id = p.id
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+WHERE wp.week_plan_id IN ?
+ORDER BY wp.week_plan_id, wp.sort_order, a.slot;
 
 upsertAssignment:
 INSERT INTO assignment(id, weekly_part_id, person_id, slot)
@@ -333,11 +353,6 @@ ON CONFLICT(weekly_part_id, slot) DO UPDATE SET
 
 deleteAssignment:
 DELETE FROM assignment WHERE id = ?;
-
-personAlreadyAssignedInWeek:
-SELECT COUNT(*) FROM assignment a
-JOIN weekly_part wp ON a.weekly_part_id = wp.id
-WHERE wp.week_plan_id = ? AND a.person_id = ?;
 
 countAssignmentsForWeek:
 SELECT COUNT(*)
@@ -351,21 +366,11 @@ SELECT COUNT(*) FROM assignment WHERE person_id = ?;
 deleteAssignmentsForPerson:
 DELETE FROM assignment WHERE person_id = ?;
 
-assignmentHistoryForPerson:
-SELECT
-    a.id,
-    a.weekly_part_id,
-    a.person_id,
-    a.slot,
-    pt.label AS part_type_label,
-    wpl.week_start_date
-FROM assignment a
-JOIN weekly_part wp ON a.weekly_part_id = wp.id
-JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-JOIN part_type pt ON wp.part_type_id = pt.id
-WHERE a.person_id = ?
-ORDER BY wpl.week_start_date DESC
-LIMIT 20;
+deleteAssignmentsForWeek:
+DELETE FROM assignment
+WHERE weekly_part_id IN (
+    SELECT id FROM weekly_part WHERE week_plan_id = ?
+);
 
 -- Ranking queries (M4)
 lastGlobalAssignmentPerPerson:
@@ -376,7 +381,28 @@ FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
+GROUP BY p.id;
+
+lastGlobalAssignmentBeforePerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date <= ?
+GROUP BY p.id;
+
+firstGlobalAssignmentAfterPerPerson:
+SELECT
+    p.id AS person_id,
+    MIN(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date > ?
 GROUP BY p.id;
 
 lastPartTypeAssignmentPerPerson:
@@ -388,7 +414,30 @@ LEFT JOIN assignment a ON a.person_id = p.id
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
     AND wp.part_type_id = ?
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
+GROUP BY p.id;
+
+lastPartTypeAssignmentBeforePerPerson:
+SELECT
+    p.id AS person_id,
+    MAX(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date <= ?
+GROUP BY p.id;
+
+firstPartTypeAssignmentAfterPerPerson:
+SELECT
+    p.id AS person_id,
+    MIN(wpl.week_start_date) AS week_date
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+    AND wp.part_type_id = ?
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date > ?
 GROUP BY p.id;
 
 lastSlot1GlobalAssignmentPerPerson:
@@ -399,19 +448,6 @@ FROM person p
 LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
 LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
-GROUP BY p.id;
-
-lastSlot1PartTypeAssignmentPerPerson:
-SELECT
-    p.id AS person_id,
-    MAX(wpl.week_start_date) AS last_week_date
-FROM person p
-LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
-LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
-    AND wp.part_type_id = ?
-LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE p.active = 1
 GROUP BY p.id;
 
 -- Diagnostics queries
@@ -608,10 +644,6 @@ FROM person_part_type_eligibility
 WHERE can_lead = 1
   AND part_type_id IN ?;
 
-deletePersonEligibilityByPartType:
-DELETE FROM person_part_type_eligibility
-WHERE part_type_id = ?;
-
 deleteLeadEligibilityByPartTypes:
 DELETE FROM person_part_type_eligibility
 WHERE part_type_id IN ?;
@@ -625,14 +657,6 @@ updatePersonCanAssist:
 UPDATE person
 SET can_assist = ?
 WHERE id = ?;
-
-countFutureAssignmentsForPersonFromDate:
-SELECT COUNT(*)
-FROM assignment a
-JOIN weekly_part wp ON a.weekly_part_id = wp.id
-JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-WHERE a.person_id = ?
-  AND wpl.week_start_date >= ?;
 
 futureAssignmentWeeksForPersonFromDate:
 SELECT DISTINCT wpl.week_start_date
@@ -667,9 +691,6 @@ ON CONFLICT(id) DO UPDATE SET
     assist_cooldown_weeks = excluded.assist_cooldown_weeks;
 
 -- Schema anomalies (new)
-clearSchemaUpdateAnomalies:
-DELETE FROM schema_update_anomaly;
-
 insertSchemaUpdateAnomaly:
 INSERT INTO schema_update_anomaly(
     id,
@@ -712,18 +733,6 @@ WHERE weekly_part_id IN (
     AND w.week_start_date >= ?
     AND w.status = 'ACTIVE'
 );
-
-countWeeksByProgram:
-SELECT COUNT(*) AS cnt
-FROM week_plan
-WHERE program_id = ?;
-
-countAssignmentsByProgram:
-SELECT COUNT(*) AS cnt
-FROM assignment a
-JOIN weekly_part wp ON a.weekly_part_id = wp.id
-JOIN week_plan w ON wp.week_plan_id = w.id
-WHERE w.program_id = ?;
 
 -- Seed cleanup helpers (CLI)
 deleteSeedAssignmentsLike:

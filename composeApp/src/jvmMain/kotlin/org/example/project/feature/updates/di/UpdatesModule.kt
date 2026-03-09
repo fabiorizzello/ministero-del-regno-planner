@@ -12,9 +12,9 @@ import org.koin.dsl.module
 
 val updatesModule = module {
     single { UpdateStatusStore() }
-    single { GitHubReleasesClient() }
+    single { GitHubReleasesClient(get()) }
     single { VerificaAggiornamenti(get(), get(), get()) }
-    single { AggiornaApplicazione() }
+    single { AggiornaApplicazione(get()) }
     single(createdAtStart = true) {
         UpdateScheduler(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),

@@ -1,8 +1,13 @@
 package org.example.project.feature.assignments.application
 
-import kotlinx.coroutines.sync.Mutex
 import org.example.project.core.domain.toMessage
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.core.persistence.TransactionScope
+import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.assignments.domain.canBeAutoAssigned
+import org.example.project.feature.people.application.EligibilityStore
+import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
 
@@ -19,40 +24,45 @@ data class AutoAssignProgramResult(
 )
 
 class AutoAssegnaProgrammaUseCase(
-    private val weekPlanStore: WeekPlanStore,
+    private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
     private val assegnaPersona: AssegnaPersonaUseCase,
+    private val transactionRunner: TransactionRunner,
+    private val assignmentRanking: AssignmentRanking,
+    private val eligibilityStore: EligibilityStore,
 ) {
-    private val mutex = Mutex()
-
     suspend operator fun invoke(
-        programId: String,
+        programId: ProgramMonthId,
         referenceDate: LocalDate,
-    ): AutoAssignProgramResult {
-        if (!mutex.tryLock()) {
-            return AutoAssignProgramResult(assignedCount = 0, unresolved = emptyList())
-        }
-        try {
-            return doAssign(programId, referenceDate)
-        } finally {
-            mutex.unlock()
-        }
+    ): AutoAssignProgramResult = transactionRunner.runInTransaction {
+        doAssign(programId, referenceDate)
     }
 
+    context(tx: TransactionScope)
     private suspend fun doAssign(
-        programId: String,
+        programId: ProgramMonthId,
         referenceDate: LocalDate,
     ): AutoAssignProgramResult {
         val weeks = weekPlanStore.listByProgram(programId)
             .filter { it.weekStartDate >= referenceDate }
             .filter { it.status == WeekPlanStatus.ACTIVE }
 
+        val partTypeIds: Set<PartTypeId> = weeks.flatMap { w -> w.parts.map { it.partType.id } }.toSet()
+        val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
+        // Eligibility is static for the duration of the run: no write path touches it during auto-assign.
+        val eligibilityCache = eligibilityStore.preloadLeadEligibilityByPartType(partTypeIds)
+
         var assignedCount = 0
         val unresolved = mutableListOf<AutoAssignUnresolvedSlot>()
 
         for (week in weeks) {
-            val assignments = assignmentRepository.listByWeek(week.id)
+            // Reload ranking per week so assignments made in earlier weeks are reflected.
+            val rankingCache = assignmentRanking.preloadSuggestionRanking(
+                referenceDates = setOf(week.weekStartDate),
+                partTypeIds = partTypeIds,
+            )
+            val assignments = assignmentsByWeek[week.id] ?: emptyList()
             val existingByPartAndSlot = assignments.associateBy { it.weeklyPartId.value to it.slot }
             val alreadyAssignedIds = assignments.map { it.personId }.toMutableSet()
 
@@ -65,9 +75,11 @@ class AutoAssegnaProgrammaUseCase(
                         weeklyPartId = part.id,
                         slot = slot,
                         alreadyAssignedIds = alreadyAssignedIds,
+                        rankingCache = rankingCache,
+                        eligibilityCache = eligibilityCache,
                     )
 
-                    val selected = suggestions.firstOrNull()
+                    val selected = suggestions.firstOrNull { it.canBeAutoAssigned() }
                     if (selected == null) {
                         unresolved += AutoAssignUnresolvedSlot(
                             weekStartDate = week.weekStartDate,
@@ -78,7 +90,7 @@ class AutoAssegnaProgrammaUseCase(
                         continue
                     }
 
-                    val result = assegnaPersona(
+                    val result = assegnaPersona.assignWithoutTransaction(
                         weekStartDate = week.weekStartDate,
                         weeklyPartId = part.id,
                         personId = selected.proclamatore.id,

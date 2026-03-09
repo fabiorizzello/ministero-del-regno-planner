@@ -24,12 +24,12 @@ class GeneraSettimaneProgrammaRegenerateTest {
                 id = WeekPlanId("old-1"),
                 weekStartDate = LocalDate.of(2026, 2, 2),
                 parts = emptyList(),
-                programId = program.id.value,
+                programId = program.id,
                 status = WeekPlanStatus.ACTIVE,
             ),
         )
         val weekStore = InMemoryWeekPlanStoreGeneration(
-            initialWeeksByProgram = mapOf(program.id.value to oldWeeks),
+            initialWeeksByProgram = mapOf(program.id to oldWeeks),
         )
         val programStore = InMemoryProgramStoreGeneration(program)
         val templatePart = partType("tpl")
@@ -49,10 +49,10 @@ class GeneraSettimaneProgrammaRegenerateTest {
             transactionRunner = ImmediateTransactionRunner(),
         )
 
-        val result = useCase(program.id.value)
+        val result = useCase(program.id)
 
         assertIs<Either.Right<Unit>>(result)
-        assertEquals(listOf(program.id.value), weekStore.deletedPrograms)
+        assertEquals(listOf(program.id), weekStore.deletedPrograms)
         assertEquals(4, weekStore.createdWeeks.size)
         assertTrue(weekStore.createdWeeks.none { it.id.value == "old-1" })
         assertEquals(1, programStore.templateAppliedUpdates.size)

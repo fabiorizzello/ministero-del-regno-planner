@@ -2,83 +2,78 @@ package org.example.project.feature.people.application
 
 import arrow.core.Either
 import arrow.core.raise.either
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import java.util.UUID
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
+
+@Serializable
+private data class ImportDto(
+    val version: Int = 0,
+    val proclamatori: List<ProclamatoreDto> = emptyList(),
+)
+
+@Serializable
+private data class ProclamatoreDto(
+    val nome: String = "",
+    val cognome: String = "",
+    val sesso: String = "",
+)
 
 class ImportaProclamatoriDaJsonUseCase(
     private val query: ProclamatoriQuery,
     private val store: ProclamatoriAggregateStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     data class Result(
         val importati: Int,
         val errori: Int,
     )
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     suspend operator fun invoke(jsonContent: String): Either<DomainError, Result> = either {
         val presenti = query.cerca(termine = null)
         if (presenti.isNotEmpty()) {
-            raise(
-                DomainError.Validation(
-                    "Import disponibile solo con archivio proclamatori vuoto",
-                ),
-            )
+            raise(DomainError.ImportArchivioNonVuoto)
         }
 
         val proclamatori = parseAndValidate(jsonContent).bind()
         try {
-            store.persistAll(proclamatori)
+            transactionRunner.runInTransaction {
+                store.persistAll(proclamatori)
+            }
         } catch (e: Exception) {
-            raise(DomainError.Validation("Import non completato. Errore durante il salvataggio: ${e.message}"))
+            raise(DomainError.ImportSalvataggioFallito(e.message))
         }
         Result(importati = proclamatori.size, errori = 0)
     }
 
     private fun parseAndValidate(jsonContent: String): Either<DomainError, List<Proclamatore>> = either {
-        val root = try {
-            Json.parseToJsonElement(jsonContent)
+        val dto = try {
+            json.decodeFromString<ImportDto>(jsonContent)
         } catch (_: Exception) {
-            raise(DomainError.Validation("File JSON non valido"))
+            raise(DomainError.ImportJsonNonValido)
         }
 
-        val rootObject = root as? JsonObject
-            ?: raise(DomainError.Validation("Radice JSON non valida: atteso oggetto"))
-
-        val versionElement = rootObject["version"]
-            ?: raise(DomainError.Validation("Campo obbligatorio mancante: version"))
-        val version = versionElement.jsonPrimitive.intOrNull
-            ?: versionElement.jsonPrimitive.contentOrNull?.toIntOrNull()
-            ?: raise(DomainError.Validation("Campo version non valido"))
-        if (version != 1) {
-            raise(DomainError.Validation("Versione schema non supportata: $version"))
+        if (dto.version != 1) {
+            raise(DomainError.ImportVersioneSchemaNonSupportata(dto.version))
         }
-
-        val proclamatoriElement = rootObject["proclamatori"]
-            ?: raise(DomainError.Validation("Campo obbligatorio mancante: proclamatori"))
-        val proclamatoriArray = proclamatoriElement as? JsonArray
-            ?: raise(DomainError.Validation("Campo proclamatori non valido: atteso array"))
-        if (proclamatoriArray.isEmpty()) {
-            raise(DomainError.Validation("Il file non contiene proclamatori da importare"))
+        if (dto.proclamatori.isEmpty()) {
+            raise(DomainError.ImportSenzaProclamatori)
         }
 
         val errors = mutableListOf<String>()
         val uniqueNames = mutableSetOf<String>()
         val results = mutableListOf<Proclamatore>()
 
-        proclamatoriArray.forEachIndexed { index, element ->
-            val item = parseItem(index, element, uniqueNames)
-            item.fold(
+        dto.proclamatori.forEachIndexed { index, item ->
+            val position = index + 1
+            validateItem(position, item, uniqueNames).fold(
                 ifLeft = { errors += it },
                 ifRight = { results += it },
             )
@@ -87,85 +82,45 @@ class ImportaProclamatoriDaJsonUseCase(
         if (errors.isNotEmpty()) {
             val preview = errors.take(5).joinToString(" | ")
             val suffix = if (errors.size > 5) " | ..." else ""
-            raise(
-                DomainError.Validation(
-                    "Import non completato. Errori (${errors.size}): $preview$suffix",
-                ),
-            )
+            raise(DomainError.ImportContenutoNonValido("Import non completato. Errori (${errors.size}): $preview$suffix"))
         }
 
         results
     }
 
-    private fun parseItem(
-        index: Int,
-        element: JsonElement,
+    private fun validateItem(
+        position: Int,
+        item: ProclamatoreDto,
         uniqueNames: MutableSet<String>,
     ): Either<String, Proclamatore> = either {
-        val position = index + 1
-        val item = element as? JsonObject
-            ?: raise("Elemento #$position non valido: atteso oggetto")
+        val nome = item.nome.trim()
+            .takeIf { it.isNotBlank() }
+            ?: raise("Elemento #$position: campo nome obbligatorio")
 
-        val nome = extractRequiredText(item, "nome", position).bind()
-        val cognome = extractRequiredText(item, "cognome", position).bind()
-        val sesso = extractSesso(item, position).bind()
-        val attivo = extractAttivo(item, position).bind()
+        val cognome = item.cognome.trim()
+            .takeIf { it.isNotBlank() }
+            ?: raise("Elemento #$position: campo cognome obbligatorio")
+
+        val sesso = when (item.sesso.trim().uppercase()) {
+            "M" -> Sesso.M
+            "F" -> Sesso.F
+            else -> raise("Elemento #$position: sesso non valido (${item.sesso}), valori ammessi: M, F")
+        }
 
         val duplicateKey = "${nome.lowercase()}|${cognome.lowercase()}"
         if (!uniqueNames.add(duplicateKey)) {
             raise("Elemento #$position duplicato nel file: $nome $cognome")
         }
 
-        Proclamatore(
-            id = ProclamatoreId(UUID.randomUUID().toString()),
-            nome = nome,
-            cognome = cognome,
-            sesso = sesso,
-            attivo = attivo,
-        )
-    }
-
-    private fun extractRequiredText(
-        item: JsonObject,
-        fieldName: String,
-        position: Int,
-    ): Either<String, String> = either {
-        val raw = item[fieldName]?.asStringOrNull()
-            ?: raise("Elemento #$position: campo $fieldName mancante o non valido")
-        val value = raw.trim()
-        if (value.isBlank()) {
-            raise("Elemento #$position: campo $fieldName obbligatorio")
+        try {
+            Proclamatore(
+                id = ProclamatoreId(UUID.randomUUID().toString()),
+                nome = nome,
+                cognome = cognome,
+                sesso = sesso,
+            )
+        } catch (e: IllegalArgumentException) {
+            raise("Elemento #$position non valido: ${e.message ?: "dati non validi"}")
         }
-        value
-    }
-
-    private fun extractSesso(item: JsonObject, position: Int): Either<String, Sesso> = either {
-        val raw = item["sesso"]?.asStringOrNull()
-            ?: raise("Elemento #$position: campo sesso mancante o non valido")
-        val normalized = raw.trim().uppercase()
-        when (normalized) {
-            "M" -> Sesso.M
-            "F" -> Sesso.F
-            else -> raise("Elemento #$position: sesso non valido ($raw), valori ammessi: M, F")
-        }
-    }
-
-    private fun extractAttivo(item: JsonObject, position: Int): Either<String, Boolean> = either {
-        val element = item["attivo"] ?: return@either true
-        val primitive = element as? JsonPrimitive
-            ?: raise("Elemento #$position: campo attivo non valido")
-
-        primitive.booleanOrNull?.let { return@either it }
-        val fromText = primitive.contentOrNull?.trim()?.lowercase()
-        when (fromText) {
-            "true" -> true
-            "false" -> false
-            else -> raise("Elemento #$position: campo attivo non valido")
-        }
-    }
-
-    private fun JsonElement.asStringOrNull(): String? {
-        val primitive = this as? JsonPrimitive ?: return null
-        return primitive.contentOrNull
     }
 }

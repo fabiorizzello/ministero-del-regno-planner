@@ -11,16 +11,23 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +48,7 @@ import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 
 // Column width constants for suggestion table
-private val WEEKS_COLUMN_WIDTH = 120.dp
+private val WEEKS_COLUMN_WIDTH = 180.dp
 private val COOLDOWN_COLUMN_WIDTH = 130.dp
 private val BUTTON_COLUMN_WIDTH = 132.dp
 private val ASSIGNMENT_CHIP_BORDER_WIDTH = 1.dp
@@ -72,9 +79,15 @@ fun PartAssignmentCard(
         1 -> sketch.warn.copy(alpha = 0.6f)
         else -> sketch.ok.copy(alpha = 0.55f)
     }
-    val badgeColor = when (statusTone) {
-        0 -> sketch.inkMuted
-        else -> borderColor
+    val badgeContainerColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.surfaceVariant
+        1 -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val badgeTextColor = when (statusTone) {
+        0 -> MaterialTheme.colorScheme.onSurfaceVariant
+        1 -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSecondaryContainer
     }
     val containerColor = sketch.surface
     val statusLabel = when (statusTone) {
@@ -98,27 +111,35 @@ fun PartAssignmentCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text(
                     text = "$displayNumber. ${part.partType.label}",
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = sketch.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (showSexRuleChip) {
                         SexRuleChip(part.partType.sexRule)
                     }
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = badgeColor.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f)),
+                        color = badgeContainerColor,
+                        border = BorderStroke(1.dp, borderColor.copy(alpha = 0.6f)),
                     ) {
                         Text(
                             text = statusLabel,
                             modifier = Modifier.padding(horizontal = spacing.xs, vertical = 1.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor,
+                            color = badgeTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -138,7 +159,7 @@ fun PartAssignmentCard(
             } else {
                 // Multiple slots with role labels
                 for (slot in 1..part.partType.peopleCount) {
-                    val label = if (slot == 1) "Proclamatore" else "Assistente"
+                    val label = if (slot == 1) "Studente" else "Assistente"
                     val assignment = assignments.find { it.slot == slot }
                     SlotRow(
                         label = label,
@@ -231,6 +252,7 @@ private fun AssignedPersonChip(
     Row(
         modifier = modifier
             .widthIn(max = ASSIGNED_PERSON_CHIP_MAX_WIDTH)
+            .heightIn(min = 30.dp)
             .handCursorOnHover(enabled = !readOnly)
             .hoverable(
                 enabled = !readOnly,
@@ -245,7 +267,7 @@ private fun AssignedPersonChip(
                 indication = LocalIndication.current,
                 onClick = onOpenPicker,
             )
-            .padding(start = spacing.md, end = spacing.xs, top = spacing.xxs, bottom = spacing.xxs),
+            .padding(start = spacing.md, end = spacing.xs, top = spacing.xs, bottom = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
@@ -308,12 +330,13 @@ private fun MissingAssignmentChip(
 
     Row(
         modifier = modifier
+            .heightIn(min = 30.dp)
             .hoverable(interactionSource)
             .clip(shape)
             .background(containerColor, shape)
             .border(ASSIGNMENT_CHIP_BORDER_WIDTH, borderColor, shape)
             .clickable(enabled = !readOnly, onClick = onAssign)
-            .padding(horizontal = spacing.md, vertical = spacing.xxs),
+            .padding(horizontal = spacing.md, vertical = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
@@ -337,24 +360,31 @@ private fun MissingAssignmentChip(
 fun PersonPickerDialog(
     partLabel: String,
     slotLabel: String?,
+    weekLabel: String,
     searchTerm: String,
     sortGlobal: Boolean,
+    strictCooldown: Boolean,
     suggestions: List<SuggestedProclamatore>,
     isLoading: Boolean,
     isAssigning: Boolean,
     onSearchChange: (String) -> Unit,
     onToggleSort: () -> Unit,
+    onStrictCooldownChange: (Boolean) -> Unit,
     onAssign: (ProclamatoreId) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val title = buildString {
         append("Assegna \u2014 $partLabel")
         if (slotLabel != null) append(" ($slotLabel)")
     }
+    val searchFr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { searchFr.requestFocus() }
 
-    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition
-    val sorted = remember(suggestions, searchTerm, sortGlobal) {
+    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition.
+    // sexMismatch candidates are sorted to the end for clarity.
+    val (normalSorted, mismatchSorted) = remember(suggestions, searchTerm, sortGlobal) {
         val filtered = if (searchTerm.isBlank()) {
             suggestions
         } else {
@@ -364,13 +394,13 @@ fun PersonPickerDialog(
                     s.proclamatore.cognome.lowercase().contains(lowerTerm)
             }
         }
-
         // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
-        if (sortGlobal) {
+        val sorted = if (sortGlobal) {
             filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
         } else {
             filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
         }
+        sorted.partition { !it.sexMismatch }
     }
 
     Dialog(
@@ -391,13 +421,41 @@ fun PersonPickerDialog(
                 // Title + close button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = sketch.surfaceMuted,
+                            border = BorderStroke(1.dp, sketch.lineSoft),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = spacing.sm, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.CalendarToday,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = sketch.inkMuted,
+                                )
+                                Text(
+                                    text = weekLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = sketch.inkMuted,
+                                )
+                            }
+                        }
+                    }
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier.handCursorOnHover(),
@@ -414,8 +472,8 @@ fun PersonPickerDialog(
                 OutlinedTextField(
                     value = searchTerm,
                     onValueChange = onSearchChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Cerca proclamatore...") },
+                    modifier = Modifier.fillMaxWidth().focusRequester(searchFr),
+                    placeholder = { Text("Cerca studente...") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
@@ -427,25 +485,52 @@ fun PersonPickerDialog(
                     ),
                 )
 
-                // Sort toggle
+                // Sort toggle + strict cooldown
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    Text(
-                        text = "Ordina per:",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                        SortModeButton(
-                            label = "Globale",
-                            selected = sortGlobal,
-                            onClick = { if (!sortGlobal) onToggleSort() },
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                    ) {
+                        Text(
+                            text = "Ordina per:",
+                            style = MaterialTheme.typography.bodyMedium,
                         )
-                        SortModeButton(
-                            label = "Per parte",
-                            selected = !sortGlobal,
-                            onClick = { if (sortGlobal) onToggleSort() },
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                            SortModeButton(
+                                label = "Globale",
+                                selected = sortGlobal,
+                                onClick = { if (!sortGlobal) onToggleSort() },
+                            )
+                            SortModeButton(
+                                label = "Per parte",
+                                selected = !sortGlobal,
+                                onClick = { if (sortGlobal) onToggleSort() },
+                            )
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Text(
+                            "Nascondi in cooldown",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = sketch.inkSoft,
+                        )
+                        Switch(
+                            checked = strictCooldown,
+                            onCheckedChange = onStrictCooldownChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                            ),
                         )
                     }
                 }
@@ -458,15 +543,21 @@ fun PersonPickerDialog(
                     ) {
                         CircularProgressIndicator()
                     }
-                } else if (sorted.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                        contentAlignment = Alignment.Center,
+                } else if (normalSorted.isEmpty() && mismatchSorted.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            text = "Nessun proclamatore disponibile per questa parte",
+                            text = "Nessuno studente disponibile per questa parte.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "Verifica: idoneità alla parte, cooldown strict nelle Impostazioni.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                         )
                     }
                 } else {
@@ -482,10 +573,9 @@ fun PersonPickerDialog(
                             state = listState,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            itemsIndexed(sorted, key = { _, it -> it.proclamatore.id.value }) { index, suggestion ->
+                            itemsIndexed(normalSorted, key = { _, it -> it.proclamatore.id.value }) { index, suggestion ->
                                 val zebraColor = if (index % 2 == 0) Color.Transparent
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
                                 SuggestionRow(
                                     suggestion = suggestion,
                                     backgroundColor = zebraColor,
@@ -493,6 +583,22 @@ fun PersonPickerDialog(
                                     onAssign = { onAssign(suggestion.proclamatore.id) },
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            }
+                            if (mismatchSorted.isNotEmpty()) {
+                                item(key = "sex-mismatch-header") {
+                                    SexMismatchGroupHeader()
+                                }
+                                itemsIndexed(mismatchSorted, key = { _, it -> "m-${it.proclamatore.id.value}" }) { index, suggestion ->
+                                    val zebraColor = if (index % 2 == 0) Color.Transparent
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    SuggestionRow(
+                                        suggestion = suggestion,
+                                        backgroundColor = zebraColor,
+                                        isAssigning = isAssigning,
+                                        onAssign = { onAssign(suggestion.proclamatore.id) },
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                }
                             }
                         }
                         VerticalScrollbar(
@@ -508,12 +614,38 @@ fun PersonPickerDialog(
 }
 
 @Composable
+private fun SexMismatchGroupHeader() {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(sketch.warn.copy(alpha = 0.07f))
+            .padding(horizontal = spacing.lg, vertical = spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+    ) {
+        Icon(
+            Icons.Filled.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = sketch.warn,
+        )
+        Text(
+            "Sesso diverso dalla parte",
+            style = MaterialTheme.typography.labelSmall,
+            color = sketch.warn,
+        )
+    }
+}
+
+@Composable
 private fun SuggestionHeaderRow() {
     val spacing = MaterialTheme.spacing
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .background(MaterialTheme.workspaceSketch.surfaceMuted)
             .padding(horizontal = spacing.lg, vertical = spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -523,12 +655,12 @@ private fun SuggestionHeaderRow() {
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
-            text = "Ultima (globale)",
+            text = "Prima/Dopo (globale)",
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
-            text = "Ultima (parte)",
+            text = "Prima/Dopo (parte)",
             modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
@@ -549,12 +681,19 @@ private fun SuggestionRow(
     onAssign: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
     val rowInteractionSource = remember { MutableInteractionSource() }
     val isHovered by rowInteractionSource.collectIsHoveredAsState()
-    val rowBackgroundColor = if (isHovered) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-    } else {
-        backgroundColor
+
+    // Two-step confirm: first click arms the button, second click fires onAssign.
+    // Applies only when the person is in cooldown (which implies strictCooldown=false,
+    // since the use case filters them out otherwise).
+    var awaitingCooldownConfirm by remember { mutableStateOf(false) }
+
+    val rowBackgroundColor = when {
+        isHovered -> sketch.accentSoft
+        suggestion.inCooldown || suggestion.sexMismatch -> sketch.warn.copy(alpha = 0.07f)
+        else -> backgroundColor
     }
 
     Row(
@@ -566,49 +705,101 @@ private fun SuggestionRow(
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
+        Row(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = formatRecency(suggestion.lastGlobalDays, suggestion.lastGlobalWeeks),
-            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = formatRecency(suggestion.lastForPartTypeDays, suggestion.lastForPartTypeWeeks),
-            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        val cooldownLabel = if (suggestion.inCooldown) {
-            "${suggestion.cooldownRemainingWeeks} sett."
-        } else {
-            "-"
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (suggestion.sexMismatch) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp)
+                        .background(sketch.warn.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .border(1.dp, sketch.warn.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        "sesso ≠",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = sketch.warn,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
         }
         Text(
-            text = cooldownLabel,
-            modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
+            text = formatRecencyLabel(
+                beforeWeeks = suggestion.lastGlobalBeforeWeeks,
+                afterWeeks = suggestion.lastGlobalAfterWeeks,
+            ),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
             style = MaterialTheme.typography.bodySmall,
-            color = if (suggestion.inCooldown) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text(
+            text = formatRecencyLabel(
+                beforeWeeks = suggestion.lastForPartTypeBeforeWeeks,
+                afterWeeks = suggestion.lastForPartTypeAfterWeeks,
+            ),
+            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // Cooldown column — warning icon + amber text when overriding cooldown
+        Row(
+            modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            if (suggestion.inCooldown) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = sketch.warn,
+                )
+                Text(
+                    text = "${suggestion.cooldownRemainingWeeks} sett.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.warn,
+                )
+            } else {
+                Text(
+                    text = "-",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // Button — two-step confirm when overriding cooldown
+        val buttonColor = if (suggestion.inCooldown) sketch.warn else MaterialTheme.colorScheme.primary
+        val buttonLabel = when {
+            isAssigning -> "..."
+            suggestion.inCooldown && awaitingCooldownConfirm -> "Conferma"
+            else -> "Assegna"
+        }
+        val buttonIcon = if (suggestion.inCooldown && awaitingCooldownConfirm) Icons.Filled.Warning else Icons.Filled.Add
+        val buttonAction: () -> Unit = if (suggestion.inCooldown && !awaitingCooldownConfirm) {
+            { awaitingCooldownConfirm = true }
+        } else {
+            onAssign
+        }
         Surface(
             modifier = Modifier
                 .width(BUTTON_COLUMN_WIDTH)
                 .height(36.dp)
                 .handCursorOnHover(enabled = !isAssigning)
-                .clickable(enabled = !isAssigning, onClick = onAssign),
+                .clickable(enabled = !isAssigning, onClick = buttonAction),
             shape = RoundedCornerShape(6.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isAssigning) 0.35f else 0.92f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)),
+            color = buttonColor.copy(alpha = if (isAssigning) 0.35f else 0.92f),
+            border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.9f)),
         ) {
             Row(
                 modifier = Modifier
@@ -618,16 +809,16 @@ private fun SuggestionRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Filled.Add,
-                    contentDescription = "Assegna",
+                    buttonIcon,
+                    contentDescription = buttonLabel,
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = Color.White,
                 )
                 Spacer(Modifier.width(MaterialTheme.spacing.xs))
                 Text(
-                    text = if (isAssigning) "..." else "Assegna",
+                    text = buttonLabel,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,
@@ -672,11 +863,4 @@ private fun SortModeButton(
             color = contentColor,
         )
     }
-}
-
-private fun formatRecency(days: Int?, weeks: Int?): String = when {
-    days == null -> "Mai assegnato"
-    days == 0 -> "Oggi"
-    days < 14 -> "$days giorni fa"
-    else -> "${weeks ?: (days / 7)} settimane fa"
 }

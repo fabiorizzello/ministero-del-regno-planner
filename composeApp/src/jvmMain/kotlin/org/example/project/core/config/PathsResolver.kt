@@ -1,11 +1,14 @@
 package org.example.project.core.config
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
 object PathsResolver {
     private const val APP_DIR_NAME = "EfficaciNelMinistero"
+    private val logger = KotlinLogging.logger {}
     private const val DB_FILE_NAME = "ministero.sqlite"
 
     fun resolve(): AppPaths {
@@ -14,10 +17,10 @@ object PathsResolver {
         val exportsDir = rootDir.resolve("exports")
         val dbFile = rootDir.resolve("data").resolve(DB_FILE_NAME)
 
-        Files.createDirectories(rootDir)
-        Files.createDirectories(logsDir)
-        Files.createDirectories(exportsDir)
-        Files.createDirectories(dbFile.parent)
+        createDir(rootDir)
+        createDir(logsDir)
+        createDir(exportsDir)
+        createDir(dbFile.parent)
 
         return AppPaths(
             rootDir = rootDir,
@@ -25,6 +28,15 @@ object PathsResolver {
             logsDir = logsDir,
             exportsDir = exportsDir,
         )
+    }
+
+    private fun createDir(path: Path) {
+        try {
+            Files.createDirectories(path)
+        } catch (e: IOException) {
+            logger.error(e) { "Impossibile creare la directory: $path" }
+            throw IOException("Impossibile creare la directory richiesta dall'applicazione: $path", e)
+        }
     }
 
     private fun resolveRootDir(): Path {

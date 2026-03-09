@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.update
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
@@ -45,11 +44,12 @@ internal data class ProclamatoriListUiState(
     val notice: FeedbackBannerModel? = null,
     val sort: ProclamatoriSort = ProclamatoriSort(),
     val pageIndex: Int = 0,
-    val pageSize: Int = 10,
+    val pageSize: Int = 20,
     val selectedIds: Set<ProclamatoreId> = emptySet(),
     val deleteCandidate: Proclamatore? = null,
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
+    val batchDeleteAssignmentCount: Int = 0,
     val isImporting: Boolean = false,
     val isBatchInProgress: Boolean = false,
     val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
@@ -59,7 +59,6 @@ internal data class ProclamatoriListUiState(
 internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
     private val cerca: CercaProclamatoriUseCase,
-    private val impostaStato: ImpostaStatoProclamatoreUseCase,
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
@@ -175,8 +174,14 @@ internal class ProclamatoriListViewModel(
     }
 
     fun requestBatchDeleteConfirm() {
-        if (_uiState.value.selectedIds.isEmpty()) return
-        _uiState.update { it.copy(showBatchDeleteConfirm = true) }
+        val ids = _uiState.value.selectedIds
+        if (ids.isEmpty()) return
+        scope.launch {
+            val total = ids.sumOf { id ->
+                try { contaAssegnazioni(id) } catch (_: Exception) { 0 }
+            }
+            _uiState.update { it.copy(showBatchDeleteConfirm = true, batchDeleteAssignmentCount = total) }
+        }
     }
 
     fun dismissBatchDeleteConfirm() {
@@ -188,46 +193,10 @@ internal class ProclamatoriListViewModel(
         scope.launch {
             val resultNotice = executeOnSelected(
                 action = { id -> elimina(id) },
-                completedLabel = "Proclamatori rimossi",
-                noneCompletedLabel = "Nessun proclamatore rimosso",
+                completedLabel = "Studenti rimossi",
+                noneCompletedLabel = "Nessun studente rimosso",
             )
             _uiState.update { it.copy(showBatchDeleteConfirm = false, notice = resultNotice) }
-        }
-    }
-
-    fun activateSelected() {
-        if (_uiState.value.isBatchInProgress) return
-        scope.launch {
-            val notice = executeOnSelected(
-                action = { id -> impostaStato(id, true) },
-                completedLabel = "Proclamatori attivati",
-                noneCompletedLabel = "Nessun proclamatore attivato",
-            )
-            _uiState.update { it.copy(notice = notice) }
-        }
-    }
-
-    fun deactivateSelected() {
-        if (_uiState.value.isBatchInProgress) return
-        scope.launch {
-            val notice = executeOnSelected(
-                action = { id -> impostaStato(id, false) },
-                completedLabel = "Proclamatori disattivati",
-                noneCompletedLabel = "Nessun proclamatore disattivato",
-            )
-            _uiState.update { it.copy(notice = notice) }
-        }
-    }
-
-    fun toggleActive(id: ProclamatoreId, next: Boolean) {
-        scope.launch {
-            _uiState.executeEitherOperationWithNotice(
-                loadingUpdate = { it.copy(isLoading = true) },
-                noticeUpdate = { state, notice -> state.copy(isLoading = false, notice = notice) },
-                successMessage = if (next) "Proclamatore attivato" else "Proclamatore disattivato",
-                operation = { impostaStato(id, next) },
-                onSuccess = { refreshListInternal() },
-            )
         }
     }
 
@@ -293,7 +262,7 @@ internal class ProclamatoriListViewModel(
                 operation = { withContext(Dispatchers.IO) { importaDaJson(jsonContent) } },
                 onSuccess = { imported ->
                     _uiState.update {
-                        it.copy(notice = successNotice("Importati ${imported.importati} proclamatori da ${selectedFile.name}"))
+                        it.copy(notice = successNotice("Importati ${imported.importati} studenti da ${selectedFile.name}"))
                     }
                     refreshListInternal(resetPage = true)
                 },
@@ -351,7 +320,12 @@ internal class ProclamatoriListViewModel(
             _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) }
             return
         }
-        val peopleById = cerca(null).associateBy { it.id }
+        val state = _uiState.value
+        val peopleById = if (state.searchTerm.isBlank()) {
+            state.allItems.associateBy { it.id }
+        } else {
+            cerca(null).associateBy { it.id }
+        }
         val partTypesById = partTypeStore.allWithStatus().associateBy { it.partType.id }
         val mapped = anomalies.map { anomaly ->
             val person = peopleById[anomaly.personId]

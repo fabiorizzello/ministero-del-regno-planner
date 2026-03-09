@@ -1,9 +1,16 @@
 package org.example.project.ui.workspace
 
+import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.programs.application.ProgramSelectionSnapshot
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.programs.fixtureProgramMonth
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.YearMonth
+import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ProgramLifecycleViewModelSelectionTest {
 
@@ -13,12 +20,12 @@ class ProgramLifecycleViewModelSelectionTest {
         val future = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future-1")
 
         val selected = resolveSelectedProgramId(
-            previousSelectedId = future.id.value,
+            previousSelectedId = future.id,
             currentProgram = current,
             futurePrograms = listOf(future),
         )
 
-        assertEquals("future-1", selected)
+        assertEquals(future.id, selected)
     }
 
     @Test
@@ -27,12 +34,12 @@ class ProgramLifecycleViewModelSelectionTest {
         val future = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future-1")
 
         val selected = resolveSelectedProgramId(
-            previousSelectedId = "deleted-id",
+            previousSelectedId = ProgramMonthId("deleted-id"),
             currentProgram = current,
             futurePrograms = listOf(future),
         )
 
-        assertEquals("current", selected)
+        assertEquals(current.id, selected)
     }
 
     @Test
@@ -46,6 +53,34 @@ class ProgramLifecycleViewModelSelectionTest {
             futurePrograms = listOf(future1, future2),
         )
 
-        assertEquals("future-1", selected)
+        assertEquals(future1.id, selected)
+    }
+
+    @Test
+    fun `applyProgramSnapshot clears stale weeks and assignments when no program remains`() {
+        val staleWeek = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = emptyList(),
+            programId = ProgramMonthId("deleted-program"),
+        )
+        val initial = ProgramLifecycleUiState(
+            isLoading = true,
+            selectedProgramId = ProgramMonthId("deleted-program"),
+            selectedProgramWeeks = listOf(staleWeek),
+            selectedProgramAssignments = mapOf("week-1" to emptyList<AssignmentWithPerson>()),
+        )
+
+        val updated = applyProgramSnapshot(
+            state = initial,
+            snapshot = ProgramSelectionSnapshot(
+                current = null,
+                futures = emptyList(),
+            ),
+        )
+
+        assertEquals(null, updated.selectedProgramId)
+        assertTrue(updated.selectedProgramWeeks.isEmpty())
+        assertTrue(updated.selectedProgramAssignments.isEmpty())
     }
 }

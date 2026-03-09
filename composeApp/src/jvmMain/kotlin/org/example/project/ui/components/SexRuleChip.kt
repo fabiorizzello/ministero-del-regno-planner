@@ -15,7 +15,7 @@ import org.example.project.ui.theme.SemanticColors
 fun SexRuleChip(sexRule: SexRule) {
     val (label, chipColor) = when (sexRule) {
         SexRule.UOMO -> "UOMO" to SemanticColors.blue
-        SexRule.LIBERO -> "LIBERO" to SemanticColors.grey
+        SexRule.STESSO_SESSO -> "STESSO SESSO" to SemanticColors.purple
     }
     Surface(
         shape = RoundedCornerShape(4.dp),

@@ -3,35 +3,28 @@ package org.example.project.feature.assignments.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import java.time.LocalDate
 
 class RimuoviAssegnazioniSettimanaUseCase(
     private val weekPlanStore: WeekPlanStore,
-    private val assignmentStore: AssignmentRepository,
-    private val rimuoviAssegnazioneUseCase: RimuoviAssegnazioneUseCase,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend fun count(weekStartDate: LocalDate): Int {
-        val plan = weekPlanStore.findByDate(weekStartDate) ?: return 0
-        return assignmentStore.countAssignmentsForWeek(plan.id)
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate) ?: return 0
+        return aggregate.assignments.size
     }
 
     suspend operator fun invoke(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
+        val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+            ?: raise(DomainError.NotFound("Piano settimanale"))
         try {
-            execute(weekStartDate).bind()
+            transactionRunner.runInTransaction {
+                weekPlanStore.saveAggregate(aggregate.clearAssignments())
+            }
         } catch (e: Exception) {
-            raise(DomainError.Validation("Errore nella rimozione delle assegnazioni: ${e.message}"))
-        }
-    }
-
-    private suspend fun execute(weekStartDate: LocalDate): Either<DomainError, Unit> = either {
-        val plan = weekPlanStore.findByDate(weekStartDate)
-            ?: raise(DomainError.Validation("Piano settimanale non trovato per la data $weekStartDate"))
-
-        val assignments = assignmentStore.listByWeek(plan.id)
-
-        assignments.forEach { assignment ->
-            rimuoviAssegnazioneUseCase(assignment.id).bind()
+            raise(DomainError.RimozioneAssegnazioniFallita(e.message))
         }
     }
 }

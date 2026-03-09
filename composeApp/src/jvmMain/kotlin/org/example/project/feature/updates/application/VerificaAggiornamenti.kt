@@ -8,7 +8,7 @@ import org.example.project.core.config.AppVersion
 import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.feature.updates.UpdateVersionComparator
 import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class VerificaAggiornamenti(
     private val client: GitHubReleasesClient,
@@ -16,7 +16,7 @@ class VerificaAggiornamenti(
     private val statusStore: UpdateStatusStore,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val logger = LoggerFactory.getLogger(VerificaAggiornamenti::class.java)
+    private val logger = KotlinLogging.logger {}
 
     suspend operator fun invoke(): UpdateCheckResult = withContext(dispatcher) {
         val now = Instant.now()
@@ -40,7 +40,7 @@ class VerificaAggiornamenti(
             )
             settingsStore.saveLastCheck(now)
             statusStore.update(result)
-            logger.info("Check aggiornamenti completato. Update disponibile: {}", updateAvailable)
+            logger.info { "Check aggiornamenti completato. Update disponibile: $updateAvailable" }
             result
         }.getOrElse { error ->
             val result = UpdateCheckResult(
@@ -53,7 +53,7 @@ class VerificaAggiornamenti(
             )
             settingsStore.saveLastCheck(now)
             statusStore.update(result)
-            logger.warn("Check aggiornamenti fallito: {}", error.message)
+            logger.warn { "Check aggiornamenti fallito: ${error.message}" }
             result
         }
     }

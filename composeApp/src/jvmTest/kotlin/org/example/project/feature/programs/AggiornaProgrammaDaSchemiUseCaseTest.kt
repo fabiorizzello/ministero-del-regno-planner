@@ -2,29 +2,28 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
-import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
-import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.people.domain.ProclamatoreId
-import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.ProgramCreationContext
-import org.example.project.feature.programs.application.ProgramDeleteImpact
 import org.example.project.feature.programs.application.ProgramStore
+import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
+import org.example.project.feature.weeklyparts.TestWeekPlanStore
+import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
@@ -42,16 +41,16 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         val useCase = buildUseCase(fixture)
 
         val result = useCase(
-            programId = fixture.program.id.value,
+            programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
         )
 
-        val report = assertIs<Either.Right<org.example.project.feature.programs.application.SchemaRefreshReport>>(result).value
+        val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
         assertEquals(1, report.weeksUpdated)
         assertEquals(1, report.assignmentsPreserved)
         assertEquals(1, report.assignmentsRemoved)
-        assertEquals(0, fixture.assignmentRepository.savedAssignments.size)
+        assertEquals(0, fixture.weekStore.saveCount)
     }
 
     @Test
@@ -60,20 +59,39 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         val useCase = buildUseCase(fixture)
 
         val result = useCase(
-            programId = fixture.program.id.value,
+            programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = false,
         )
 
-        val report = assertIs<Either.Right<org.example.project.feature.programs.application.SchemaRefreshReport>>(result).value
+        val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
         assertEquals(1, report.weeksUpdated)
         assertEquals(1, report.assignmentsPreserved)
         assertEquals(1, report.assignmentsRemoved)
 
-        assertEquals(1, fixture.assignmentRepository.savedAssignments.size)
-        val saved = fixture.assignmentRepository.savedAssignments.single()
-        assertEquals(ProclamatoreId("p1"), saved.personId)
+        assertEquals(1, fixture.weekStore.saveCount)
+        val savedAssignments = fixture.weekStore.currentAggregate.assignments
+        assertEquals(1, savedAssignments.size)
+        assertEquals(org.example.project.feature.people.domain.ProclamatoreId("p1"), savedAssignments.single().personId)
         assertEquals(1, fixture.programStore.templateAppliedUpdates.size)
+    }
+
+    @Test
+    fun `skipped weeks are not refreshed`() = runBlocking {
+        val fixture = refreshFixture(weekStatus = WeekPlanStatus.SKIPPED)
+        val useCase = buildUseCase(fixture)
+
+        val result = useCase(
+            programId = fixture.program.id,
+            referenceDate = LocalDate.of(2026, 3, 1),
+            dryRun = true,
+        )
+
+        val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
+        assertEquals(0, report.weeksUpdated)
+        assertEquals(0, report.assignmentsPreserved)
+        assertEquals(0, report.assignmentsRemoved)
+        assertEquals(0, fixture.weekStore.saveCount)
     }
 
     private fun buildUseCase(fixture: RefreshFixture): AggiornaProgrammaDaSchemiUseCase {
@@ -81,53 +99,44 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programStore = fixture.programStore,
             weekPlanStore = fixture.weekStore,
             schemaTemplateStore = fixture.schemaStore,
-            assignmentRepository = fixture.assignmentRepository,
+            partTypeStore = fixture.partTypeStore,
             transactionRunner = ImmediateTxRunner(),
         )
     }
 
-    private fun refreshFixture(): RefreshFixture {
+    private fun refreshFixture(weekStatus: WeekPlanStatus = WeekPlanStatus.ACTIVE): RefreshFixture {
         val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
-        val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.LIBERO, fixed = false, sortOrder = 1)
-        val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.LIBERO, fixed = false, sortOrder = 2)
-        val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.LIBERO, fixed = false, sortOrder = 3)
+        val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 1)
+        val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 2)
+        val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 3)
 
-        val weekId = WeekPlanId("week-1")
         val week = WeekPlan(
-            id = weekId,
+            id = WeekPlanId("week-1"),
             weekStartDate = LocalDate.of(2026, 3, 2),
             parts = listOf(
                 WeeklyPart(WeeklyPartId("old-a"), partA, sortOrder = 0),
                 WeeklyPart(WeeklyPartId("old-b"), partB, sortOrder = 1),
             ),
-            programId = program.id.value,
-            status = WeekPlanStatus.ACTIVE,
+            programId = program.id,
+            status = weekStatus,
         )
 
         val assignments = listOf(
-            AssignmentWithPerson(
+            Assignment(
                 id = AssignmentId("as-1"),
                 weeklyPartId = WeeklyPartId("old-a"),
-                personId = ProclamatoreId("p1"),
+                personId = org.example.project.feature.people.domain.ProclamatoreId("p1"),
                 slot = 1,
-                firstName = "Mario",
-                lastName = "Rossi",
-                sex = Sesso.M,
-                active = true,
             ),
-            AssignmentWithPerson(
+            Assignment(
                 id = AssignmentId("as-2"),
                 weeklyPartId = WeeklyPartId("old-b"),
-                personId = ProclamatoreId("p2"),
+                personId = org.example.project.feature.people.domain.ProclamatoreId("p2"),
                 slot = 1,
-                firstName = "Luigi",
-                lastName = "Verdi",
-                sex = Sesso.M,
-                active = true,
             ),
         )
 
-        val schemaStore = InMemorySchemaTemplateStore(
+        val schemaStore = RefreshSchemaTemplateStore(
             mapOf(
                 LocalDate.of(2026, 3, 2) to StoredSchemaWeekTemplate(
                     weekStartDate = LocalDate.of(2026, 3, 2),
@@ -136,12 +145,17 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             ),
         )
 
+        val partTypeStore = RefreshPartTypeStore(
+            partTypes = listOf(partA, partB, partC),
+            fixedPart = null,
+        )
+
         return RefreshFixture(
             program = program,
             programStore = RefreshProgramStore(program),
-            weekStore = RefreshWeekStore(program.id.value, week, partA, partC),
+            weekStore = RefreshWeekStore(program.id, WeekPlanAggregate(week, assignments)),
             schemaStore = schemaStore,
-            assignmentRepository = RefreshAssignmentRepository(weekId, assignments),
+            partTypeStore = partTypeStore,
         )
     }
 }
@@ -151,11 +165,11 @@ private data class RefreshFixture(
     val programStore: RefreshProgramStore,
     val weekStore: RefreshWeekStore,
     val schemaStore: SchemaTemplateStore,
-    val assignmentRepository: RefreshAssignmentRepository,
+    val partTypeStore: RefreshPartTypeStore,
 )
 
 private class ImmediateTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T = block()
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class RefreshProgramStore(
@@ -164,9 +178,6 @@ private class RefreshProgramStore(
     val templateAppliedUpdates = mutableListOf<Pair<ProgramMonthId, LocalDateTime>>()
 
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> = listOf(program)
-
-    override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? =
-        if (program.year == year && program.month == month) program else null
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = if (id == program.id) program else null
 
@@ -182,96 +193,81 @@ private class RefreshProgramStore(
         templateAppliedUpdates += id to templateAppliedAt
     }
 
-    override suspend fun countDeleteImpact(id: ProgramMonthId): ProgramDeleteImpact = ProgramDeleteImpact(0, 0)
-
     override suspend fun loadCreationContext(referenceDate: LocalDate): ProgramCreationContext {
-        return ProgramCreationContext(setOf(program.yearMonth), hasCurrent = true, futureMonths = emptySet())
+        return ProgramCreationContext(setOf(program.yearMonth), futureMonths = emptySet())
     }
 }
 
 private class RefreshWeekStore(
-    private val programId: String,
-    initialWeek: WeekPlan,
-    private val partA: PartType,
-    private val partC: PartType,
-) : WeekPlanStore {
-    private var week = initialWeek
+    private val programId: ProgramMonthId,
+    initialAggregate: WeekPlanAggregate,
+) : TestWeekPlanStore() {
+    var currentAggregate: WeekPlanAggregate = initialAggregate
+        private set
 
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? = null
+    var saveCount: Int = 0
+        private set
 
-    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
-
-    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun save(weekPlan: WeekPlan) {
-        // no-op
-    }
-
-    override suspend fun delete(weekPlanId: WeekPlanId) {
-        // no-op
-    }
-
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId = WeeklyPartId("unused")
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {
-        // no-op
-    }
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {
-        // no-op
-    }
-
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {
-        val first = WeeklyPart(
-            id = WeeklyPartId("new-a"),
-            partType = partA,
-            sortOrder = 0,
-        )
-        val second = WeeklyPart(
-            id = WeeklyPartId("new-c"),
-            partType = partC,
-            sortOrder = 1,
-        )
-        week = week.copy(parts = listOf(first, second))
-    }
-
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? = null
-
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> {
         if (programId != this.programId) return emptyList()
-        return listOf(week)
+        return listOf(currentAggregate.weekPlan)
     }
 
-    override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {
-        // no-op
+    override suspend fun listAggregatesByProgram(programId: ProgramMonthId): List<WeekPlanAggregate> {
+        if (programId != this.programId) return emptyList()
+        return listOf(currentAggregate)
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        saveCount += 1
+        currentAggregate = aggregate
+    }
+
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
+        if (currentAggregate.weekPlan.weekStartDate == weekStartDate) currentAggregate else null
+
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
+        if (currentAggregate.weekPlan.id == weekPlanId) currentAggregate else null
+
+    override suspend fun loadAggregateByDateAndProgram(
+        weekStartDate: LocalDate,
+        programId: ProgramMonthId,
+    ): WeekPlanAggregate? {
+        if (programId != this.programId) return null
+        return if (currentAggregate.weekPlan.weekStartDate == weekStartDate) currentAggregate else null
     }
 }
 
-private class RefreshAssignmentRepository(
-    private val weekId: WeekPlanId,
-    private val assignments: List<AssignmentWithPerson>,
-) : AssignmentRepository {
-    val savedAssignments = mutableListOf<Assignment>()
-
-    override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> {
-        return if (weekPlanId == weekId) assignments else emptyList()
-    }
-
-    override suspend fun save(assignment: Assignment) {
-        savedAssignments += assignment
-    }
-
-    override suspend fun remove(assignmentId: AssignmentId) {
+private class RefreshSchemaTemplateStore(
+    private val templates: Map<LocalDate, StoredSchemaWeekTemplate>,
+) : SchemaTemplateStore {
+    override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
         // no-op
     }
 
-    override suspend fun isPersonAssignedInWeek(weekPlanId: WeekPlanId, personId: ProclamatoreId): Boolean = false
+    override suspend fun listAll(): List<StoredSchemaWeekTemplate> = templates.values.toList()
 
-    override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = 0
+    override suspend fun findByWeekStartDate(weekStartDate: LocalDate): StoredSchemaWeekTemplate? = templates[weekStartDate]
 
-    override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
+    override suspend fun isEmpty(): Boolean = templates.isEmpty()
+}
 
-    override suspend fun deleteByProgramFromDate(programId: String, fromDate: LocalDate): Int = 0
+private class RefreshPartTypeStore(
+    private val partTypes: List<PartType>,
+    private val fixedPart: PartType?,
+) : PartTypeStore {
+    override suspend fun all(): List<PartType> = partTypes
 
-    override suspend fun countByProgramFromDate(programId: String, fromDate: LocalDate): Int = 0
+    override suspend fun allWithStatus(): List<PartTypeWithStatus> = partTypes.map { PartTypeWithStatus(it, active = true) }
+
+    override suspend fun findByCode(code: String): PartType? = partTypes.firstOrNull { it.code == code }
+
+    override suspend fun findFixed(): PartType? = fixedPart
+
+    override suspend fun upsertAll(partTypes: List<PartType>) {
+        // no-op
+    }
+
+    override suspend fun getLatestRevisionId(partTypeId: PartTypeId): String? = null
 }

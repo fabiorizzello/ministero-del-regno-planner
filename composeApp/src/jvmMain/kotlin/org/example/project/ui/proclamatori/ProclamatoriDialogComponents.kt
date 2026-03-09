@@ -7,7 +7,6 @@
 package org.example.project.ui.proclamatori
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -80,9 +80,9 @@ internal fun ConfirmDeleteDialogComponent(
 /**
  * Dialog wrapper for the Proclamatore form.
  *
- * Displays the ProclamatoriFormContent in a centered dialog with
+ * Displays the Proclamatori form in a centered dialog with
  * platform-independent width. Delegates all form logic to the
- * nested ProclamatoriFormContent composable.
+ * nested ProclamatoriFormContentForm composable.
  */
 @Composable
 internal fun ProclamatoriFormDialogComponent(
@@ -111,6 +111,7 @@ internal fun ProclamatoriFormDialogComponent(
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Dialog(
@@ -119,32 +120,36 @@ internal fun ProclamatoriFormDialogComponent(
     ) {
         Surface(
             shape = RoundedCornerShape(spacing.cardRadius),
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .padding(spacing.lg)
-                .width(900.dp),
+                .width(640.dp),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                // ── Header: title + close button ─────────────────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (route == ProclamatoriRoute.Nuovo) "Nuovo studente" else "Modifica studente",
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp).handCursorOnHover(),
                     ) {
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Chiudi",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Chiudi",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
                 ProclamatoriFormContentForm(
@@ -172,6 +177,8 @@ internal fun ProclamatoriFormDialogComponent(
                     formError = formError,
                     onSubmit = onSubmit,
                     onCancel = onCancel,
+                    onDelete = onDelete,
+                    showTitle = false,
                 )
             }
         }

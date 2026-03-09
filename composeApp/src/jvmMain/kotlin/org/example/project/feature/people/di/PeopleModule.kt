@@ -10,8 +10,6 @@ import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
-import org.example.project.feature.people.application.ImpostaSospesoUseCase
-import org.example.project.feature.people.application.ImpostaStatoProclamatoreUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
@@ -29,13 +27,11 @@ val peopleModule = module {
     // Use Cases
     single { CercaProclamatoriUseCase(get()) }
     single { CaricaProclamatoreUseCase(get()) }
-    single { CreaProclamatoreUseCase(get(), get()) }
-    single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
-    single { AggiornaProclamatoreUseCase(get(), get()) }
-    single { ImpostaStatoProclamatoreUseCase(get()) }
-    single { ImpostaSospesoUseCase(get()) }
-    single { ImpostaIdoneitaAssistenzaUseCase(get()) }
-    single { ImpostaIdoneitaConduzioneUseCase(get()) }
+    single { CreaProclamatoreUseCase(get(), get(), get()) }
+    single { ImportaProclamatoriDaJsonUseCase(get(), get(), get()) }
+    single { AggiornaProclamatoreUseCase(get(), get(), get(), get()) }
+    single { ImpostaIdoneitaAssistenzaUseCase(get(), get()) }
+    single { ImpostaIdoneitaConduzioneUseCase(get(), get()) }
     single { CaricaIdoneitaProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get(), get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }

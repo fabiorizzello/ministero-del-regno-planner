@@ -1,6 +1,9 @@
 package org.example.project.ui.diagnostics
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -33,6 +38,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,16 +49,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.handCursorOnHover
-import org.example.project.ui.components.workspace.WorkspacePanel
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import org.koin.core.context.GlobalContext
 
 @Composable
@@ -61,7 +75,7 @@ fun DiagnosticsScreen() {
     val state by viewModel.state.collectAsState()
     val spacing = MaterialTheme.spacing
     val sectionCardShape = RoundedCornerShape(spacing.cardRadius + 2.dp)
-    val sectionCardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+    val sectionCardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.78f))
 
     LaunchedEffect(Unit) { viewModel.onScreenEntered() }
 
@@ -95,17 +109,15 @@ fun DiagnosticsScreen() {
         )
     }
 
-    WorkspacePanel(
+    val sketch = MaterialTheme.workspaceSketch
+    Column(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .background(sketch.windowBackground)
+            .verticalScroll(rememberScrollState())
+            .padding(spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(spacing.lg),
-        ) {
             Text("Diagnostica", style = MaterialTheme.typography.headlineMedium)
 
             FeedbackBanner(
@@ -128,7 +140,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -136,10 +148,10 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Text("Informazioni applicazione", style = MaterialTheme.typography.titleMedium)
-                SelectionContainer { Text("Versione app: ${state.appVersion}") }
-                SelectionContainer { Text("DB: ${state.dbPath}") }
-                SelectionContainer { Text("Log: ${state.logsPath}") }
-                SelectionContainer { Text("Export: ${state.exportsPath}") }
+                DiagnosticsInfoRow(label = "Versione", value = state.appVersion)
+                DiagnosticsPathRow(label = "DB", path = state.dbPath)
+                DiagnosticsPathRow(label = "Log", path = state.logsPath)
+                DiagnosticsPathRow(label = "Export", path = state.exportsPath)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -151,9 +163,10 @@ fun DiagnosticsScreen() {
                         enabled = !state.isExporting && !state.isCleaning,
                         modifier = Modifier
                             .weight(1f)
+                            .height(34.dp)
                             .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
                         elevation = diagnosticsFlatButtonElevation(),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     ) {
                         if (state.isExporting) {
                             CircularProgressIndicator(
@@ -190,7 +203,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -198,14 +211,11 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Aggiornamenti applicazione", style = MaterialTheme.typography.titleMedium)
-                Text(state.updateStatusText)
+                Text(state.updateStatusText, style = MaterialTheme.typography.bodyMedium)
                 val lastCheck = state.updateLastCheck?.let { formatUpdateCheck(it) } ?: "mai"
-                Text("Ultimo controllo: $lastCheck", style = MaterialTheme.typography.bodySmall)
+                DiagnosticsInfoRow(label = "Ultimo controllo", value = lastCheck)
                 if (state.updateAvailable && state.updateLatestVersion != null) {
-                    Text(
-                        "Versione disponibile: ${state.updateLatestVersion}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    DiagnosticsInfoRow(label = "Versione disponibile", value = state.updateLatestVersion!!)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -233,7 +243,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -241,9 +251,9 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Occupazione disco", style = MaterialTheme.typography.titleMedium)
-                Text("Database: ${formatBytes(state.dbSizeBytes)}")
-                Text("Log: ${formatBytes(state.logsSizeBytes)}")
-                Text("Totale: ${formatBytes(state.dbSizeBytes + state.logsSizeBytes)}")
+                DiagnosticsInfoRow(label = "Database", value = formatBytes(state.dbSizeBytes))
+                DiagnosticsInfoRow(label = "Log", value = formatBytes(state.logsSizeBytes))
+                DiagnosticsInfoRow(label = "Totale", value = formatBytes(state.dbSizeBytes + state.logsSizeBytes))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -276,7 +286,7 @@ fun DiagnosticsScreen() {
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
             Column(
@@ -284,9 +294,20 @@ fun DiagnosticsScreen() {
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Text("Pulizia dati storici", style = MaterialTheme.typography.titleMedium)
-                Text(retentionMeaning(state.selectedRetention))
-                Text(CLEANUP_SCOPE_TEXT)
-                Text(CLEANUP_EXCLUSIONS_TEXT)
+                Text(
+                    retentionMeaning(state.selectedRetention),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    CLEANUP_SCOPE_TEXT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    CLEANUP_EXCLUSIONS_TEXT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     DiagnosticsRetentionOption.entries.forEach { option ->
@@ -299,9 +320,10 @@ fun DiagnosticsScreen() {
                     }
                 }
 
-                Text("Data limite: ${formatCutoffDate(state.selectedRetention)}")
-                Text(
-                    "Anteprima: settimane ${state.cleanupPreview.weekPlans}, " +
+                DiagnosticsInfoRow(label = "Data limite", value = formatCutoffDate(state.selectedRetention))
+                DiagnosticsInfoRow(
+                    label = "Anteprima",
+                    value = "settimane ${state.cleanupPreview.weekPlans}, " +
                         "parti ${state.cleanupPreview.weeklyParts}, " +
                         "assegnazioni ${state.cleanupPreview.assignments}",
                 )
@@ -323,6 +345,7 @@ fun DiagnosticsScreen() {
                         enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
                         modifier = Modifier
                             .weight(1f)
+                            .height(34.dp)
                             .handCursorOnHover(
                                 enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
                             ),
@@ -352,7 +375,6 @@ fun DiagnosticsScreen() {
                 }
             }
         }
-        }
     }
 }
 
@@ -373,7 +395,7 @@ private const val CLEANUP_SCOPE_TEXT =
     "Vengono eliminati: settimane passate, parti collegate e relative assegnazioni."
 
 private const val CLEANUP_EXCLUSIONS_TEXT =
-    "Non vengono toccati: proclamatori, tipi di parte, file di log e file esportati."
+    "Non vengono toccati: studenti, tipi di parte, file di log e file esportati."
 
 @Composable
 private fun DiagnosticsRetentionChip(
@@ -432,16 +454,64 @@ private fun DiagnosticsOutlinedActionButton(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.handCursorOnHover(enabled = enabled),
-        elevation = diagnosticsFlatButtonElevation(),
-        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = when {
+        !enabled -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+        isHovered -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+        else -> MaterialTheme.colorScheme.outline
+    }
+    val containerColor = when {
+        !enabled -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+        isFocused -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.46f)
+        isHovered -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    }
+    Surface(
+        modifier = modifier
+            .height(34.dp)
+            .handCursorOnHover(enabled = enabled)
+            .hoverable(interactionSource, enabled = enabled)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor),
+        color = containerColor,
     ) {
-        Icon(icon, contentDescription = label)
-        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-        Text(label)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                modifier = Modifier.size(14.dp),
+                tint = contentColor,
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -465,6 +535,60 @@ private fun diagnosticsFlatFilterChipElevation() =
         draggedElevation = 0.dp,
         disabledElevation = 0.dp,
     )
+
+@Composable
+private fun DiagnosticsInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(120.dp),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun DiagnosticsPathRow(label: String, path: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(60.dp),
+        )
+        SelectionContainer {
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    path,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
 
 private fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

@@ -15,8 +15,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +34,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -43,12 +44,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,10 +64,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -80,6 +83,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -88,6 +92,24 @@ import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
+
+internal data class ProclamatoriElencoEvents(
+    val onSearchTermChange: (String) -> Unit,
+    val onResetSearch: () -> Unit,
+    val onDismissNotice: () -> Unit,
+    val onSortChange: (ProclamatoriSort) -> Unit,
+    val onToggleSelectPage: (List<ProclamatoreId>, Boolean) -> Unit,
+    val onToggleRowSelected: (ProclamatoreId, Boolean) -> Unit,
+    val onRequestDeleteSelected: () -> Unit,
+    val onClearSelection: () -> Unit,
+    val onGoNuovo: () -> Unit,
+    val onImportJson: () -> Unit,
+    val onDismissSchemaAnomalies: () -> Unit,
+    val onEdit: (ProclamatoreId) -> Unit,
+    val onDelete: (Proclamatore) -> Unit,
+    val onPreviousPage: () -> Unit,
+    val onNextPage: () -> Unit,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,30 +139,33 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Proclamatori", style = MaterialTheme.typography.headlineMedium)
+            val sketch = MaterialTheme.workspaceSketch
+            Text("Studenti", style = MaterialTheme.typography.headlineMedium)
             Box(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .background(sketch.lineSoft, RoundedCornerShape(20.dp))
                     .padding(horizontal = 10.dp, vertical = 2.dp),
             ) {
                 Text(
                     "${allItems.size}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = sketch.inkMuted,
                 )
             }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (canImportInitialJson) {
                 Button(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = events.onImportJson,
                     enabled = !isLoading,
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                 ) {
                     Icon(Icons.Filled.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
@@ -154,24 +179,12 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                 tooltip = { PlainTooltip { Text("Ctrl+F per cercare") } },
                 state = rememberTooltipState(),
             ) {
-                OutlinedTextField(
+                CompactSearchInput(
                     value = searchTerm,
                     onValueChange = events.onSearchTermChange,
-                    modifier = Modifier
-                        .widthIn(min = 200.dp, max = 280.dp)
-                        .focusRequester(searchFocusRequester),
-                    label = { Text("Cerca") },
-                    singleLine = true,
-                    trailingIcon = {
-                        if (searchTerm.isNotBlank()) {
-                            IconButton(
-                                modifier = Modifier.handCursorOnHover(),
-                                onClick = events.onResetSearch,
-                            ) {
-                                Icon(Icons.Filled.Close, contentDescription = "Reset ricerca")
-                            }
-                        }
-                    },
+                    onReset = events.onResetSearch,
+                    modifier = Modifier.width(220.dp),
+                    focusRequester = searchFocusRequester,
                 )
             }
             TooltipBox(
@@ -185,6 +198,8 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     modifier = Modifier.handCursorOnHover(enabled = !isLoading),
                     onClick = events.onGoNuovo,
                     enabled = !isLoading,
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
@@ -224,16 +239,53 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                         onClick = events.onDismissSchemaAnomalies,
                         enabled = !state.isDismissingSchemaAnomalies,
                         modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                     ) {
                         Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
                     }
                 }
                 state.schemaUpdateAnomalies.forEach { anomaly ->
-                    val versionText = anomaly.schemaVersion?.let { " | schema $it" }.orEmpty()
-                    Text(
-                        "• ${anomaly.personLabel} | ${anomaly.partTypeLabel}$versionText | ${anomaly.reason} | ${anomaly.createdAt}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            anomaly.personLabel,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1.5f),
+                        )
+                        Text(
+                            anomaly.partTypeLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1.5f),
+                        )
+                        Text(
+                            anomaly.reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.workspaceSketch.warn,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(2f),
+                        )
+                        anomaly.schemaVersion?.let {
+                            Text(
+                                "v$it",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            formatAnomalyDate(anomaly.createdAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -254,8 +306,6 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
         ProclamatoriiBulkBar(
             count = selectedIds.size,
             enabled = !isLoading,
-            onActivate = events.onActivateSelected,
-            onDeactivate = events.onDeactivateSelected,
             onDelete = events.onRequestDeleteSelected,
             onClear = events.onClearSelection,
         )
@@ -264,7 +314,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     // ── Table card ───────────────────────────────────────────────────────────
     Card(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(spacing.cardRadius),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
@@ -273,7 +323,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(MaterialTheme.workspaceSketch.surfaceMuted)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -284,23 +334,19 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     enabled = !isLoading && pageItemIds.isNotEmpty(),
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "Nome" + (sortIndicatorForColumn(1, sort)?.let { " $it" } ?: ""),
-                    modifier = Modifier
-                        .weight(2.5f)
-                        .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(1)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SortableColumnHeader(
+                    label = "Nome",
+                    field = ProclamatoriSortField.NOME,
+                    sort = sort,
+                    modifier = Modifier.weight(2.5f),
+                    onSortChange = events.onSortChange,
                 )
-                Text(
-                    text = "Stato" + (sortIndicatorForColumn(4, sort)?.let { " $it" } ?: ""),
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .pointerHoverIcon(PointerIcon.Hand)
-                        .clickable { sortFieldForColumn(4)?.let { field -> events.onSortChange(toggleSort(sort, field)) } },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SortableColumnHeader(
+                    label = "Stato",
+                    field = ProclamatoriSortField.SOSPESO,
+                    sort = sort,
+                    modifier = Modifier.weight(1.2f),
+                    onSortChange = events.onSortChange,
                 )
                 Spacer(Modifier.width(56.dp))
             }
@@ -317,7 +363,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "Nessun proclamatore",
+                                    "Nessun studente",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -352,8 +398,9 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (sortedItems.size == allItems.size) "${allItems.size} proclamatori"
-                    else "${sortedItems.size} di ${allItems.size} proclamatori",
+                    if (sortedItems.size == allItems.size) {
+                        if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
+                    } else "${sortedItems.size} di ${allItems.size} studenti",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -367,6 +414,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                             onClick = events.onPreviousPage,
                             enabled = !isLoading && pageIndex > 0,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Pagina precedente", modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(spacing.xs))
@@ -378,6 +426,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                             onClick = events.onNextPage,
                             enabled = !isLoading && pageIndex < totalPages - 1,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                         ) {
                             Text("Succ", style = MaterialTheme.typography.labelSmall)
                             Spacer(Modifier.width(spacing.xs))
@@ -390,14 +439,60 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     }
 }
 
+// ─── Sort header ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun SortableColumnHeader(
+    label: String,
+    field: ProclamatoriSortField,
+    sort: ProclamatoriSort,
+    modifier: Modifier = Modifier,
+    onSortChange: (ProclamatoriSort) -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val isActive = sort.field == field
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    // Layout column takes the full weight; interactive area is tight around label only
+    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
+        Row(
+            modifier = Modifier
+                .pointerHoverIcon(PointerIcon.Hand)
+                .hoverable(interactionSource)
+                .clickable(indication = null, interactionSource = interactionSource) {
+                    onSortChange(toggleSort(sort, field))
+                }
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = when {
+                    isActive -> sketch.accent
+                    hovered -> sketch.ink
+                    else -> sketch.inkMuted
+                },
+            )
+            if (isActive) {
+                Icon(
+                    imageVector = if (sort.direction == SortDirection.ASC) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = sketch.accent,
+                )
+            }
+        }
+    }
+}
+
 // ─── Bulk bar ─────────────────────────────────────────────────────────────────
 
 @Composable
 private fun ProclamatoriiBulkBar(
     count: Int,
     enabled: Boolean,
-    onActivate: () -> Unit,
-    onDeactivate: () -> Unit,
     onDelete: () -> Unit,
     onClear: () -> Unit,
 ) {
@@ -411,7 +506,7 @@ private fun ProclamatoriiBulkBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -422,32 +517,13 @@ private fun ProclamatoriiBulkBar(
             )
             Spacer(Modifier.width(4.dp))
             OutlinedButton(
-                onClick = onActivate,
-                enabled = enabled,
-                modifier = Modifier.height(30.dp).handCursorOnHover(enabled = enabled),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-            ) {
-                Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(13.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Attiva", style = MaterialTheme.typography.labelSmall)
-            }
-            OutlinedButton(
-                onClick = onDeactivate,
-                enabled = enabled,
-                modifier = Modifier.height(30.dp).handCursorOnHover(enabled = enabled),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-            ) {
-                Icon(Icons.Filled.Block, contentDescription = null, modifier = Modifier.size(13.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Sospendi", style = MaterialTheme.typography.labelSmall)
-            }
-            OutlinedButton(
                 onClick = onDelete,
                 enabled = enabled,
                 modifier = Modifier.height(30.dp).handCursorOnHover(enabled = enabled),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = sketch.bad),
                 border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.5f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(4.dp))
@@ -476,10 +552,11 @@ internal fun ProclamatoriDataRow(
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
 
     val rowBg = when {
         selected -> sketch.accentSoft
-        hovered  -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        focused || hovered -> sketch.lineSoft.copy(alpha = 0.35f)
         else     -> Color.Transparent
     }
 
@@ -487,6 +564,7 @@ internal fun ProclamatoriDataRow(
         modifier = Modifier
             .fillMaxWidth()
             .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
             .background(rowBg)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -499,29 +577,22 @@ internal fun ProclamatoriDataRow(
         )
         Spacer(Modifier.width(12.dp))
 
-        // Avatar + nome + genere
+        // Avatar + nome
         Row(
             modifier = Modifier.weight(2.5f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ProclamatoreAvatar(proclamatore.nome, proclamatore.cognome, proclamatore.sesso, proclamatore.attivo)
-            Column {
-                Text(
-                    "${proclamatore.nome} ${proclamatore.cognome}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                )
-                Text(
-                    if (proclamatore.sesso == Sesso.M) "Uomo" else "Donna",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            ProclamatoreAvatar(proclamatore.nome, proclamatore.cognome, proclamatore.sesso)
+            Text(
+                "${proclamatore.nome} ${proclamatore.cognome}",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            )
         }
 
         // Stato badge
         Box(modifier = Modifier.weight(1.2f)) {
-            ProclamatoreStatusBadge(attivo = proclamatore.attivo, sospeso = proclamatore.sospeso)
+            ProclamatoreStatusBadge(sospeso = proclamatore.sospeso)
         }
 
         // Hover-reveal icon actions
@@ -529,7 +600,7 @@ internal fun ProclamatoriDataRow(
             modifier = Modifier.width(56.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            AnimatedVisibility(visible = hovered && !batchMode) {
+            AnimatedVisibility(visible = (hovered || focused) && !batchMode) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(
                         onClick = onEdit,
@@ -558,43 +629,42 @@ internal fun ProclamatoriDataRow(
 // ─── Shared visual atoms ──────────────────────────────────────────────────────
 
 @Composable
-internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso, attivo: Boolean) {
+internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso) {
     val sketch = MaterialTheme.workspaceSketch
-    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else Color(0xFF2A1040)
-    val fgColor = if (sesso == Sesso.M) sketch.accent else Color(0xFFC084FC)
+    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+    val fgColor = if (sesso == Sesso.M) sketch.accent else sketch.avatarFemminaFg
     val initials = "${nome.firstOrNull() ?: ""}${cognome.firstOrNull() ?: ""}".uppercase()
 
     Box(
         modifier = Modifier
             .size(32.dp)
             .clip(CircleShape)
-            .background(bgColor)
-            .then(if (!attivo) Modifier.background(Color.Black.copy(alpha = 0.35f)) else Modifier),
+            .background(bgColor),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             initials,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-            color = if (attivo) fgColor else fgColor.copy(alpha = 0.5f),
+            color = fgColor,
         )
     }
 }
 
 @Composable
-internal fun ProclamatoreStatusBadge(attivo: Boolean, sospeso: Boolean) {
+internal fun ProclamatoreStatusBadge(sospeso: Boolean) {
     val sketch = MaterialTheme.workspaceSketch
-    val (bgColor, dotColor, label) = when {
-        sospeso -> Triple(sketch.warn.copy(alpha = 0.12f), sketch.warn, "Sospeso")
-        attivo -> Triple(sketch.ok.copy(alpha = 0.12f), sketch.ok, "Attivo")
-        else -> Triple(sketch.bad.copy(alpha = 0.12f), sketch.bad, "Inattivo")
+    val (bgColor, dotColor, label) = if (sospeso) {
+        Triple(sketch.warn.copy(alpha = 0.12f), sketch.warn, "Sospeso")
+    } else {
+        Triple(sketch.ok.copy(alpha = 0.12f), sketch.ok, "Attivo")
     }
 
     Row(
         modifier = Modifier
             .background(bgColor, RoundedCornerShape(20.dp))
-            .padding(horizontal = 9.dp, vertical = 3.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(dotColor))
         Text(
@@ -602,5 +672,91 @@ internal fun ProclamatoreStatusBadge(attivo: Boolean, sospeso: Boolean) {
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
             color = dotColor,
         )
+    }
+}
+
+// ─── Compact search input ─────────────────────────────────────────────────────
+
+@Composable
+private fun CompactSearchInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Surface(
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = sketch.surface,
+        border = BorderStroke(
+            1.dp,
+            if (isFocused) sketch.accent.copy(alpha = 0.6f) else sketch.lineSoft,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = sketch.inkMuted,
+            )
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(
+                        "Cerca",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = sketch.inkMuted,
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(color = sketch.ink),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    interactionSource = interactionSource,
+                )
+            }
+            if (value.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(sketch.inkMuted.copy(alpha = 0.12f))
+                        .handCursorOnHover()
+                        .clickable(onClick = onReset),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Reset ricerca",
+                        modifier = Modifier.size(9.dp),
+                        tint = sketch.inkMuted,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatAnomalyDate(createdAt: String): String {
+    return try {
+        val dt = java.time.LocalDateTime.parse(createdAt)
+        dt.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    } catch (_: Exception) {
+        createdAt.substringBefore('T')
     }
 }

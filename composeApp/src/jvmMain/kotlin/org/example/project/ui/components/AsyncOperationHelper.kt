@@ -270,7 +270,7 @@ suspend fun <T, R> MutableStateFlow<T>.executeEitherOperation(
  *     noticeUpdate = { state, notice -> state.copy(notice = notice) },
  *     successMessage = "Settimana riattivata",
  *     errorMessagePrefix = "Errore riattivazione",
- *     operation = { weekPlanStore.updateWeekStatus(weekId, WeekPlanStatus.ACTIVE) },
+ *     operation = { impostaStatoSettimana(weekId, WeekPlanStatus.ACTIVE) },
  *     onSuccess = { loadWeeksForSelectedProgram() }  // Reload data after success
  * )
  * ```
@@ -289,7 +289,7 @@ suspend fun <T, R> MutableStateFlow<T>.executeEitherOperation(
  *         )
  *     },
  *     successMessage = "Modifiche salvate",
- *     operation = { weekPlanStore.saveWeekParts(weekId, parts) }
+ *     operation = { aggiornaPartiSettimana(weekId, orderedPartTypeIds) }
  * )
  * ```
  *

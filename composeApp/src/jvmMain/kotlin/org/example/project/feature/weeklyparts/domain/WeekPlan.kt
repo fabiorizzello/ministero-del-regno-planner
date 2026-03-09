@@ -2,6 +2,7 @@ package org.example.project.feature.weeklyparts.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import org.example.project.feature.programs.domain.ProgramMonthId
 
 @JvmInline
 value class WeekPlanId(val value: String)
@@ -15,7 +16,7 @@ data class WeekPlan(
     val id: WeekPlanId,
     val weekStartDate: LocalDate,
     val parts: List<WeeklyPart>,
-    val programId: String? = null,
+    val programId: ProgramMonthId? = null,
     val status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
 ) {
     init {
@@ -23,4 +24,19 @@ data class WeekPlan(
             "weekStartDate deve essere un lunedì, ricevuto: $weekStartDate (${weekStartDate.dayOfWeek})"
         }
     }
+
+    fun nextSortOrder(): Int =
+        (parts.maxOfOrNull { it.sortOrder } ?: -1) + 1
+
+    fun recompactedSortOrders(): List<Pair<WeeklyPartId, Int>> =
+        parts.mapIndexed { index, part -> part.id to index }
+
+    fun findPart(partId: WeeklyPartId): WeeklyPart? =
+        parts.find { it.id == partId }
 }
+
+fun WeekPlan.canBeMutated(referenceDate: LocalDate): Boolean =
+    weekStartDate >= referenceDate && status == WeekPlanStatus.ACTIVE
+
+/** Restituisce la domenica della settimana che inizia il lunedì [monday]. */
+fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)

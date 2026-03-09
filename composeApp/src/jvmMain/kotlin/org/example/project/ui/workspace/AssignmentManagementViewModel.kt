@@ -1,5 +1,6 @@
 package org.example.project.ui.workspace
 
+import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,14 +13,21 @@ import org.example.project.feature.assignments.application.CaricaImpostazioniAss
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
+import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
-import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
 import java.time.LocalDate
+
+private const val KEY_SKIP_REMOVE_CONFIRM = "skip_assignment_removal_confirm"
 
 data class AssignmentSettingsUiState(
     val strictCooldown: Boolean = true,
@@ -36,6 +44,11 @@ data class AssignmentSettingsUiState(
 internal data class AssignmentManagementUiState(
     val isAutoAssigning: Boolean = false,
     val isPrintingProgram: Boolean = false,
+    val isLoadingAssignmentTickets: Boolean = false,
+    val isAssignmentTicketsDialogOpen: Boolean = false,
+    val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
+    val assignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
+    val assignmentTicketsError: String? = null,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -43,6 +56,8 @@ internal data class AssignmentManagementUiState(
     val clearAssignmentsConfirm: Int? = null,
     val isClearingWeekAssignments: Boolean = false,
     val clearWeekAssignmentsConfirm: Pair<String, Int>? = null,
+    val settingsSaved: Boolean = false,
+    val skipRemoveConfirm: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
 
@@ -54,6 +69,8 @@ internal class AssignmentManagementViewModel(
     private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
     private val rimuoviAssegnazioniSettimana: RimuoviAssegnazioniSettimanaUseCase,
     private val stampaProgramma: StampaProgrammaUseCase,
+    private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
+    private val settings: Settings,
 ) {
     private val _uiState = MutableStateFlow(AssignmentManagementUiState())
     val uiState: StateFlow<AssignmentManagementUiState> = _uiState.asStateFlow()
@@ -62,6 +79,12 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             loadAssignmentSettings()
         }
+        _uiState.update { it.copy(skipRemoveConfirm = settings.getBoolean(KEY_SKIP_REMOVE_CONFIRM, false)) }
+    }
+
+    fun setSkipRemoveConfirm(value: Boolean) {
+        settings.putBoolean(KEY_SKIP_REMOVE_CONFIRM, value)
+        _uiState.update { it.copy(skipRemoveConfirm = value) }
     }
 
     fun dismissNotice() {
@@ -74,6 +97,11 @@ internal class AssignmentManagementViewModel(
 
     fun setStrictCooldown(value: Boolean) {
         _uiState.update { it.copy(assignmentSettings = it.assignmentSettings.copy(strictCooldown = value)) }
+        saveAssignmentSettings()
+    }
+
+    fun dismissSettingsSaved() {
+        _uiState.update { it.copy(settingsSaved = false) }
     }
 
     fun setLeadWeight(value: String) {
@@ -108,17 +136,21 @@ internal class AssignmentManagementViewModel(
         }
 
         scope.launch {
-            _uiState.executeAsyncOperationWithNotice(
+            _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isSavingAssignmentSettings = true) },
-                noticeUpdate = { state, notice -> state.copy(isSavingAssignmentSettings = false, notice = notice) },
-                successMessage = "Impostazioni assegnatore salvate",
-                errorMessagePrefix = "Errore salvataggio impostazioni",
+                successUpdate = { state, _ -> state.copy(isSavingAssignmentSettings = false, settingsSaved = true) },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isSavingAssignmentSettings = false,
+                        notice = errorNotice("Errore salvataggio impostazioni: ${error.message}"),
+                    )
+                },
                 operation = { salvaImpostazioniAssegnatore(parsed) },
             )
         }
     }
 
-    fun autoAssignSelectedProgram(programId: String, referenceDate: LocalDate, onSuccess: () -> Unit) {
+    fun autoAssignSelectedProgram(programId: ProgramMonthId, referenceDate: LocalDate, onSuccess: () -> Unit) {
         if (_uiState.value.isAutoAssigning) return
         scope.launch {
             var shouldReload = false
@@ -157,15 +189,14 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun printSelectedProgram(programId: String) {
+    fun printSelectedProgram(programId: ProgramMonthId) {
         if (_uiState.value.isPrintingProgram) return
         scope.launch {
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isPrintingProgram = true) },
-                successUpdate = { state, path ->
+                successUpdate = { state, _ ->
                     state.copy(
                         isPrintingProgram = false,
-                        notice = successNotice("Programma stampato: ${path.fileName}"),
                     )
                 },
                 errorUpdate = { state, error ->
@@ -179,7 +210,55 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun requestClearAssignments(programId: String, referenceDate: LocalDate) {
+    fun openAssignmentTickets(programId: ProgramMonthId) {
+        if (_uiState.value.isLoadingAssignmentTickets) return
+        scope.launch {
+            _uiState.executeAsyncOperation(
+                loadingUpdate = {
+                    it.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = true,
+                        assignmentTickets = emptyList(),
+                        assignmentTicketsError = null,
+                    )
+                },
+                successUpdate = { state, result ->
+                    state.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = false,
+                        assignmentTickets = result.tickets,
+                        assignmentPartWarnings = result.warnings,
+                        assignmentTicketsError = null,
+                    )
+                },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isAssignmentTicketsDialogOpen = true,
+                        isLoadingAssignmentTickets = false,
+                        assignmentTickets = emptyList(),
+                        assignmentPartWarnings = emptyList(),
+                        assignmentTicketsError = error.message ?: "Errore generazione biglietti",
+                        notice = errorNotice("Errore biglietti assegnazioni: ${error.message}"),
+                    )
+                },
+                operation = { generaImmaginiAssegnazioni.generateProgramTickets(programId) },
+            )
+        }
+    }
+
+    fun closeAssignmentTicketsDialog() {
+        _uiState.update {
+            it.copy(
+                isAssignmentTicketsDialogOpen = false,
+                isLoadingAssignmentTickets = false,
+                assignmentTickets = emptyList(),
+                assignmentPartWarnings = emptyList(),
+                assignmentTicketsError = null,
+            )
+        }
+    }
+
+    fun requestClearAssignments(programId: ProgramMonthId, referenceDate: LocalDate) {
         if (_uiState.value.isClearingAssignments) return
         scope.launch {
             _uiState.executeAsyncOperation(
@@ -198,11 +277,11 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun confirmClearAssignments(programId: String, referenceDate: LocalDate, onSuccess: () -> Unit) {
+    fun confirmClearAssignments(programId: ProgramMonthId, referenceDate: LocalDate, onSuccess: () -> Unit) {
         scope.launch {
             _uiState.update { it.copy(clearAssignmentsConfirm = null) }
             var shouldReload = false
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isClearingAssignments = true) },
                 successUpdate = { state, _ ->
                     shouldReload = true
@@ -214,7 +293,7 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isClearingAssignments = false,
-                        notice = errorNotice("Errore svuotamento: ${error.message}"),
+                        notice = errorNotice("Errore svuotamento: ${error.toMessage()}"),
                     )
                 },
                 operation = { svuotaAssegnazioni.execute(programId, referenceDate) },
@@ -251,9 +330,11 @@ internal class AssignmentManagementViewModel(
     fun confirmClearWeekAssignments(weekStartDate: LocalDate, onSuccess: () -> Unit) {
         scope.launch {
             _uiState.update { it.copy(clearWeekAssignmentsConfirm = null) }
-            _uiState.executeAsyncOperation(
+            var succeeded = false
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isClearingWeekAssignments = true) },
                 successUpdate = { state, _ ->
+                    succeeded = true
                     state.copy(
                         isClearingWeekAssignments = false,
                         notice = null,
@@ -262,12 +343,12 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isClearingWeekAssignments = false,
-                        notice = errorNotice("Errore rimozione assegnazioni: ${error.message}"),
+                        notice = errorNotice("Errore rimozione assegnazioni: ${error.toMessage()}"),
                     )
                 },
                 operation = { rimuoviAssegnazioniSettimana(weekStartDate) },
             )
-            onSuccess()
+            if (succeeded) onSuccess()
         }
     }
 

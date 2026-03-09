@@ -1,12 +1,21 @@
 package org.example.project.feature.assignments.infrastructure
 
-import org.example.project.feature.assignments.domain.AssignmentHistoryEntry
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
-import java.time.LocalDate
+import org.slf4j.LoggerFactory
+
+private val logger = LoggerFactory.getLogger("AssignmentRowMapper")
+
+private fun parseSessoOrDefault(sex: String): Sesso =
+    Sesso.entries.find { it.name == sex }
+        ?: run {
+            logger.warn("Sesso sconosciuto '{}' -> fallback a M", sex)
+            Sesso.M
+        }
 
 internal fun mapAssignmentWithPersonRow(
     id: String,
@@ -16,32 +25,17 @@ internal fun mapAssignmentWithPersonRow(
     first_name: String,
     last_name: String,
     sex: String,
-    active: Long,
 ): AssignmentWithPerson {
     return AssignmentWithPerson(
         id = AssignmentId(id),
         weeklyPartId = WeeklyPartId(weekly_part_id),
         personId = ProclamatoreId(person_id),
         slot = slot.toInt(),
-        firstName = first_name,
-        lastName = last_name,
-        sex = runCatching { Sesso.valueOf(sex) }.getOrDefault(Sesso.M),
-        active = active == 1L,
-    )
-}
-
-internal fun mapAssignmentHistoryRow(
-    id: String,
-    weekly_part_id: String,
-    person_id: String,
-    slot: Long,
-    part_type_label: String,
-    week_start_date: String,
-): AssignmentHistoryEntry {
-    return AssignmentHistoryEntry(
-        id = AssignmentId(id),
-        partTypeLabel = part_type_label,
-        weekStartDate = LocalDate.parse(week_start_date),
-        slot = slot.toInt(),
+        proclamatore = Proclamatore(
+            id = ProclamatoreId(person_id),
+            nome = first_name,
+            cognome = last_name,
+            sesso = parseSessoOrDefault(sex),
+        ),
     )
 }

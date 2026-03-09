@@ -112,7 +112,7 @@
 
 ### Implementation for User Story 4
 
-- [X] T033 [US4] Generalize delete use case from future-only to current-or-future in composeApp/src/jvmMain/kotlin/org/example/project/feature/programs/application/EliminaProgrammaFuturoUseCase.kt
+- [X] T033 [US4] Generalize delete use case from future-only to current-or-future in composeApp/src/jvmMain/kotlin/org/example/project/feature/programs/application/EliminaProgrammaUseCase.kt
 - [X] T034 [US4] Add SQLDelight counters for delete impact (weeks and assignments) in composeApp/src/commonMain/sqldelight/org/example/project/db/MinisteroDatabase.sq
 - [X] T035 [US4] Expose delete-impact counting from store adapter in composeApp/src/jvmMain/kotlin/org/example/project/feature/programs/infrastructure/SqlDelightProgramStore.kt
 - [X] T036 [US4] Update delete flow and post-delete reselection fallback in composeApp/src/jvmMain/kotlin/org/example/project/ui/workspace/ProgramLifecycleViewModel.kt

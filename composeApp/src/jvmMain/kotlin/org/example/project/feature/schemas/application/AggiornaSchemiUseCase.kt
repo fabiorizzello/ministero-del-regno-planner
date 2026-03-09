@@ -9,7 +9,6 @@ import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeParseException
 
 data class AggiornaSchemiResult(
     val version: String?,
@@ -28,19 +27,16 @@ class AggiornaSchemiUseCase(
     private val settings: Settings,
 ) {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
-        val catalog = runCatching { remoteSource.fetchCatalog() }
-            .getOrElse { raise(DomainError.Network("Errore nel download schemi: ${it.message}")) }
+        val catalog = Either.catch { remoteSource.fetchCatalog() }
+            .mapLeft { DomainError.Network("Errore nel download schemi: ${it.message}") }
+            .bind()
 
         val availableCodes = catalog.partTypes.map { it.code }.toSet()
         val invalidWeek = catalog.weeks.firstOrNull { week ->
             week.partTypeCodes.any { it !in availableCodes }
         }
         if (invalidWeek != null) {
-            raise(
-                DomainError.Validation(
-                    "Schema settimana ${invalidWeek.weekStartDate} contiene partTypeCode non presenti nel catalogo",
-                ),
-            )
+            raise(DomainError.CatalogoSchemiIncoerente(invalidWeek.weekStartDate))
         }
 
         val missingPartTypes = partTypeStore.all().filter { it.code !in availableCodes }
@@ -48,6 +44,12 @@ class AggiornaSchemiUseCase(
 
         val eligibilityCleanupCandidates = eligibilityStore
             .listLeadEligibilityCandidatesForPartTypes(missingPartTypeIds)
+
+        // Validate dates before entering the transaction so errors surface as DomainError.
+        val weekStartDates = catalog.weeks.map { remoteWeek ->
+            runCatching { LocalDate.parse(remoteWeek.weekStartDate) }
+                .getOrNull() ?: raise(DomainError.DataSchemaNonValida(remoteWeek.weekStartDate))
+        }
 
         transactionRunner.runInTransaction {
             if (eligibilityCleanupCandidates.isNotEmpty()) {
@@ -68,16 +70,10 @@ class AggiornaSchemiUseCase(
             partTypeStore.upsertAll(catalog.partTypes)
             partTypeStore.deactivateMissingCodes(availableCodes)
 
-            val storedTemplates = catalog.weeks.map { remoteWeek ->
-                val weekStartDate = try {
-                    LocalDate.parse(remoteWeek.weekStartDate)
-                } catch (_: DateTimeParseException) {
-                    throw IllegalArgumentException("Data schema non valida: ${remoteWeek.weekStartDate}")
-                }
+            val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
                 val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                    val partType = partTypeStore.findByCode(code)
-                        ?: throw IllegalArgumentException("Part type non trovato dopo import: $code")
-                    partType.id
+                    // All codes were validated against availableCodes above; this lookup should not be null.
+                    checkNotNull(partTypeStore.findByCode(code)) { "Part type non trovato dopo import: $code" }.id
                 }
                 StoredSchemaWeekTemplate(
                     weekStartDate = weekStartDate,
@@ -85,9 +81,10 @@ class AggiornaSchemiUseCase(
                 )
             }
             schemaTemplateStore.replaceAll(storedTemplates)
-        }
 
-        settings.putString("last_schema_import_at", LocalDateTime.now().toString())
+            // Keep metadata update aligned with schema write transaction.
+            settings.putString("last_schema_import_at", LocalDateTime.now().toString())
+        }
 
         AggiornaSchemiResult(
             version = catalog.version,

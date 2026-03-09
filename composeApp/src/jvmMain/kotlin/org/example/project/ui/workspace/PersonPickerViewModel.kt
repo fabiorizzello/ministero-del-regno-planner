@@ -48,6 +48,8 @@ internal class PersonPickerViewModel(
     val state: StateFlow<PersonPickerUiState> = _state.asStateFlow()
 
     private var pickerSuggestionsJob: Job? = null
+    private var storedProgramWeeks: List<WeekPlan> = emptyList()
+    private var storedProgramAssignments: Map<String, List<AssignmentWithPerson>> = emptyMap()
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
@@ -60,6 +62,8 @@ internal class PersonPickerViewModel(
         selectedProgramWeeks: List<WeekPlan>,
         selectedProgramAssignments: Map<String, List<AssignmentWithPerson>>,
     ) {
+        storedProgramWeeks = selectedProgramWeeks
+        storedProgramAssignments = selectedProgramAssignments
         _state.update {
             it.copy(
                 pickerWeekStartDate = weekStartDate,
@@ -72,6 +76,10 @@ internal class PersonPickerViewModel(
             )
         }
         loadSuggestions(selectedProgramWeeks, selectedProgramAssignments)
+    }
+
+    fun reloadSuggestions() {
+        if (_state.value.isPickerOpen) loadSuggestions(storedProgramWeeks, storedProgramAssignments)
     }
 
     fun closePersonPicker() {

@@ -1,5 +1,8 @@
 package org.example.project.feature.assignments.application
 
+/** Penalità di punteggio applicata a chi è in cooldown (spec 005, US2, scenario 3). */
+const val COOLDOWN_PENALTY = 10_000
+
 data class AssignmentSettings(
     val strictCooldown: Boolean = true,
     val leadWeight: Int = 2,

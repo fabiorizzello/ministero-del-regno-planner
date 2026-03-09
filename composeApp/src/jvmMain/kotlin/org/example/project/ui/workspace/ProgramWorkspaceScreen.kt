@@ -4,9 +4,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,13 +26,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -46,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,9 +66,11 @@ import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
+import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
@@ -80,7 +93,7 @@ private fun org.example.project.feature.weeklyparts.domain.WeekPlan.sidebarStatu
     status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED -> WeekSidebarStatus.SKIPPED
     weekStartDate == currentMonday -> WeekSidebarStatus.CURRENT
     weekStartDate < currentMonday -> WeekSidebarStatus.PAST
-    assignedSlots == totalSlots && totalSlots > 0 -> WeekSidebarStatus.COMPLETE
+    assignedSlots >= totalSlots && totalSlots > 0 -> WeekSidebarStatus.COMPLETE
     assignedSlots > 0 -> WeekSidebarStatus.PARTIAL
     else -> WeekSidebarStatus.EMPTY
 }
@@ -110,15 +123,15 @@ fun ProgramWorkspaceScreen() {
         personPickerState.notice,
         partEditorState.notice,
     )
-    val noticeSignature = incomingNotices.joinToString(separator = "|") { "${it.kind}:${it.message}:${it.details.orEmpty()}" }
-
-    LaunchedEffect(Unit) {
-        lifecycleVM.onScreenEntered()
-        assignmentVM.onScreenEntered()
+    val activeNotice = incomingNotices.maxByOrNull { notice ->
+        when (notice.kind) {
+            FeedbackBannerKind.ERROR -> 3
+            FeedbackBannerKind.WARNING -> 2
+            FeedbackBannerKind.SUCCESS -> 1
+        }
     }
 
-    LaunchedEffect(noticeSignature) {
-        if (incomingNotices.isEmpty()) return@LaunchedEffect
+    fun dismissAllNotices() {
         lifecycleVM.dismissNotice()
         schemaVM.dismissNotice()
         assignmentVM.dismissNotice()
@@ -126,17 +139,9 @@ fun ProgramWorkspaceScreen() {
         partEditorVM.dismissNotice()
     }
 
-    // Keep schema VM in sync with lifecycle VM
-    LaunchedEffect(
-        lifecycleState.selectedProgramId,
-        lifecycleState.selectedFutureProgram,
-        lifecycleState.futurePrograms,
-    ) {
-        schemaVM.updateSelection(
-            selectedProgramId = lifecycleState.selectedProgramId,
-            selectedFutureProgram = lifecycleState.selectedFutureProgram,
-            futurePrograms = lifecycleState.futurePrograms,
-        )
+    LaunchedEffect(Unit) {
+        lifecycleVM.onScreenEntered()
+        assignmentVM.onScreenEntered()
     }
 
     // Reload callback for operations that modify data
@@ -150,20 +155,29 @@ fun ProgramWorkspaceScreen() {
         }
         if (pickedPart != null) {
             val slotLabel = if (pickedPart.partType.peopleCount > 1) {
-                if (personPickerState.pickerSlot == 1) "Proclamatore" else "Assistente"
+                if (personPickerState.pickerSlot == 1) "Studente" else "Assistente"
             } else {
                 null
             }
+            val pickerWeekLabel = personPickerState.pickerWeekStartDate?.let {
+                formatWeekRangeLabel(it, it.plusDays(6))
+            } ?: ""
             PersonPickerDialog(
                 partLabel = pickedPart.partType.label,
                 slotLabel = slotLabel,
+                weekLabel = pickerWeekLabel,
                 searchTerm = personPickerState.pickerSearchTerm,
                 sortGlobal = personPickerState.pickerSortGlobal,
+                strictCooldown = assignmentState.assignmentSettings.strictCooldown,
                 suggestions = personPickerState.pickerSuggestions,
                 isLoading = personPickerState.isPickerLoading,
                 isAssigning = personPickerState.isAssigning,
                 onSearchChange = { personPickerVM.setPickerSearchTerm(it) },
                 onToggleSort = { personPickerVM.togglePickerSort() },
+                onStrictCooldownChange = {
+                    assignmentVM.setStrictCooldown(it)
+                    personPickerVM.reloadSuggestions()
+                },
                 onAssign = { personPickerVM.confirmAssignment(it, onSuccess = reloadData) },
                 onDismiss = { personPickerVM.closePersonPicker() },
             )
@@ -173,10 +187,13 @@ fun ProgramWorkspaceScreen() {
     if (partEditorState.isPartEditorOpen) {
         val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
+            val editingWeekAssignments = lifecycleState.selectedProgramAssignments[editingWeek.id.value] ?: emptyList()
+            val editingAssignmentCountsByPart = editingWeekAssignments.groupingBy { it.weeklyPartId }.eachCount()
             PartEditorDialog(
                 weekLabel = formatWeekRangeLabel(editingWeek.weekStartDate, editingWeek.weekStartDate.plusDays(6)),
                 parts = partEditorState.partEditorParts,
                 availablePartTypes = partEditorState.editablePartTypes,
+                assignmentCountsByPart = editingAssignmentCountsByPart,
                 isSaving = partEditorState.isSavingPartEditor,
                 onAddPart = { partEditorVM.addPartToEditor(it.id) },
                 onMovePart = { fromIndex, toIndex -> partEditorVM.movePartInEditor(fromIndex, toIndex) },
@@ -185,6 +202,17 @@ fun ProgramWorkspaceScreen() {
                 onDismiss = { partEditorVM.dismissPartEditor() },
             )
         }
+    }
+
+    if (assignmentState.isAssignmentTicketsDialogOpen) {
+        AssignmentTicketsDialog(
+            monthLabel = lifecycleState.selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: "",
+            tickets = assignmentState.assignmentTickets,
+            partWarnings = assignmentState.assignmentPartWarnings,
+            isLoading = assignmentState.isLoadingAssignmentTickets,
+            errorMessage = assignmentState.assignmentTicketsError,
+            onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
+        )
     }
 
     Column(
@@ -256,7 +284,23 @@ fun ProgramWorkspaceScreen() {
             AlertDialog(
                 onDismissRequest = { pendingAssignmentRemoval = null },
                 title = { Text("Rimuovi assegnazione") },
-                text = { Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.handCursorOnHover().clickable {
+                                assignmentVM.setSkipRemoveConfirm(!assignmentState.skipRemoveConfirm)
+                            },
+                        ) {
+                            Checkbox(
+                                checked = assignmentState.skipRemoveConfirm,
+                                onCheckedChange = { assignmentVM.setSkipRemoveConfirm(it) },
+                            )
+                            Text("Non chiedere più", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                },
                 confirmButton = {
                     DesktopInlineAction(
                         label = "Rimuovi",
@@ -281,7 +325,15 @@ fun ProgramWorkspaceScreen() {
                 onDismissRequest = { lifecycleVM.dismissDeleteSelectedProgram() },
                 title = { Text("Elimina mese") },
                 text = {
-                    Text(buildDeleteProgramImpactMessage(impact))
+                    Column {
+                        Text(buildDeleteProgramImpactMessage(impact))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Questa azione e' irreversibile.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 },
                 confirmButton = {
                     DesktopInlineAction(
@@ -300,18 +352,16 @@ fun ProgramWorkspaceScreen() {
         }
 
         val showLoadingState = lifecycleState.isLoading
-        val showErrorState = !showLoadingState &&
-            lifecycleState.selectedProgramWeeks.isEmpty() &&
-            incomingNotices.any { it.kind == FeedbackBannerKind.ERROR }
+
+        FeedbackBanner(
+            model = activeNotice,
+            onDismissRequest = ::dismissAllNotices,
+        )
+
         when {
             showLoadingState -> WorkspaceStatePane(
                 kind = WorkspaceStateKind.Loading,
                 message = "Caricamento programma in corso...",
-                modifier = Modifier.fillMaxWidth(),
-            )
-            showErrorState -> WorkspaceStatePane(
-                kind = WorkspaceStateKind.Error,
-                message = "Impossibile caricare il programma selezionato.",
                 modifier = Modifier.fillMaxWidth(),
             )
             else -> {
@@ -325,34 +375,27 @@ fun ProgramWorkspaceScreen() {
             ) {
                 val selectedId = lifecycleState.selectedProgramId
                 when (selectedId) {
-                    lifecycleState.currentProgram?.id?.value -> lifecycleState.currentProgram
+                    lifecycleState.currentProgram?.id -> lifecycleState.currentProgram
                     else -> {
-                        lifecycleState.futurePrograms.firstOrNull { it.id.value == selectedId }
+                        lifecycleState.futurePrograms.firstOrNull { it.id == selectedId }
                             ?: lifecycleState.currentProgram
                             ?: lifecycleState.futurePrograms.firstOrNull()
                     }
                 }
             }
-            val totalSlots = remember(lifecycleState.selectedProgramWeeks) {
-                lifecycleState.selectedProgramWeeks.sumOf { week ->
-                    week.parts.sumOf { part -> part.partType.peopleCount }
-                }
-            }
-            val totalAssignments = remember(lifecycleState.selectedProgramAssignments) {
-                lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
-            }
-            val assignmentsById = remember(lifecycleState.selectedProgramAssignments) {
-                lifecycleState.selectedProgramAssignments.values
-                    .flatten()
-                    .associateBy { it.id.value }
-            }
-            val hasFutureWeeks = remember(lifecycleState.selectedProgramWeeks, currentMonday) {
-                lifecycleState.selectedProgramWeeks.any { it.weekStartDate > currentMonday }
-            }
+            val totalSlots = lifecycleState.selectedProgramWeeks
+                .filter { it.status != org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED }
+                .sumOf { week -> week.parts.sumOf { part -> part.partType.peopleCount } }
+            val totalAssignments = lifecycleState.selectedProgramAssignments.values.sumOf { it.size }
+            val assignmentsById = lifecycleState.selectedProgramAssignments.values
+                .flatten()
+                .associateBy { it.id.value }
+            val hasFutureWeeks = lifecycleState.selectedProgramWeeks.any { it.weekStartDate > currentMonday }
             val fromFutureDate = remember(currentMonday) { currentMonday.plusWeeks(1) }
             val sketch = MaterialTheme.workspaceSketch
 
             var selectedWeekId by remember { mutableStateOf<String?>(null) }
+            var pendingSkipWeek by remember { mutableStateOf(false) }
             val effectiveSelectedWeekId = remember(selectedWeekId, lifecycleState.selectedProgramWeeks, currentMonday) {
                 val id = selectedWeekId
                 val weeks = lifecycleState.selectedProgramWeeks
@@ -394,24 +437,30 @@ fun ProgramWorkspaceScreen() {
                         lifecycleState.currentProgram?.let { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = lifecycleState.selectedProgramId == program.id.value,
+                                selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 onClick = {
-                                    lifecycleVM.selectProgram(program.id.value)
+                                    lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
+                            if (program.id in schemaState.impactedProgramIds) {
+                                ProgramMisalignedBadge()
+                            }
                         }
                         lifecycleState.futurePrograms.forEach { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
-                                selected = lifecycleState.selectedProgramId == program.id.value,
+                                selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 onClick = {
-                                    lifecycleVM.selectProgram(program.id.value)
+                                    lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
+                            if (program.id in schemaState.impactedProgramIds) {
+                                ProgramMisalignedBadge()
+                            }
                         }
                         lifecycleState.creatableTargets.forEach { target ->
                             val label = formatMonthYearLabel(target.monthValue, target.year)
@@ -479,6 +528,13 @@ fun ProgramWorkspaceScreen() {
                         }
                     }
 
+                    // Week status legend
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        SidebarLegendRow(label = "Completa", color = sketch.ok)
+                        SidebarLegendRow(label = "Parziale", color = sketch.warn)
+                        SidebarLegendRow(label = "Vuota", color = sketch.lineSoft)
+                    }
+
                     // Footer
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
                     Column(modifier = Modifier.padding(8.dp)) {
@@ -486,7 +542,12 @@ fun ProgramWorkspaceScreen() {
                             label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
                                 "Aggiornamento..." else "Aggiorna schemi",
                             icon = Icons.Filled.Refresh,
-                            onClick = { schemaVM.refreshSchemasAndProgram(onProgramRefreshComplete = reloadData) },
+                            onClick = {
+                                schemaVM.refreshSchemasAndProgram(
+                                    selectedProgramId = lifecycleState.selectedProgramId,
+                                    onProgramRefreshComplete = reloadData,
+                                )
+                            },
                             enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
                         )
                     }
@@ -514,12 +575,49 @@ fun ProgramWorkspaceScreen() {
                         val weekTotalSlots = selectedWeek.parts.sumOf { it.partType.peopleCount }
                         val weekAssignedSlots = weekAssignments.size
                         val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
-                        val isPast = selectedWeek.weekStartDate < currentMonday
                         val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
                         val isCurrent = selectedWeek.weekStartDate == currentMonday
-                        val canMutate = !isPast && !isSkipped
+                        val canMutate = selectedWeek.canBeMutated(currentMonday)
                         val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
                         val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
+
+                        if (pendingSkipWeek) {
+                            val skipHasAssignments = weekAssignments.isNotEmpty()
+                            AlertDialog(
+                                onDismissRequest = { pendingSkipWeek = false },
+                                title = { Text("Salta settimana") },
+                                text = {
+                                    if (skipHasAssignments) {
+                                        Text("La settimana $weekLabel ha ${weekAssignments.size} assegnazioni che verranno cancellate. Continuare?")
+                                    } else {
+                                        Text("La settimana $weekLabel verrà esclusa dal programma. Continuare?")
+                                    }
+                                },
+                                confirmButton = {
+                                    DesktopInlineAction(
+                                        label = "Salta",
+                                        onClick = {
+                                            pendingSkipWeek = false
+                                            if (skipHasAssignments) {
+                                                assignmentVM.confirmClearWeekAssignments(
+                                                    weekStartDate = selectedWeek.weekStartDate,
+                                                    onSuccess = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
+                                                )
+                                            } else {
+                                                partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
+                                            }
+                                        },
+                                        destructive = true,
+                                    )
+                                },
+                                dismissButton = {
+                                    DesktopInlineAction(
+                                        label = "Annulla",
+                                        onClick = { pendingSkipWeek = false },
+                                    )
+                                },
+                            )
+                        }
 
                         WeekDetailHeader(
                             weekLabel = weekLabel,
@@ -528,7 +626,7 @@ fun ProgramWorkspaceScreen() {
                             isSkipped = isSkipped,
                             canMutate = canMutate,
                             onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
-                            onSkipWeek = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
+                            onSkipWeek = { pendingSkipWeek = true },
                             onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
                         )
 
@@ -575,14 +673,14 @@ fun ProgramWorkspaceScreen() {
                                     }
                                 }
                                 else -> {
-                                    val assignmentsByPart = remember(weekAssignments) {
-                                        weekAssignments.groupBy { it.weeklyPartId }
-                                    }
+                                    val assignmentsByPart = weekAssignments.groupBy { it.weeklyPartId }
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                         selectedWeek.parts.chunked(2).forEach { rowParts ->
                                             Row(
                                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(IntrinsicSize.Min),
                                             ) {
                                                 rowParts.forEach { part ->
                                                     val partAssignments = assignmentsByPart[part.id] ?: emptyList()
@@ -603,10 +701,15 @@ fun ProgramWorkspaceScreen() {
                                                         },
                                                         onRemoveAssignment = { assignmentId ->
                                                             val assignment = assignmentsById[assignmentId.value]
-                                                            if (assignment != null) pendingAssignmentRemoval = assignment
-                                                            else personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                            if (assignment != null && !assignmentState.skipRemoveConfirm) {
+                                                                pendingAssignmentRemoval = assignment
+                                                            } else {
+                                                                personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                            }
                                                         },
-                                                        modifier = Modifier.weight(1f),
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .fillMaxHeight(),
                                                     )
                                                 }
                                                 if (rowParts.size == 1) Spacer(Modifier.weight(1f))
@@ -624,7 +727,7 @@ fun ProgramWorkspaceScreen() {
                 // ── Right panel ────────────────────────────────────────────────────────────────
                 Column(
                     modifier = Modifier
-                        .width(248.dp)
+                        .width(296.dp)
                         .fillMaxHeight()
                         .background(sketch.panelRight),
                 ) {
@@ -637,51 +740,62 @@ fun ProgramWorkspaceScreen() {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         // Quick actions row
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            ProgramRightPanelButton(
-                                label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
-                                icon = Icons.Filled.PlayArrow,
-                                isPrimary = false,
-                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isAutoAssigning,
-                                onClick = {
-                                    lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.autoAssignSelectedProgram(programId, fromFutureDate, onSuccess = reloadData)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
-                            ProgramRightPanelButton(
-                                label = if (assignmentState.isClearingAssignments) "..." else "Svuota da...",
-                                icon = Icons.Filled.ClearAll,
-                                isPrimary = false,
-                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
-                                onClick = {
-                                    lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.requestClearAssignments(programId, fromFutureDate)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (lifecycleState.selectedProgramId != null) {
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
+                                    icon = Icons.Filled.PlayArrow,
+                                    isPrimary = true,
+                                    enabled = !assignmentState.isAutoAssigning,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isLoadingAssignmentTickets) "Generazione biglietti..." else "Biglietti assegnazioni",
+                                    icon = Icons.Filled.Image,
+                                    isPrimary = false,
+                                    enabled = !assignmentState.isLoadingAssignmentTickets,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.openAssignmentTickets(programId)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                ProgramRightPanelButton(
+                                    label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
+                                    icon = Icons.Filled.PictureAsPdf,
+                                    isPrimary = false,
+                                    iconColor = MaterialTheme.workspaceSketch.bad,
+                                    enabled = !assignmentState.isPrintingProgram,
+                                    onClick = {
+                                        lifecycleState.selectedProgramId?.let { programId ->
+                                            assignmentVM.printSelectedProgram(programId)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
 
                         // Coverage card (month level)
                         if (selectedProgram != null) {
-                            val (completeWeeks, partialWeeks, emptyWeeks) = remember(
-                                lifecycleState.selectedProgramWeeks,
-                                lifecycleState.selectedProgramAssignments,
-                            ) {
-                                var complete = 0; var partial = 0; var empty = 0
-                                lifecycleState.selectedProgramWeeks.forEach { week ->
-                                    if (week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED) return@forEach
-                                    val a = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
-                                    val t = week.parts.sumOf { it.partType.peopleCount }
-                                    when {
-                                        a == t && t > 0 -> complete++
-                                        a > 0 -> partial++
-                                        else -> empty++
-                                    }
+                            var completeWeeks = 0
+                            var partialWeeks = 0
+                            var emptyWeeks = 0
+                            lifecycleState.selectedProgramWeeks.forEach { week ->
+                                if (week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED) return@forEach
+                                val assigned = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                val total = week.parts.sumOf { it.partType.peopleCount }
+                                when {
+                                    assigned >= total && total > 0 -> completeWeeks++
+                                    assigned > 0 -> partialWeeks++
+                                    else -> emptyWeeks++
                                 }
-                                Triple(complete, partial, empty)
                             }
                             ProgramCoverageCard(
                                 programLabel = formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
@@ -703,8 +817,8 @@ fun ProgramWorkspaceScreen() {
                             Box(modifier = Modifier.testTag("program-assignment-settings")) {
                                 ProgramInlineAssignmentSettings(
                                     state = assignmentState.assignmentSettings,
-                                    isSaving = assignmentState.isSavingAssignmentSettings,
-                                    onStrictCooldownChange = assignmentVM::setStrictCooldown,
+                                    skipRemoveConfirm = assignmentState.skipRemoveConfirm,
+                                    onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
                                     onLeadWeightChange = assignmentVM::setLeadWeight,
                                     onAssistWeightChange = assignmentVM::setAssistWeight,
                                     onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
@@ -723,9 +837,19 @@ fun ProgramWorkspaceScreen() {
                     // Danger zone (pinned to bottom)
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
                     Column(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
+                        Text(
+                            "AZIONI IRREVERSIBILI",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                fontSize = 9.sp,
+                                letterSpacing = 0.6.sp,
+                            ),
+                            color = sketch.bad.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+                        )
                         if (hasFutureWeeks) {
                             ProgramDangerButton(
                                 label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni future",
@@ -756,7 +880,7 @@ fun ProgramWorkspaceScreen() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(24.dp)
-                        .background(sketch.accent)
+                        .background(sketch.panelLeft)
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -764,27 +888,27 @@ fun ProgramWorkspaceScreen() {
                     Text(
                         formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.88f),
+                        color = sketch.inkSoft,
                     )
-                    Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                    Box(Modifier.height(12.dp).width(1.dp).background(sketch.lineStrong.copy(alpha = 0.5f)))
                     if (selectedWeek != null) {
                         Text(
                             "Settimana ${formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))}",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                            color = Color.White.copy(alpha = 0.88f),
+                            color = sketch.inkSoft,
                         )
-                        Box(Modifier.height(12.dp).width(1.dp).background(Color.White.copy(alpha = 0.25f)))
+                        Box(Modifier.height(12.dp).width(1.dp).background(sketch.lineStrong.copy(alpha = 0.5f)))
                     }
                     Text(
                         "$totalAssignments/$totalSlots slot",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.88f),
+                        color = sketch.inkSoft,
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         lifecycleState.today.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ITALIAN)),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = sketch.inkMuted,
                     )
                 }
             }
@@ -808,15 +932,34 @@ private fun ProgramMonthSelectorButton(
     enabled: Boolean = true,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val border = if (selected) accent.copy(alpha = 0.58f) else sketch.lineSoft
-    val container = if (selected) accent.copy(alpha = 0.14f) else sketch.surface
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val border = when {
+        selected -> accent.copy(alpha = 0.58f)
+        focused -> accent.copy(alpha = 0.65f)
+        else -> sketch.lineSoft
+    }
+    val container = when {
+        selected -> accent.copy(alpha = 0.14f)
+        focused -> accent.copy(alpha = 0.1f)
+        hovered -> sketch.surfaceMuted
+        else -> sketch.surface
+    }
     val content = if (selected) accent else sketch.inkSoft
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(10.dp),
         color = container,
         border = BorderStroke(1.dp, border),
@@ -826,6 +969,8 @@ private fun ProgramMonthSelectorButton(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
             style = MaterialTheme.typography.titleSmall,
             color = content.copy(alpha = if (enabled) 1f else 0.45f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -833,8 +978,8 @@ private fun ProgramMonthSelectorButton(
 @Composable
 private fun ProgramInlineAssignmentSettings(
     state: AssignmentSettingsUiState,
-    isSaving: Boolean,
-    onStrictCooldownChange: (Boolean) -> Unit,
+    skipRemoveConfirm: Boolean,
+    onSkipRemoveConfirmChange: (Boolean) -> Unit,
     onLeadWeightChange: (String) -> Unit,
     onAssistWeightChange: (String) -> Unit,
     onLeadCooldownChange: (String) -> Unit,
@@ -856,33 +1001,20 @@ private fun ProgramInlineAssignmentSettings(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Strict cooldown",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = sketch.inkSoft,
-                )
-                DesktopToggle(
-                    checked = state.strictCooldown,
-                    onToggle = onStrictCooldownChange,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
                 DesktopNumericField(
                     label = "Peso conduzione",
                     value = state.leadWeight,
                     onValueChange = onLeadWeightChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
                 DesktopNumericField(
                     label = "Peso assistenza",
                     value = state.assistWeight,
                     onValueChange = onAssistWeightChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -894,23 +1026,32 @@ private fun ProgramInlineAssignmentSettings(
                     label = "Cooldown conduzione",
                     value = state.leadCooldownWeeks,
                     onValueChange = onLeadCooldownChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
                 DesktopNumericField(
                     label = "Cooldown assistenza",
                     value = state.assistCooldownWeeks,
                     onValueChange = onAssistCooldownChange,
+                    onBlur = onSave,
                     modifier = Modifier.weight(1f),
                 )
             }
-            DesktopInlineAction(
-                label = if (isSaving) "Salvataggio..." else "Salva",
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .handCursorOnHover(enabled = !isSaving),
-                enabled = !isSaving,
-                onClick = onSave,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Rimuovi senza conferma",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkSoft,
+                )
+                DesktopToggle(
+                    checked = skipRemoveConfirm,
+                    onToggle = onSkipRemoveConfirmChange,
+                )
+            }
         }
     }
 }
@@ -921,20 +1062,31 @@ private fun DesktopToggle(
     onToggle: (Boolean) -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
     val trackColor = if (checked) {
         sketch.accent.copy(alpha = 0.72f)
     } else {
-        sketch.lineSoft
+        sketch.lineStrong
     }
     Surface(
         modifier = Modifier
             .width(42.dp)
             .height(24.dp)
             .handCursorOnHover()
-            .clickable { onToggle(!checked) },
+            .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+            ) { onToggle(!checked) },
         shape = RoundedCornerShape(999.dp),
-        color = trackColor,
-        border = BorderStroke(1.dp, trackColor.copy(alpha = 0.9f)),
+        color = if (focused || hovered) trackColor.copy(alpha = 0.92f) else trackColor,
+        border = BorderStroke(
+            1.dp,
+            if (focused) sketch.accent.copy(alpha = 0.8f) else trackColor.copy(alpha = 0.9f),
+        ),
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(3.dp)) {
             Box(
@@ -952,9 +1104,12 @@ private fun DesktopNumericField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
+    onBlur: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
+    var wasFocused by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -968,7 +1123,10 @@ private fun DesktopNumericField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
             color = sketch.surfaceMuted,
-            border = BorderStroke(1.dp, sketch.lineSoft),
+            border = BorderStroke(
+                1.dp,
+                if (isFocused) sketch.accent.copy(alpha = 0.75f) else sketch.lineSoft,
+            ),
         ) {
             BasicTextField(
                 value = value,
@@ -982,7 +1140,14 @@ private fun DesktopNumericField(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = sketch.ink),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .onFocusChanged { focusState ->
+                        if (wasFocused && !focusState.hasFocus && value.isNotBlank()) {
+                            onBlur()
+                        }
+                        isFocused = focusState.hasFocus
+                        wasFocused = focusState.hasFocus
+                    },
             )
         }
     }
@@ -997,7 +1162,10 @@ private fun DesktopInlineAction(
     onClick: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val alpha = if (enabled) 1f else 0.45f
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val alpha = if (enabled) 1f else 0.72f
     val borderColor = if (destructive) {
         sketch.bad.copy(alpha = 0.85f * alpha)
     } else {
@@ -1008,20 +1176,38 @@ private fun DesktopInlineAction(
     } else {
         sketch.inkSoft.copy(alpha = alpha)
     }
+    val containerColor = when {
+        enabled && destructive && focused -> sketch.bad.copy(alpha = 0.14f)
+        enabled && destructive && hovered -> sketch.bad.copy(alpha = 0.08f)
+        enabled && focused -> sketch.accentSoft.copy(alpha = 0.8f)
+        enabled && hovered -> sketch.surface
+        else -> sketch.surfaceMuted
+    }
     Surface(
         modifier = modifier
             .handCursorOnHover(enabled = enabled)
-            .clickable(enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource)
+            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(10.dp),
-        color = sketch.surfaceMuted,
-        border = BorderStroke(1.dp, borderColor),
+        color = containerColor,
+        border = BorderStroke(
+            1.dp,
+            if (focused && enabled && !destructive) sketch.accent.copy(alpha = 0.72f) else borderColor,
+        ),
     ) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             style = MaterialTheme.typography.labelMedium,
             color = textColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
-

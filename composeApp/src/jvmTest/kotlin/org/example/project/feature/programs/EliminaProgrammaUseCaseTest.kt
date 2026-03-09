@@ -2,18 +2,17 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
-import org.example.project.feature.programs.application.EliminaProgrammaFuturoUseCase
+import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
-import org.example.project.feature.weeklyparts.application.WeekPlanStore
-import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.TestWeekPlanStore
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
-import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -30,8 +29,8 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "current")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
-            val useCase = EliminaProgrammaFuturoUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val weekStore = DeleteWeekStore(program.id)
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
 
@@ -47,8 +46,8 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
-            val useCase = EliminaProgrammaFuturoUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val weekStore = DeleteWeekStore(program.id)
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
 
@@ -62,19 +61,20 @@ class EliminaProgrammaUseCaseTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 1), id = "past")
             val programStore = DeleteProgramStore(program)
-            val weekStore = DeleteWeekStore(program.id.value)
-            val useCase = EliminaProgrammaFuturoUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val weekStore = DeleteWeekStore(program.id)
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
 
             val result = useCase(program.id, referenceDate)
 
-            assertTrue(result.isLeft())
+            val left = assertIs<Either.Left<DomainError>>(result).value
+            assertEquals(DomainError.ProgrammaPassatoNonEliminabile, left)
             assertTrue(programStore.deletedPrograms.isEmpty())
         }
     }
 }
 
 private class PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend () -> T): T = block()
+    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class DeleteProgramStore(
@@ -83,9 +83,6 @@ private class DeleteProgramStore(
     val deletedPrograms = mutableListOf<ProgramMonthId>()
 
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> = listOf(program)
-
-    override suspend fun findByYearMonth(year: Int, month: Int): ProgramMonth? =
-        if (program.year == year && program.month == month) program else null
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = if (id == program.id) program else null
 
@@ -103,41 +100,11 @@ private class DeleteProgramStore(
 }
 
 private class DeleteWeekStore(
-    private val programId: String,
-) : WeekPlanStore {
+    private val programId: ProgramMonthId,
+) : TestWeekPlanStore() {
     val deletedWeeks = mutableListOf<WeekPlanId>()
 
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? = null
-
-    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
-
-    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-
-    override suspend fun save(weekPlan: WeekPlan) {
-        // no-op
-    }
-
-    override suspend fun delete(weekPlanId: WeekPlanId) {
-        deletedWeeks.add(weekPlanId)
-    }
-
-    override suspend fun addPart(weekPlanId: WeekPlanId, partTypeId: PartTypeId, sortOrder: Int): WeeklyPartId {
-        return WeeklyPartId("part")
-    }
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {
-        // no-op
-    }
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {
-        // no-op
-    }
-
-    override suspend fun replaceAllParts(weekPlanId: WeekPlanId, partTypeIds: List<PartTypeId>) {
-        // no-op
-    }
-
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> {
         if (programId != this.programId) return emptyList()
         return listOf(
             WeekPlan(
@@ -155,5 +122,10 @@ private class DeleteWeekStore(
                 status = WeekPlanStatus.ACTIVE,
             ),
         )
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun deleteByProgram(programId: ProgramMonthId) {
+        deletedWeeks += listByProgram(programId).map { week -> week.id }
     }
 }

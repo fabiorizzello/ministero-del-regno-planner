@@ -10,8 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.assignments.application.CaricaStoricoAssegnazioniPersonaUseCase
-import org.example.project.feature.assignments.domain.PersonAssignmentHistory
+import org.example.project.core.domain.toMessage
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -30,6 +29,8 @@ import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
+import org.example.project.ui.components.warningNotice
+import java.time.LocalDate
 
 internal data class LeadEligibilityOptionUi(
     val partTypeId: PartTypeId,
@@ -43,10 +44,9 @@ internal data class LeadEligibilityOptionUi(
 private data class LoadedProclamatoreData(
     val proclamatore: Proclamatore,
     val options: List<LeadEligibilityOptionUi>,
-    val history: PersonAssignmentHistory,
 )
 
-private class ProclamatoreNotFoundException : Exception("Proclamatore non trovato")
+private class ProclamatoreNotFoundException : Exception("Studente non trovato")
 
 private class SubmitFormDomainError(val domainError: DomainError) : Exception(domainError.toString())
 
@@ -68,8 +68,6 @@ internal data class ProclamatoreFormUiState(
     val puoAssistere: Boolean = false,
     val leadEligibilityOptions: List<LeadEligibilityOptionUi> = emptyList(),
     val showFieldErrors: Boolean = false,
-    val assignmentHistory: PersonAssignmentHistory? = null,
-    val isHistoryExpanded: Boolean = false,
 ) {
     private fun currentLeadEligibilityByPartType(): Map<PartTypeId, Boolean> {
         return leadEligibilityOptions.associate { option ->
@@ -112,7 +110,6 @@ internal class ProclamatoreFormViewModel(
     private val impostaIdoneitaConduzione: ImpostaIdoneitaConduzioneUseCase,
     private val partTypeStore: PartTypeStore,
     private val verificaDuplicato: VerificaDuplicatoProclamatoreUseCase,
-    private val caricaStoricoAssegnazioni: CaricaStoricoAssegnazioniPersonaUseCase,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoreFormUiState())
     val uiState: StateFlow<ProclamatoreFormUiState> = _uiState.asStateFlow()
@@ -221,10 +218,6 @@ internal class ProclamatoreFormViewModel(
         }
     }
 
-    fun toggleHistoryExpanded() {
-        _uiState.update { it.copy(isHistoryExpanded = !it.isHistoryExpanded) }
-    }
-
     fun clearForm() {
         _uiState.update {
             it.copy(
@@ -271,7 +264,6 @@ internal class ProclamatoreFormViewModel(
                         sospeso = result.proclamatore.sospeso,
                         puoAssistere = result.proclamatore.puoAssistere,
                         leadEligibilityOptions = result.options,
-                        assignmentHistory = result.history,
                         formError = null,
                         duplicateError = null,
                         isCheckingDuplicate = false,
@@ -295,11 +287,9 @@ internal class ProclamatoreFormViewModel(
                         sesso = loaded.sesso,
                         selected = eligibilityByPartType,
                     )
-                    val history = caricaStoricoAssegnazioni(id)
                     LoadedProclamatoreData(
                         proclamatore = loaded,
                         options = options,
-                        history = history,
                     )
                 },
             )
@@ -326,21 +316,25 @@ internal class ProclamatoreFormViewModel(
 
             _uiState.executeAsyncOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
-                successUpdate = { currentState, _: Unit ->
+                successUpdate = { currentState, futureWeeks: List<LocalDate> ->
                     val operation = if (capturedRoute == ProclamatoriRoute.Nuovo) {
-                        "Proclamatore aggiunto"
+                        "Studente aggiunto"
                     } else {
-                        "Proclamatore aggiornato"
+                        "Studente aggiornato"
                     }
                     val details = personDetails(capturedNome, capturedCognome)
                     clearForm()
-                    onSuccess(successNotice("$operation: $details"))
+                    val banner = if (futureWeeks.isNotEmpty()) {
+                        warningNotice("$operation: $details — sospeso con ${futureWeeks.size} assegnazioni future da verificare")
+                    } else {
+                        successNotice("$operation: $details")
+                    }
+                    onSuccess(banner)
                     currentState.copy(isLoading = false)
                 },
                 errorUpdate = { currentState, error ->
                     val errorMessage = when (error) {
-                        is SubmitFormDomainError -> (error.domainError as? DomainError.Validation)?.message
-                            ?: "Operazione non completata"
+                        is SubmitFormDomainError -> error.domainError.toMessage()
                         else -> "Errore: ${error.message}"
                     }
                     currentState.copy(
@@ -349,8 +343,11 @@ internal class ProclamatoreFormViewModel(
                     )
                 },
                 operation = {
-                    val saveResult = if (capturedRoute == ProclamatoriRoute.Nuovo) {
-                        crea(
+                    val futureWeeks: List<LocalDate>
+                    val person: Proclamatore
+
+                    if (capturedRoute == ProclamatoriRoute.Nuovo) {
+                        person = crea(
                             CreaProclamatoreUseCase.Command(
                                 nome = capturedNome,
                                 cognome = capturedCognome,
@@ -358,9 +355,13 @@ internal class ProclamatoreFormViewModel(
                                 sospeso = state.sospeso,
                                 puoAssistere = state.puoAssistere,
                             ),
+                        ).fold(
+                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                            ifRight = { it },
                         )
+                        futureWeeks = emptyList()
                     } else {
-                        aggiorna(
+                        val outcome = aggiorna(
                             AggiornaProclamatoreUseCase.Command(
                                 id = requireNotNull(currentEditId),
                                 nome = capturedNome,
@@ -369,18 +370,19 @@ internal class ProclamatoreFormViewModel(
                                 sospeso = state.sospeso,
                                 puoAssistere = state.puoAssistere,
                             ),
+                        ).fold(
+                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
+                            ifRight = { it },
                         )
+                        person = outcome.proclamatore
+                        futureWeeks = outcome.futureWeeksWhereAssigned
                     }
-
-                    val person = saveResult.fold(
-                        ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
-                        ifRight = { it },
-                    )
 
                     persistLeadEligibilityAsEither(person, capturedOptions).fold(
                         ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
                         ifRight = { },
                     )
+                    futureWeeks
                 },
             )
         }
@@ -404,7 +406,7 @@ internal class ProclamatoreFormViewModel(
             _uiState.update {
                 it.copy(
                     duplicateError = if (exists) {
-                        "Esiste gia' un proclamatore con questo nome e cognome"
+                        "Esiste già uno studente con questo nome e cognome"
                     } else {
                         null
                     },
@@ -467,7 +469,7 @@ internal class ProclamatoreFormViewModel(
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean {
         return when (sexRule) {
             SexRule.UOMO -> sesso == Sesso.M
-            SexRule.LIBERO -> true
+            SexRule.STESSO_SESSO -> true
         }
     }
 }

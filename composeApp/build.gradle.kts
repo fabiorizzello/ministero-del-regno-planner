@@ -1,4 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.api.tasks.JavaExec
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JvmVendorSpec
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -6,11 +9,19 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.kover)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
     jvm()
-    jvmToolchain(17)
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+        vendor.set(JvmVendorSpec.JETBRAINS)
+    }
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -24,14 +35,22 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.arrow.core)
+            implementation(libs.konform)
             implementation(libs.voyager.navigator)
             implementation(libs.reorderable)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        jvmTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.mockk)
+        }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+            implementation(libs.jna.platform)
+            implementation(libs.jewel.int.ui.standalone)
+            implementation(libs.jewel.int.ui.decorated.window)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.sqlite.driver)
@@ -42,6 +61,38 @@ kotlin {
             implementation(libs.multiplatform.settings)
             implementation(libs.pdfbox)
             implementation(libs.jsoup)
+            implementation(libs.kotlin.logging)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.java)
+            implementation(libs.ktor.client.logging)
+        }
+    }
+}
+
+val jetbrainsRuntimeLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(21))
+    vendor.set(JvmVendorSpec.JETBRAINS)
+}
+
+tasks.withType<JavaExec>().configureEach {
+    javaLauncher.set(jetbrainsRuntimeLauncher)
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                packages(
+                    "org.example.project.ui",
+                    "org.example.project.db",
+                    "org.example.project.core.cli",
+                )
+            }
+        }
+        total {
+            html {
+                onCheck = false
+            }
         }
     }
 }

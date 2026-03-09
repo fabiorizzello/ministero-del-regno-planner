@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.FeedbackBannerKind
-import org.example.project.ui.components.workspace.WorkspacePanel
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
@@ -55,8 +55,8 @@ fun ProclamatoriScreen() {
     val rootFocusRequester = remember { FocusRequester() }
 
     listState.deleteCandidate?.let { candidate ->
-        ConfirmDeleteDialog(
-            title = "Rimuovi proclamatore",
+        ConfirmDeleteDialogComponent(
+            title = "Rimuovi studente",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmDeleteCandidate() },
             onDismiss = { listVm.dismissDeleteCandidate() },
@@ -76,18 +76,42 @@ fun ProclamatoriScreen() {
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Questa azione e' irreversibile.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }
 
     if (listState.showBatchDeleteConfirm) {
-        ConfirmDeleteDialog(
-            title = "Rimuovi proclamatori selezionati",
+        ConfirmDeleteDialogComponent(
+            title = "Rimuovi studenti selezionati",
             isLoading = listState.isLoading,
             onConfirm = { listVm.confirmBatchDelete() },
             onDismiss = { listVm.dismissBatchDeleteConfirm() },
         ) {
-            Text("Confermi rimozione di ${listState.selectedIds.size} proclamatori selezionati?")
+            Column {
+                Text("Confermi rimozione di ${listState.selectedIds.size} studenti selezionati?")
+                val batchCount = listState.batchDeleteAssignmentCount
+                if (batchCount > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (batchCount == 1) "Attenzione: 1 assegnazione verra' cancellata."
+                               else "Attenzione: $batchCount assegnazioni verranno cancellate.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Questa azione e' irreversibile.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
     }
 
@@ -131,7 +155,7 @@ fun ProclamatoriScreen() {
         rootFocusRequester.requestFocus()
     }
 
-    WorkspacePanel(
+    Column(
         modifier = Modifier
             .fillMaxHeight()
             .focusRequester(rootFocusRequester)
@@ -157,33 +181,22 @@ fun ProclamatoriScreen() {
                     }
                     else -> false
                 }
-            },
+            }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
     ) {
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.lg),
-        ) {
             val showLoadingState = listState.isLoading && listState.allItems.isEmpty()
             val showErrorState = !listState.isLoading &&
                 listState.allItems.isEmpty() &&
                 listState.notice?.kind == FeedbackBannerKind.ERROR
-            val showEmptyState = !listState.isLoading &&
-                listState.allItems.isEmpty() &&
-                listState.notice == null &&
-                listState.searchTerm.isBlank()
-
             when {
                 showLoadingState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Loading,
-                    message = "Caricamento proclamatori in corso...",
+                    message = "Caricamento studenti in corso...",
                 )
                 showErrorState -> WorkspaceStatePane(
                     kind = WorkspaceStateKind.Error,
-                    message = "Impossibile caricare l'elenco proclamatori.",
-                )
-                showEmptyState -> WorkspaceStatePane(
-                    kind = WorkspaceStateKind.Empty,
-                    message = "Nessun proclamatore disponibile.",
+                    message = "Impossibile caricare l'elenco studenti.",
                 )
             }
 
@@ -195,8 +208,6 @@ fun ProclamatoriScreen() {
                     onSortChange = { nextSort -> listVm.setSort(nextSort) },
                     onToggleSelectPage = { pageIds, checked -> listVm.toggleSelectPage(pageIds, checked) },
                     onToggleRowSelected = { id, checked -> listVm.setRowSelected(id, checked) },
-                    onActivateSelected = { listVm.activateSelected() },
-                    onDeactivateSelected = { listVm.deactivateSelected() },
                     onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
                     onClearSelection = { listVm.clearSelection() },
                     onGoNuovo = { goToNuovo() },
@@ -205,29 +216,27 @@ fun ProclamatoriScreen() {
                     onEdit = { id ->
                         formVm.loadForEdit(
                             id = id,
-                            onNotFound = { listVm.setNotice(errorNotice("Proclamatore non trovato")) },
+                            onNotFound = { listVm.setNotice(errorNotice("Studente non trovato")) },
                             onSuccess = { route = ProclamatoriRoute.Modifica(id) },
                         )
                     },
-                    onToggleActive = { id, next -> listVm.toggleActive(id, next) },
                     onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
                     onPreviousPage = { listVm.goToPreviousPage() },
                     onNextPage = { listVm.goToNextPage() },
                 )
             }
 
-            ProclamatoriElencoContent(
+            ProclamatoriElencoContentTable(
                 state = listState,
                 searchFocusRequester = searchFocusRequester,
                 tableListState = tableListState,
                 canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
                 events = elencoEvents,
             )
-        }
     }
 
     if (isFormRoute) {
-        ProclamatoriFormDialog(
+        ProclamatoriFormDialogComponent(
             route = route,
             nome = formState.nome,
             onNomeChange = { formVm.setNome(it) },
@@ -244,9 +253,6 @@ fun ProclamatoriScreen() {
                 formVm.setLeadEligibility(partTypeId, checked)
             },
             onSetAllEligibilityChange = { checked -> formVm.setAllEligibility(checked) },
-            assignmentHistory = formState.assignmentHistory,
-            isHistoryExpanded = formState.isHistoryExpanded,
-            onToggleHistoryExpanded = { formVm.toggleHistoryExpanded() },
             nomeTrim = formState.nome.trim(),
             cognomeTrim = formState.cognome.trim(),
             showFieldErrors = formState.showFieldErrors,
@@ -258,6 +264,15 @@ fun ProclamatoriScreen() {
             onSubmit = { submitAndNavigate() },
             onCancel = { goToListManual() },
             onDismiss = { goToListManual() },
+            onDelete = currentEditId?.let { editId ->
+                {
+                    val candidate = listState.allItems.find { it.id == editId }
+                    if (candidate != null) {
+                        goToListManual()
+                        listVm.requestDeleteCandidate(candidate)
+                    }
+                }
+            },
         )
     }
 }

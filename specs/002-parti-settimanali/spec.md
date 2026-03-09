@@ -112,9 +112,10 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - `AggiornaDatiRemotiUseCase` — flusso in due fasi:
   1. `fetchAndImport()`: scarica tipi di parte e schemi; per le settimane già presenti
      localmente restituisce `weeksNeedingConfirmation` invece di sovrascriverle.
-  2. `importSchemas(schemas)`: sovrascrive le settimane confermate dall'utente (elimina
-     il WeekPlan esistente e ricrea da zero). L'utente deve confermare esplicitamente
-     prima della fase 2.
+  2. `importSchemas(schemas)`: valida prima tutte le date (fuori da DB), poi esegue
+     eliminazione + ricreazione di ogni settimana dentro **una singola transazione**.
+     Se un'operazione fallisce a metà, il DB torna allo stato precedente. L'utente deve
+     confermare esplicitamente prima della fase 2.
 
 ## Requirements *(mandatory)*
 
@@ -137,9 +138,9 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   settimanali da sorgente remoto su richiesta, in due fasi:
   (1) `fetchAndImport`: scarica e applica; le settimane già presenti vengono segnalate
   in `weeksNeedingConfirmation` senza sovrascrivere;
-  (2) `importSchemas`: sovrascrive le settimane confermate dall'utente dopo conferma
-  esplicita. Ogni schema con settimana già presente DEVE essere confermato prima della
-  sovrascrittura.
+  (2) `importSchemas`: valida tutte le date upfront, poi sovrascrive le settimane
+  confermate in **una singola transazione atomica** — se una qualsiasi sovrascrittura
+  fallisce, l'intera fase 2 viene annullata senza modifiche parziali al DB.
 - **FR-008**: Il sistema MUST caricare un WeekPlan per data di inizio settimana, o
   restituire null se non esiste.
 
@@ -148,13 +149,16 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - **WeekPlan**: id (UUID), weekStartDate (sempre lunedì), parts (lista ordinata),
   programId (opzionale, FK a ProgramMonth), status (ACTIVE | SKIPPED).
 - **WeeklyPart**: id (UUID), partType (FK), sortOrder. Appartiene a un WeekPlan.
-- **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | LIBERO),
+- **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | STESSO_SESSO),
   fixed (boolean), sortOrder. Catalogo dei tipi di parte disponibili.
-- **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot; LIBERO = stesso
-  sesso OPPURE sesso diverso solo se i proclamatori assegnati agli slot sono in
-  relazione familiare (CONIUGE o GENITORE_FIGLIO). `LIBERO` NON significa "qualsiasi
-  persona" — vedere spec 001 (RelazioneProclam) e spec 005 (FR-002) per dettaglio
-  completo della regola.
+- **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot;
+  STESSO_SESSO = attualmente **non filtrante** (`passaSesso = true` in tutto il codice di
+  suggerimento) — nessun candidato viene escluso per sesso. Il flag `sexMismatch` viene
+  calcolato e annotato sul `SuggestedProclamatore` (sesso diverso da chi è già assegnato
+  nella parte) ma non blocca la selezione manuale. In auto-assign (`AutoAssegnaProgrammaUseCase`)
+  i candidati con `sexMismatch = true` sono esclusi (trattati come hard filter).
+  La semantica originale "stesso sesso o CONIUGE/GENITORE_FIGLIO" non è implementata —
+  è un gap intenzionale documentato (vedere Clarifications).
 
 ## Success Criteria *(mandatory)*
 
@@ -180,5 +184,26 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - Q: AggiornaDatiRemotiUseCase ha fasi distinte? → A: Sì — `fetchAndImport()` è la
   prima fase (skippa settimane esistenti, restituisce `weeksNeedingConfirmation`);
   `importSchemas(schemas)` è la seconda fase (sovrascrive dopo conferma utente).
-- Q: SexRule.LIBERO nella spec 002 era errata? → A: Sì — aggiornata a: stesso sesso
-  OPPURE sesso diverso solo se CONIUGE/GENITORE_FIGLIO (allineato a spec 001 e 005).
+- Q: SexRule.STESSO_SESSO nella spec 002 era errata? → A: Sì — la descrizione originale
+  "stesso sesso OPPURE CONIUGE/GENITORE_FIGLIO" descriveva il comportamento atteso non
+  implementato. Il codice attuale tratta STESSO_SESSO come non filtrante (`passaSesso = true`).
+  La logica familiare CONIUGE/GENITORE_FIGLIO è un gap intenzionale, non prioritizzato.
+
+### Session 2026-03-03
+
+- Q: `importSchemas` era atomica? → A: No — ora è stata resa atomica: validazione date
+  upfront (fuori transazione, fail-fast), poi tutta la fase di delete+create dentro una
+  singola transazione `TransactionRunner`.
+
+### Session 2026-03-05
+
+- Q: STESSO_SESSO e auto-assign: comportamento uniforme o diverso? → A: Diverso per
+  design: nel suggerimento manuale `sexMismatch` è un'annotazione soft (il candidato
+  appare ma evidenziato); in `AutoAssegnaProgrammaUseCase` è un hard filter
+  (`firstOrNull { !it.sexMismatch && !it.inCooldown }`). La differenza è intenzionale:
+  l'auto-assign è conservativo; l'utente manuale può sovrascrivere. Questo comportamento
+  asimmetrico è deliberato ma non ancora documentato nella spec 005 come decisione
+  formale.
+- Q: `WeekPlan.programId` è tipato come `String?` o come `ProgramMonthId?`? → A:
+  Attualmente è `String?` nel codice — tech debt noto (TYPE-001 in review-notes).
+  Non è un `ProgramMonthId` value class. Da correggere in una sessione dedicata.

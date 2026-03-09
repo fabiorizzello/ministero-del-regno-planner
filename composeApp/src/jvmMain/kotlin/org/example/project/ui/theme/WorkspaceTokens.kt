@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 
 data class WorkspaceTokens(
     val windowRadius: Dp = 12.dp,
-    val panelRadius: Dp = 16.dp,
+    val panelRadius: Dp = 10.dp,
     val headerRadius: Dp = 10.dp,
     val controlRadius: Dp = 10.dp,
     val cardRadius: Dp = 14.dp,

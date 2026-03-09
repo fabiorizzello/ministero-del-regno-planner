@@ -1,6 +1,7 @@
 package org.example.project.feature.programs.application
 
 import org.example.project.feature.programs.domain.ProgramMonth
+import org.example.project.feature.programs.domain.ProgramMonthAggregate
 import org.example.project.feature.programs.domain.ProgramTimelineStatus
 import java.time.LocalDate
 
@@ -18,9 +19,7 @@ class CaricaProgrammiAttiviUseCase(
         val futures = programs
             .filter { it.timelineStatus(referenceDate) == ProgramTimelineStatus.FUTURE }
             .sortedBy { it.startDate }
-            .take(MAX_FUTURE_PROGRAMS)
+            .take(ProgramMonthAggregate.MAX_FUTURE_PROGRAMS)
         return ProgramSelectionSnapshot(current = current, futures = futures)
     }
 }
-
-private const val MAX_FUTURE_PROGRAMS = 2

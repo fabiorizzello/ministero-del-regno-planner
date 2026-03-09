@@ -37,8 +37,8 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 ### User Story 2 - Suggerimento automatico dei candidati (Priority: P1)
 
 Per ogni slot di ogni parte, il sistema suggerisce una lista ordinata di proclamatori
-idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `LIBERO` non filtrante),
-idoneità, stato sospeso/attivo, cooldown dall'ultima assegnazione globale e specifica
+idonei, tenendo conto di: regola sesso (`UOMO` filtrante, `STESSO_SESSO` non filtrante),
+idoneità, stato `sospeso`, cooldown dall'ultima assegnazione globale e specifica
 per quel tipo di parte, e parametri configurabili (peso ruolo, settimane cooldown).
 
 **Why this priority**: Il suggerimento è il cuore del valore aggiunto dell'app —
@@ -52,7 +52,7 @@ dall'ultima assegnazione decrescenti.
 
 1. **Given** proclamatori con storie di assegnazione diverse, **When** si richiedono
    suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso quando
-   applicabile, idoneità, non sospesi/non inattivi) ordinati per score
+   applicabile, idoneità, non sospesi) ordinati per score
    (globale × peso + tipo-parte − penalità cooldown).
 2. **Given** un proclamatore in cooldown e `strictCooldown = true`, **When** si
    richiedono suggerimenti, **Then** il proclamatore in cooldown non appare.
@@ -81,8 +81,8 @@ avviare auto-assegnazione → verificare che gli slot abbiano almeno un'assegnaz
 **Acceptance Scenarios**:
 
 1. **Given** un programma con settimane future con slot liberi, **When** si avvia
-   auto-assegnazione, **Then** ogni slot libero viene riempito con il miglior
-   candidato disponibile.
+   auto-assegnazione, **Then** ogni slot libero viene riempito con il primo candidato
+   che non è in cooldown E non ha `sexMismatch = true`.
 2. **Given** uno slot senza candidati idonei, **When** si esegue auto-assegnazione,
    **Then** lo slot viene aggiunto alla lista `unresolved` con reason "Nessun candidato
    idoneo".
@@ -117,27 +117,6 @@ successive per slot 1.
 
 ---
 
-### User Story 5 - Storico assegnazioni di un proclamatore (Priority: P2)
-
-L'utente vuole vedere lo storico delle assegnazioni di un proclamatore specifico,
-con il totale per tipo di parte e l'elenco cronologico completo.
-
-**Why this priority**: Permette di verificare manualmente l'equità della distribuzione
-degli incarichi.
-
-**Independent Test**: Assegnare un proclamatore 3 volte a tipi diversi → caricare
-lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
-
-**Acceptance Scenarios**:
-
-1. **Given** un proclamatore con assegnazioni passate, **When** si carica lo storico,
-   **Then** vengono restituite tutte le assegnazioni con tipo-parte, data settimana,
-   slot e ruolo (Conduttore/Assistente).
-2. **Given** lo storico, **When** si accede al riepilogo, **Then** viene mostrato il
-   conteggio per tipo di parte.
-
----
-
 ### Edge Cases
 
 - Rimozione assegnazioni di una settimana intera (`RimuoviAssegnazioniSettimana`):
@@ -150,7 +129,7 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Nel workspace UI, il reset di una singola settimana (`Rimuovi assegnazioni`) è
   disponibile solo per settimane future; per la settimana corrente non deve essere
   mostrato.
-- Slot = 1 → ruolo "Conduttore"; slot >= 2 → ruolo "Assistente" (determinato dal
+- Slot = 1 → ruolo "Studente"; slot >= 2 → ruolo "Assistente" (determinato dal
   modello `AssignmentHistoryEntry.role`).
 - Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
   ci sono più parti nella stessa settimana (`isPersonAssignedInWeek` cross-parte).
@@ -184,8 +163,6 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
   di tutte le assegnazioni di una settimana, o delle assegnazioni di un programma a
   partire da una data (`SvuotaAssegnazioniProgramma(programId, fromDate)`). Il metodo
   `count(programId, fromDate)` MUST essere disponibile per preview prima di `execute`.
-- **FR-010**: Il sistema MUST consentire il caricamento dello storico assegnazioni
-  per proclamatore con riepilogo per tipo-parte.
 - **FR-011**: Il sistema MUST persistere le impostazioni assegnatore (cooldownWeeks,
   weights, strictCooldown) e applicarle ad ogni esecuzione del suggeritore.
 - **FR-012**: Nel workspace UI, la rimozione di una singola assegnazione MUST richiedere
@@ -195,18 +172,31 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 
 ### Key Entities
 
-- **Assignment**: id, weeklyPartId, personId, slot (>= 1). Slot 1 = conduttore.
+- **Assignment**: id, weeklyPartId, personId, slot (>= 1). Slot 1 = studente.
 - **AssignmentWithPerson**: join di Assignment con dati anagrafici del proclamatore.
 - **SuggestedProclamatore**: proclamatore + lastGlobalWeeks + lastForPartTypeWeeks
-  + inCooldown + cooldownRemainingWeeks.
-- **PersonAssignmentHistory**: lista di AssignmentHistoryEntry con summaryByPartType
-  e totalAssignments.
+  + lastConductorWeeks + lastGlobalBeforeWeeks + lastGlobalAfterWeeks
+  + lastForPartTypeBeforeWeeks + lastForPartTypeAfterWeeks
+  + inCooldown + cooldownRemainingWeeks + sexMismatch.
+  `lastGlobalWeeks` = settimane dall'ultima assegnazione in **qualsiasi ruolo** (absolute,
+  anche se l'assegnazione è nel futuro).
+  `lastConductorWeeks` = settimane dall'ultima assegnazione come conduttore (slot 1);
+  se `lastConductorWeeks == lastGlobalWeeks` l'ultima assegnazione era come conduttore.
+  `lastGlobalBeforeWeeks` / `lastGlobalAfterWeeks` = settimane dell'assegnazione globale
+  più recente prima e più vicina dopo la data di riferimento (usate per display UI).
+  `lastForPartTypeBeforeWeeks` / `lastForPartTypeAfterWeeks` = analogo ma per il tipo-parte.
+  `sexMismatch` = true se il sesso del candidato differisce da chi è già assegnato nella
+  parte (rilevante solo con SexRule.STESSO_SESSO). Annotazione soft nel suggerimento
+  manuale; hard filter in auto-assign.
 - **AssignmentSettings**: `strictCooldown: Boolean = true`, `leadWeight: Int = 2`,
   `assistWeight: Int = 1`, `leadCooldownWeeks: Int = 4`, `assistCooldownWeeks: Int = 2`.
   Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown) e 1
   (pesi). Le impostazioni di default sono applicate se non ancora configurate.
-- **SexRule** (da feature weeklyparts): `UOMO` = filtro su soli proclamatori maschi;
-  `LIBERO` = nessun filtro di sesso nella logica di suggerimento attuale.
+- **SexRule** (da feature weeklyparts): `UOMO` = filtro hard su soli proclamatori maschi;
+  `STESSO_SESSO` = non filtrante nel suggerimento manuale (`passaSesso = true`), ma
+  hard filter in `AutoAssegnaProgrammaUseCase` (`!it.sexMismatch`). Il campo
+  `sexMismatch` sul `SuggestedProclamatore` segnala la discrepanza di sesso senza
+  bloccare l'assegnazione manuale.
 
 ## Success Criteria *(mandatory)*
 
@@ -227,7 +217,7 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
   → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
   dove cooldownPenalty = 10.000 se in cooldown.
-- Q: SexRule.LIBERO significato reale? → A: Nello stato attuale del codice è non
+- Q: SexRule.STESSO_SESSO significato reale? → A: Nello stato attuale del codice è non
   filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
   applicato solo su `SexRule.UOMO`.
 - Q: Esistono vincoli di validazione slot confermati dal codice? → A: Sì — (1) slot deve
@@ -240,3 +230,39 @@ lo storico → verificare che compaia un totale di 3 assegnazioni con dettaglio.
 - Q: AssignmentSettings default confermati dal codice? → A: strictCooldown=true,
   leadWeight=2, assistWeight=1, leadCooldownWeeks=4, assistCooldownWeeks=2.
   Metodo `normalized()` coerces valori negativi.
+
+### Session 2026-03-03
+
+- Q: Il cooldown usa le settimane dall'ultima assegnazione in qualsiasi ruolo o per
+  ruolo specifico? → A: Il cooldown è basato sull'**ultima assegnazione in qualsiasi
+  ruolo** (`lastGlobalWeeks`). La soglia dipende dall'*ultimo ruolo svolto* e dal ruolo
+  *target*: se l'ultima era da conduttore E il target è conduttore → `leadCooldownWeeks`;
+  altrimenti → `assistCooldownWeeks`. `lastConductorWeeks` in `SuggestedProclamatore`
+  traccia l'ultima da conduttore (slot 1); se `lastConductorWeeks == lastGlobalWeeks`
+  l'ultima assegnazione era come conduttore. Query SQL: `lastGlobalAssignmentPerPerson`
+  (qualsiasi ruolo), `lastSlot1GlobalAssignmentPerPerson` (per determinare l'ultimo ruolo).
+- Q: Qual è il label di ruolo per slot 1 e slot >= 2? → A: Slot 1 = "Studente",
+  slot >= 2 = "Assistente". Uniformato in tutti gli output (storico, PDF mensile,
+  PDF settimanale, PNG). `AssignmentHistoryEntry.role` restituisce "Studente" per
+  slot 1. La funzione `slotToRoleLabel(slot: Int): String` nel domain model
+  `Assignment.kt` è la fonte canonica.
+
+### Session 2026-03-05
+
+- Q: Il check `slot <= 1` vs `slot == 1` per determinare il ruolo conduttore è
+  corretto? → A: Deve essere `slot == 1`. Il dominio garantisce `slot >= 1` per
+  invariante (`Assignment.init`), quindi `<= 1` era equivalente ma fuorviante.
+  Il codice è stato allineato a `slot == 1` in `SuggerisciProclamatoriUseCase`.
+- Q: `cooldownPenalty = 10.000` è un valore hardcoded o una costante? → A: È ora
+  una costante named `COOLDOWN_PENALTY = 10_000` in `AssignmentSettings.kt`
+  (package `assignments.application`). Il valore è invariato.
+- Q: `sexMismatch` in auto-assign vs manuale: il comportamento è intenzionalmente
+  diverso? → A: Sì. Nel suggerimento manuale `sexMismatch` è un'annotazione soft
+  (candidato visibile, evidenziato in UI). In `AutoAssegnaProgrammaUseCase` è hard:
+  `suggestions.firstOrNull { !it.sexMismatch && !it.inCooldown }`. L'auto-assign
+  è conservativo per design — preferisce non assegnare piuttosto che violare la
+  preferenza di sesso. Questa asimmetria è deliberata.
+- Q: I campi `lastGlobalDays`, `lastForPartTypeDays`, `lastGlobalInFuture`,
+  `lastForPartTypeInFuture` esistono ancora su `SuggestedProclamatore`? → A: No —
+  erano calcolati nell'infrastruttura ma non usati né dalla UI né dal domain scoring.
+  Rimossi in sessione di review (branch 001-align-sketch-ui).

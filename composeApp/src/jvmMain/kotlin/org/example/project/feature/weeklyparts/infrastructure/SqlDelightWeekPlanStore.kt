@@ -1,36 +1,43 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
 import org.example.project.db.MinisteroDatabase
+import org.example.project.core.persistence.TransactionScope
+import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
+import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
-import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.slf4j.LoggerFactory
 import java.time.LocalDate
-import java.util.UUID
+
+private val logger = LoggerFactory.getLogger("SqlDelightWeekPlanStore")
+
+private fun parseStatusOrDefault(raw: String): WeekPlanStatus =
+    WeekPlanStatus.entries.find { it.name == raw }
+        ?: run {
+            logger.warn("WeekPlanStatus sconosciuto '{}' -> fallback a ACTIVE", raw)
+            WeekPlanStatus.ACTIVE
+        }
+
+private data class WeekPlanRow(
+    val id: String,
+    val weekStartDate: String,
+    val programId: String?,
+    val status: String,
+)
 
 class SqlDelightWeekPlanStore(
     private val database: MinisteroDatabase,
 ) : WeekPlanStore {
 
-    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? {
-        val dateStr = weekStartDate.toString()
-        val row = database.ministeroDatabaseQueries
-            .findWeekPlanByDate(dateStr)
-            .executeAsOneOrNull() ?: return null
-
-        val parts = database.ministeroDatabaseQueries
-            .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
-            .executeAsList()
-
-        return WeekPlan(
-            id = WeekPlanId(row.id),
-            weekStartDate = weekStartDate,
-            parts = parts,
-        )
-    }
+    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? =
+        loadAggregateByDate(weekStartDate)?.weekPlan
 
     override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> {
         return database.ministeroDatabaseQueries
@@ -53,119 +60,159 @@ class SqlDelightWeekPlanStore(
             }
     }
 
-    override suspend fun save(weekPlan: WeekPlan) {
-        database.ministeroDatabaseQueries.insertWeekPlan(
-            id = weekPlan.id.value,
-            week_start_date = weekPlan.weekStartDate.toString(),
-        )
-    }
+    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? =
+        loadAggregateByDateAndProgram(weekStartDate, programId)?.weekPlan
 
-    override suspend fun delete(weekPlanId: WeekPlanId) {
-        database.ministeroDatabaseQueries.deleteWeekPlan(weekPlanId.value)
-    }
+    override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> =
+        listAggregatesByProgram(programId).map { aggregate -> aggregate.weekPlan }
 
-    override suspend fun addPart(
-        weekPlanId: WeekPlanId,
-        partTypeId: PartTypeId,
-        sortOrder: Int,
-    ): WeeklyPartId {
-        val id = UUID.randomUUID().toString()
-        database.ministeroDatabaseQueries.insertWeeklyPart(
-            id = id,
-            week_plan_id = weekPlanId.value,
-            part_type_id = partTypeId.value,
-            sort_order = sortOrder.toLong(),
-        )
-        return WeeklyPartId(id)
-    }
-
-    override suspend fun removePart(weeklyPartId: WeeklyPartId) {
-        database.ministeroDatabaseQueries.deleteWeeklyPart(weeklyPartId.value)
-    }
-
-    override suspend fun updateSortOrders(parts: List<Pair<WeeklyPartId, Int>>) {
-        database.ministeroDatabaseQueries.transaction {
-            parts.forEach { (id, order) ->
-                database.ministeroDatabaseQueries.updateWeeklyPartSortOrder(
-                    sort_order = order.toLong(),
-                    id = id.value,
-                )
-            }
-        }
-    }
-
-    override suspend fun replaceAllParts(
-        weekPlanId: WeekPlanId,
-        partTypeIds: List<PartTypeId>,
-    ) {
-        database.ministeroDatabaseQueries.transaction {
-            database.ministeroDatabaseQueries.deleteAllPartsForWeek(weekPlanId.value)
-            partTypeIds.forEachIndexed { index, partTypeId ->
-                database.ministeroDatabaseQueries.insertWeeklyPart(
-                    id = UUID.randomUUID().toString(),
-                    week_plan_id = weekPlanId.value,
-                    part_type_id = partTypeId.value,
-                    sort_order = index.toLong(),
-                )
-            }
-        }
-    }
-
-    override suspend fun saveWithProgram(weekPlan: WeekPlan, programId: String, status: WeekPlanStatus) {
-        database.ministeroDatabaseQueries.insertWeekPlanWithProgram(
-            id = weekPlan.id.value,
-            week_start_date = weekPlan.weekStartDate.toString(),
-            program_id = programId,
-            status = status.name,
-        )
-    }
-
-    override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: String): WeekPlan? {
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? {
         val row = database.ministeroDatabaseQueries
-            .findWeekPlanByDateAndProgram(weekStartDate.toString(), programId)
+            .findWeekPlanByDate(weekStartDate.toString()) { id, week_start_date, program_id, status ->
+                WeekPlanRow(
+                    id = id,
+                    weekStartDate = week_start_date,
+                    programId = program_id,
+                    status = status,
+                )
+            }
             .executeAsOneOrNull() ?: return null
 
+        return loadAggregate(row)
+    }
+
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? {
+        val row = database.ministeroDatabaseQueries
+            .findWeekPlanById(weekPlanId.value) { id, week_start_date, program_id, status ->
+                WeekPlanRow(
+                    id = id,
+                    weekStartDate = week_start_date,
+                    programId = program_id,
+                    status = status,
+                )
+            }
+            .executeAsOneOrNull() ?: return null
+
+        return loadAggregate(row)
+    }
+
+    override suspend fun loadAggregateByDateAndProgram(
+        weekStartDate: LocalDate,
+        programId: ProgramMonthId,
+    ): WeekPlanAggregate? {
+        val row = database.ministeroDatabaseQueries
+            .findWeekPlanByDateAndProgram(weekStartDate.toString(), programId.value) { id, week_start_date, program_id, status ->
+                WeekPlanRow(
+                    id = id,
+                    weekStartDate = week_start_date,
+                    programId = program_id,
+                    status = status,
+                )
+            }
+            .executeAsOneOrNull() ?: return null
+
+        return loadAggregate(row)
+    }
+
+    override suspend fun listAggregatesByProgram(programId: ProgramMonthId): List<WeekPlanAggregate> {
+        val rows = database.ministeroDatabaseQueries
+            .listWeekPlansByProgram(programId.value) { id, week_start_date, program_id, status ->
+                WeekPlanRow(
+                    id = id,
+                    weekStartDate = week_start_date,
+                    programId = program_id,
+                    status = status,
+                )
+            }
+            .executeAsList()
+
+        return rows.map { row -> loadAggregate(row) }
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        persistAggregate(aggregate)
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun replaceProgramAggregates(
+        programId: ProgramMonthId,
+        aggregates: List<WeekPlanAggregate>,
+    ) {
+        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId.value)
+        aggregates.forEach { aggregate ->
+            val normalized = aggregate.copy(
+                weekPlan = aggregate.weekPlan.copy(programId = programId),
+            )
+            persistAggregate(normalized)
+        }
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun deleteByProgram(programId: ProgramMonthId) {
+        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId.value)
+    }
+
+    private fun persistAggregate(aggregate: WeekPlanAggregate) {
+        val week = aggregate.weekPlan
+        database.ministeroDatabaseQueries.upsertWeekPlan(
+            id = week.id.value,
+            week_start_date = week.weekStartDate.toString(),
+            program_id = week.programId?.value,
+            status = week.status.name,
+        )
+
+        database.ministeroDatabaseQueries.deleteAssignmentsForWeek(week.id.value)
+        database.ministeroDatabaseQueries.deleteAllPartsForWeek(week.id.value)
+
+        week.parts.forEach { part ->
+            database.ministeroDatabaseQueries.insertWeeklyPart(
+                id = part.id.value,
+                week_plan_id = week.id.value,
+                part_type_id = part.partType.id.value,
+                part_type_revision_id = part.partTypeRevisionId,
+                sort_order = part.sortOrder.toLong(),
+            )
+        }
+
+        aggregate.assignments.forEach { assignment ->
+            database.ministeroDatabaseQueries.upsertAssignment(
+                id = assignment.id.value,
+                weekly_part_id = assignment.weeklyPartId.value,
+                person_id = assignment.personId.value,
+                slot = assignment.slot.toLong(),
+            )
+        }
+    }
+
+    private fun loadAggregate(row: WeekPlanRow): WeekPlanAggregate {
+        val weekId = WeekPlanId(row.id)
         val parts = database.ministeroDatabaseQueries
             .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
             .executeAsList()
 
-        val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
-        return WeekPlan(
-            id = WeekPlanId(row.id),
-            weekStartDate = LocalDate.parse(row.week_start_date),
-            parts = parts,
-            programId = row.program_id,
-            status = status,
-        )
-    }
-
-    override suspend fun listByProgram(programId: String): List<WeekPlan> {
-        return database.ministeroDatabaseQueries
-            .listWeekPlansByProgram(programId)
-            .executeAsList()
-            .map { row ->
-                val parts = database.ministeroDatabaseQueries
-                    .partsForWeek(row.id, ::mapWeeklyPartWithTypeRow)
-                    .executeAsList()
-                val status = runCatching { WeekPlanStatus.valueOf(row.status) }.getOrDefault(WeekPlanStatus.ACTIVE)
-                WeekPlan(
-                    id = WeekPlanId(row.id),
-                    weekStartDate = LocalDate.parse(row.week_start_date),
-                    parts = parts,
-                    programId = row.program_id,
-                    status = status,
+        val assignments = database.ministeroDatabaseQueries
+            .assignmentsForWeek(row.id) { id, weekly_part_id, person_id, slot, _, _, _ ->
+                Assignment(
+                    id = AssignmentId(id),
+                    weeklyPartId = WeeklyPartId(weekly_part_id),
+                    personId = ProclamatoreId(person_id),
+                    slot = slot.toInt(),
                 )
             }
-    }
+            .executeAsList()
 
-    override suspend fun deleteByProgram(programId: String) {
-        database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId)
-    }
+        val weekPlan = WeekPlan(
+            id = weekId,
+            weekStartDate = LocalDate.parse(row.weekStartDate),
+            parts = parts,
+            programId = row.programId?.let(::ProgramMonthId),
+            status = parseStatusOrDefault(row.status),
+        )
 
-    override suspend fun updateWeekStatus(weekPlanId: WeekPlanId, status: WeekPlanStatus) {
-        database.ministeroDatabaseQueries.updateWeekPlanStatus(
-            status = status.name,
-            id = weekPlanId.value,
+        return WeekPlanAggregate(
+            weekPlan = weekPlan,
+            assignments = assignments,
         )
     }
 }
