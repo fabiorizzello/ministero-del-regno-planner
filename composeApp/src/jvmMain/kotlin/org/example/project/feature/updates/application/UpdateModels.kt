@@ -22,5 +22,4 @@ data class UpdateCheckResult(
     val updateAvailable: Boolean,
     val asset: UpdateAsset?,
     val checkedAt: Instant,
-    val error: String? = null,
 )
