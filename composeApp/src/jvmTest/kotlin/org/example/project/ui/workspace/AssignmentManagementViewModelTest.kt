@@ -237,7 +237,7 @@ class AssignmentManagementViewModelTest {
             weekStart = LocalDate.of(2026, 3, 2),
             weekEnd = LocalDate.of(2026, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente", partNumber = 3)),
+            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
         )
         coEvery { genera.generateProgramTickets(programId) } returns TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList())
 
@@ -261,7 +261,7 @@ class AssignmentManagementViewModelTest {
                     weekStart = LocalDate.of(2026, 3, 2),
                     weekEnd = LocalDate.of(2026, 3, 8),
                     imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-                    assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente", partNumber = 3)),
+                    assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
                 ),
             ),
             warnings = emptyList(),

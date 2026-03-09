@@ -186,9 +186,24 @@ Il skill `review-codebase` risponderà a:
 **"Fix approvato"** → procedi alla Fase 7.
 
 **"Fix parziale o nuovi finding emersi"** →
-- Se i nuovi finding sono separabili e di bassa severità: committali come finding aperti in `review-notes.md`, procedi al merge.
-- Se i nuovi finding bloccanti: correggili nel worktree corrente prima di procedere.
-- Se il fix non risolve il problema: torna alla Fase 1 con la nuova comprensione.
+
+Classifica ogni nuovo finding emerso dalla review:
+
+**Trivial (dead code, import inutilizzato, parametro non usato, nome fuorviante):**
+- Correggilo **subito nel worktree corrente**, nello stesso commit o in uno aggiuntivo.
+- Non aprire un finding in `review-notes.md` — risolverlo ora costa meno che tracciarlo.
+
+**Importante (nuovo rischio architetturale, bug potenziale, violazione DDD/Either/TransactionScope):**
+- **Non fixare nel worktree corrente** — potrebbe allargare la scope incontrollatamente.
+- Aggiungilo in `review-notes.md` nella sezione "Findings aperti" con severità e evidenze.
+- Procedi al merge del worktree attuale come previsto.
+
+**Bloccante (il fix originale non funziona o introduce regressioni):**
+- Correggilo nel worktree corrente prima di procedere al merge.
+- Se richiede scope molto più ampia: torna alla Fase 1 con la nuova comprensione.
+
+**Se il fix non risolve il problema originale:**
+- Torna alla Fase 1 con la nuova comprensione acquisita.
 
 ---
 

@@ -9,30 +9,12 @@
    - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` (line 258-261) — espansione del problema con nuovi metodi.
    - Evidenze: `StampaProgrammaUseCase.kt:117`, `GeneraPdfAssegnazioni.kt:30`, `GeneraImmaginiAssegnazioni.kt:83,104,258-261`.
 
-3. `SqlDelightSchemaTemplateStore.replaceAll()` e `SqlDelightSchemaUpdateAnomalyStore.append()` aprono transazione manuale interna.
-   - `database.ministeroDatabaseQueries.transaction { }` in entrambi crea una transazione **nidificata** dentro `transactionRunner.runInTransaction { }` di `AggiornaSchemiUseCase`.
-   - Viola il pattern "esattamente 1 transazione per use case mutante". L'atomicità non è garantita.
-   - Evidenze: `SqlDelightSchemaTemplateStore.kt:15`, `SqlDelightSchemaUpdateAnomalyStore.kt:16`, `AggiornaSchemiUseCase.kt:56,82`.
-
-4. `AggiornaSchemiUseCase.kt:75` — `checkNotNull()` dentro transazione non mappato a `DomainError`.
-   - Se succede, lancia `IllegalStateException` non catturata. Unico punto nel codebase dove un errore interno alla transazione bypassa il modello Either. Fix richiede aggiungere `allByCode()` allo store o ristrutturare la tx (medium effort, misclassificato inizialmente).
-   - Evidenza: `AggiornaSchemiUseCase.kt:75`.
-
-17. `SqlDelightProclamatoriStore.persistAll()` e `SqlDelightPartTypeStore.upsertAll()` / `deactivateMissingCodes()` aprono transazioni interne — nidificata come High-3.
-    - Quando chiamati da dentro `AggiornaSchemiUseCase` (già in `runInTransaction`), il commit interno avviene prima dell'outer. Colpisce anche `ImportaProclamatoriDaJsonUseCase` (nessuna outer transaction).
-    - Evidenze: `SqlDelightProclamatoriStore.kt:23`, `SqlDelightPartTypeStore.kt:46,97`, `AggiornaSchemiUseCase.kt:69-70`, `ImportaProclamatoriDaJsonUseCase.kt:45`.
-
 42. `AssignmentRepository` interface — tutti i metodi di mutazione privi di `context(TransactionScope)`.
     - Il problema è nell'**interfaccia** `AssignmentStore.kt` (righe 17-23): `save`, `remove`, `removeAllByWeekPlan`, `removeAllForPerson`, `deleteByProgramFromDate` sono `suspend` plain. A differenza di `WeekPlanStore` che dichiara `context(tx: TransactionScope) suspend fun saveAggregate(...)`, il boundary assignment non ha nessun enforcement statico.
     - Il compilatore non impedisce di chiamare queste mutation fuori da `runInTransaction`. Altri use case che chiamano `save()` dentro `runInTransaction` sono corretti solo per disciplina, non per contratto.
     - Evidenze: `AssignmentStore.kt:17-23`, `WeekPlanStore.kt:25-27` (confronto — pattern atteso), `SqlDelightAssignmentStore.kt:43,52,56,223,227`.
 
 ### Medium
-
-36. `AggiornaProgrammaDaSchemiUseCase` — eccezione privata `RefreshFailed` come control flow interno.
-    - `private class RefreshFailed(val error: DomainError) : Exception()` (riga 31) viene lanciata per uscire da un `fold` annidato (riga 139) e catturata immediatamente (riga 99) per convertire a `raise(e.error)`. Anti-pattern: si usa un'eccezione come `goto` dentro un blocco `either{}`. Alternativa: usare `Raise<DomainError>` direttamente nel metodo interno.
-    - Rischio contenuto (catch immediato), ma difficile da leggere e fragile se la catena di chiamate cambia.
-    - Evidenza: `AggiornaProgrammaDaSchemiUseCase.kt:31,99,139`.
 
 2. Copertura integration migliorabile sui boundary esterni.
    - HTTP client e PDF rendering ancora poco coperti.
@@ -60,21 +42,17 @@
     - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient`, `UpdateScheduler` non hanno nessun test.
     - Evidenza: `feature/updates/application/*.kt`, `feature/updates/infrastructure/*.kt`.
 
-21. `SuggerisciProclamatoriUseCase` — N+1 residuo su `assignmentRepository.listByWeek()` per rilevazione `requiredSex`.
-   - **Parzialmente risolto**: in `AutoAssegnaProgrammaUseCase` il batch load è ottimizzato (`listByWeekPlanIds` + `preloadSuggestionRanking`). Il N+1 persiste solo nel flusso **manuale** (`SuggerisciProclamatoriUseCase.kt:48`).
-   - Evidenze: `SuggerisciProclamatoriUseCase.kt:48`, `AutoAssegnaProgrammaUseCase.kt:52,61`.
-
 ### Low
 
 - `SqlDelightSchemaUpdateAnomalyStore.append()` non è idempotente: ogni chiamata genera nuovo UUID, retry accumula duplicati.
 - **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alcuni test passano date non-lunedì senza conseguenze visibili oggi. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
   - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
-- **Finding 25**: `AssignmentWithPerson` init block lancia `IllegalArgumentException` se `slot < 1`. Se un record DB corrotto ha `slot=0`, l'app crasha nel load invece di restituire un `DomainError`.
-  - Evidenze: `AssignmentWithPerson.kt:15`, `SqlDelightAssignmentStore.kt:36`.
-- **Finding 37**: `CaricaProgrammiAttiviUseCase` — restituisce `ProgramSelectionSnapshot` direttamente senza `Either`. Use case read-only: nessun rischio transazionale, ma inconsistente con il pattern codebase (la maggior parte delle query restituisce Either). Se il repository lancia un'eccezione, il ViewModel non la gestisce come DomainError.
-  - Evidenza: `CaricaProgrammiAttiviUseCase.kt:15`.
-- **Finding 38**: `SuggerisciProclamatoriUseCase` — `alreadyAssignedIds: Set<ProclamatoreId> = emptySet()` non viene aggiornato internamente tra chiamate successive per slot consecutivi della stessa parte. Il caller (ViewModel) deve passare un set aggiornato ad ogni invocazione. Contratto fragile: se il VM non aggiorna il set, la stessa persona può essere suggerita per slot 1 e slot 2 della stessa parte.
-  - Evidenza: `SuggerisciProclamatoriUseCase.kt:24,81`.
+- **Finding 43** (emerso da review post-fix Medium 21/38): `PersonPickerViewModel` porta parametri inutilizzati `selectedProgramWeeks`/`selectedProgramAssignments` in `openPersonPicker`, `loadSuggestions`, `reloadSuggestions` e i campi `storedProgramWeeks`/`storedProgramAssignments`. Dead code confusionario dopo il fix che ha spostato il carico degli assignments dentro il use case. Il caller `ProgramWorkspaceScreen.kt` passa ancora questi valori inutilmente.
+  - Evidenze: `PersonPickerViewModel.kt:51-52,65-66,147-148`, `ProgramWorkspaceScreen.kt:698-699`.
+- **Finding 44** (emerso da review post-fix Finding 25): `mapAssignmentWithPersonRow` in `AssignmentRowMapper.kt` è `internal` ma ancora callable direttamente dal package `infrastructure`, bypassando la guard `slot >= 1` in `toAssignmentWithPersonOrNull()`. Considerare renderla `private`.
+  - Evidenza: `AssignmentRowMapper.kt`.
+- **Finding 45** (emerso da review post-fix Finding 37/25): `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` usa `.getOrElse { throw RuntimeException(...) }` + `runCatching` invece di propagare l'Either direttamente. Anti-pattern wrapping/unwrapping non necessario.
+  - Evidenza: `SchemaManagementViewModel.kt`.
 
 ## Verifiche eseguite
 
@@ -87,12 +65,14 @@
 - Totale test JVM: `222` | Failure: `0` | Error: `0`
 - `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-09, fix High 16 + Medium 35)
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
+- `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-09, Batch 0+1 findings fixer — 7 finding risolti)
+- Totale test JVM: `226` | Failure: `0` | Error: `0`
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **non ancora production-ready**.
 
-Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) transazioni nidificate/mancanti in schemas (High 3, High 17) e use case senza TX (High 4), (3) `AssignmentRepository` interface senza capability token (High 42), (4) copertura test zero su feature/updates (Medium 15), (5) Medium 36 (RefreshFailed anti-pattern in AggiornaProgrammaDaSchemiUseCase).
+Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) `AssignmentRepository` interface senza capability token (High 42), (3) copertura test zero su feature/updates (Medium 15), (4) `KonformValidation` lancia IAE (Medium 14), (5) `TransactionRunner` runBlocking (Medium 10).
 
 Sessione 2026-03-09 (1): verificata feature/output post-implementazione biglietti. High 1 risolto. Aggiunti Finding 33 (GeneraPdfAssegnazioni dead code), Finding 34 (mkdirs unchecked). Aggiornate evidenze linea per High 2 e Medium 6.
 Sessione 2026-03-09 (2): aggiunto ordinamento biglietti per sortOrder parte + partNumber in AssignmentTicketLine. Aggiunto Finding 41 (PART_DISPLAY_NUMBER_OFFSET DRY violation). 222 test, 0 failure.
@@ -100,3 +80,4 @@ Sessione 2026-03-09 (3): review di verifica post-modifiche. Confermati validi: H
 Ralph Loop iterazioni 2-5: analisi parallela di feature/people, feature/programs, feature/assignments, core/, feature/schemas, feature/updates. Aggiunti Medium 35 (ImpostaIdoneita senza TX), Medium 36 (RefreshFailed anti-pattern), Finding 37 (CaricaProgrammiAttiviUseCase no Either), Finding 38 (alreadyAssignedIds fragile contract), Finding 39 (MAX_FUTURE_PROGRAMS domain→application layer violation), Finding 40 (InMemoryProgramStore DRY), High 42 (AssignmentRepository interface senza context(TransactionScope) — diversamente da WeekPlanStore che lo ha). Aggiornato Medium 14 con callers PartType e Proclamatore. Confermato: no TODO nel codebase; tutte le weeklyparts mutation use case hanno TransactionRunner; AggiornaProgrammaDaSchemiUseCase correttamente wired con TransactionRunner; dryRun=true path testato.
 Ralph Loop iterazione 6 (fix low-effort): risolti High 5, Medium 6, Medium 12, Medium 18, Finding 29, 30, 31, 32, 33, 34, 39, 40, 41. Finding 37 lasciato aperto intenzionalmente (troppi caller VM da aggiornare, rischio sproporzionato per use case read-only). BUILD SUCCESSFUL, test tutti verdi.
 Sessione successiva: risolti High 16 e Medium 35 (TransactionRunner per use case people). Estratto ImmediateTransactionRunner in PeopleTestFixtures.kt. Aggiunti 4 test ImpostaIdoneita. 226 test, 0 failure.
+Sessione 2026-03-09 (findings fixer Batch 0+1): risolti Medium 36, Medium 21, Finding 38, Finding 37, Finding 25, High 3, High 4, High 17. Aggiunti Finding 43 (dead code PersonPickerViewModel), Finding 44 (mapAssignmentWithPersonRow non private), Finding 45 (SchemaManagementViewModel wrapping Either). 226 test, 0 failure.

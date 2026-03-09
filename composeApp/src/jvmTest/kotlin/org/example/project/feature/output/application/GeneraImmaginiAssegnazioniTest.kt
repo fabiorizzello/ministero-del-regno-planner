@@ -32,6 +32,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class GeneraImmaginiAssegnazioniTest {
 
@@ -97,8 +98,8 @@ class GeneraImmaginiAssegnazioniTest {
         val result = useCase.generateProgramTickets(programId)
 
         assertEquals(listOf("Zeno Alfa", "Anna Bianchi"), result.tickets.map { it.fullName })
-        assertEquals("Studente", result.tickets.first().assignments.single().roleLabel)
-        assertEquals("Studente", result.tickets.last().assignments.single().roleLabel)
+        assertNull(result.tickets.first().assignments.single().roleLabel)
+        assertNull(result.tickets.last().assignments.single().roleLabel)
         assertTrue(result.tickets.all { Files.exists(it.imagePath) })
         assertTrue(result.tickets.all { it.imagePath.fileName.toString().startsWith("biglietto-2026-03-") })
         assertFalse(Files.exists(tempDir.resolve("biglietto-2026-03-legacy.png")))

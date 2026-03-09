@@ -15,6 +15,7 @@ import org.apache.pdfbox.rendering.PDFRenderer
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -30,7 +31,7 @@ private val monthImagePrefixFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
 
 data class AssignmentTicketLine(
     val partLabel: String,
-    val roleLabel: String,
+    val roleLabel: String?,
     val partNumber: Int,
 )
 
@@ -321,13 +322,10 @@ private fun partDisplayLabel(part: WeeklyPart): String = part.snapshot?.label ?:
 private fun slotRoleLabel(
     part: WeeklyPart,
     slot: Int,
-): String = if (part.partType.peopleCount <= 1 || slot == 1) {
-    "Studente"
-} else {
-    "Assistente"
-}
+): String? = if (part.partType.peopleCount > 1 && slot > 1) "Assistente" else null
 
-private fun buildSheetAssignmentLabel(line: AssignmentTicketLine): String = "${line.partNumber}. ${line.partLabel} (${line.roleLabel})"
+private fun buildSheetAssignmentLabel(line: AssignmentTicketLine): String =
+    "${line.partNumber}. ${line.partLabel}${line.roleLabel?.let { " ($it)" } ?: ""}"
 
 private fun sanitizeFileName(fullName: String): String = fullName
     .trim()

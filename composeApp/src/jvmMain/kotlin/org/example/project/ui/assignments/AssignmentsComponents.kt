@@ -39,6 +39,7 @@ import androidx.compose.ui.window.DialogProperties
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
+
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId

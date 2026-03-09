@@ -27,16 +27,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Image
@@ -408,26 +407,25 @@ internal fun PartEditorDialog(
     }
 }
 
-private sealed interface TicketGridRow {
-    data class WeekHeader(val weekStart: LocalDate, val weekEnd: LocalDate) : TicketGridRow
-    data class Card(val ticket: AssignmentTicketImage) : TicketGridRow
-    data class PartWarning(val warning: PartAssignmentWarning) : TicketGridRow
-}
+private data class WeekSection(
+    val weekStart: LocalDate,
+    val weekEnd: LocalDate,
+    val cards: List<AssignmentTicketImage>,
+    val warnings: List<PartAssignmentWarning>,
+)
 
-private fun buildTicketGridRows(
+private fun buildWeekSections(
     tickets: List<AssignmentTicketImage>,
     warnings: List<PartAssignmentWarning>,
-): List<TicketGridRow> = buildList {
+): List<WeekSection> {
     val ticketsByWeek = tickets.groupBy { it.weekStart }
     val warningsByWeek = warnings.groupBy { it.weekStart }
     val allWeekStarts = (ticketsByWeek.keys + warningsByWeek.keys).toSortedSet()
-    allWeekStarts.forEach { weekStart ->
+    return allWeekStarts.map { weekStart ->
         val weekTickets = ticketsByWeek[weekStart] ?: emptyList()
         val weekWarnings = warningsByWeek[weekStart] ?: emptyList()
         val weekEnd = weekTickets.firstOrNull()?.weekEnd ?: weekWarnings.first().weekEnd
-        add(TicketGridRow.WeekHeader(weekStart, weekEnd))
-        addAll(weekTickets.map { TicketGridRow.Card(it) })
-        addAll(weekWarnings.map { TicketGridRow.PartWarning(it) })
+        WeekSection(weekStart, weekEnd, weekTickets, weekWarnings)
     }
 }
 
@@ -547,43 +545,53 @@ internal fun AssignmentTicketsDialog(
                         }
                     }
                     else -> {
-                        val gridRows = remember(tickets, partWarnings) { buildTicketGridRows(tickets, partWarnings) }
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 360.dp),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            gridItems(
-                                items = gridRows,
-                                key = { row ->
-                                    when (row) {
-                                        is TicketGridRow.WeekHeader -> "header-${row.weekStart}"
-                                        is TicketGridRow.Card -> row.ticket.imagePath.toAbsolutePath().toString()
-                                        is TicketGridRow.PartWarning -> "warning-${row.warning.weekStart}-${row.warning.partLabel}"
+                        val sections = remember(tickets, partWarnings) { buildWeekSections(tickets, partWarnings) }
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            val cols = maxOf(1, ((maxWidth.value + 16f) / (240f + 16f)).toInt())
+                            val scrollState = rememberScrollState()
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scrollState)
+                                        .padding(bottom = 12.dp),
+                                ) {
+                                    sections.forEach { section ->
+                                        TicketWeekHeader(section.weekStart, section.weekEnd)
+                                        val allItems: List<Any> = section.cards + section.warnings
+                                        allItems.chunked(cols).forEach { rowItems ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(bottom = 16.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                            ) {
+                                                rowItems.forEach { item ->
+                                                    Box(modifier = Modifier.weight(1f)) {
+                                                        when (item) {
+                                                            is AssignmentTicketImage -> AssignmentTicketCard(
+                                                                ticket = item,
+                                                                preview = previewMap[item.imagePath],
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                            )
+                                                            is PartAssignmentWarning -> PartWarningCard(
+                                                                warning = item,
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                repeat(cols - rowItems.size) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
                                     }
-                                },
-                                span = { row ->
-                                    when (row) {
-                                        is TicketGridRow.WeekHeader -> GridItemSpan(maxLineSpan)
-                                        is TicketGridRow.Card -> GridItemSpan(1)
-                                        is TicketGridRow.PartWarning -> GridItemSpan(1)
-                                    }
-                                },
-                            ) { row ->
-                                when (row) {
-                                    is TicketGridRow.WeekHeader -> TicketWeekHeader(row.weekStart, row.weekEnd)
-                                    is TicketGridRow.Card -> AssignmentTicketCard(
-                                        ticket = row.ticket,
-                                        preview = previewMap[row.ticket.imagePath],
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    is TicketGridRow.PartWarning -> PartWarningCard(
-                                        warning = row.warning,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
                                 }
+                                VerticalScrollbar(
+                                    adapter = rememberScrollbarAdapter(scrollState),
+                                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                                )
                             }
                         }
                     }
@@ -730,7 +738,7 @@ private fun AssignmentTicketCard(
             }
 
             Surface(
-                modifier = Modifier.fillMaxWidth().height(232.dp),
+                modifier = Modifier.fillMaxWidth().height(96.dp),
                 shape = RoundedCornerShape(14.dp),
                 color = sketch.surface,
                 border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = 0.85f)),
@@ -784,11 +792,13 @@ private fun AssignmentTicketCard(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            line.roleLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = sketch.inkMuted,
-                        )
+                        if (line.roleLabel != null) {
+                            Text(
+                                line.roleLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = sketch.inkMuted,
+                            )
+                        }
                     }
                 }
             }
