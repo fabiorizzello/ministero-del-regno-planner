@@ -45,7 +45,7 @@ internal fun parsePartTypeFromJson(
     val sexRuleStr = ensureNotNull(obj["sexRule"]?.jsonPrimitive?.content) {
         DomainError.ImportContenutoNonValido("partTypes[$index]: campo 'sexRule' mancante")
     }
-    PartType(
+    PartType.of(
         id = PartTypeId(UUID.randomUUID().toString()),
         code = code,
         label = label,
@@ -53,5 +53,7 @@ internal fun parsePartTypeFromJson(
         sexRule = parseSexRule(sexRuleStr),
         fixed = obj["fixed"]?.jsonPrimitive?.boolean ?: false,
         sortOrder = index,
-    )
+    ).mapLeft { err ->
+        DomainError.ImportContenutoNonValido("partTypes[$index]: ${(err as? DomainError.Validation)?.message ?: err.toString()}")
+    }.bind()
 }

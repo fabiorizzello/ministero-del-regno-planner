@@ -112,15 +112,14 @@ class ImportaProclamatoriDaJsonUseCase(
             raise("Elemento #$position duplicato nel file: $nome $cognome")
         }
 
-        try {
-            Proclamatore(
-                id = ProclamatoreId(UUID.randomUUID().toString()),
-                nome = nome,
-                cognome = cognome,
-                sesso = sesso,
-            )
-        } catch (e: IllegalArgumentException) {
-            raise("Elemento #$position non valido: ${e.message ?: "dati non validi"}")
-        }
+        Proclamatore.of(
+            id = ProclamatoreId(UUID.randomUUID().toString()),
+            nome = nome,
+            cognome = cognome,
+            sesso = sesso,
+        ).fold(
+            ifLeft = { err -> raise("Elemento #$position non valido: ${(err as? org.example.project.core.domain.DomainError.Validation)?.message ?: err.toString()}") },
+            ifRight = { it },
+        )
     }
 }
