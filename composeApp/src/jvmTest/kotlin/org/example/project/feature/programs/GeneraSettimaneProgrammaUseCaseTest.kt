@@ -154,10 +154,12 @@ internal class InMemoryPartTypeStore(
 
     override suspend fun findFixed(): PartType? = fixedPart
 
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {
         // no-op
     }
 
+    context(tx: TransactionScope)
     override suspend fun deactivateMissingCodes(codes: Set<String>) {
         // no-op
     }

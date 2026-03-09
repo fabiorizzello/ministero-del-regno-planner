@@ -4,6 +4,7 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
@@ -68,6 +69,7 @@ private object NoopPartTypeStore : PartTypeStore {
     override suspend fun allWithStatus(): List<PartTypeWithStatus> = emptyList()
     override suspend fun findByCode(code: String): PartType? = null
     override suspend fun findFixed(): PartType? = null
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {}
 }
 

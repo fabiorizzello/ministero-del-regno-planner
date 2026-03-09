@@ -1,6 +1,7 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.AssignmentSettings
@@ -164,6 +165,7 @@ private fun neverCalledAssignUseCase(): AssegnaPersonaUseCase = AssegnaPersonaUs
 
         override suspend fun persist(aggregateRoot: Proclamatore) {}
 
+        context(tx: TransactionScope)
         override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {}
 
         override suspend fun remove(id: ProclamatoreId) {}

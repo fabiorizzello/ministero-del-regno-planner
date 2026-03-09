@@ -4,6 +4,7 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
@@ -227,6 +228,7 @@ private class SinglePersonStore(
 ) : ProclamatoriAggregateStore {
     override suspend fun load(id: ProclamatoreId): Proclamatore? = if (id == person.id) person else null
     override suspend fun persist(aggregateRoot: Proclamatore) {}
+    context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {}
     override suspend fun remove(id: ProclamatoreId) {}
 }

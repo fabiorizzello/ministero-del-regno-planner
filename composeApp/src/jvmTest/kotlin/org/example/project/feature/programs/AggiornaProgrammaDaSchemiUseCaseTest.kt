@@ -265,6 +265,7 @@ private class RefreshPartTypeStore(
 
     override suspend fun findFixed(): PartType? = fixedPart
 
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {
         // no-op
     }

@@ -4,6 +4,7 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -58,6 +59,7 @@ private class SingleFixedPartTypeStore : PartTypeStore {
 
     override suspend fun findFixed(): PartType? = fixed
 
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {
         // no-op
     }

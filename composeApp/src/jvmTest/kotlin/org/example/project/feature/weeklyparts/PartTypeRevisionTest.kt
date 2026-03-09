@@ -2,6 +2,7 @@ package org.example.project.feature.weeklyparts
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.persistence.SqlDelightTransactionRunner
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -33,8 +34,9 @@ class PartTypeRevisionTest {
     fun `upsertAll crea revisione e imposta current_revision_id`() = runBlocking<Unit> {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
-        store.upsertAll(listOf(lettura()))
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
 
         val ptId = store.findByCode("LETTURA")!!.id
         val revisionId = store.getLatestRevisionId(ptId)
@@ -45,9 +47,10 @@ class PartTypeRevisionTest {
     fun `secondo upsertAll crea nuova revisione con numero incrementato`() = runBlocking {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
-        store.upsertAll(listOf(lettura()))
-        store.upsertAll(listOf(lettura().copy(label = "Lettura Biblica")))
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura().copy(label = "Lettura Biblica"))) }
 
         val ptId = store.findByCode("LETTURA")!!.id
         data class Rev(val number: Long, val label: String)
@@ -64,12 +67,13 @@ class PartTypeRevisionTest {
     fun `secondo upsertAll aggiorna current_revision_id al nuovo snapshot`() = runBlocking<Unit> {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
 
-        store.upsertAll(listOf(lettura()))
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
         val ptId = store.findByCode("LETTURA")!!.id
         val revV1 = store.getLatestRevisionId(ptId)!!
 
-        store.upsertAll(listOf(lettura().copy(label = "Lettura Biblica")))
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura().copy(label = "Lettura Biblica"))) }
         val revV2 = store.getLatestRevisionId(ptId)!!
 
         assertNotNull(revV2)

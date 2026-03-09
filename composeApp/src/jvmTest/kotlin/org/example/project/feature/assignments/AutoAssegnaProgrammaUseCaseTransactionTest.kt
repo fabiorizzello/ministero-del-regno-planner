@@ -1,6 +1,7 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
@@ -135,6 +136,7 @@ private class TransactionTestPersonStore(
 
     override suspend fun persist(aggregateRoot: Proclamatore) {}
 
+    context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {}
 
     override suspend fun remove(id: ProclamatoreId) {}

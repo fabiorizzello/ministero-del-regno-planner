@@ -1,5 +1,6 @@
 package org.example.project.feature.weeklyparts.application
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 
@@ -14,7 +15,7 @@ interface PartTypeStore {
     suspend fun findById(id: PartTypeId): PartType? = all().firstOrNull { it.id == id }
     suspend fun findByCode(code: String): PartType?
     suspend fun findFixed(): PartType?
-    suspend fun upsertAll(partTypes: List<PartType>)
+    context(tx: TransactionScope) suspend fun upsertAll(partTypes: List<PartType>)
     suspend fun getLatestRevisionId(partTypeId: PartTypeId): String? = null
-    suspend fun deactivateMissingCodes(codes: Set<String>) {}
+    context(tx: TransactionScope) suspend fun deactivateMissingCodes(codes: Set<String>) {}
 }

@@ -45,7 +45,7 @@ class WeeklyPartSnapshotTest {
         val weekStore = SqlDelightWeekPlanStore(db)
         val txRunner = SqlDelightTransactionRunner(db)
 
-        partTypeStore.upsertAll(listOf(lettura()))
+        txRunner.runInTransaction { partTypeStore.upsertAll(listOf(lettura())) }
         val ptId = partTypeStore.findByCode("LETTURA")!!.id
         val revisionId = partTypeStore.getLatestRevisionId(ptId)!!
 
@@ -80,7 +80,7 @@ class WeeklyPartSnapshotTest {
         val weekStore = SqlDelightWeekPlanStore(db)
         val txRunner = SqlDelightTransactionRunner(db)
 
-        partTypeStore.upsertAll(listOf(lettura()))
+        txRunner.runInTransaction { partTypeStore.upsertAll(listOf(lettura())) }
         val ptId = partTypeStore.findByCode("LETTURA")!!.id
 
         val weekPlan = WeekPlan(
@@ -113,7 +113,7 @@ class WeeklyPartSnapshotTest {
         val txRunner = SqlDelightTransactionRunner(db)
 
         // Import v1: label="Lettura", peopleCount=1
-        partTypeStore.upsertAll(listOf(lettura(label = "Lettura", peopleCount = 1)))
+        txRunner.runInTransaction { partTypeStore.upsertAll(listOf(lettura(label = "Lettura", peopleCount = 1))) }
         val ptId = partTypeStore.findByCode("LETTURA")!!.id
         val revV1 = partTypeStore.getLatestRevisionId(ptId)!!
 
@@ -135,7 +135,7 @@ class WeeklyPartSnapshotTest {
         }
 
         // Re-import v2: label cambiato, peopleCount=2
-        partTypeStore.upsertAll(listOf(lettura(label = "Lettura Biblica", peopleCount = 2)))
+        txRunner.runInTransaction { partTypeStore.upsertAll(listOf(lettura(label = "Lettura Biblica", peopleCount = 2))) }
 
         // Load week: deve mostrare snapshot v1, non gli attributi live v2
         val loaded = weekStore.findByDate(LocalDate.of(2026, 3, 2))!!
