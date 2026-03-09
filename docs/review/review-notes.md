@@ -30,11 +30,6 @@
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
    - Evidenza: `GeneraImmaginiAssegnazioni.kt:335-341`, `:13-14`.
 
-10. `TransactionRunner.kt:29-30` — `runBlocking` dentro la coroutine della transazione.
-    - `@Suppress("BlockingMethodInNonBlockingContext")` nasconde il problema. `@Suppress("UNCHECKED_CAST")` a riga 39 nasconde un unsafe cast di `Any` a `T`.
-    - Basso rischio in produzione (desktop single-user), ma fragilità architettonica.
-    - Evidenza: `core/persistence/TransactionRunner.kt:29,39`.
-
 11. `VerificaAggiornamenti` non usa `Either<DomainError, T>`.
     - Restituisce `UpdateCheckResult` con `error: String?` invece di `Either`. Inconsistente con il resto del codebase.
     - Evidenza: `feature/updates/application/VerificaAggiornamenti.kt:21-59`.
@@ -53,16 +48,17 @@
 - `SqlDelightSchemaUpdateAnomalyStore.append()` non è idempotente: ogni chiamata genera nuovo UUID, retry accumula duplicati.
 - **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
   - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
-- **Finding 43**: `PersonPickerViewModel` porta parametri inutilizzati `selectedProgramWeeks`/`selectedProgramAssignments` in `openPersonPicker`, `loadSuggestions`, `reloadSuggestions` e i campi `storedProgramWeeks`/`storedProgramAssignments`. Dead code. Il caller `ProgramWorkspaceScreen.kt` passa ancora questi valori inutilmente.
-  - Evidenze: `PersonPickerViewModel.kt:51-52,62-66,82,147-148`, `ProgramWorkspaceScreen.kt:698-699`.
-- **Finding 44**: `mapAssignmentWithPersonRow` in `AssignmentRowMapper.kt` è `internal` ma callable direttamente dal package `infrastructure`, bypassando la guard `slot >= 1` in `toAssignmentWithPersonOrNull()`. Renderla `private`.
-  - Evidenza: `AssignmentRowMapper.kt`.
-- **Finding 45**: `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` usa `.getOrElse { throw RuntimeException(...) }` + `runCatching`. Anti-pattern wrapping/unwrapping.
-  - Evidenza: `SchemaManagementViewModel.kt:72-85,154`.
-- **Finding 48**: `PdfAssignmentsRenderer.kt:76-77,157-158` e `PdfProgramRenderer.kt:111-112` — `mkdirs()` result non controllato. Il codice verifica il booleano ma non fallisce esplicitamente se la directory non viene creata (nessun log/exception). Nuova occorrenza distinta dal Finding 34 già risolto (che riguardava un file diverso).
-  - Evidenza: `PdfAssignmentsRenderer.kt:76-77,157-158`, `PdfProgramRenderer.kt:111-112`.
+- **Finding 49**: `AggiornaApplicazione.kt:47-57` — fallback `"explorer.exe"` hardcoded per apertura file; non funziona su Linux/macOS. `UpdateScheduler.kt:28` — `runCatching` con solo `WARN` log; failure silenzioso se il check aggiornamenti fallisce.
 - **Finding 49**: `AggiornaApplicazione.kt:47-57` — fallback `"explorer.exe"` hardcoded per apertura file; non funziona su Linux/macOS. `UpdateScheduler.kt:28` — `runCatching` con solo `WARN` log; failure silenzioso se il check aggiornamenti fallisce.
   - Evidenza: `AggiornaApplicazione.kt:47-57`, `UpdateScheduler.kt:28`.
+
+## Findings risolti (Batch 1 — 2026-03-09)
+
+- **Finding 43**: Rimossi dead params `storedProgramWeeks`/`storedProgramAssignments` da `PersonPickerViewModel` e caller `ProgramWorkspaceScreen.kt`.
+- **Finding 44**: `mapAssignmentWithPersonRow` → `private` in `AssignmentRowMapper.kt`.
+- **Finding 45**: `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` ora restituisce `Either<DomainError, List<ProgramMonth>>` direttamente; eliminato `runCatching+throw` al call site.
+- **Finding 48**: Invalidato — il codice in `PdfAssignmentsRenderer.kt` e `PdfProgramRenderer.kt` lancia già `IOException` se `mkdirs()` fallisce. Finding basato su osservazione errata.
+- **Medium 10**: `TransactionRunner` usa `withContext(Dispatchers.IO)` + `runBlocking(coroutineContext)`; rimosso `@Suppress("BlockingMethodInNonBlockingContext")`; `@Suppress("UNCHECKED_CAST")` mantenuto con commento esplicativo.
 
 ## Verifiche eseguite
 
@@ -84,7 +80,7 @@
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **non ancora production-ready**.
 
-Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) copertura test zero su feature/updates (Medium 15), (3) `KonformValidation` lancia IAE (Medium 14), (4) `TransactionRunner` runBlocking (Medium 10).
+Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) copertura test zero su feature/updates (Medium 15), (3) `KonformValidation` lancia IAE (Medium 14). Medium 10 risolto.
 
 Sessione 2026-03-09 (1): verificata feature/output post-implementazione biglietti. High 1 risolto. Aggiunti Finding 33 (GeneraPdfAssegnazioni dead code), Finding 34 (mkdirs unchecked). Aggiornate evidenze linea per High 2 e Medium 6.
 Sessione 2026-03-09 (2): aggiunto ordinamento biglietti per sortOrder parte + partNumber in AssignmentTicketLine. Aggiunto Finding 41 (PART_DISPLAY_NUMBER_OFFSET DRY violation). 222 test, 0 failure.
@@ -94,3 +90,4 @@ Ralph Loop iterazione 6 (fix low-effort): risolti High 5, Medium 6, Medium 12, M
 Sessione successiva: risolti High 16 e Medium 35 (TransactionRunner per use case people). Estratto ImmediateTransactionRunner in PeopleTestFixtures.kt. Aggiunti 4 test ImpostaIdoneita. 226 test, 0 failure.
 Sessione 2026-03-09 (findings fixer Batch 0+1): risolti Medium 36, Medium 21, Finding 38, Finding 37, Finding 25, High 3, High 4, High 17. Aggiunti Finding 43 (dead code PersonPickerViewModel), Finding 44 (mapAssignmentWithPersonRow non private), Finding 45 (SchemaManagementViewModel wrapping Either). 226 test, 0 failure.
 Sessione successiva (High 42): aggiunto `context(tx: TransactionScope)` a tutti i metodi di mutazione in `AssignmentRepository` e `PersonAssignmentLifecycle`. Aggiornati SqlDelightAssignmentStore e tutti i test fake. 226 test, 0 failure.
+Sessione 2026-03-09 (Batch 1 — 5 finding): Finding 43, 44, 45, 48 (invalidato), Medium 10. Build non riverificata localmente (agenti hanno eseguito jvmTest in worktree separati con esito SUCCESS).
