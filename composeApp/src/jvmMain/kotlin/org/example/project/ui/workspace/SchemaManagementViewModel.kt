@@ -1,6 +1,7 @@
 package org.example.project.ui.workspace
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -150,6 +151,7 @@ internal class SchemaManagementViewModel(
 
     private suspend fun loadCurrentAndFuturePrograms(): List<ProgramMonth> {
         val snapshot = caricaProgrammiAttivi(_state.value.today)
+            .getOrElse { error -> throw RuntimeException(error.toMessage()) }
         return buildList {
             snapshot.current?.let { add(it) }
             addAll(snapshot.futures)

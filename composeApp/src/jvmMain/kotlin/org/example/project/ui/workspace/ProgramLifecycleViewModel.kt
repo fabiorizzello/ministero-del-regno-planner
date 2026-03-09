@@ -28,7 +28,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
-import org.example.project.ui.components.executeAsyncOperation
+import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.executeEitherOperationWithNotice
 import org.example.project.core.domain.toMessage
 import java.time.LocalDate
@@ -203,7 +203,7 @@ internal class ProgramLifecycleViewModel(
     fun loadProgramsAndWeeks() {
         loadJob?.cancel()
         loadJob = scope.launch {
-            _state.executeAsyncOperation(
+            _state.executeEitherOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { state, snapshot ->
                     applyProgramSnapshot(state, snapshot)
@@ -211,7 +211,7 @@ internal class ProgramLifecycleViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isLoading = false,
-                        notice = errorNotice("Errore caricamento cruscotto programma: ${error.message}"),
+                        notice = errorNotice("Errore caricamento cruscotto programma: ${error.toMessage()}"),
                     )
                 },
                 operation = {
