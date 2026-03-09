@@ -30,9 +30,6 @@
    - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
    - Evidenza: `GeneraImmaginiAssegnazioni.kt:335-341`, `:13-14`.
 
-11. `VerificaAggiornamenti` non usa `Either<DomainError, T>`.
-    - Restituisce `UpdateCheckResult` con `error: String?` invece di `Either`. Inconsistente con il resto del codebase.
-    - Evidenza: `feature/updates/application/VerificaAggiornamenti.kt:21-59`.
 
 14. `KonformValidation.requireValid()` lancia `IllegalArgumentException` invece di restituire `Either`.
    - Violazione della regola "domain non lancia eccezioni".
@@ -49,9 +46,6 @@
 - **Finding 24**: `WeekPlan` init block lancia `IllegalArgumentException` se `weekStartDate` non è lunedì. Pattern non-funzionale. Alternativa DDD: smart constructor `WeekPlan.of()` → `Either`.
   - Evidenze: `WeekPlan.kt:22-26`, `DomainErrorMappingWeeklyPartsUseCaseTest.kt:92`.
 - **Finding 49**: `AggiornaApplicazione.kt:47-57` — fallback `"explorer.exe"` hardcoded per apertura file; non funziona su Linux/macOS. `UpdateScheduler.kt:28` — `runCatching` con solo `WARN` log; failure silenzioso se il check aggiornamenti fallisce.
-- **Finding 49**: `AggiornaApplicazione.kt:47-57` — fallback `"explorer.exe"` hardcoded per apertura file; non funziona su Linux/macOS. `UpdateScheduler.kt:28` — `runCatching` con solo `WARN` log; failure silenzioso se il check aggiornamenti fallisce.
-  - Evidenza: `AggiornaApplicazione.kt:47-57`, `UpdateScheduler.kt:28`.
-
 ## Findings risolti (Batch 1 — 2026-03-09)
 
 - **Finding 43**: Rimossi dead params `storedProgramWeeks`/`storedProgramAssignments` da `PersonPickerViewModel` e caller `ProgramWorkspaceScreen.kt`.
@@ -59,6 +53,12 @@
 - **Finding 45**: `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` ora restituisce `Either<DomainError, List<ProgramMonth>>` direttamente; eliminato `runCatching+throw` al call site.
 - **Finding 48**: Invalidato — il codice in `PdfAssignmentsRenderer.kt` e `PdfProgramRenderer.kt` lancia già `IOException` se `mkdirs()` fallisce. Finding basato su osservazione errata.
 - **Medium 10**: `TransactionRunner` usa `withContext(Dispatchers.IO)` + `runBlocking(coroutineContext)`; rimosso `@Suppress("BlockingMethodInNonBlockingContext")`; `@Suppress("UNCHECKED_CAST")` mantenuto con commento esplicativo.
+
+## Findings risolti (Batch 2 — 2026-03-09)
+
+- **Medium 11**: `VerificaAggiornamenti` → `Either<DomainError, UpdateCheckResult>`; rimosso `error: String?` da `UpdateCheckResult`; `UpdateStatusStore` aggiornato al nuovo tipo; `DiagnosticsViewModel.applyUpdateResult` e `checkUpdates` aggiornati.
+- **High 47**: `AggiornaApplicazione.invoke()` → `Either<DomainError, Path>`; `throw IllegalStateException` → `raise(DomainError.Network(...))`; `DiagnosticsViewModel.startUpdate()` → `executeEitherOperation`.
+- **Finding 49**: Rimosso fallback `"explorer.exe"` da `AggiornaApplicazione.openFile()` — ramo `else` eliminato.
 
 ## Verifiche eseguite
 
