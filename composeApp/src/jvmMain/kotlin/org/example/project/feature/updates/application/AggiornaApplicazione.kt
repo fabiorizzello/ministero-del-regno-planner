@@ -1,5 +1,7 @@
 package org.example.project.feature.updates.application
 
+import arrow.core.Either
+import arrow.core.raise.either
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
@@ -12,6 +14,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.core.config.AppRuntime
+import org.example.project.core.domain.DomainError
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class AggiornaApplicazione(
@@ -20,36 +23,36 @@ class AggiornaApplicazione(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    suspend operator fun invoke(asset: UpdateAsset): Path = withContext(dispatcher) {
-        val updatesDir = AppRuntime.paths().exportsDir.resolve("updates")
-        Files.createDirectories(updatesDir)
-        val outputPath = updatesDir.resolve(asset.name)
+    suspend operator fun invoke(asset: UpdateAsset): Either<DomainError, Path> = withContext(dispatcher) {
+        either {
+            val updatesDir = AppRuntime.paths().exportsDir.resolve("updates")
+            Files.createDirectories(updatesDir)
+            val outputPath = updatesDir.resolve(asset.name)
 
-        logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
-        val response = httpClient.get(asset.downloadUrl)
-        if (!response.status.isSuccess()) {
-            throw IllegalStateException("Download aggiornamento fallito: HTTP ${response.status.value}")
+            logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
+            val response = httpClient.get(asset.downloadUrl)
+            if (!response.status.isSuccess()) {
+                raise(DomainError.Network("Download aggiornamento fallito: HTTP ${response.status.value}"))
+            }
+
+            Files.write(
+                outputPath,
+                response.bodyAsBytes(),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE,
+            )
+
+            logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
+            openFile(outputPath)
+            outputPath
         }
-
-        Files.write(
-            outputPath,
-            response.bodyAsBytes(),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.TRUNCATE_EXISTING,
-            StandardOpenOption.WRITE,
-        )
-
-        logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
-        openFile(outputPath)
-        outputPath
     }
 
     private fun openFile(path: Path) {
         runCatching {
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().open(path.toFile())
-            } else {
-                ProcessBuilder("explorer.exe", path.toAbsolutePath().toString()).start()
             }
         }.onFailure { error ->
             logger.warn { "Apertura installer non riuscita: ${error.message}" }

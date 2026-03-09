@@ -46,6 +46,7 @@ import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeAsyncOperationWithNotice
+import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
 
 private const val LOG_EXPORT_WINDOW_DAYS = 14L
@@ -258,7 +259,7 @@ internal class DiagnosticsViewModel(
         val asset = _state.value.updateAsset ?: return
         if (_state.value.isUpdating) return
         scope.launch {
-            _state.executeAsyncOperation(
+            _state.executeEitherOperation(
                 loadingUpdate = { it.copy(isUpdating = true) },
                 successUpdate = { state, path ->
                     state.copy(
@@ -269,7 +270,7 @@ internal class DiagnosticsViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isUpdating = false,
-                        notice = errorNotice("Aggiornamento non riuscito: ${error.message}"),
+                        notice = errorNotice("Aggiornamento non riuscito: ${error.toMessage()}"),
                     )
                 },
                 operation = { aggiornaApplicazione(asset) },
