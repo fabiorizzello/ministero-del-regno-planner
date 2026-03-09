@@ -17,7 +17,7 @@ private fun parseSessoOrDefault(sex: String): Sesso =
             Sesso.M
         }
 
-internal fun mapAssignmentWithPersonRow(
+private fun mapAssignmentWithPersonRow(
     id: String,
     weekly_part_id: String,
     person_id: String,
