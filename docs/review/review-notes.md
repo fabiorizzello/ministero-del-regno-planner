@@ -9,10 +9,6 @@
    - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` (line 258-261) — espansione del problema con nuovi metodi.
    - Evidenze: `StampaProgrammaUseCase.kt:117`, `GeneraPdfAssegnazioni.kt:30`, `GeneraImmaginiAssegnazioni.kt:83,104,258-261`.
 
-42. `AssignmentRepository` interface — tutti i metodi di mutazione privi di `context(TransactionScope)`.
-    - Il problema è nell'**interfaccia** `AssignmentStore.kt` (righe 17-23): `save`, `remove`, `removeAllByWeekPlan`, `removeAllForPerson`, `deleteByProgramFromDate` sono `suspend` plain. A differenza di `WeekPlanStore` che dichiara `context(tx: TransactionScope) suspend fun saveAggregate(...)`, il boundary assignment non ha nessun enforcement statico.
-    - Il compilatore non impedisce di chiamare queste mutation fuori da `runInTransaction`. Altri use case che chiamano `save()` dentro `runInTransaction` sono corretti solo per disciplina, non per contratto.
-    - Evidenze: `AssignmentStore.kt:17-23`, `WeekPlanStore.kt:25-27` (confronto — pattern atteso), `SqlDelightAssignmentStore.kt:43,52,56,223,227`.
 
 ### Medium
 
@@ -67,12 +63,14 @@
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
 - `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-09, Batch 0+1 findings fixer — 7 finding risolti)
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
+- `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-09, High 42 — context(TransactionScope) su AssignmentRepository)
+- Totale test JVM: `226` | Failure: `0` | Error: `0`
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **non ancora production-ready**.
 
-Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) `AssignmentRepository` interface senza capability token (High 42), (3) copertura test zero su feature/updates (Medium 15), (4) `KonformValidation` lancia IAE (Medium 14), (5) `TransactionRunner` runBlocking (Medium 10).
+Aree più problematiche: (1) feature/output fuori dal modello Either (High 2), (2) copertura test zero su feature/updates (Medium 15), (3) `KonformValidation` lancia IAE (Medium 14), (4) `TransactionRunner` runBlocking (Medium 10).
 
 Sessione 2026-03-09 (1): verificata feature/output post-implementazione biglietti. High 1 risolto. Aggiunti Finding 33 (GeneraPdfAssegnazioni dead code), Finding 34 (mkdirs unchecked). Aggiornate evidenze linea per High 2 e Medium 6.
 Sessione 2026-03-09 (2): aggiunto ordinamento biglietti per sortOrder parte + partNumber in AssignmentTicketLine. Aggiunto Finding 41 (PART_DISPLAY_NUMBER_OFFSET DRY violation). 222 test, 0 failure.
@@ -81,3 +79,4 @@ Ralph Loop iterazioni 2-5: analisi parallela di feature/people, feature/programs
 Ralph Loop iterazione 6 (fix low-effort): risolti High 5, Medium 6, Medium 12, Medium 18, Finding 29, 30, 31, 32, 33, 34, 39, 40, 41. Finding 37 lasciato aperto intenzionalmente (troppi caller VM da aggiornare, rischio sproporzionato per use case read-only). BUILD SUCCESSFUL, test tutti verdi.
 Sessione successiva: risolti High 16 e Medium 35 (TransactionRunner per use case people). Estratto ImmediateTransactionRunner in PeopleTestFixtures.kt. Aggiunti 4 test ImpostaIdoneita. 226 test, 0 failure.
 Sessione 2026-03-09 (findings fixer Batch 0+1): risolti Medium 36, Medium 21, Finding 38, Finding 37, Finding 25, High 3, High 4, High 17. Aggiunti Finding 43 (dead code PersonPickerViewModel), Finding 44 (mapAssignmentWithPersonRow non private), Finding 45 (SchemaManagementViewModel wrapping Either). 226 test, 0 failure.
+Sessione successiva (High 42): aggiunto `context(tx: TransactionScope)` a tutti i metodi di mutazione in `AssignmentRepository` e `PersonAssignmentLifecycle`. Aggiornati SqlDelightAssignmentStore e tutti i test fake. 226 test, 0 failure.
