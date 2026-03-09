@@ -3,6 +3,7 @@ package org.example.project.feature.assignments
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.DefaultTransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -40,7 +41,7 @@ class SqlDelightAssignmentStoreTest {
         )
 
         val error = assertFailsWith<Exception> {
-            store.save(assignment)
+            with(DefaultTransactionScope) { store.save(assignment) }
         }
 
         assertTrue(

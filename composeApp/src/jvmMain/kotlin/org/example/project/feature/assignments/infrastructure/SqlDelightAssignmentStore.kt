@@ -1,5 +1,6 @@
 package org.example.project.feature.assignments.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
@@ -42,6 +43,7 @@ class SqlDelightAssignmentStore(
             .groupBy({ WeekPlanId(it.first) }, { it.second })
     }
 
+    context(tx: TransactionScope)
     override suspend fun save(assignment: Assignment) {
         database.ministeroDatabaseQueries.upsertAssignment(
             id = assignment.id.value,
@@ -51,10 +53,12 @@ class SqlDelightAssignmentStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun remove(assignmentId: AssignmentId) {
         database.ministeroDatabaseQueries.deleteAssignment(assignmentId.value)
     }
 
+    context(tx: TransactionScope)
     override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {
         database.ministeroDatabaseQueries.deleteAssignmentsForWeek(weekPlanId.value)
     }
@@ -222,10 +226,12 @@ class SqlDelightAssignmentStore(
             .toInt()
     }
 
+    context(tx: TransactionScope)
     override suspend fun removeAllForPerson(personId: ProclamatoreId) {
         database.ministeroDatabaseQueries.deleteAssignmentsForPerson(personId.value)
     }
 
+    context(tx: TransactionScope)
     override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int {
         val count = database.ministeroDatabaseQueries
             .countAssignmentsByProgramFromDate(programId.value, fromDate.toString())

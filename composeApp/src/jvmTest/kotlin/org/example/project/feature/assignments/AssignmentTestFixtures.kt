@@ -49,12 +49,12 @@ internal class CountingTransactionRunner : TransactionRunner {
 internal object EmptyAssignmentsRepository : AssignmentRepository {
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = emptyList()
     override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> = emptyMap()
-    override suspend fun save(assignment: Assignment) {}
-    override suspend fun remove(assignmentId: AssignmentId) {}
-    override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
+    context(tx: TransactionScope) override suspend fun save(assignment: Assignment) {}
+    context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {}
+    context(tx: TransactionScope) override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
     override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = 0
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-    override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
+    context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
     override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
 }
 
@@ -64,12 +64,12 @@ internal class StaticAssignmentRepository(
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = assignments
     override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> =
         weekPlanIds.associateWith { assignments }
-    override suspend fun save(assignment: Assignment) {}
-    override suspend fun remove(assignmentId: AssignmentId) {}
-    override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
+    context(tx: TransactionScope) override suspend fun save(assignment: Assignment) {}
+    context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {}
+    context(tx: TransactionScope) override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
     override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = assignments.size
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-    override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
+    context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
     override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
 }
 
