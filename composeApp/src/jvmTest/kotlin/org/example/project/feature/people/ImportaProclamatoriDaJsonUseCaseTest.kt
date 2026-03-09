@@ -3,6 +3,7 @@ package org.example.project.feature.people
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
@@ -129,6 +130,7 @@ private class ImportaJsonInMemoryStore : ProclamatoriAggregateStore {
 
     override suspend fun load(id: ProclamatoreId): Proclamatore? = persisted.firstOrNull { it.id == id }
     override suspend fun persist(aggregateRoot: Proclamatore) { persisted.add(aggregateRoot) }
+    context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) { persisted.addAll(aggregateRoots) }
     override suspend fun remove(id: ProclamatoreId) { persisted.removeIf { it.id == id } }
 }

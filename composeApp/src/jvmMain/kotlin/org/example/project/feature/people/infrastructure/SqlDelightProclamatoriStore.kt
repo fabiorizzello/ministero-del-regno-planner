@@ -1,5 +1,6 @@
 package org.example.project.feature.people.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.domain.Proclamatore
@@ -19,11 +20,10 @@ class SqlDelightProclamatoriStore(
         persistInternal(aggregateRoot)
     }
 
+    context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {
-        database.ministeroDatabaseQueries.transaction {
-            aggregateRoots.forEach { aggregateRoot ->
-                persistInternal(aggregateRoot)
-            }
+        aggregateRoots.forEach { aggregateRoot ->
+            persistInternal(aggregateRoot)
         }
     }
 

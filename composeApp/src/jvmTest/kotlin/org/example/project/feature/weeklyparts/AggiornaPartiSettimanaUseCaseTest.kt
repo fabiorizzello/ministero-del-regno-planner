@@ -189,6 +189,7 @@ private class InMemoryPartTypeStore(
     override suspend fun all(): List<PartType> = partTypes
     override suspend fun findByCode(code: String): PartType? = partTypes.firstOrNull { it.code == code }
     override suspend fun findFixed(): PartType? = partTypes.firstOrNull { it.fixed }
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {}
 }
 

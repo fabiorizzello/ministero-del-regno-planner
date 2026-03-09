@@ -213,7 +213,9 @@ private class InMemoryPartTypeStore2 : PartTypeStore {
     override suspend fun all(): List<PartType> = byCode.values.toList()
     override suspend fun findByCode(code: String): PartType? = byCode[code]
     override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) { partTypes.forEach { byCode[it.code] = it } }
+    context(tx: TransactionScope)
     override suspend fun deactivateMissingCodes(codes: Set<String>) {}
 }
 

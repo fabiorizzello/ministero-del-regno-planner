@@ -3,6 +3,7 @@ package org.example.project.feature.people
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
@@ -156,6 +157,7 @@ private class InMemoryProclamatoriStore(
         byId[aggregateRoot.id] = aggregateRoot
     }
 
+    context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {
         aggregateRoots.forEach { byId[it.id] = it }
     }

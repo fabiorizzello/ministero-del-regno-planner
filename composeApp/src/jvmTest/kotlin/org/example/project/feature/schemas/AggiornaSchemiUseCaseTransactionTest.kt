@@ -5,6 +5,7 @@ import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.LeadEligibility
@@ -188,10 +189,12 @@ private class InMemoryPartTypeStore : PartTypeStore {
 
     override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
 
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {
         partTypes.forEach { byCode[it.code] = it }
     }
 
+    context(tx: TransactionScope)
     override suspend fun deactivateMissingCodes(codes: Set<String>) {
         // no-op for this test
     }
@@ -277,6 +280,7 @@ private class RollbackAwarePartTypeStore(
 
     override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
 
+    context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {
         partTypes.forEach { byCode[it.code] = it }
     }
