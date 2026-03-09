@@ -74,6 +74,7 @@ private class TrackingPersonAssignmentLifecycle : PersonAssignmentLifecycle {
 
     override suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int = 0
 
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun removeAllForPerson(personId: ProclamatoreId) {
         removedPersonIds += personId
     }
