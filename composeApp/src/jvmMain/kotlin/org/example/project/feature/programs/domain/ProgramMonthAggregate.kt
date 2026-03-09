@@ -1,7 +1,6 @@
 package org.example.project.feature.programs.domain
 
 import org.example.project.core.domain.DomainError
-import org.example.project.feature.programs.application.MAX_FUTURE_PROGRAMS
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -16,6 +15,9 @@ data class ProgramMonthAggregate(
         }
 
     companion object {
+        /** Numero massimo di programmi futuri consentiti contemporaneamente (regola di business). */
+        const val MAX_FUTURE_PROGRAMS = 2
+
         fun validateCreationTarget(
             target: YearMonth,
             referenceDate: LocalDate,

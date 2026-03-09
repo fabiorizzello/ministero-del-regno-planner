@@ -3,6 +3,7 @@ package org.example.project.feature.people.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreAggregate
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -12,6 +13,7 @@ import java.util.UUID
 class CreaProclamatoreUseCase(
     private val query: ProclamatoriQuery,
     private val store: ProclamatoriAggregateStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     data class Command(
         val nome: String,
@@ -36,7 +38,7 @@ class CreaProclamatoreUseCase(
             sospeso = command.sospeso,
             puoAssistere = command.puoAssistere,
         ).bind().person
-        store.persist(nuovo)
+        transactionRunner.runInTransaction { store.persist(nuovo) }
         nuovo
     }
 }

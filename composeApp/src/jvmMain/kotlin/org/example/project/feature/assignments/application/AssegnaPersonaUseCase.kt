@@ -33,7 +33,7 @@ class AssegnaPersonaUseCase(
         )
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     internal suspend fun assignWithoutTransaction(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,

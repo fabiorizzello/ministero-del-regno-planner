@@ -71,17 +71,17 @@ class PdfProgramRenderer {
                 drawTextLine(
                     content = content,
                     font = fonts.bold,
-                    fontSize = 16f,
-                    x = margin,
+                    fontSize = 13f,
+                    x = centeredX(fonts.bold, 13f, title, 0f, pageSize.width),
                     y = y,
                     text = title,
                     color = primaryInk,
                 )
 
-                y -= 24f
+                y -= 16f
 
                 if (sections.isNotEmpty()) {
-                    val sectionGap = 8f
+                    val sectionGap = 4f
                     val layout = createLayout(
                         sections = sections,
                         availableHeight = y - margin - sectionGap * (sections.size - 1).coerceAtLeast(0),
@@ -107,7 +107,10 @@ class PdfProgramRenderer {
                 }
             }
 
-            outputPath.toFile().parentFile?.mkdirs()
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw java.io.IOException("Impossibile creare la directory di output: $parentDir")
+            }
             document.save(outputPath.toFile())
         }
     }
@@ -118,25 +121,25 @@ class PdfProgramRenderer {
         contentWidth: Float,
     ): LayoutMetrics {
         val totalUnits = sections.sumOf { sectionLayoutUnits(it).toDouble() }.toFloat().coerceAtLeast(1f)
-        val unit = (availableHeight / totalUnits).coerceAtLeast(5.8f)
-        val cardGap = (unit * 0.22f).coerceIn(5f, 8f)
+        val unit = (availableHeight / totalUnits).coerceAtLeast(4.6f)
+        val cardGap = (unit * 0.20f).coerceIn(4f, 7f)
         val cardWidth = (contentWidth - cardGap * (columnCount - 1)) / columnCount
         return LayoutMetrics(
             columnCount = columnCount,
-            weekHeaderHeight = unit * 1.02f,
-            headerGap = unit * 0.34f,
-            rowGap = unit * 0.22f,
+            weekHeaderHeight = unit * 0.88f,
+            headerGap = unit * 0.26f,
+            rowGap = unit * 0.18f,
             cardGap = cardGap,
             cardWidth = cardWidth,
-            cardHeaderHeight = unit * 0.8f,
-            slotRowHeight = unit * 0.72f,
-            cardPaddingY = unit * 0.12f,
-            weekFontSize = (unit * 0.86f).coerceIn(9.8f, 11.6f),
-            titleFontSize = (unit * 0.72f).coerceIn(7.4f, 9.2f),
-            bodyFontSize = (unit * 0.66f).coerceIn(6.8f, 8.2f),
-            roleFontSize = (unit * 0.6f).coerceIn(6.2f, 7.2f),
-            roleColumnWidth = (cardWidth * 0.24f).coerceIn(30f, 42f),
-            roleGap = (unit * 0.18f).coerceIn(3f, 5f),
+            cardHeaderHeight = unit * 0.76f,
+            slotRowHeight = unit * 0.68f,
+            cardPaddingY = unit * 0.10f,
+            weekFontSize = (unit * 0.82f).coerceIn(8.5f, 11.0f),
+            titleFontSize = (unit * 0.68f).coerceIn(6.8f, 8.8f),
+            bodyFontSize = (unit * 0.62f).coerceIn(6.2f, 7.8f),
+            roleFontSize = (unit * 0.56f).coerceIn(5.8f, 6.8f),
+            roleColumnWidth = (cardWidth * 0.24f).coerceIn(28f, 40f),
+            roleGap = (unit * 0.16f).coerceIn(2f, 4f),
         )
     }
 
@@ -154,7 +157,7 @@ class PdfProgramRenderer {
             content = content,
             font = fonts.bold,
             fontSize = layout.weekFontSize,
-            x = x,
+            x = centeredX(fonts.bold, layout.weekFontSize, weekTitle, x, width),
             y = yTop - layout.weekFontSize,
             text = weekTitle,
             color = primaryInk,
@@ -289,12 +292,12 @@ class PdfProgramRenderer {
     }
 
     private fun sectionLayoutUnits(section: ProgramWeekPrintSection): Float {
-        val weekHeaderUnits = 1.02f
-        val headerGapUnits = 0.24f
-        val cardHeaderUnits = 0.8f
-        val slotUnits = 0.72f
-        val paddingUnits = 0.12f
-        val rowGapUnits = 0.22f
+        val weekHeaderUnits = 0.88f
+        val headerGapUnits = 0.18f
+        val cardHeaderUnits = 0.76f
+        val slotUnits = 0.68f
+        val paddingUnits = 0.10f
+        val rowGapUnits = 0.18f
         if (section.cards.isEmpty()) {
             return weekHeaderUnits + headerGapUnits + slotUnits * 0.95f
         }
@@ -354,6 +357,17 @@ class PdfProgramRenderer {
             candidate = candidate.dropLast(1).trimEnd()
         }
         return if (candidate.isBlank()) suffix else "$candidate$suffix"
+    }
+
+    private fun centeredX(
+        font: PDFont,
+        fontSize: Float,
+        text: String,
+        containerX: Float,
+        containerWidth: Float,
+    ): Float {
+        val tw = textWidth(font, fontSize, sanitizeForPdf(font, text))
+        return containerX + ((containerWidth - tw) / 2f).coerceAtLeast(0f)
     }
 
     private fun textWidth(

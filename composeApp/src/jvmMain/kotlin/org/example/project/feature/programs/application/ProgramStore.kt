@@ -12,9 +12,6 @@ data class ProgramCreationContext(
     val futureMonths: Set<YearMonth>,
 )
 
-/** Numero massimo di programmi futuri consentiti contemporaneamente (regola di business). */
-const val MAX_FUTURE_PROGRAMS = 2
-
 interface ProgramStore {
     suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth>
     suspend fun findById(id: ProgramMonthId): ProgramMonth?

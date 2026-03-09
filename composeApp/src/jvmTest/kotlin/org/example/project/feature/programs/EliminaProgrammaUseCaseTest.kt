@@ -124,7 +124,7 @@ private class DeleteWeekStore(
         )
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun deleteByProgram(programId: ProgramMonthId) {
         deletedWeeks += listByProgram(programId).map { week -> week.id }
     }

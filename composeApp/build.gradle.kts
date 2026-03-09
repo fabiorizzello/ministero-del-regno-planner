@@ -20,7 +20,7 @@ kotlin {
         vendor.set(JvmVendorSpec.JETBRAINS)
     }
     compilerOptions {
-        freeCompilerArgs.add("-Xcontext-receivers")
+        freeCompilerArgs.add("-Xcontext-parameters")
     }
 
     sourceSets {

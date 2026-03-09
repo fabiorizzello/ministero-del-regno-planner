@@ -39,7 +39,7 @@ class AutoAssegnaProgrammaUseCase(
         doAssign(programId, referenceDate)
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     private suspend fun doAssign(
         programId: ProgramMonthId,
         referenceDate: LocalDate,

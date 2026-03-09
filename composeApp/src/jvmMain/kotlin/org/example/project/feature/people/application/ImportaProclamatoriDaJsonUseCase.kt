@@ -5,6 +5,7 @@ import arrow.core.raise.either
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -26,6 +27,7 @@ private data class ProclamatoreDto(
 class ImportaProclamatoriDaJsonUseCase(
     private val query: ProclamatoriQuery,
     private val store: ProclamatoriAggregateStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     data class Result(
         val importati: Int,
@@ -42,7 +44,9 @@ class ImportaProclamatoriDaJsonUseCase(
 
         val proclamatori = parseAndValidate(jsonContent).bind()
         try {
-            store.persistAll(proclamatori)
+            transactionRunner.runInTransaction {
+                store.persistAll(proclamatori)
+            }
         } catch (e: Exception) {
             raise(DomainError.ImportSalvataggioFallito(e.message))
         }

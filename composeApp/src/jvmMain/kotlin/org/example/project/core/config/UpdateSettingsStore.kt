@@ -2,7 +2,6 @@ package org.example.project.core.config
 
 import com.russhwolf.settings.Settings
 import java.time.Instant
-import org.example.project.feature.updates.application.UpdateChannel
 
 class UpdateSettingsStore(
     private val settings: Settings,

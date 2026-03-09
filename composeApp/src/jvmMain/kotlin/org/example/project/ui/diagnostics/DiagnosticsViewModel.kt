@@ -35,7 +35,7 @@ import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
-import org.example.project.feature.updates.application.UpdateChannel
+import org.example.project.core.config.UpdateChannel
 import org.example.project.feature.updates.application.UpdateCheckResult
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti

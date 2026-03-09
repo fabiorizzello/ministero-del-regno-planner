@@ -1,8 +1,7 @@
 package org.example.project.feature.updates.application
 
 import java.time.Instant
-
-enum class UpdateChannel { STABLE, BETA }
+import org.example.project.core.config.UpdateChannel
 
 data class UpdateAsset(
     val name: String,

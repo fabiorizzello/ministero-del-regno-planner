@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,13 +68,14 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draganddrop.DragAndDropTransferAction
 import androidx.compose.ui.draganddrop.DragAndDropTransferData
@@ -89,8 +91,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberDialogState
-import java.awt.GraphicsEnvironment
+import androidx.compose.ui.window.rememberWindowState
 import java.awt.Toolkit
 import java.awt.RenderingHints
 import java.awt.datatransfer.DataFlavor
@@ -101,11 +104,14 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Path
 import javax.imageio.ImageIO
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -402,26 +408,56 @@ internal fun PartEditorDialog(
     }
 }
 
+private sealed interface TicketGridRow {
+    data class WeekHeader(val weekStart: LocalDate, val weekEnd: LocalDate) : TicketGridRow
+    data class Card(val ticket: AssignmentTicketImage) : TicketGridRow
+    data class PartWarning(val warning: PartAssignmentWarning) : TicketGridRow
+}
+
+private fun buildTicketGridRows(
+    tickets: List<AssignmentTicketImage>,
+    warnings: List<PartAssignmentWarning>,
+): List<TicketGridRow> = buildList {
+    val ticketsByWeek = tickets.groupBy { it.weekStart }
+    val warningsByWeek = warnings.groupBy { it.weekStart }
+    val allWeekStarts = (ticketsByWeek.keys + warningsByWeek.keys).toSortedSet()
+    allWeekStarts.forEach { weekStart ->
+        val weekTickets = ticketsByWeek[weekStart] ?: emptyList()
+        val weekWarnings = warningsByWeek[weekStart] ?: emptyList()
+        val weekEnd = weekTickets.firstOrNull()?.weekEnd ?: weekWarnings.first().weekEnd
+        add(TicketGridRow.WeekHeader(weekStart, weekEnd))
+        addAll(weekTickets.map { TicketGridRow.Card(it) })
+        addAll(weekWarnings.map { TicketGridRow.PartWarning(it) })
+    }
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun AssignmentTicketsDialog(
     monthLabel: String,
     tickets: List<AssignmentTicketImage>,
+    partWarnings: List<PartAssignmentWarning>,
     isLoading: Boolean,
     errorMessage: String?,
     onDismiss: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    val dialogState = rememberDialogState(width = 1440.dp, height = 920.dp)
+    val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
 
-    DialogWindow(
+    val previewMap = remember(tickets) { mutableStateMapOf<Path, ImageBitmap?>() }
+
+    Window(
         onCloseRequest = onDismiss,
-        state = dialogState,
+        state = windowState,
         title = if (monthLabel.isBlank()) "Biglietti assegnazioni" else "Biglietti assegnazioni - $monthLabel",
         resizable = true,
     ) {
-        LaunchedEffect(window) {
-            maximizeDialogWindow(window)
+        LaunchedEffect(tickets) {
+            tickets.forEach { ticket ->
+                launch(Dispatchers.IO) {
+                    previewMap[ticket.imagePath] = loadAssignmentTicketPreview(ticket.imagePath)
+                }
+            }
         }
 
         Surface(
@@ -459,32 +495,17 @@ internal fun AssignmentTicketsDialog(
                             color = sketch.inkMuted,
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = sketch.surfaceMuted,
+                        border = BorderStroke(1.dp, sketch.lineSoft),
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = sketch.surfaceMuted,
-                            border = BorderStroke(1.dp, sketch.lineSoft),
-                        ) {
-                            Text(
-                                "${tickets.size} PNG",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = sketch.inkSoft,
-                            )
-                        }
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(36.dp).handCursorOnHover(),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = "Chiudi biglietti assegnazioni",
-                                tint = sketch.inkSoft,
-                            )
-                        }
+                        Text(
+                            "${tickets.size} PNG",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = sketch.inkSoft,
+                        )
                     }
                 }
 
@@ -526,6 +547,7 @@ internal fun AssignmentTicketsDialog(
                         }
                     }
                     else -> {
+                        val gridRows = remember(tickets, partWarnings) { buildTicketGridRows(tickets, partWarnings) }
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = 360.dp),
                             modifier = Modifier.fillMaxSize(),
@@ -534,13 +556,34 @@ internal fun AssignmentTicketsDialog(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             gridItems(
-                                items = tickets,
-                                key = { ticket -> ticket.imagePath.toAbsolutePath().toString() },
-                            ) { ticket ->
-                                AssignmentTicketCard(
-                                    ticket = ticket,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                                items = gridRows,
+                                key = { row ->
+                                    when (row) {
+                                        is TicketGridRow.WeekHeader -> "header-${row.weekStart}"
+                                        is TicketGridRow.Card -> row.ticket.imagePath.toAbsolutePath().toString()
+                                        is TicketGridRow.PartWarning -> "warning-${row.warning.weekStart}-${row.warning.partLabel}"
+                                    }
+                                },
+                                span = { row ->
+                                    when (row) {
+                                        is TicketGridRow.WeekHeader -> GridItemSpan(maxLineSpan)
+                                        is TicketGridRow.Card -> GridItemSpan(1)
+                                        is TicketGridRow.PartWarning -> GridItemSpan(1)
+                                    }
+                                },
+                            ) { row ->
+                                when (row) {
+                                    is TicketGridRow.WeekHeader -> TicketWeekHeader(row.weekStart, row.weekEnd)
+                                    is TicketGridRow.Card -> AssignmentTicketCard(
+                                        ticket = row.ticket,
+                                        preview = previewMap[row.ticket.imagePath],
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    is TicketGridRow.PartWarning -> PartWarningCard(
+                                        warning = row.warning,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                         }
                     }
@@ -550,16 +593,97 @@ internal fun AssignmentTicketsDialog(
     }
 }
 
+@Composable
+private fun TicketWeekHeader(weekStart: LocalDate, weekEnd: LocalDate) {
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "Settimana ${formatWeekRangeLabel(weekStart, weekEnd)}",
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.2).sp,
+            ),
+            color = sketch.ink,
+        )
+        Box(
+            modifier = Modifier.weight(1f).height(1.dp).background(sketch.lineSoft),
+        )
+    }
+}
+
+@Composable
+private fun PartWarningCard(
+    warning: PartAssignmentWarning,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val isVuota = warning.isEmpty
+    val accentColor = if (isVuota) Color(0xFFE53935) else Color(0xFFF57C00)
+    val label = if (isVuota) "Parte vuota" else "Parte parziale"
+    val detail = if (isVuota) "Nessuna assegnazione" else "${warning.assignedCount}/${warning.expectedCount} assegnati"
+
+    Surface(
+        modifier = modifier.fillMaxHeight().alpha(0.7f),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.5.dp, accentColor.copy(alpha = 0.55f)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = accentColor.copy(alpha = 0.8f),
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.3.sp,
+                    ),
+                    color = accentColor.copy(alpha = 0.8f),
+                )
+            }
+            Text(
+                warning.partLabel,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp,
+                ),
+                color = sketch.inkSoft,
+            )
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = sketch.inkMuted,
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun AssignmentTicketCard(
     ticket: AssignmentTicketImage,
+    preview: ImageBitmap?,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
-    val preview = rememberAssignmentTicketPreview(ticket.imagePath)
 
     Surface(
         modifier = modifier
@@ -653,7 +777,7 @@ private fun AssignmentTicketCard(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Text(
-                            line.partLabel,
+                            "${line.partNumber}. ${line.partLabel}",
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = sketch.inkSoft,
@@ -689,16 +813,6 @@ private fun AssignmentTicketCard(
     }
 }
 
-@Composable
-private fun rememberAssignmentTicketPreview(path: Path): ImageBitmap? {
-    val preview by produceState<ImageBitmap?>(initialValue = null, path) {
-        value = withContext(Dispatchers.IO) {
-            loadAssignmentTicketPreview(path)
-        }
-    }
-    return preview
-}
-
 private fun loadAssignmentTicketPreview(
     path: Path,
     maxPreviewWidth: Int = 540,
@@ -724,17 +838,6 @@ private fun loadAssignmentTicketPreview(
     }
 }.getOrNull()
 
-private fun maximizeDialogWindow(window: java.awt.Window) {
-    val configuration = window.graphicsConfiguration
-        ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice.defaultConfiguration
-    val bounds = configuration.bounds
-    val insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration)
-    window.setLocation(bounds.x + insets.left, bounds.y + insets.top)
-    window.setSize(
-        bounds.width - insets.left - insets.right,
-        bounds.height - insets.top - insets.bottom,
-    )
-}
 
 private class FileListTransferable(
     private val files: List<File>,

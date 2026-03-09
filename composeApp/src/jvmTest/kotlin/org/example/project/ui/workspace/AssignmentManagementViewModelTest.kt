@@ -18,7 +18,10 @@ import org.example.project.feature.assignments.application.AutoAssignUnresolvedS
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.TicketGenerationResult
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import arrow.core.Either
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.ui.components.FeedbackBannerKind
 import com.russhwolf.settings.Settings
@@ -165,7 +168,7 @@ class AssignmentManagementViewModelTest {
     fun `confirmClearAssignments chiama onSuccess dopo esecuzione`() = runTest {
         val svuota = mockk<SvuotaAssegnazioniProgrammaUseCase>()
         coEvery { svuota.count(any(), any()) } returns 3
-        coEvery { svuota.execute(any(), any()) } returns 3
+        coEvery { svuota.execute(any(), any()) } returns Either.Right(3)
 
         val vm = makeViewModel(scope = this, svuota = svuota)
         vm.requestClearAssignments(programId, referenceDate)
@@ -183,7 +186,7 @@ class AssignmentManagementViewModelTest {
     fun `confirmClearAssignments non chiama onSuccess in caso di errore`() = runTest {
         val svuota = mockk<SvuotaAssegnazioniProgrammaUseCase>()
         coEvery { svuota.count(any(), any()) } returns 3
-        coEvery { svuota.execute(any(), any()) } throws RuntimeException("db error")
+        coEvery { svuota.execute(any(), any()) } returns Either.Left(DomainError.RimozioneAssegnazioniFallita("db error"))
 
         val vm = makeViewModel(scope = this, svuota = svuota)
         vm.requestClearAssignments(programId, referenceDate)
@@ -234,9 +237,9 @@ class AssignmentManagementViewModelTest {
             weekStart = LocalDate.of(2026, 3, 2),
             weekEnd = LocalDate.of(2026, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente")),
+            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente", partNumber = 3)),
         )
-        coEvery { genera.generateProgramTickets(programId) } returns listOf(ticket)
+        coEvery { genera.generateProgramTickets(programId) } returns TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList())
 
         val vm = makeViewModel(scope = this, genera = genera)
         vm.openAssignmentTickets(programId)
@@ -251,14 +254,17 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `closeAssignmentTicketsDialog chiude modale e svuota lo stato`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
-        coEvery { genera.generateProgramTickets(programId) } returns listOf(
-            AssignmentTicketImage(
-                fullName = "Mario Rossi",
-                weekStart = LocalDate.of(2026, 3, 2),
-                weekEnd = LocalDate.of(2026, 3, 8),
-                imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-                assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente")),
+        coEvery { genera.generateProgramTickets(programId) } returns TicketGenerationResult(
+            tickets = listOf(
+                AssignmentTicketImage(
+                    fullName = "Mario Rossi",
+                    weekStart = LocalDate.of(2026, 3, 2),
+                    weekEnd = LocalDate.of(2026, 3, 8),
+                    imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
+                    assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = "Studente", partNumber = 3)),
+                ),
             ),
+            warnings = emptyList(),
         )
 
         val vm = makeViewModel(scope = this, genera = genera)

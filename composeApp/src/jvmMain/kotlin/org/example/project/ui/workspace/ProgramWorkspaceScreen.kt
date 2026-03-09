@@ -208,6 +208,7 @@ fun ProgramWorkspaceScreen() {
         AssignmentTicketsDialog(
             monthLabel = lifecycleState.selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: "",
             tickets = assignmentState.assignmentTickets,
+            partWarnings = assignmentState.assignmentPartWarnings,
             isLoading = assignmentState.isLoadingAssignmentTickets,
             errorMessage = assignmentState.assignmentTicketsError,
             onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },

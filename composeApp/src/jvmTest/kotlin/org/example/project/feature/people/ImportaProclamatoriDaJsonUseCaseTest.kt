@@ -116,6 +116,7 @@ private fun buildUseCase(
 ): ImportaProclamatoriDaJsonUseCase = ImportaProclamatoriDaJsonUseCase(
     query = FakeQuery(existingPeople),
     store = store,
+    transactionRunner = ImmediateTransactionRunner,
 )
 
 private class FakeQuery(private val people: List<Proclamatore>) : ProclamatoriQuery {

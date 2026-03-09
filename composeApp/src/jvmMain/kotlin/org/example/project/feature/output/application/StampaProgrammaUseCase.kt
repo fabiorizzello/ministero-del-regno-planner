@@ -8,7 +8,7 @@ import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.AppRuntime
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
@@ -23,7 +23,6 @@ import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 
-private const val PART_DISPLAY_NUMBER_OFFSET = 3
 private val monthTitleFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ITALIAN)
 
 internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {

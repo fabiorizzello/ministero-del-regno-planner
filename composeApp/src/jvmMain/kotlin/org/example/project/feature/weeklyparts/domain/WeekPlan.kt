@@ -37,3 +37,6 @@ data class WeekPlan(
 
 fun WeekPlan.canBeMutated(referenceDate: LocalDate): Boolean =
     weekStartDate >= referenceDate && status == WeekPlanStatus.ACTIVE
+
+/** Restituisce la domenica della settimana che inizia il lunedì [monday]. */
+fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)

@@ -35,5 +35,5 @@ val assignmentsModule = module {
     single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get(), get(), get()) }
     single { ContaAssegnazioniPersonaUseCase(get()) }
-    single { SvuotaAssegnazioniProgrammaUseCase(get()) }
+    single { SvuotaAssegnazioniProgrammaUseCase(get(), get()) }
 }

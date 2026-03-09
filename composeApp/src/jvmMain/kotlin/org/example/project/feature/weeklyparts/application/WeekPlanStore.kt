@@ -22,7 +22,7 @@ interface WeekPlanStore : WeekPlanQueries {
     suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate?
     suspend fun loadAggregateByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlanAggregate?
     suspend fun listAggregatesByProgram(programId: ProgramMonthId): List<WeekPlanAggregate>
-    context(TransactionScope) suspend fun saveAggregate(aggregate: WeekPlanAggregate)
-    context(TransactionScope) suspend fun replaceProgramAggregates(programId: ProgramMonthId, aggregates: List<WeekPlanAggregate>)
-    context(TransactionScope) suspend fun deleteByProgram(programId: ProgramMonthId)
+    context(tx: TransactionScope) suspend fun saveAggregate(aggregate: WeekPlanAggregate)
+    context(tx: TransactionScope) suspend fun replaceProgramAggregates(programId: ProgramMonthId, aggregates: List<WeekPlanAggregate>)
+    context(tx: TransactionScope) suspend fun deleteByProgram(programId: ProgramMonthId)
 }

@@ -129,12 +129,12 @@ class SqlDelightWeekPlanStore(
         return rows.map { row -> loadAggregate(row) }
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         persistAggregate(aggregate)
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun replaceProgramAggregates(
         programId: ProgramMonthId,
         aggregates: List<WeekPlanAggregate>,
@@ -148,7 +148,7 @@ class SqlDelightWeekPlanStore(
         }
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun deleteByProgram(programId: ProgramMonthId) {
         database.ministeroDatabaseQueries.deleteWeekPlansByProgram(programId.value)
     }

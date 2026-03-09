@@ -190,12 +190,12 @@ internal class InMemoryWeekPlanStoreGeneration(
 
     override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? = null
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         // no-op
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun replaceProgramAggregates(programId: ProgramMonthId, aggregates: List<WeekPlanAggregate>) {
         deletedPrograms += programId
         val weeks = aggregates.map { it.weekPlan }
@@ -210,7 +210,7 @@ internal class InMemoryWeekPlanStoreGeneration(
         }
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun deleteByProgram(programId: ProgramMonthId) {
         deletedPrograms += programId
         weeksByProgram[programId] = mutableListOf()

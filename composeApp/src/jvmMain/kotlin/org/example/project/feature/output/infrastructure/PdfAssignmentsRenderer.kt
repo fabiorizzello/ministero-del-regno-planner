@@ -12,7 +12,7 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class PdfAssignmentsRenderer {
     private val logger = KotlinLogging.logger {}
@@ -38,7 +38,7 @@ class PdfAssignmentsRenderer {
         parts: List<RenderedPart>,
         outputPath: Path,
     ) {
-        logger.info("Generazione PDF assegnazioni: {}", outputPath.toAbsolutePath())
+        logger.info { "Generazione PDF assegnazioni: ${outputPath.toAbsolutePath()}" }
         PDDocument().use { document ->
             val pageSize = PDRectangle.A4
             val margin = 40f
@@ -72,13 +72,16 @@ class PdfAssignmentsRenderer {
                 }
             }
 
-            outputPath.toFile().parentFile?.mkdirs()
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw java.io.IOException("Impossibile creare la directory di output: $parentDir")
+            }
             document.save(outputPath.toFile())
         }
     }
 
     fun renderPersonSheetPdf(sheet: PersonSheet, outputPath: Path) {
-        logger.info("Generazione PDF persona: {}", outputPath.toAbsolutePath())
+        logger.info { "Generazione PDF persona: ${outputPath.toAbsolutePath()}" }
         PDDocument().use { document ->
             val page = PDPage(PDRectangle.A4)
             document.addPage(page)
@@ -150,7 +153,10 @@ class PdfAssignmentsRenderer {
                 }
             }
 
-            outputPath.toFile().parentFile?.mkdirs()
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw java.io.IOException("Impossibile creare la directory di output: $parentDir")
+            }
             document.save(outputPath.toFile())
         }
     }

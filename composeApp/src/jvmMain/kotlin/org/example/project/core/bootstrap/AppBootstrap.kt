@@ -3,7 +3,7 @@ package org.example.project.core.bootstrap
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
 import org.example.project.core.config.PathsResolver
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 object AppBootstrap {
     @Volatile
@@ -17,9 +17,9 @@ object AppBootstrap {
         AppRuntime.initialize(paths)
         val logger = KotlinLogging.logger {}
 
-        logger.info("Avvio applicazione versione {}", AppVersion.current)
-        logger.info("Percorso database {}", paths.dbFile.toAbsolutePath())
-        logger.info("Percorso log {}", paths.logsDir.toAbsolutePath())
+        logger.info { "Avvio applicazione versione ${AppVersion.current}" }
+        logger.info { "Percorso database ${paths.dbFile.toAbsolutePath()}" }
+        logger.info { "Percorso log ${paths.logsDir.toAbsolutePath()}" }
         initialized = true
     }
 }

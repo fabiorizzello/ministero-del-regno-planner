@@ -2,7 +2,6 @@ package org.example.project.feature.output.di
 
 import org.example.project.feature.output.application.FileOpener
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
-import org.example.project.feature.output.application.GeneraPdfAssegnazioni
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.output.infrastructure.DesktopFileOpener
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
@@ -14,7 +13,6 @@ val outputModule = module {
     single { PdfAssignmentsRenderer() }
     single { PdfProgramRenderer() }
     single<FileOpener> { DesktopFileOpener() }
-    single { GeneraPdfAssegnazioni(get(), get(), get(), get()) }
     single { GeneraImmaginiAssegnazioni(get(), get(), get(), get()) }
     single { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
 }

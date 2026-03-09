@@ -176,7 +176,7 @@ private class AggiornaPartiWeekPlanStore(
     override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
         if (aggregate.weekPlan.id == weekPlanId) aggregate else null
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         savedAggregate = aggregate
         this.aggregate = aggregate

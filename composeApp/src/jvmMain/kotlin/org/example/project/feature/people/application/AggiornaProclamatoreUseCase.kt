@@ -3,6 +3,7 @@ package org.example.project.feature.people.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreAggregate
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -13,6 +14,7 @@ class AggiornaProclamatoreUseCase(
     private val query: ProclamatoriQuery,
     private val store: ProclamatoriAggregateStore,
     private val eligibilityStore: EligibilityStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     data class Command(
         val id: ProclamatoreId,
@@ -45,7 +47,7 @@ class AggiornaProclamatoreUseCase(
             sospeso = command.sospeso,
             puoAssistere = command.puoAssistere,
         ).bind().person
-        store.persist(aggiornato)
+        transactionRunner.runInTransaction { store.persist(aggiornato) }
 
         val futureWeeks = if (!corrente.sospeso && command.sospeso) {
             eligibilityStore.listFutureAssignmentWeeks(command.id, LocalDate.now())

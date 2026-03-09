@@ -122,7 +122,7 @@ private class SingleIdWeekStore(
 
     override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> = emptyList()
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         currentAggregate = aggregate
     }

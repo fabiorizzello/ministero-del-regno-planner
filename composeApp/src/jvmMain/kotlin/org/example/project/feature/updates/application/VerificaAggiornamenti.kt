@@ -8,7 +8,7 @@ import org.example.project.core.config.AppVersion
 import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.feature.updates.UpdateVersionComparator
 import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class VerificaAggiornamenti(
     private val client: GitHubReleasesClient,
@@ -40,7 +40,7 @@ class VerificaAggiornamenti(
             )
             settingsStore.saveLastCheck(now)
             statusStore.update(result)
-            logger.info("Check aggiornamenti completato. Update disponibile: {}", updateAvailable)
+            logger.info { "Check aggiornamenti completato. Update disponibile: $updateAvailable" }
             result
         }.getOrElse { error ->
             val result = UpdateCheckResult(
@@ -53,7 +53,7 @@ class VerificaAggiornamenti(
             )
             settingsStore.saveLastCheck(now)
             statusStore.update(result)
-            logger.warn("Check aggiornamenti fallito: {}", error.message)
+            logger.warn { "Check aggiornamenti fallito: ${error.message}" }
             result
         }
     }

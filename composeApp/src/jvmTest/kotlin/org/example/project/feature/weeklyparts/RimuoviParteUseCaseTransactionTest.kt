@@ -31,6 +31,7 @@ class RimuoviParteUseCaseTransactionTest {
         val result = useCase(
             weekStartDate = weekStore.weekDate,
             weeklyPartId = weekStore.initialPart.id,
+            referenceDate = weekStore.weekDate,
         )
 
         assertIs<Either.Right<Unit>>(result)
@@ -77,7 +78,7 @@ private class TransactionAwareWeekPlanStore : TestWeekPlanStore() {
             null
         }
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         week = aggregate.weekPlan
     }

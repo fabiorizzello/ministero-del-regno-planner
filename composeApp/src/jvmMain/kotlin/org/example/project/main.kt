@@ -44,7 +44,7 @@ import org.jetbrains.jewel.window.styling.TitleBarMetrics
 import org.jetbrains.jewel.window.styling.TitleBarStyle
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.awt.Dimension
 
 fun main() {

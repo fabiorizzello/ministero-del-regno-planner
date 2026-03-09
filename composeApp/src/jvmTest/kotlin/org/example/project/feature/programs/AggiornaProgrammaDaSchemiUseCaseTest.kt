@@ -218,7 +218,7 @@ private class RefreshWeekStore(
         return listOf(currentAggregate)
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         saveCount += 1
         currentAggregate = aggregate

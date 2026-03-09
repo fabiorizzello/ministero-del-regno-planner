@@ -196,7 +196,7 @@ private class SingleWeekStore(
     override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
         if (weekStartDate == aggregate.weekPlan.weekStartDate) aggregate else null
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         this.aggregate = aggregate
     }

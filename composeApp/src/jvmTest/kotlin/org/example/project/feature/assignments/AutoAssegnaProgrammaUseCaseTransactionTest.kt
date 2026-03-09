@@ -122,7 +122,7 @@ private class InMemoryWeekPlanStore(
     override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
         if (aggregate.weekPlan.id == weekPlanId) aggregate else null
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         this.aggregate = aggregate
     }

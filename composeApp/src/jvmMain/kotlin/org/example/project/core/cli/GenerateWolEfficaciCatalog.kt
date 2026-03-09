@@ -25,6 +25,11 @@ import java.util.Locale
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.system.exitProcess
 
+private val prettyJson = Json {
+    prettyPrint = true
+    encodeDefaults = true
+}
+
 private const val DEFAULT_MEETINGS_ROOT_URL = "https://wol.jw.org/it/wol/meetings/r6/lp-i"
 private const val DEFAULT_OUTPUT_PATH = ".worktrees/efficaci-nel-ministero-data/schemas-catalog.json"
 private const val DEFAULT_MAX_WEEKS = 120
@@ -87,10 +92,7 @@ fun main(args: Array<String>) {
     val outputFile = File(config.outputPath).absoluteFile
     outputFile.parentFile?.mkdirs()
     outputFile.writeText(
-        Json {
-            prettyPrint = true
-            encodeDefaults = true
-        }.encodeToString(finalOutput.toJsonObject()),
+        prettyJson.encodeToString(finalOutput.toJsonObject()),
     )
 
     println("JSON generato: ${outputFile.path}")

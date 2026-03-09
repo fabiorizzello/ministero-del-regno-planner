@@ -3,6 +3,7 @@ package org.example.project.feature.people
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
+
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.LeadEligibility
@@ -139,6 +140,7 @@ class ImpostaSospesoUseCaseTest {
         query = NoDuplicateQuery,
         store = store,
         eligibilityStore = StubEligibilityStore(futureWeeks),
+        transactionRunner = ImmediateTransactionRunner,
     )
 }
 

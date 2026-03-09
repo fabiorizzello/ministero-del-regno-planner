@@ -131,7 +131,7 @@ class AggiornaProgrammaDaSchemiUseCase(
         return preserved to (total - preserved)
     }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     private suspend fun applyRefreshCandidate(candidate: WeekRefreshCandidate, referenceDate: LocalDate) {
         val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes, referenceDate) {
             WeeklyPartId(UUID.randomUUID().toString())

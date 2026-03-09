@@ -71,7 +71,7 @@ private class InMemoryWeekPlanStore : TestWeekPlanStore() {
             WeekPlanAggregate(weekPlan = week, assignments = emptyList())
         }
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         savedWeeks.removeAll { week -> week.id == aggregate.weekPlan.id }
         savedWeeks.add(aggregate.weekPlan)

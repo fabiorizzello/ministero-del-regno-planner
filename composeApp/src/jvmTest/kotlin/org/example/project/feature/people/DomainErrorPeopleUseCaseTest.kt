@@ -28,6 +28,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
+            transactionRunner = ImmediateTransactionRunner,
         )
 
         val result = useCase(
@@ -48,6 +49,7 @@ class DomainErrorPeopleUseCaseTest {
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
             eligibilityStore = NoopEligibilityStore,
+            transactionRunner = ImmediateTransactionRunner,
         )
 
         val result = useCase(
@@ -68,6 +70,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(duplicate = true),
             store = InMemoryProclamatoriStore(),
+            transactionRunner = ImmediateTransactionRunner,
         )
 
         val result = useCase(
@@ -96,6 +99,7 @@ class DomainErrorPeopleUseCaseTest {
             query = FakeProclamatoriQuery(duplicate = false, people = listOf(esistente)),
             store = store,
             eligibilityStore = NoopEligibilityStore,
+            transactionRunner = ImmediateTransactionRunner,
         )
 
         val result = useCase(
@@ -121,6 +125,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = ImportaProclamatoriDaJsonUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
+            transactionRunner = ImmediateTransactionRunner,
         )
 
         val result = useCase("not-a-json")

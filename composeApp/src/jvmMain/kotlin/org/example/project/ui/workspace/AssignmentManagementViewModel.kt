@@ -15,6 +15,7 @@ import org.example.project.feature.assignments.application.SalvaImpostazioniAsse
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.core.domain.toMessage
@@ -46,6 +47,7 @@ internal data class AssignmentManagementUiState(
     val isLoadingAssignmentTickets: Boolean = false,
     val isAssignmentTicketsDialogOpen: Boolean = false,
     val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
+    val assignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
     val assignmentTicketsError: String? = null,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
@@ -220,11 +222,12 @@ internal class AssignmentManagementViewModel(
                         assignmentTicketsError = null,
                     )
                 },
-                successUpdate = { state, tickets ->
+                successUpdate = { state, result ->
                     state.copy(
                         isAssignmentTicketsDialogOpen = true,
                         isLoadingAssignmentTickets = false,
-                        assignmentTickets = tickets,
+                        assignmentTickets = result.tickets,
+                        assignmentPartWarnings = result.warnings,
                         assignmentTicketsError = null,
                     )
                 },
@@ -233,6 +236,7 @@ internal class AssignmentManagementViewModel(
                         isAssignmentTicketsDialogOpen = true,
                         isLoadingAssignmentTickets = false,
                         assignmentTickets = emptyList(),
+                        assignmentPartWarnings = emptyList(),
                         assignmentTicketsError = error.message ?: "Errore generazione biglietti",
                         notice = errorNotice("Errore biglietti assegnazioni: ${error.message}"),
                     )
@@ -248,6 +252,7 @@ internal class AssignmentManagementViewModel(
                 isAssignmentTicketsDialogOpen = false,
                 isLoadingAssignmentTickets = false,
                 assignmentTickets = emptyList(),
+                assignmentPartWarnings = emptyList(),
                 assignmentTicketsError = null,
             )
         }
@@ -276,7 +281,7 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             _uiState.update { it.copy(clearAssignmentsConfirm = null) }
             var shouldReload = false
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isClearingAssignments = true) },
                 successUpdate = { state, _ ->
                     shouldReload = true
@@ -288,7 +293,7 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isClearingAssignments = false,
-                        notice = errorNotice("Errore svuotamento: ${error.message}"),
+                        notice = errorNotice("Errore svuotamento: ${error.toMessage()}"),
                     )
                 },
                 operation = { svuotaAssegnazioni.execute(programId, referenceDate) },

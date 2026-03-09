@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.core.config.AppRuntime
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class AggiornaApplicazione(
     private val httpClient: HttpClient,
@@ -25,7 +25,7 @@ class AggiornaApplicazione(
         Files.createDirectories(updatesDir)
         val outputPath = updatesDir.resolve(asset.name)
 
-        logger.info("Download aggiornamento: {}", asset.downloadUrl)
+        logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
         val response = httpClient.get(asset.downloadUrl)
         if (!response.status.isSuccess()) {
             throw IllegalStateException("Download aggiornamento fallito: HTTP ${response.status.value}")
@@ -39,7 +39,7 @@ class AggiornaApplicazione(
             StandardOpenOption.WRITE,
         )
 
-        logger.info("Aggiornamento scaricato in {}", outputPath.toAbsolutePath())
+        logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
         openFile(outputPath)
         outputPath
     }
@@ -52,7 +52,7 @@ class AggiornaApplicazione(
                 ProcessBuilder("explorer.exe", path.toAbsolutePath().toString()).start()
             }
         }.onFailure { error ->
-            logger.warn("Apertura installer non riuscita: {}", error.message)
+            logger.warn { "Apertura installer non riuscita: ${error.message}" }
         }
     }
 }

@@ -166,7 +166,7 @@ private class RimuoviParteTestWeekPlanStore(
     override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
         if (aggregate?.weekPlan?.weekStartDate == weekStartDate) aggregate else null
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         savedAggregate = aggregate
         this.aggregate = aggregate

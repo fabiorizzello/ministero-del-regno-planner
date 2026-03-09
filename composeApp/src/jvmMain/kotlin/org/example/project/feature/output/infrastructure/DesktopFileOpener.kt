@@ -1,6 +1,6 @@
 package org.example.project.feature.output.infrastructure
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.feature.output.application.FileOpener
 import java.awt.Desktop
 import java.nio.file.Path

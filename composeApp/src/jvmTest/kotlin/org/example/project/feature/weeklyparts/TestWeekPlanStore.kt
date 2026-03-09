@@ -34,12 +34,12 @@ open class TestWeekPlanStore : WeekPlanStore {
     override suspend fun listAggregatesByProgram(programId: ProgramMonthId): List<WeekPlanAggregate> =
         listByProgram(programId).map { week -> WeekPlanAggregate(weekPlan = week, assignments = emptyList()) }
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {}
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun replaceProgramAggregates(programId: ProgramMonthId, aggregates: List<WeekPlanAggregate>) {}
 
-    context(TransactionScope)
+    context(tx: TransactionScope)
     override suspend fun deleteByProgram(programId: ProgramMonthId) {}
 }

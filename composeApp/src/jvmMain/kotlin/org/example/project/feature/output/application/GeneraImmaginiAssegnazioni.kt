@@ -9,7 +9,7 @@ import javax.imageio.ImageIO
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.rendering.PDFRenderer
 import org.example.project.core.config.AppRuntime
@@ -23,7 +23,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
-import org.example.project.ui.components.sundayOf
+import org.example.project.feature.weeklyparts.domain.sundayOf
 
 private val weekImagePrefixFormatter = DateTimeFormatter.ofPattern("yyyyMM")
 private val monthImagePrefixFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
@@ -31,6 +31,7 @@ private val monthImagePrefixFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
 data class AssignmentTicketLine(
     val partLabel: String,
     val roleLabel: String,
+    val partNumber: Int,
 )
 
 data class AssignmentTicketImage(
@@ -41,11 +42,28 @@ data class AssignmentTicketImage(
     val assignments: List<AssignmentTicketLine>,
 )
 
+data class PartAssignmentWarning(
+    val weekStart: LocalDate,
+    val weekEnd: LocalDate,
+    val partLabel: String,
+    val assignedCount: Int,
+    val expectedCount: Int,
+) {
+    val isEmpty: Boolean get() = assignedCount == 0
+    val isPartial: Boolean get() = assignedCount in 1 until expectedCount
+}
+
+data class TicketGenerationResult(
+    val tickets: List<AssignmentTicketImage>,
+    val warnings: List<PartAssignmentWarning>,
+)
+
 private data class PersonTicketSheet(
     val fullName: String,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
     val assignments: List<AssignmentTicketLine>,
+    val primaryPartSortOrder: Int,
 )
 
 class GeneraImmaginiAssegnazioni(
@@ -83,7 +101,7 @@ class GeneraImmaginiAssegnazioni(
         }
     }
 
-    suspend fun generateProgramTickets(programId: ProgramMonthId): List<AssignmentTicketImage> = withContext(dispatcher) {
+    suspend fun generateProgramTickets(programId: ProgramMonthId): TicketGenerationResult = withContext(dispatcher) {
         val program = programStore.findById(programId)
             ?: throw IllegalStateException("Programma non trovato")
         val weeks = weekPlanQueries.listByProgram(programId)
@@ -97,17 +115,21 @@ class GeneraImmaginiAssegnazioni(
             logger.warn { "Cleanup biglietto non riuscito (${path.fileName}): ${error.message}" }
         }
 
-        weeks
-            .filter { it.status == WeekPlanStatus.ACTIVE }
-            .flatMap { week ->
-                val weekAssignments = caricaAssegnazioni(week.weekStartDate)
+        val activeWeeks = weeks.filter { it.status == WeekPlanStatus.ACTIVE }
+        val weekAssignmentsByWeek = activeWeeks.map { week ->
+            week to caricaAssegnazioni(week.weekStartDate)
+        }
+
+        val tickets = weekAssignmentsByWeek
+            .flatMap { (week, weekAssignments) ->
+                val completePartIds = completePartIds(week, weekAssignments)
                 buildPersonTicketSheets(
                     weekPlan = week,
                     assignments = weekAssignments,
-                    selectedPartIds = emptySet(),
+                    selectedPartIds = completePartIds,
                 )
             }
-            .sortedWith(compareBy({ it.weekStart }, { it.fullName.lowercase() }))
+            .sortedWith(compareBy({ it.weekStart }, { it.primaryPartSortOrder }, { it.fullName.lowercase() }))
             .map { sheet ->
                 val baseName = buildProgramImageBaseName(
                     year = program.year,
@@ -128,6 +150,44 @@ class GeneraImmaginiAssegnazioni(
                     imagePath = imagePath,
                     assignments = sheet.assignments,
                 )
+            }
+
+        val warnings = weekAssignmentsByWeek.flatMap { (week, weekAssignments) ->
+            buildPartWarnings(week, weekAssignments)
+        }
+
+        TicketGenerationResult(tickets = tickets, warnings = warnings)
+    }
+
+    private fun completePartIds(
+        weekPlan: WeekPlan,
+        assignments: List<AssignmentWithPerson>,
+    ): Set<WeeklyPartId> {
+        val assignedCountByPart = assignments.groupBy { it.weeklyPartId }.mapValues { it.value.size }
+        return weekPlan.parts
+            .filter { part -> (assignedCountByPart[part.id] ?: 0) >= part.partType.peopleCount }
+            .mapTo(mutableSetOf()) { it.id }
+    }
+
+    private fun buildPartWarnings(
+        weekPlan: WeekPlan,
+        assignments: List<AssignmentWithPerson>,
+    ): List<PartAssignmentWarning> {
+        val assignedCountByPart = assignments.groupBy { it.weeklyPartId }.mapValues { it.value.size }
+        return weekPlan.parts
+            .sortedBy { it.sortOrder }
+            .mapNotNull { part ->
+                val assignedCount = assignedCountByPart[part.id] ?: 0
+                val expectedCount = part.partType.peopleCount
+                if (assignedCount < expectedCount) {
+                    PartAssignmentWarning(
+                        weekStart = weekPlan.weekStartDate,
+                        weekEnd = sundayOf(weekPlan.weekStartDate),
+                        partLabel = partDisplayLabel(part),
+                        assignedCount = assignedCount,
+                        expectedCount = expectedCount,
+                    )
+                } else null
             }
     }
 
@@ -150,14 +210,17 @@ class GeneraImmaginiAssegnazioni(
             .filter { it.weeklyPartId in selectedPartIdsSet }
             .groupBy { it.personId }
             .values
+            .filter { personAssignments -> personAssignments.any { it.slot == 1 } }
             .map { personAssignments ->
                 val orderedAssignments = personAssignments.sortedWith(
                     compareBy({ partOrderMap[it.weeklyPartId] ?: Int.MAX_VALUE }, { it.slot }),
                 )
+                val firstPartSortOrder = partOrderMap[orderedAssignments.first().weeklyPartId] ?: Int.MAX_VALUE
                 PersonTicketSheet(
                     fullName = orderedAssignments.first().fullName,
                     weekStart = weekPlan.weekStartDate,
                     weekEnd = sundayOf(weekPlan.weekStartDate),
+                    primaryPartSortOrder = firstPartSortOrder,
                     assignments = orderedAssignments.map { assignment ->
                         val part = checkNotNull(partsById[assignment.weeklyPartId]) {
                             "Parte non trovata per assegnazione ${assignment.id.value}"
@@ -165,11 +228,12 @@ class GeneraImmaginiAssegnazioni(
                         AssignmentTicketLine(
                             partLabel = partDisplayLabel(part),
                             roleLabel = slotRoleLabel(part, assignment.slot),
+                            partNumber = part.sortOrder + PART_DISPLAY_NUMBER_OFFSET,
                         )
                     },
                 )
             }
-            .sortedBy { it.fullName.lowercase() }
+            .sortedWith(compareBy({ it.primaryPartSortOrder }, { it.fullName.lowercase() }))
     }
 
     private fun renderTicketImage(
@@ -190,17 +254,12 @@ class GeneraImmaginiAssegnazioni(
                 pdfPath,
             )
             pdfToPngRenderer(pdfPath, pngPath)
-            logger.info("Immagine creata: {}", pngPath.toAbsolutePath())
+            logger.info { "Immagine creata: ${pngPath.toAbsolutePath()}" }
             return pngPath
         } catch (error: Exception) {
-            logger.error(
-                "Generazione immagine fallita per {} (pdf={}, png={}): {}",
-                sheet.fullName,
-                pdfPath.toAbsolutePath(),
-                pngPath.toAbsolutePath(),
-                error.message,
-                error,
-            )
+            logger.error(error) {
+                "Generazione immagine fallita per ${sheet.fullName} (pdf=${pdfPath.toAbsolutePath()}, png=${pngPath.toAbsolutePath()}): ${error.message}"
+            }
             throw IllegalStateException(
                 "Errore generando immagine per ${sheet.fullName} (pdf=$pdfPath, png=$pngPath): ${error.message}",
                 error,
@@ -208,11 +267,7 @@ class GeneraImmaginiAssegnazioni(
         } finally {
             runCatching { Files.deleteIfExists(pdfPath) }
                 .onFailure { cleanupError ->
-                    logger.warn(
-                        "Cleanup PDF temporaneo non riuscito ({}): {}",
-                        pdfPath.toAbsolutePath(),
-                        cleanupError.message,
-                    )
+                    logger.warn { "Cleanup PDF temporaneo non riuscito (${pdfPath.toAbsolutePath()}): ${cleanupError.message}" }
                 }
         }
     }
@@ -272,7 +327,7 @@ private fun slotRoleLabel(
     "Assistente"
 }
 
-private fun buildSheetAssignmentLabel(line: AssignmentTicketLine): String = "${line.partLabel} (${line.roleLabel})"
+private fun buildSheetAssignmentLabel(line: AssignmentTicketLine): String = "${line.partNumber}. ${line.partLabel} (${line.roleLabel})"
 
 private fun sanitizeFileName(fullName: String): String = fullName
     .trim()

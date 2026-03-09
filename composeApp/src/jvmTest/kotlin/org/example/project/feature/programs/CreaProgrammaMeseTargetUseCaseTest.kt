@@ -4,16 +4,12 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
-import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
-import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class CreaProgrammaMeseTargetUseCaseTest {
 
@@ -112,28 +108,5 @@ class CreaProgrammaMeseTargetUseCaseTest {
 
         val created = assertIs<Either.Right<ProgramMonth>>(result).value
         assertEquals(2, created.month)
-    }
-}
-
-private class InMemoryProgramStore(
-    val programs: MutableList<ProgramMonth> = mutableListOf(),
-) : ProgramStore {
-
-    override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> =
-        programs.sortedBy { it.yearMonth }
-
-    override suspend fun findById(id: ProgramMonthId): ProgramMonth? =
-        programs.firstOrNull { it.id == id }
-
-    override suspend fun save(program: ProgramMonth) {
-        programs.add(program)
-    }
-
-    override suspend fun delete(id: ProgramMonthId) {
-        programs.removeIf { it.id == id }
-    }
-
-    override suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime) {
-        // no-op for tests
     }
 }

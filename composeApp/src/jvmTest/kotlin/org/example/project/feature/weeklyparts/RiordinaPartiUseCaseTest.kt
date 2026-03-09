@@ -32,6 +32,7 @@ class RiordinaPartiUseCaseTest {
                     WeeklyPartId("p2"),
                     WeeklyPartId("p1"),
                 ),
+                referenceDate = store.weekDate,
             )
 
             assertIs<Either.Right<Unit>>(result)
@@ -54,6 +55,7 @@ class RiordinaPartiUseCaseTest {
             val result = useCase(
                 weekStartDate = store.weekDate,
                 orderedPartIds = listOf(WeeklyPartId("p1"), WeeklyPartId("p2")),
+                referenceDate = store.weekDate,
             )
 
             val left = assertIs<Either.Left<DomainError>>(result).value
@@ -96,7 +98,7 @@ private class TrackingSortWeekPlanStore(
     override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
         if (aggregate.weekPlan.weekStartDate == weekStartDate) aggregate else null
 
-    context(org.example.project.core.persistence.TransactionScope)
+    context(tx: org.example.project.core.persistence.TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
         if (throwOnSave) error("boom")
         this.aggregate = aggregate

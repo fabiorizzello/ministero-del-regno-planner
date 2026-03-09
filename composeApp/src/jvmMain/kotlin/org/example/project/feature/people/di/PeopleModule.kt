@@ -27,11 +27,11 @@ val peopleModule = module {
     // Use Cases
     single { CercaProclamatoriUseCase(get()) }
     single { CaricaProclamatoreUseCase(get()) }
-    single { CreaProclamatoreUseCase(get(), get()) }
-    single { ImportaProclamatoriDaJsonUseCase(get(), get()) }
-    single { AggiornaProclamatoreUseCase(get(), get(), get()) }
-    single { ImpostaIdoneitaAssistenzaUseCase(get()) }
-    single { ImpostaIdoneitaConduzioneUseCase(get()) }
+    single { CreaProclamatoreUseCase(get(), get(), get()) }
+    single { ImportaProclamatoriDaJsonUseCase(get(), get(), get()) }
+    single { AggiornaProclamatoreUseCase(get(), get(), get(), get()) }
+    single { ImpostaIdoneitaAssistenzaUseCase(get(), get()) }
+    single { ImpostaIdoneitaConduzioneUseCase(get(), get()) }
     single { CaricaIdoneitaProclamatoreUseCase(get()) }
     single { EliminaProclamatoreUseCase(get(), get(), get()) }
     single { VerificaDuplicatoProclamatoreUseCase(get()) }

@@ -8,10 +8,10 @@ import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.RemoteConfig
 import org.example.project.feature.updates.application.UpdateAsset
-import org.example.project.feature.updates.application.UpdateChannel
+import org.example.project.core.config.UpdateChannel
 import org.example.project.feature.updates.application.UpdateRelease
 
 @Serializable
@@ -56,7 +56,7 @@ class GitHubReleasesClient(
             header("Accept", "application/vnd.github+json")
         }
         if (!response.status.isSuccess()) {
-            logger.warn("GitHub API risposta non valida {} per {}", response.status.value, url)
+            logger.warn { "GitHub API risposta non valida ${response.status.value} per $url" }
             return null
         }
         return response.bodyAsText()
