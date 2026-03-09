@@ -9,15 +9,6 @@
    - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` — espansione del problema con nuovi metodi.
    - Evidenze (righe aggiornate): `StampaProgrammaUseCase.kt:116`, `GeneraImmaginiAssegnazioni.kt:86,107,264`.
 
-46. `DiagnosticsViewModel` bypassa use case e chiama direttamente `MinisteroDatabase` per mutazioni e letture.
-    - `database.ministeroDatabaseQueries.deleteWeekPlansBeforeDate()` (riga 224) è una mutazione senza TransactionRunner e senza use case. Le letture count (righe 430-432) bypassano analogamente il layer application.
-    - Il modulo DI wira `MinisteroDatabase` direttamente nel ViewModel (ViewModelsModule.kt:84).
-    - Soluzione: estrarre `EliminaStoricoUseCase` (mutante, con TransactionRunner) e `ContaStoricoUseCase` (read-only).
-    - Evidenze: `DiagnosticsViewModel.kt:224,430-432`, `ui/di/ViewModelsModule.kt:84`.
-
-47. `AggiornaApplicazione.kt:31` — `throw IllegalStateException()` in use case invece di `Either<DomainError, T>`.
-    - Viola il pattern Arrow Either adottato da tutti gli altri use case dell'application layer.
-    - Evidenza: `feature/updates/application/AggiornaApplicazione.kt:31`.
 
 ### Medium
 
@@ -31,10 +22,6 @@
    - Evidenza: `GeneraImmaginiAssegnazioni.kt:335-341`, `:13-14`.
 
 
-14. `KonformValidation.requireValid()` lancia `IllegalArgumentException` invece di restituire `Either`.
-   - Violazione della regola "domain non lancia eccezioni".
-   - Callers: `PartType.init` (weeklyparts/domain/PartType.kt:38-40), `Proclamatore.init` (people/domain/Proclamatore.kt:39-44) — construction-time exception non mappata a DomainError.
-   - Evidenza: `core/domain/KonformValidation.kt:10`.
 
 15. `feature/updates` — zero test coverage.
     - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient`, `UpdateScheduler` non hanno nessun test.
@@ -53,6 +40,11 @@
 - **Finding 45**: `SchemaManagementViewModel.loadCurrentAndFuturePrograms()` ora restituisce `Either<DomainError, List<ProgramMonth>>` direttamente; eliminato `runCatching+throw` al call site.
 - **Finding 48**: Invalidato — il codice in `PdfAssignmentsRenderer.kt` e `PdfProgramRenderer.kt` lancia già `IOException` se `mkdirs()` fallisce. Finding basato su osservazione errata.
 - **Medium 10**: `TransactionRunner` usa `withContext(Dispatchers.IO)` + `runBlocking(coroutineContext)`; rimosso `@Suppress("BlockingMethodInNonBlockingContext")`; `@Suppress("UNCHECKED_CAST")` mantenuto con commento esplicativo.
+
+## Findings risolti (Batch 3 — 2026-03-09)
+
+- **High 46**: Estratti `ContaStoricoUseCase` (read-only) e `EliminaStoricoUseCase` (mutante con TransactionRunner + Either) da `DiagnosticsViewModel`. Nuovo modulo DI `DiagnosticsModule`. `MinisteroDatabase` rimosso dal ViewModel. VACUUM eseguito fuori transazione come da vincoli SQLite.
+- **Medium 14**: Smart constructor `of()` aggiunto a `PartType` e `Proclamatore`; costruttori primari resi `internal`; `init` block rimosso; `KonformValidation.validate()` aggiunto; `PartTypeJsonParser` e `ImportaProclamatoriDaJsonUseCase` aggiornati.
 
 ## Findings risolti (Batch 2 — 2026-03-09)
 
