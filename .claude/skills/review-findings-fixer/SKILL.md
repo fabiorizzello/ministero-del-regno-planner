@@ -134,6 +134,11 @@ Lavora esclusivamente dentro quel worktree. Non modificare il working tree princ
 4. **Aggiorna il modulo DI (Koin)** se il costruttore cambia — sempre nello stesso commit, mai separato.
 5. **Controlla i caller**: cerca tutti gli usi del simbolo modificato nel codebase.
 
+### Pre-commit self-check (gate obbligatorio prima di ogni commit)
+
+**Invoca il skill `codebase-patterns`** e rispondi alla checklist pre-commit che trovi lì.
+Ogni risposta "sì" è un blocco: correggi prima di committare.
+
 ### Escalation durante il fix
 
 Se scopri che il problema è **più esteso di quanto documentato**:
