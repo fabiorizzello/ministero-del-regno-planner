@@ -155,19 +155,12 @@ internal class PersonPickerViewModel(
         pickerSuggestionsJob = scope.launch {
             _state.update { it.copy(isPickerLoading = true) }
             try {
-                val week = selectedProgramWeeks.find { it.weekStartDate == pickerWeekStartDate }
-                val assignedPeople = if (week == null) {
-                    emptySet()
-                } else {
-                    (selectedProgramAssignments[week.id.value] ?: emptyList())
-                        .map { it.personId }
-                        .toSet()
-                }
+                // Already-assigned IDs are loaded internally by the use case from the repository.
+                // No need to pass them from the ViewModel (which could become stale).
                 val suggestions = suggerisciProclamatori(
                     weekStartDate = pickerWeekStartDate,
                     weeklyPartId = pickerWeeklyPartId,
                     slot = pickerSlot,
-                    alreadyAssignedIds = assignedPeople,
                 )
                 _state.update { it.copy(pickerSuggestions = suggestions, isPickerLoading = false) }
             } catch (error: Exception) {
