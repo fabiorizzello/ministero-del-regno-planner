@@ -39,3 +39,48 @@ internal fun mapAssignmentWithPersonRow(
         ),
     )
 }
+
+/**
+ * Intermediate raw row before domain construction. Used to validate slot before
+ * constructing [AssignmentWithPerson], preventing crashes on corrupt DB data.
+ */
+internal data class AssignmentRawRow(
+    val id: String,
+    val weeklyPartId: String,
+    val personId: String,
+    val slot: Long,
+    val firstName: String,
+    val lastName: String,
+    val sex: String,
+)
+
+internal fun mapAssignmentRawRow(
+    id: String,
+    weekly_part_id: String,
+    person_id: String,
+    slot: Long,
+    first_name: String,
+    last_name: String,
+    sex: String,
+): AssignmentRawRow = AssignmentRawRow(
+    id = id,
+    weeklyPartId = weekly_part_id,
+    personId = person_id,
+    slot = slot,
+    firstName = first_name,
+    lastName = last_name,
+    sex = sex,
+)
+
+/**
+ * Converts a raw row to [AssignmentWithPerson], returning null and logging a warning
+ * if the slot is invalid (< 1). This guards against corrupt DB data that would otherwise
+ * crash the app via the [AssignmentWithPerson] init block `require`.
+ */
+internal fun AssignmentRawRow.toAssignmentWithPersonOrNull(): AssignmentWithPerson? {
+    if (slot < 1) {
+        logger.warn("Riga DB con slot non valido: id={}, slot={} — riga ignorata", id, slot)
+        return null
+    }
+    return mapAssignmentWithPersonRow(id, weeklyPartId, personId, slot, firstName, lastName, sex)
+}

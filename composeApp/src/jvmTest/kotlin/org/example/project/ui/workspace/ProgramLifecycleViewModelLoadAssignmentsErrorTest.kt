@@ -1,5 +1,6 @@
 package org.example.project.ui.workspace
 
+import arrow.core.Either
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -36,9 +37,11 @@ class ProgramLifecycleViewModelLoadAssignmentsErrorTest {
         )
 
         val caricaProgrammiAttivi = mockk<CaricaProgrammiAttiviUseCase>()
-        coEvery { caricaProgrammiAttivi(any()) } returns ProgramSelectionSnapshot(
-            current = currentProgram,
-            futures = emptyList(),
+        coEvery { caricaProgrammiAttivi(any()) } returns Either.Right(
+            ProgramSelectionSnapshot(
+                current = currentProgram,
+                futures = emptyList(),
+            ),
         )
 
         val weekPlanStore = mockk<WeekPlanQueries>()

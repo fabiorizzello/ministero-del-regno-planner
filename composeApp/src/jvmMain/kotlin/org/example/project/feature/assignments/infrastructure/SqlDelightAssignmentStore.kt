@@ -26,17 +26,19 @@ class SqlDelightAssignmentStore(
 
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> {
         return database.ministeroDatabaseQueries
-            .assignmentsForWeek(weekPlanId.value, ::mapAssignmentWithPersonRow)
+            .assignmentsForWeek(weekPlanId.value, ::mapAssignmentRawRow)
             .executeAsList()
+            .mapNotNull { it.toAssignmentWithPersonOrNull() }
     }
 
     override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> {
         if (weekPlanIds.isEmpty()) return emptyMap()
         return database.ministeroDatabaseQueries
             .assignmentsForWeekPlanIds(weekPlanIds.map { it.value }) { id, weekly_part_id, person_id, slot, first_name, last_name, sex, week_plan_id ->
-                week_plan_id to mapAssignmentWithPersonRow(id, weekly_part_id, person_id, slot, first_name, last_name, sex)
+                week_plan_id to mapAssignmentRawRow(id, weekly_part_id, person_id, slot, first_name, last_name, sex)
             }
             .executeAsList()
+            .mapNotNull { (weekPlanId, raw) -> raw.toAssignmentWithPersonOrNull()?.let { weekPlanId to it } }
             .groupBy({ WeekPlanId(it.first) }, { it.second })
     }
 

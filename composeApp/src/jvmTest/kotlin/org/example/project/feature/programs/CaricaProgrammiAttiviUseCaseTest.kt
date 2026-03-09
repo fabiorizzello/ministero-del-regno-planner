@@ -1,5 +1,6 @@
 package org.example.project.feature.programs
 
+import arrow.core.getOrElse
 import kotlinx.coroutines.runBlocking
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.ProgramStore
@@ -11,6 +12,7 @@ import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.fail
 
 class CaricaProgrammiAttiviUseCaseTest {
 
@@ -27,7 +29,7 @@ class CaricaProgrammiAttiviUseCaseTest {
         )
         val useCase = CaricaProgrammiAttiviUseCase(store)
 
-        val snapshot = useCase(referenceDate)
+        val snapshot = useCase(referenceDate).getOrElse { fail("Expected Right but got Left: $it") }
 
         assertEquals("current", snapshot.current?.id?.value)
         assertEquals(listOf("future-1", "future-2"), snapshot.futures.map { it.id.value })
@@ -43,7 +45,7 @@ class CaricaProgrammiAttiviUseCaseTest {
         )
         val useCase = CaricaProgrammiAttiviUseCase(store)
 
-        val snapshot = useCase(referenceDate)
+        val snapshot = useCase(referenceDate).getOrElse { fail("Expected Right but got Left: $it") }
 
         assertNull(snapshot.current)
         assertEquals(listOf("future-1"), snapshot.futures.map { it.id.value })
