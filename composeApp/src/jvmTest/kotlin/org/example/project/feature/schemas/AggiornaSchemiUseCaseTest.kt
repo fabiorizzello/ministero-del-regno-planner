@@ -221,6 +221,7 @@ private class InMemoryPartTypeStore2 : PartTypeStore {
 
 private class InMemorySchemaTemplateStore2 : SchemaTemplateStore {
     var templates: List<StoredSchemaWeekTemplate> = emptyList()
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) { this.templates = templates }
     override suspend fun listAll(): List<StoredSchemaWeekTemplate> = templates
     override suspend fun findByWeekStartDate(weekStartDate: LocalDate): StoredSchemaWeekTemplate? =
@@ -240,6 +241,7 @@ private class NoopEligibilityStore2 : EligibilityStore {
 }
 
 private class NoopSchemaUpdateAnomalyStore2 : SchemaUpdateAnomalyStore {
+    context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
     override suspend fun dismissAllOpen() {}

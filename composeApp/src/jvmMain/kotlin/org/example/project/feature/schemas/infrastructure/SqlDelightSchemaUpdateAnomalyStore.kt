@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.schemas.application.SchemaUpdateAnomaly
@@ -11,20 +12,19 @@ import java.util.UUID
 class SqlDelightSchemaUpdateAnomalyStore(
     private val database: MinisteroDatabase,
 ) : SchemaUpdateAnomalyStore {
+    context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {
         if (items.isEmpty()) return
-        database.ministeroDatabaseQueries.transaction {
-            items.forEach { item ->
-                database.ministeroDatabaseQueries.insertSchemaUpdateAnomaly(
-                    id = UUID.randomUUID().toString(),
-                    person_id = item.personId.value,
-                    part_type_id = item.partTypeId.value,
-                    reason = item.reason,
-                    schema_version = item.schemaVersion,
-                    created_at = item.createdAt,
-                    dismissed = 0L,
-                )
-            }
+        items.forEach { item ->
+            database.ministeroDatabaseQueries.insertSchemaUpdateAnomaly(
+                id = UUID.randomUUID().toString(),
+                person_id = item.personId.value,
+                part_type_id = item.partTypeId.value,
+                reason = item.reason,
+                schema_version = item.schemaVersion,
+                created_at = item.createdAt,
+                dismissed = 0L,
+            )
         }
     }
 

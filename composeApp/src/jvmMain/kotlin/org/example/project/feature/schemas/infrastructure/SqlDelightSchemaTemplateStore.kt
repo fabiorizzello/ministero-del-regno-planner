@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
@@ -11,25 +12,24 @@ class SqlDelightSchemaTemplateStore(
     private val database: MinisteroDatabase,
 ) : SchemaTemplateStore {
 
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
-        database.ministeroDatabaseQueries.transaction {
-            database.ministeroDatabaseQueries.deleteAllSchemaWeekParts()
-            database.ministeroDatabaseQueries.deleteAllSchemaWeeks()
+        database.ministeroDatabaseQueries.deleteAllSchemaWeekParts()
+        database.ministeroDatabaseQueries.deleteAllSchemaWeeks()
 
-            templates.forEach { template ->
-                val weekId = UUID.randomUUID().toString()
-                database.ministeroDatabaseQueries.insertSchemaWeek(
-                    id = weekId,
-                    week_start_date = template.weekStartDate.toString(),
+        templates.forEach { template ->
+            val weekId = UUID.randomUUID().toString()
+            database.ministeroDatabaseQueries.insertSchemaWeek(
+                id = weekId,
+                week_start_date = template.weekStartDate.toString(),
+            )
+            template.partTypeIds.forEachIndexed { index, partTypeId ->
+                database.ministeroDatabaseQueries.insertSchemaWeekPart(
+                    id = UUID.randomUUID().toString(),
+                    schema_week_id = weekId,
+                    part_type_id = partTypeId.value,
+                    sort_order = index.toLong(),
                 )
-                template.partTypeIds.forEachIndexed { index, partTypeId ->
-                    database.ministeroDatabaseQueries.insertSchemaWeekPart(
-                        id = UUID.randomUUID().toString(),
-                        schema_week_id = weekId,
-                        part_type_id = partTypeId.value,
-                        sort_order = index.toLong(),
-                    )
-                }
             }
         }
     }

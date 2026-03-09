@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.application
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import java.time.LocalDate
 
@@ -9,6 +10,7 @@ data class StoredSchemaWeekTemplate(
 )
 
 interface SchemaTemplateStore {
+    context(tx: TransactionScope)
     suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>)
     suspend fun listAll(): List<StoredSchemaWeekTemplate>
     suspend fun findByWeekStartDate(weekStartDate: LocalDate): StoredSchemaWeekTemplate?

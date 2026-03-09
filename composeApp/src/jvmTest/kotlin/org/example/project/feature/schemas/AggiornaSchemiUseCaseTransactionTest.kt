@@ -203,6 +203,7 @@ private class InMemoryPartTypeStore : PartTypeStore {
 private class InMemorySchemaTemplateStore : SchemaTemplateStore {
     private var templates: List<StoredSchemaWeekTemplate> = emptyList()
 
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
         this.templates = templates
     }
@@ -229,6 +230,7 @@ private class NoopEligibilityStore : EligibilityStore {
 }
 
 private class NoopSchemaUpdateAnomalyStore : SchemaUpdateAnomalyStore {
+    context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
     override suspend fun dismissAllOpen() {}
@@ -301,6 +303,7 @@ private class RollbackAwareSchemaTemplateStore(
         templates = snapshotTemplates.toList()
     }
 
+    context(tx: TransactionScope)
     override suspend fun replaceAll(templates: List<StoredSchemaWeekTemplate>) {
         if (failOnReplace) {
             throw IllegalStateException("forced replaceAll failure")
