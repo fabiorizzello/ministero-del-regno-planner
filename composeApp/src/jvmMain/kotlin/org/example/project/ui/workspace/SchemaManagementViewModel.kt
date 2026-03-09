@@ -1,13 +1,13 @@
 package org.example.project.ui.workspace
 
 import arrow.core.Either
-import arrow.core.getOrElse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
@@ -69,13 +69,13 @@ internal class SchemaManagementViewModel(
                 is Either.Right -> {
                     val result = updateResult.value
                     val after = captureSchemaFingerprint()
-                    val allPrograms = runCatching { loadCurrentAndFuturePrograms() }
-                        .getOrElse { error ->
+                    val allPrograms = when (val programsResult = loadCurrentAndFuturePrograms()) {
+                        is Either.Left -> {
                             _state.update {
                                 it.copy(
                                     isRefreshingSchemas = false,
                                     notice = FeedbackBannerModel(
-                                        "Errore caricamento programmi: ${error.message}",
+                                        "Errore caricamento programmi: ${programsResult.value.toMessage()}",
                                         FeedbackBannerKind.ERROR,
                                     ),
                                 )
@@ -83,6 +83,8 @@ internal class SchemaManagementViewModel(
                             onProgramRefreshComplete()
                             return@launch
                         }
+                        is Either.Right -> programsResult.value
+                    }
                     val validProgramIds = allPrograms.map { program -> program.id }.toSet()
                     val impactedProgramIds = calculateImpactedProgramIds(
                         allPrograms = allPrograms,
@@ -149,12 +151,12 @@ internal class SchemaManagementViewModel(
             }
     }
 
-    private suspend fun loadCurrentAndFuturePrograms(): List<ProgramMonth> {
-        val snapshot = caricaProgrammiAttivi(_state.value.today)
-            .getOrElse { error -> throw RuntimeException(error.toMessage()) }
-        return buildList {
-            snapshot.current?.let { add(it) }
-            addAll(snapshot.futures)
+    private suspend fun loadCurrentAndFuturePrograms(): Either<DomainError, List<ProgramMonth>> {
+        return caricaProgrammiAttivi(_state.value.today).map { snapshot ->
+            buildList {
+                snapshot.current?.let { add(it) }
+                addAll(snapshot.futures)
+            }
         }
     }
 
