@@ -8,7 +8,6 @@ import java.io.BufferedOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
-import java.sql.DriverManager
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -32,10 +31,12 @@ import kotlinx.serialization.json.putJsonObject
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
 import org.example.project.core.config.UpdateSettingsStore
-import org.example.project.db.MinisteroDatabase
 import arrow.core.Either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
+import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
+import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
+import org.example.project.feature.diagnostics.application.StoricoPreview
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.core.config.UpdateChannel
@@ -64,13 +65,7 @@ internal enum class DiagnosticsRetentionOption(
     fun cutoffDate(referenceDate: LocalDate = LocalDate.now()): LocalDate = referenceDate.minusMonths(months)
 }
 
-internal data class HistoricalCleanupPreview(
-    val weekPlans: Int = 0,
-    val weeklyParts: Int = 0,
-    val assignments: Int = 0,
-) {
-    val hasData: Boolean get() = weekPlans > 0 || weeklyParts > 0 || assignments > 0
-}
+internal typealias HistoricalCleanupPreview = StoricoPreview
 
 internal data class DiagnosticsUiState(
     val appVersion: String = AppVersion.current,
@@ -98,7 +93,8 @@ internal data class DiagnosticsUiState(
 
 internal class DiagnosticsViewModel(
     private val scope: CoroutineScope,
-    private val database: MinisteroDatabase,
+    private val contaStorico: ContaStoricoUseCase,
+    private val eliminaStorico: EliminaStoricoUseCase,
     private val verificaAggiornamenti: VerificaAggiornamenti,
     private val aggiornaApplicazione: AggiornaApplicazione,
     private val updateStatusStore: UpdateStatusStore,
@@ -224,12 +220,14 @@ internal class DiagnosticsViewModel(
                     )
                 },
                 operation = {
-                    val deleted = loadCleanupPreview(cutoffDate)
-                    database.ministeroDatabaseQueries.deleteWeekPlansBeforeDate(cutoffDate.toString())
-                    val vacuumOk = runVacuum()
+                    val deleted = contaStorico(cutoffDate)
+                    val eliminaResult = when (val r = eliminaStorico(cutoffDate)) {
+                        is Either.Left -> throw RuntimeException(r.value.toMessage())
+                        is Either.Right -> r.value
+                    }
                     val updatedUsage = loadStorageUsage()
-                    val updatedPreview = loadCleanupPreview(cutoffDate)
-                    CleanupExecutionResult(deleted, updatedUsage, updatedPreview, vacuumOk)
+                    val updatedPreview = contaStorico(cutoffDate)
+                    CleanupExecutionResult(deleted, updatedUsage, updatedPreview, eliminaResult.vacuumExecuted)
                 },
             )
         }
@@ -425,29 +423,7 @@ internal class DiagnosticsViewModel(
         )
     }
 
-    private suspend fun loadCleanupPreview(cutoffDate: LocalDate): HistoricalCleanupPreview = withContext(Dispatchers.IO) {
-        val cutoff = cutoffDate.toString()
-        val weekPlans = database.ministeroDatabaseQueries.countWeekPlansBeforeDate(cutoff).executeAsOne().toInt()
-        val weeklyParts = database.ministeroDatabaseQueries.countWeeklyPartsBeforeDate(cutoff).executeAsOne().toInt()
-        val assignments = database.ministeroDatabaseQueries.countAssignmentsBeforeDate(cutoff).executeAsOne().toInt()
-        HistoricalCleanupPreview(
-            weekPlans = weekPlans,
-            weeklyParts = weeklyParts,
-            assignments = assignments,
-        )
-    }
-
-    private suspend fun runVacuum(): Boolean = withContext(Dispatchers.IO) {
-        val dbPath = AppRuntime.paths().dbFile.toAbsolutePath().toString()
-        runCatching {
-            DriverManager.getConnection("jdbc:sqlite:$dbPath").use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.execute("VACUUM;")
-                }
-            }
-            true
-        }.getOrDefault(false)
-    }
+    private suspend fun loadCleanupPreview(cutoffDate: LocalDate): HistoricalCleanupPreview = contaStorico(cutoffDate)
 
     private fun buildSupportInfo(state: DiagnosticsUiState): String = buildString {
         appendLine("Versione app: ${state.appVersion}")

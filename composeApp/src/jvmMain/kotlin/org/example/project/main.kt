@@ -22,6 +22,7 @@ import org.example.project.feature.people.di.peopleModule
 import org.example.project.feature.programs.di.programsModule
 import org.example.project.feature.schemas.di.schemasModule
 import org.example.project.feature.updates.di.updatesModule
+import org.example.project.feature.diagnostics.di.diagnosticsModule
 import org.example.project.feature.weeklyparts.di.weeklyPartsModule
 import org.example.project.ui.di.viewModelsModule
 import org.example.project.ui.theme.WorkspaceSketchPalette
@@ -64,6 +65,7 @@ fun main() {
                 schemasModule,
                 weeklyPartsModule,
                 assignmentsModule,
+                diagnosticsModule,
                 outputModule,
                 updatesModule,
                 viewModelsModule,

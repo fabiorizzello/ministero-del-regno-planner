@@ -3,6 +3,8 @@ package org.example.project.ui.di
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
+import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
@@ -81,7 +83,8 @@ val viewModelsModule = module {
     factory {
         DiagnosticsViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            database = get(),
+            contaStorico = get<ContaStoricoUseCase>(),
+            eliminaStorico = get<EliminaStoricoUseCase>(),
             verificaAggiornamenti = get(),
             aggiornaApplicazione = get(),
             updateStatusStore = get(),
