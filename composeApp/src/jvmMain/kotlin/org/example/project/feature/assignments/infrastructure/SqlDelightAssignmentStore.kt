@@ -10,7 +10,6 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
-import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.infrastructure.mapProclamatoreAssignableRow
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -80,61 +79,86 @@ class SqlDelightAssignmentStore(
     private fun fetchRankingFromDb(
         referenceDates: Set<LocalDate>,
         partTypeIds: Set<PartTypeId>,
-    ): SuggestionRankingCache = database.ministeroDatabaseQueries.transactionWithResult {
-        val globalLast = database.ministeroDatabaseQueries
-            .lastGlobalAssignmentPerPerson()
+    ): SuggestionRankingCache {
+        // Two queries: one bulk fetch of all assignment data, one for active proclaimers
+        val rawRows = database.ministeroDatabaseQueries
+            .allAssignmentRankingData()
             .executeAsList()
-            .associate { it.person_id to it.last_week_date }
-
-        val conductorLast = database.ministeroDatabaseQueries
-            .lastSlot1GlobalAssignmentPerPerson()
-            .executeAsList()
-            .associate { it.person_id to it.last_week_date }
 
         val allActive = database.ministeroDatabaseQueries
             .allAssignableProclaimers(::mapProclamatoreAssignableRow)
             .executeAsList()
 
-        val globalBeforeByDate = referenceDates.associateWith { date ->
-            database.ministeroDatabaseQueries
-                .lastGlobalAssignmentBeforePerPerson(date.toString())
-                .executeAsList()
-                .associate { it.person_id to it.week_date }
+        // Index raw data by person_id for efficient computation
+        data class RankRow(val weekDate: String, val partTypeId: String, val slot: Long)
+
+        val byPerson: Map<String, List<RankRow>> = rawRows
+            .groupBy(
+                keySelector = { it.person_id },
+                valueTransform = { RankRow(it.week_start_date, it.part_type_id, it.slot) },
+            )
+
+        // globalLast: MAX(week_start_date) per person
+        val globalLast: Map<String, String?> = byPerson.mapValues { (_, rows) ->
+            rows.maxOf { it.weekDate }
         }
 
-        val globalAfterByDate = referenceDates.associateWith { date ->
-            database.ministeroDatabaseQueries
-                .firstGlobalAssignmentAfterPerPerson(date.toString())
-                .executeAsList()
-                .associate { it.person_id to it.week_date }
+        // conductorLast: MAX(week_start_date) per person WHERE slot == 1
+        val conductorLast: Map<String, String?> = byPerson.mapValues { (_, rows) ->
+            rows.filter { it.slot == 1L }.maxOfOrNull { it.weekDate }
         }
 
-        val partTypeLastByType = partTypeIds.associateWith { ptId ->
-            database.ministeroDatabaseQueries
-                .lastPartTypeAssignmentPerPerson(ptId.value)
-                .executeAsList()
-                .associate { it.person_id to it.last_week_date }
+        // globalBeforeByDate: for each referenceDate, MAX(week_start_date) WHERE weekDate <= dateStr per person
+        val globalBeforeByDate: Map<LocalDate, Map<String, String?>> = referenceDates.associateWith { date ->
+            val dateStr = date.toString()
+            byPerson.mapValues { (_, rows) ->
+                rows.filter { it.weekDate <= dateStr }.maxOfOrNull { it.weekDate }
+            }.filterValues { it != null }
         }
 
-        val partTypeBeforeByTypeAndDate = partTypeIds.associateWith { ptId ->
-            referenceDates.associateWith { date ->
-                database.ministeroDatabaseQueries
-                    .lastPartTypeAssignmentBeforePerPerson(ptId.value, date.toString())
-                    .executeAsList()
-                    .associate { it.person_id to it.week_date }
+        // globalAfterByDate: for each referenceDate, MIN(week_start_date) WHERE weekDate > dateStr per person
+        val globalAfterByDate: Map<LocalDate, Map<String, String?>> = referenceDates.associateWith { date ->
+            val dateStr = date.toString()
+            byPerson.mapValues { (_, rows) ->
+                rows.filter { it.weekDate > dateStr }.minOfOrNull { it.weekDate }
+            }.filterValues { it != null }
+        }
+
+        // partTypeLastByType: for each partTypeId, MAX(week_start_date) WHERE part_type_id matches per person
+        val partTypeLastByType: Map<PartTypeId, Map<String, String?>> = partTypeIds.associateWith { ptId ->
+            val ptValue = ptId.value
+            byPerson.mapValues { (_, rows) ->
+                rows.filter { it.partTypeId == ptValue }.maxOfOrNull { it.weekDate }
+            }.filterValues { it != null }
+        }
+
+        // partTypeBeforeByTypeAndDate: for each (partTypeId, date), MAX WHERE part_type_id matches AND weekDate <= dateStr
+        val partTypeBeforeByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>> =
+            partTypeIds.associateWith { ptId ->
+                val ptValue = ptId.value
+                referenceDates.associateWith { date ->
+                    val dateStr = date.toString()
+                    byPerson.mapValues { (_, rows) ->
+                        rows.filter { it.partTypeId == ptValue && it.weekDate <= dateStr }
+                            .maxOfOrNull { it.weekDate }
+                    }.filterValues { it != null }
+                }
             }
-        }
 
-        val partTypeAfterByTypeAndDate = partTypeIds.associateWith { ptId ->
-            referenceDates.associateWith { date ->
-                database.ministeroDatabaseQueries
-                    .firstPartTypeAssignmentAfterPerPerson(ptId.value, date.toString())
-                    .executeAsList()
-                    .associate { it.person_id to it.week_date }
+        // partTypeAfterByTypeAndDate: for each (partTypeId, date), MIN WHERE part_type_id matches AND weekDate > dateStr
+        val partTypeAfterByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>> =
+            partTypeIds.associateWith { ptId ->
+                val ptValue = ptId.value
+                referenceDates.associateWith { date ->
+                    val dateStr = date.toString()
+                    byPerson.mapValues { (_, rows) ->
+                        rows.filter { it.partTypeId == ptValue && it.weekDate > dateStr }
+                            .minOfOrNull { it.weekDate }
+                    }.filterValues { it != null }
+                }
             }
-        }
 
-        SuggestionRankingCache(
+        return SuggestionRankingCache(
             globalLast = globalLast,
             conductorLast = conductorLast,
             allActive = allActive,
