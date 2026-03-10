@@ -1,10 +1,12 @@
 package org.example.project.feature.output.infrastructure
 
 import java.awt.Color
+import java.io.IOException
 import java.nio.file.Path
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -31,6 +33,75 @@ class PdfAssignmentsRenderer {
         val weekEnd: LocalDate,
         val assignments: List<String>,
     )
+
+    data class AssignmentSlip(
+        val studentName: String,
+        val assistantName: String?,
+        val weekStart: LocalDate,
+        val partNumber: Int,
+        val partLabel: String,
+    )
+
+    fun renderAssignmentSlipPdf(slip: AssignmentSlip, outputPath: Path) {
+        val templateBytes = PdfAssignmentsRenderer::class.java
+            .getResourceAsStream("/templates/S-89.pdf")
+            ?.readBytes()
+            ?: error("Template S-89.pdf non trovato nelle risorse")
+
+        Loader.loadPDF(templateBytes).use { document ->
+            val page = document.getPage(0)
+            PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true).use { content ->
+                content.setNonStrokingColor(Color.BLACK)
+                content.setFont(helvetica, 12f)
+
+                // Nome e cognome: value starts at x=119.9, y=262.2
+                drawSlipValue(content, slip.studentName, x = 119.9f, y = 262.2f)
+
+                // Assistente: value starts at x=82.4, y=238.9
+                if (!slip.assistantName.isNullOrBlank()) {
+                    drawSlipValue(content, slip.assistantName, x = 82.4f, y = 238.9f)
+                }
+
+                // Data: value starts at x=47.7, y=215.7
+                drawSlipValue(content, slip.weekStart.format(dateFormatter), x = 47.7f, y = 215.7f)
+
+                // Parte n.: value starts at x=67.9, y=192.4 — numero + etichetta
+                drawSlipValue(content, "${slip.partNumber} - ${slip.partLabel}", x = 67.9f, y = 192.4f)
+
+                // Checkbox Sala principale: always checked — draw X at checkbox position
+                // Checkbox char at x=24.7, y range 140.6-154.2, center ~147.4
+                drawCheckX(content, x = 25.5f, yCenter = 147.4f, size = 7f)
+            }
+
+            val parentDir = outputPath.toFile().parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw IOException("Impossibile creare la directory di output: $parentDir")
+            }
+            document.save(outputPath.toFile())
+        }
+        logger.info { "Biglietto S-89 generato: ${outputPath.toAbsolutePath()}" }
+    }
+
+    private fun drawSlipValue(content: PDPageContentStream, text: String, x: Float, y: Float) {
+        val safeText = sanitizeForPdf(helvetica, text)
+        if (safeText.isBlank()) return
+        content.beginText()
+        content.newLineAtOffset(x, y)
+        content.showText(safeText)
+        content.endText()
+    }
+
+    private fun drawCheckX(content: PDPageContentStream, x: Float, yCenter: Float, size: Float) {
+        val half = size / 2f
+        content.setStrokingColor(Color.BLACK)
+        content.setLineWidth(1.2f)
+        content.moveTo(x, yCenter - half)
+        content.lineTo(x + size, yCenter + half)
+        content.stroke()
+        content.moveTo(x + size, yCenter - half)
+        content.lineTo(x, yCenter + half)
+        content.stroke()
+    }
 
     fun renderWeeklyAssignmentsPdf(
         weekStart: LocalDate,
