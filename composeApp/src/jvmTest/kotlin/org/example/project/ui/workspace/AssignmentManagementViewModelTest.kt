@@ -240,8 +240,8 @@ class AssignmentManagementViewModelTest {
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
             assistantName = null,
-            weekStart = LocalDate.of(2026, 3, 2),
-            weekEnd = LocalDate.of(2026, 3, 8),
+            weekStart = LocalDate.of(2027, 3, 2),
+            weekEnd = LocalDate.of(2027, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
             assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
             weeklyPartId = WeeklyPartId("p1"),
@@ -265,8 +265,8 @@ class AssignmentManagementViewModelTest {
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
             assistantName = null,
-            weekStart = LocalDate.of(2026, 3, 2),
-            weekEnd = LocalDate.of(2026, 3, 8),
+            weekStart = LocalDate.of(2027, 3, 2),
+            weekEnd = LocalDate.of(2027, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
             assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
             weeklyPartId = WeeklyPartId("p1"),
