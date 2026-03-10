@@ -21,6 +21,7 @@ import org.example.project.feature.output.infrastructure.renderPdfToPngFile
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
+import org.example.project.feature.output.domain.completePartIds
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
@@ -137,11 +138,11 @@ class GeneraImmaginiAssegnazioni(
 
             val tickets = weekAssignmentsByWeek
                 .flatMap { (week, weekAssignments) ->
-                    val completePartIds = completePartIds(week, weekAssignments)
+                    val completeIds = completePartIds(week.parts, weekAssignments)
                     buildAssignmentSlips(
                         weekPlan = week,
                         assignments = weekAssignments,
-                        selectedPartIds = completePartIds,
+                        selectedPartIds = completeIds,
                     )
                 }
                 .sortedWith(compareBy({ it.weekStart }, { it.sortOrder }, { it.slip.studentName.lowercase() }))
@@ -183,16 +184,6 @@ class GeneraImmaginiAssegnazioni(
 
             TicketGenerationResult(tickets = tickets, warnings = warnings)
         }
-    }
-
-    private fun completePartIds(
-        weekPlan: WeekPlan,
-        assignments: List<AssignmentWithPerson>,
-    ): Set<WeeklyPartId> {
-        val assignedCountByPart = assignments.groupBy { it.weeklyPartId }.mapValues { it.value.size }
-        return weekPlan.parts
-            .filter { part -> (assignedCountByPart[part.id] ?: 0) >= part.partType.peopleCount }
-            .mapTo(mutableSetOf()) { it.id }
     }
 
     private fun buildPartWarnings(
