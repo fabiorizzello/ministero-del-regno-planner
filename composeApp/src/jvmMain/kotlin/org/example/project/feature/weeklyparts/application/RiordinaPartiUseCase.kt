@@ -18,10 +18,7 @@ class RiordinaPartiUseCase(
     ): Either<DomainError, Unit> = either {
         val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
             ?: raise(DomainError.NotFound("Settimana"))
-        val reordered = aggregate.reorderParts(orderedPartIds, referenceDate).fold(
-            ifLeft = { raise(it) },
-            ifRight = { it },
-        )
+        val reordered = aggregate.reorderParts(orderedPartIds, referenceDate).bind()
         try {
             transactionRunner.runInTransaction {
                 weekPlanStore.saveAggregate(reordered)
