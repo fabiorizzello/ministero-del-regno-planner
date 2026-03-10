@@ -432,6 +432,12 @@ fun ProgramWorkspaceScreen() {
             }
             val selectedWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == effectiveSelectedWeekId }
 
+            LaunchedEffect(lifecycleState.selectedProgramId) {
+                lifecycleState.selectedProgramId?.let { programId ->
+                    assignmentVM.loadDeliverySummary(programId, currentMonday)
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .weight(1f)
