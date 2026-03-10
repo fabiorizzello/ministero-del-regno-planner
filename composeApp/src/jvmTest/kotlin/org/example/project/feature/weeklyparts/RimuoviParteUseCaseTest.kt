@@ -150,7 +150,7 @@ private class RimuoviParteTestWeekPlanStore(
 
     var savedAggregate: WeekPlanAggregate? = null
 
-    private var aggregate: WeekPlanAggregate? = if (parts.isNotEmpty() || true) {
+    private var aggregate: WeekPlanAggregate? = if (parts.isNotEmpty()) {
         WeekPlanAggregate(
             weekPlan = WeekPlan(
                 id = WeekPlanId("w-test"),

@@ -30,7 +30,6 @@ sealed interface DomainError {
     data object DataSettimanaNonLunedi : DomainError
     data object CatalogoTipiNonDisponibile : DomainError
     data object SalvataggioSettimanaFallito : DomainError
-    data object SalvataggioPartiSettimanaFallito : DomainError
     data class RiordinoPartiFallito(val reason: String?) : DomainError
     data class RimozioneAssegnazioniFallita(val reason: String?) : DomainError
     data class EliminazioneProclamatoreFallita(val reason: String?) : DomainError
@@ -69,7 +68,6 @@ fun DomainError.toMessage(): String = when (this) {
     DomainError.DataSettimanaNonLunedi -> "La data della settimana deve essere un lunedi'"
     DomainError.CatalogoTipiNonDisponibile -> "Catalogo tipi non disponibile. Aggiorna i dati prima."
     DomainError.SalvataggioSettimanaFallito -> "Errore nel salvataggio della settimana"
-    DomainError.SalvataggioPartiSettimanaFallito -> "Errore nel salvataggio"
     is DomainError.RiordinoPartiFallito -> "Errore nel riordinamento: ${reason ?: "sconosciuto"}"
     is DomainError.RimozioneAssegnazioniFallita -> "Errore nella rimozione delle assegnazioni: ${reason ?: "sconosciuto"}"
     is DomainError.EliminazioneProclamatoreFallita -> "Errore nell'eliminazione: ${reason ?: "sconosciuto"}"
