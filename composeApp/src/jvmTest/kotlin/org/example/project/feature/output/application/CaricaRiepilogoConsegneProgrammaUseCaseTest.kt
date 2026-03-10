@@ -42,13 +42,6 @@ class CaricaRiepilogoConsegneProgrammaUseCaseTest {
         cognome = "Rossi",
         sesso = Sesso.M,
     )
-    private val luigi = Proclamatore(
-        id = ProclamatoreId("p-2"),
-        nome = "Luigi",
-        cognome = "Bianchi",
-        sesso = Sesso.M,
-    )
-
     // --- Test 1: Complete parts without delivery are pending ---
 
     @Test
