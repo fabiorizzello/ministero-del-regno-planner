@@ -5,6 +5,7 @@ import kotlinx.coroutines.test.runTest
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
 import org.example.project.feature.output.domain.SlipDeliveryStatus
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,7 +19,7 @@ class CaricaStatoConsegneUseCaseTest {
 
     @Test
     fun `returns empty map when no deliveries exist`() = runTest {
-        val result = useCase(listOf("wp-1", "wp-2"))
+        val result = useCase(listOf(WeekPlanId("wp-1"), WeekPlanId("wp-2")))
 
         assertTrue(result.isEmpty())
     }
@@ -28,7 +29,7 @@ class CaricaStatoConsegneUseCaseTest {
         val delivery = SlipDelivery(
             id = SlipDeliveryId("d1"),
             weeklyPartId = WeeklyPartId("wp1"),
-            weekPlanId = "plan-1",
+            weekPlanId = WeekPlanId("plan-1"),
             studentName = "Mario Rossi",
             assistantName = null,
             sentAt = Instant.parse("2026-03-10T10:00:00Z"),
@@ -36,9 +37,9 @@ class CaricaStatoConsegneUseCaseTest {
         )
         store.activeDeliveries[delivery.weeklyPartId to delivery.weekPlanId] = delivery
 
-        val result = useCase(listOf("plan-1"))
+        val result = useCase(listOf(WeekPlanId("plan-1")))
 
-        val key = WeeklyPartId("wp1") to "plan-1"
+        val key = WeeklyPartId("wp1") to WeekPlanId("plan-1")
         val info = result[key]!!
         assertEquals(SlipDeliveryStatus.INVIATO, info.status)
         assertEquals(delivery, info.activeDelivery)
@@ -50,7 +51,7 @@ class CaricaStatoConsegneUseCaseTest {
         val cancelled = SlipDelivery(
             id = SlipDeliveryId("d1"),
             weeklyPartId = WeeklyPartId("wp1"),
-            weekPlanId = "plan-1",
+            weekPlanId = WeekPlanId("plan-1"),
             studentName = "Luigi Bianchi",
             assistantName = null,
             sentAt = Instant.parse("2026-03-08T10:00:00Z"),
@@ -58,9 +59,9 @@ class CaricaStatoConsegneUseCaseTest {
         )
         store.cancelledDeliveries += cancelled
 
-        val result = useCase(listOf("plan-1"))
+        val result = useCase(listOf(WeekPlanId("plan-1")))
 
-        val key = WeeklyPartId("wp1") to "plan-1"
+        val key = WeeklyPartId("wp1") to WeekPlanId("plan-1")
         val info = result[key]!!
         assertEquals(SlipDeliveryStatus.DA_REINVIARE, info.status)
         assertNull(info.activeDelivery)

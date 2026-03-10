@@ -3,6 +3,7 @@ package org.example.project.feature.output.application
 import kotlinx.coroutines.test.runTest
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.Instant
 import kotlin.test.Test
@@ -17,7 +18,7 @@ class AnnullaConsegnaUseCaseTest {
     @Test
     fun `cancels active delivery for the given part and week`() = runTest {
         val weeklyPartId = WeeklyPartId("wp-1")
-        val weekPlanId = "plan-1"
+        val weekPlanId = WeekPlanId("plan-1")
         val delivery = SlipDelivery(
             id = SlipDeliveryId("del-1"),
             weeklyPartId = weeklyPartId,
@@ -37,7 +38,7 @@ class AnnullaConsegnaUseCaseTest {
 
     @Test
     fun `noop if no active delivery exists`() = runTest {
-        val result = useCase(WeeklyPartId("wp-999"), "plan-999")
+        val result = useCase(WeeklyPartId("wp-999"), WeekPlanId("plan-999"))
 
         assertTrue(result.isRight())
         assertEquals(emptyList(), store.cancelledIds)

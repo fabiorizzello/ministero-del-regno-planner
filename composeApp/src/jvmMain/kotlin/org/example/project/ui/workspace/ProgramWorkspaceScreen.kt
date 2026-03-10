@@ -719,7 +719,7 @@ fun ProgramWorkspaceScreen() {
                                                                 weekStartDate = selectedWeek.weekStartDate,
                                                                 weeklyPartId = part.id,
                                                                 slot = slot,
-                                                                weekPlanId = selectedWeek.id.value,
+                                                                weekPlanId = selectedWeek.id,
                                                             )
                                                         },
                                                         onRemoveAssignment = { assignmentId ->

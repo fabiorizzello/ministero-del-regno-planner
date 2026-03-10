@@ -4,6 +4,7 @@ import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +17,7 @@ class VerificaConsegnaPreAssegnazioneUseCaseTest {
 
     @Test
     fun `returns null when no active delivery`() = runTest {
-        val result = useCase(WeeklyPartId("wp1"), "plan1")
+        val result = useCase(WeeklyPartId("wp1"), WeekPlanId("plan1"))
 
         assertNull(result)
     }
@@ -26,7 +27,7 @@ class VerificaConsegnaPreAssegnazioneUseCaseTest {
         val delivery = SlipDelivery(
             id = SlipDeliveryId("d1"),
             weeklyPartId = WeeklyPartId("wp1"),
-            weekPlanId = "plan1",
+            weekPlanId = WeekPlanId("plan1"),
             studentName = "Mario Rossi",
             assistantName = null,
             sentAt = Instant.now(),
@@ -34,7 +35,7 @@ class VerificaConsegnaPreAssegnazioneUseCaseTest {
         )
         store.activeDeliveries[delivery.weeklyPartId to delivery.weekPlanId] = delivery
 
-        val result = useCase(WeeklyPartId("wp1"), "plan1")
+        val result = useCase(WeeklyPartId("wp1"), WeekPlanId("plan1"))
 
         assertEquals("Mario Rossi", result)
     }

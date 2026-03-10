@@ -2,14 +2,15 @@ package org.example.project.feature.output.application
 
 import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 
 class CaricaStatoConsegneUseCase(
     private val store: SlipDeliveryStore,
 ) {
     suspend operator fun invoke(
-        weekPlanIds: List<String>,
-    ): Map<Pair<WeeklyPartId, String>, SlipDeliveryInfo> {
+        weekPlanIds: List<WeekPlanId>,
+    ): Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo> {
         if (weekPlanIds.isEmpty()) return emptyMap()
 
         val active = store.listActiveDeliveries(weekPlanIds)

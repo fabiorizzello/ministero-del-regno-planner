@@ -4,6 +4,7 @@ import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.Instant
 import kotlin.test.Test
@@ -13,7 +14,7 @@ import kotlin.test.assertIs
 class SegnaComInviatoUseCaseTest {
 
     private val weeklyPartId = WeeklyPartId("wp-1")
-    private val weekPlanId = "plan-1"
+    private val weekPlanId = WeekPlanId("plan-1")
 
     @Test
     fun `marks slip as delivered creates new delivery record`() = runBlocking {

@@ -6,6 +6,7 @@ import org.example.project.core.persistence.DefaultTransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.Instant
 import kotlin.test.Test
@@ -35,7 +36,7 @@ class SqlDelightSlipDeliveryStoreTest {
     ) = SlipDelivery(
         id = SlipDeliveryId(id),
         weeklyPartId = WeeklyPartId(weeklyPartId),
-        weekPlanId = weekPlanId,
+        weekPlanId = WeekPlanId(weekPlanId),
         studentName = studentName,
         assistantName = assistantName,
         sentAt = sentAt,
@@ -50,7 +51,7 @@ class SqlDelightSlipDeliveryStoreTest {
 
         with(DefaultTransactionScope) { store.insert(d) }
 
-        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), "week-1")
+        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNotNull(found)
         assertEquals(d.id, found.id)
         assertEquals(d.weeklyPartId, found.weeklyPartId)
@@ -70,7 +71,7 @@ class SqlDelightSlipDeliveryStoreTest {
 
         with(DefaultTransactionScope) { store.insert(d) }
 
-        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), "week-1")
+        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNotNull(found)
         assertNull(found.assistantName)
     }
@@ -80,7 +81,7 @@ class SqlDelightSlipDeliveryStoreTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
-        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), "week-1")
+        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNull(found)
     }
 
@@ -94,7 +95,7 @@ class SqlDelightSlipDeliveryStoreTest {
         with(DefaultTransactionScope) { store.insert(d) }
         with(DefaultTransactionScope) { store.cancel(d.id, cancelTime) }
 
-        val active = store.findActiveDelivery(WeeklyPartId("wp-1"), "week-1")
+        val active = store.findActiveDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNull(active)
     }
 
@@ -115,7 +116,7 @@ class SqlDelightSlipDeliveryStoreTest {
             store.cancel(d2.id, cancelTime2)
         }
 
-        val lastCancelled = store.findLastCancelledDelivery(WeeklyPartId("wp-1"), "week-1")
+        val lastCancelled = store.findLastCancelledDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNotNull(lastCancelled)
         assertEquals(SlipDeliveryId("del-2"), lastCancelled.id)
         assertEquals(cancelTime2, lastCancelled.cancelledAt)
@@ -129,7 +130,7 @@ class SqlDelightSlipDeliveryStoreTest {
 
         with(DefaultTransactionScope) { store.insert(d) }
 
-        val cancelled = store.findLastCancelledDelivery(WeeklyPartId("wp-1"), "week-1")
+        val cancelled = store.findLastCancelledDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNull(cancelled)
     }
 
@@ -151,7 +152,7 @@ class SqlDelightSlipDeliveryStoreTest {
             store.cancel(cancelled.id, Instant.parse("2026-03-10T12:00:00Z"))
         }
 
-        val result = store.listActiveDeliveries(listOf("week-1", "week-2"))
+        val result = store.listActiveDeliveries(listOf(WeekPlanId("week-1"), WeekPlanId("week-2")))
         assertEquals(2, result.size)
         val ids = result.map { it.id }.toSet()
         assertTrue(ids.contains(SlipDeliveryId("del-1")))
@@ -181,7 +182,7 @@ class SqlDelightSlipDeliveryStoreTest {
             store.cancel(cancelled.id, Instant.parse("2026-03-10T12:00:00Z"))
         }
 
-        val result = store.listCancelledDeliveries(listOf("week-1"))
+        val result = store.listCancelledDeliveries(listOf(WeekPlanId("week-1")))
         assertEquals(1, result.size)
         assertEquals(SlipDeliveryId("del-2"), result.first().id)
         assertNotNull(result.first().cancelledAt); Unit
@@ -211,15 +212,15 @@ class SqlDelightSlipDeliveryStoreTest {
             store.insert(d3)
         }
 
-        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), "week-1")
+        val found = store.findActiveDelivery(WeeklyPartId("wp-1"), WeekPlanId("week-1"))
         assertNotNull(found)
         assertEquals(SlipDeliveryId("del-1"), found.id)
 
-        val found2 = store.findActiveDelivery(WeeklyPartId("wp-2"), "week-1")
+        val found2 = store.findActiveDelivery(WeeklyPartId("wp-2"), WeekPlanId("week-1"))
         assertNotNull(found2)
         assertEquals(SlipDeliveryId("del-2"), found2.id)
 
-        val foundNone = store.findActiveDelivery(WeeklyPartId("wp-99"), "week-1")
+        val foundNone = store.findActiveDelivery(WeeklyPartId("wp-99"), WeekPlanId("week-1"))
         assertNull(foundNone)
     }
 }

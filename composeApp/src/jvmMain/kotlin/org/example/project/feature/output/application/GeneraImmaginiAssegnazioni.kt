@@ -24,6 +24,7 @@ import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.domain.sundayOf
 
@@ -38,12 +39,13 @@ data class AssignmentTicketLine(
 
 data class AssignmentTicketImage(
     val fullName: String,
+    val assistantName: String?,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
     val imagePath: Path,
     val assignments: List<AssignmentTicketLine>,
     val weeklyPartId: WeeklyPartId,
-    val weekPlanId: String,
+    val weekPlanId: WeekPlanId,
 )
 
 data class PartAssignmentWarning(
@@ -68,7 +70,7 @@ private data class AssignmentSlipWithOrder(
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
     val weeklyPartId: WeeklyPartId,
-    val weekPlanId: String,
+    val weekPlanId: WeekPlanId,
 )
 
 class GeneraImmaginiAssegnazioni(
@@ -159,6 +161,7 @@ class GeneraImmaginiAssegnazioni(
                     ).bind()
                     AssignmentTicketImage(
                         fullName = slipWithOrder.slip.studentName,
+                        assistantName = slipWithOrder.slip.assistantName,
                         weekStart = slipWithOrder.weekStart,
                         weekEnd = slipWithOrder.weekEnd,
                         imagePath = imagePath,
@@ -247,7 +250,7 @@ class GeneraImmaginiAssegnazioni(
                 weekStart = weekPlan.weekStartDate,
                 weekEnd = weekEnd,
                 weeklyPartId = part.id,
-                weekPlanId = weekPlan.id.value,
+                weekPlanId = weekPlan.id,
             )
         }
     }

@@ -1,5 +1,6 @@
 package org.example.project.feature.output.domain
 
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.Instant
 
@@ -9,7 +10,7 @@ value class SlipDeliveryId(val value: String)
 data class SlipDelivery(
     val id: SlipDeliveryId,
     val weeklyPartId: WeeklyPartId,
-    val weekPlanId: String,
+    val weekPlanId: WeekPlanId,
     val studentName: String,
     val assistantName: String?,
     val sentAt: Instant,

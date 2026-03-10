@@ -22,6 +22,7 @@ import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
@@ -54,7 +55,7 @@ internal data class AssignmentManagementUiState(
     val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
     val assignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
     val assignmentTicketsError: String? = null,
-    val deliveryStatus: Map<Pair<WeeklyPartId, String>, SlipDeliveryInfo> = emptyMap(),
+    val deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo> = emptyMap(),
     val isMarkingDelivered: Boolean = false,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
@@ -391,7 +392,7 @@ internal class AssignmentManagementViewModel(
                 weeklyPartId = ticket.weeklyPartId,
                 weekPlanId = ticket.weekPlanId,
                 studentName = ticket.fullName,
-                assistantName = null,
+                assistantName = ticket.assistantName,
             ).fold(
                 ifLeft = { error ->
                     _uiState.update {

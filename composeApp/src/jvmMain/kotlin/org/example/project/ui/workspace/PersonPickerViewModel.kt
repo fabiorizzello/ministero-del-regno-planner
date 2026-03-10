@@ -16,6 +16,7 @@ import org.example.project.feature.assignments.domain.SuggestedProclamatore
 import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.VerificaConsegnaPreAssegnazioneUseCase
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -31,7 +32,7 @@ internal data class PersonPickerUiState(
     val pickerWeekStartDate: LocalDate? = null,
     val pickerWeeklyPartId: WeeklyPartId? = null,
     val pickerSlot: Int? = null,
-    val pickerWeekPlanId: String? = null,
+    val pickerWeekPlanId: WeekPlanId? = null,
     val pickerSearchTerm: String = "",
     val pickerSortGlobal: Boolean = true,
     val pickerSuggestions: List<SuggestedProclamatore> = emptyList(),
@@ -66,7 +67,7 @@ internal class PersonPickerViewModel(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
         slot: Int,
-        weekPlanId: String,
+        weekPlanId: WeekPlanId,
     ) {
         _state.update {
             it.copy(

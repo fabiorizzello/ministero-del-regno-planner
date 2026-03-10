@@ -118,6 +118,7 @@ import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.formatWeekRangeLabel
@@ -440,7 +441,7 @@ internal fun AssignmentTicketsDialog(
     monthLabel: String,
     tickets: List<AssignmentTicketImage>,
     partWarnings: List<PartAssignmentWarning>,
-    deliveryStatus: Map<Pair<WeeklyPartId, String>, SlipDeliveryInfo>,
+    deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo>,
     isLoading: Boolean,
     errorMessage: String?,
     onMarkAsDelivered: (AssignmentTicketImage) -> Unit,

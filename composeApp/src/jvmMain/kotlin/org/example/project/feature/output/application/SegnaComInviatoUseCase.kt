@@ -6,6 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.Instant
 import java.util.UUID
@@ -16,7 +17,7 @@ class SegnaComInviatoUseCase(
 ) {
     suspend operator fun invoke(
         weeklyPartId: WeeklyPartId,
-        weekPlanId: String,
+        weekPlanId: WeekPlanId,
         studentName: String,
         assistantName: String?,
     ): Either<DomainError, Unit> = transactionRunner.runInTransaction {
