@@ -801,12 +801,10 @@ fun ProgramWorkspaceScreen() {
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                                 assignmentState.deliverySnapshot?.let { snapshot ->
-                                    if (snapshot.pending > 0 || snapshot.blocked > 0 || snapshot.allDelivered) {
-                                        DeliveryBadge(
-                                            snapshot = snapshot,
-                                            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp),
-                                        )
-                                    }
+                                    DeliveryBadge(
+                                        snapshot = snapshot,
+                                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp),
+                                    )
                                 }
                                 ProgramRightPanelButton(
                                     label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",

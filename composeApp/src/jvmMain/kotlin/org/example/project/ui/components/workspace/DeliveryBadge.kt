@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.output.domain.ProgramDeliverySnapshot
 
@@ -63,9 +64,9 @@ fun DeliveryBadge(
 private fun DeliveryChip(
     indicator: String,
     label: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
-    indicatorColor: androidx.compose.ui.graphics.Color = contentColor,
+    containerColor: Color,
+    contentColor: Color,
+    indicatorColor: Color = contentColor,
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
