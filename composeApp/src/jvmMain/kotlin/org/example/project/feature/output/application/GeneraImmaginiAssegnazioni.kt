@@ -284,7 +284,7 @@ internal fun cleanupProgramTicketExports(
     month: Int,
     onFailure: ((Path, Throwable) -> Unit)? = null,
 ) {
-    val prefix = "biglietto-${LocalDate.of(year, month, 1).format(monthImagePrefixFormatter)}-"
+    val prefix = "s89-"
     Files.newDirectoryStream(outputDir, "$prefix*.png").use { paths ->
         for (path in paths) {
             runCatching { Files.deleteIfExists(path) }
@@ -313,8 +313,8 @@ internal fun buildProgramSlipBaseName(
     partNumber: Int,
     studentName: String,
 ): String {
-    val monthPrefix = LocalDate.of(year, month, 1).format(monthImagePrefixFormatter)
-    return "biglietto-$monthPrefix-${weekStart.format(DateTimeFormatter.BASIC_ISO_DATE)}-${weekEnd.dayOfMonth.toString().padStart(2, '0')}-p${partNumber}-${sanitizeFileName(studentName)}"
+    val dateStr = weekStart.format(DateTimeFormatter.BASIC_ISO_DATE)
+    return "s89-$dateStr-${sanitizeFileName(studentName)}"
 }
 
 private fun partDisplayLabel(part: WeeklyPart): String = part.snapshot?.label ?: part.partType.label

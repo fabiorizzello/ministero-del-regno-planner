@@ -112,7 +112,7 @@ internal class AssignmentManagementViewModel(
         _uiState.update { it.copy(deliverySnapshot = null, isLoadingDeliverySnapshot = false) }
     }
 
-    private fun refreshDeliverySummary() {
+    fun refreshDeliverySummary() {
         val pid = currentProgramId ?: return
         val ref = currentReferenceDate ?: return
         loadDeliverySummary(pid, ref)

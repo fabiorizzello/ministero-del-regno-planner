@@ -150,6 +150,7 @@ fun ProgramWorkspaceScreen() {
     // Reload callback for operations that modify data
     val reloadData = {
         lifecycleVM.loadProgramsAndWeeks()
+        assignmentVM.refreshDeliverySummary()
     }
 
     if (personPickerState.isPickerOpen) {
