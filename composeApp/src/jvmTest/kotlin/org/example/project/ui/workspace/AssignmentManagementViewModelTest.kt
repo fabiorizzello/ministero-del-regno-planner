@@ -326,6 +326,7 @@ class AssignmentManagementViewModelTest {
         stampa: StampaProgrammaUseCase = mockk(relaxed = true),
         genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
         segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
+        annullaConsegna: org.example.project.feature.output.application.AnnullaConsegnaUseCase = mockk(relaxed = true),
         caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),
         caricaRiepilogo: CaricaRiepilogoConsegneProgrammaUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
@@ -339,6 +340,7 @@ class AssignmentManagementViewModelTest {
         generaImmaginiAssegnazioni = genera,
         settings = mockk<Settings>(relaxed = true),
         segnaComInviato = segnaComInviato,
+        annullaConsegna = annullaConsegna,
         caricaStatoConsegne = caricaStatoConsegne,
         caricaRiepilogo = caricaRiepilogo,
     )

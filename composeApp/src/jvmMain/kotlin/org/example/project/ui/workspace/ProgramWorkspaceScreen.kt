@@ -239,7 +239,9 @@ fun ProgramWorkspaceScreen() {
             isLoading = assignmentState.isLoadingAssignmentTickets,
             errorMessage = assignmentState.assignmentTicketsError,
             isMarkingDelivered = assignmentState.isMarkingDelivered,
+            isCancellingDelivery = assignmentState.isCancellingDelivery,
             onMarkAsDelivered = { assignmentVM.markAsDelivered(it) },
+            onCancelDelivery = { assignmentVM.cancelDelivery(it) },
             onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
         )
     }

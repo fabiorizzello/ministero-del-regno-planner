@@ -14,6 +14,7 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioniSe
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
@@ -58,6 +59,7 @@ internal data class AssignmentManagementUiState(
     val assignmentTicketsError: String? = null,
     val deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo> = emptyMap(),
     val isMarkingDelivered: Boolean = false,
+    val isCancellingDelivery: Boolean = false,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -83,6 +85,7 @@ internal class AssignmentManagementViewModel(
     private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
     private val settings: Settings,
     private val segnaComInviato: SegnaComInviatoUseCase,
+    private val annullaConsegna: AnnullaConsegnaUseCase,
     private val caricaStatoConsegne: CaricaStatoConsegneUseCase,
     private val caricaRiepilogo: CaricaRiepilogoConsegneProgrammaUseCase,
 ) {
@@ -264,6 +267,7 @@ internal class AssignmentManagementViewModel(
                         isLoadingAssignmentTickets = true,
                         assignmentTickets = emptyList(),
                         assignmentTicketsError = null,
+                        deliveryStatus = emptyMap(),
                     )
                 },
                 successUpdate = { state, result ->
@@ -424,6 +428,28 @@ internal class AssignmentManagementViewModel(
                 ifRight = {
                     loadDeliveryStatus(_uiState.value.assignmentTickets)
                     _uiState.update { it.copy(isMarkingDelivered = false) }
+                    refreshDeliverySummary()
+                }
+            )
+        }
+    }
+
+    fun cancelDelivery(ticket: AssignmentTicketImage) {
+        if (_uiState.value.isCancellingDelivery) return
+        scope.launch {
+            _uiState.update { it.copy(isCancellingDelivery = true) }
+            annullaConsegna(
+                weeklyPartId = ticket.weeklyPartId,
+                weekPlanId = ticket.weekPlanId,
+            ).fold(
+                ifLeft = { error ->
+                    _uiState.update {
+                        it.copy(isCancellingDelivery = false, notice = errorNotice(error.toMessage()))
+                    }
+                },
+                ifRight = {
+                    loadDeliveryStatus(_uiState.value.assignmentTickets)
+                    _uiState.update { it.copy(isCancellingDelivery = false) }
                     refreshDeliverySummary()
                 }
             )

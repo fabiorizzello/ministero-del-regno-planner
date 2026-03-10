@@ -474,7 +474,9 @@ internal fun AssignmentTicketsDialog(
     isLoading: Boolean,
     errorMessage: String?,
     isMarkingDelivered: Boolean,
+    isCancellingDelivery: Boolean,
     onMarkAsDelivered: (AssignmentTicketImage) -> Unit,
+    onCancelDelivery: (AssignmentTicketImage) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -649,6 +651,7 @@ internal fun AssignmentTicketsDialog(
                                                                         }
                                                                     },
                                                                     onMarkAsDelivered = { onMarkAsDelivered(item) },
+                                                                    onCancelDelivery = null,
                                                                     isMarkingDelivered = isMarkingDelivered,
                                                                     modifier = Modifier.fillMaxWidth(),
                                                                 )
@@ -704,6 +707,8 @@ internal fun AssignmentTicketsDialog(
                                                                     }
                                                                 },
                                                                 onMarkAsDelivered = null,
+                                                                onCancelDelivery = { onCancelDelivery(item) },
+                                                                isCancellingDelivery = isCancellingDelivery,
                                                                 modifier = Modifier.fillMaxWidth(),
                                                             )
                                                         }
@@ -834,7 +839,9 @@ private fun AssignmentTicketCard(
     deliveryInfo: SlipDeliveryInfo?,
     onPreviewRequest: () -> Unit,
     onMarkAsDelivered: (() -> Unit)?,
+    onCancelDelivery: (() -> Unit)? = null,
     isMarkingDelivered: Boolean = false,
+    isCancellingDelivery: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -981,20 +988,36 @@ private fun AssignmentTicketCard(
 
             if (deliveryInfo?.status == SlipDeliveryStatus.INVIATO) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        tint = sketch.ok,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Text(
-                        "Inviato",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = sketch.ok,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = sketch.ok,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            "Inviato",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = sketch.ok,
+                        )
+                    }
+                    if (onCancelDelivery != null) {
+                        Text(
+                            if (isCancellingDelivery) "Annullamento\u2026" else "Annulla invio",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .handCursorOnHover()
+                                .clickable(enabled = !isCancellingDelivery) { onCancelDelivery() },
+                        )
+                    }
                 }
             }
         }

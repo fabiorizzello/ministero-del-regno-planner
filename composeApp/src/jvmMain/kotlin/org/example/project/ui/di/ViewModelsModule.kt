@@ -51,6 +51,7 @@ val viewModelsModule = module {
             generaImmaginiAssegnazioni = get(),
             settings = get(),
             segnaComInviato = get(),
+            annullaConsegna = get(),
             caricaStatoConsegne = get(),
             caricaRiepilogo = get(),
         )
