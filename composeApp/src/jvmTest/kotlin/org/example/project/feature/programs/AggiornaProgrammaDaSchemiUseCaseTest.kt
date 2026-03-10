@@ -10,6 +10,7 @@ import org.example.project.feature.programs.application.AggiornaProgrammaDaSchem
 import org.example.project.feature.programs.application.ProgramCreationContext
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.application.SchemaRefreshReport
+import org.example.project.feature.programs.application.WeekRefreshDetail
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
@@ -32,6 +33,7 @@ import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class AggiornaProgrammaDaSchemiUseCaseTest {
 
@@ -51,6 +53,17 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         assertEquals(1, report.assignmentsPreserved)
         assertEquals(1, report.assignmentsRemoved)
         assertEquals(0, fixture.weekStore.saveCount)
+
+        assertEquals(1, report.weekDetails.size)
+        val detail = report.weekDetails.single()
+        assertEquals(LocalDate.of(2026, 3, 2), detail.weekStartDate)
+        // Old parts: A(sort=0), B(sort=1). New schema: A(sort=0), C(sort=1).
+        // Kept: A at sort=0. Added: C at sort=1. Removed: B at sort=1.
+        assertEquals(1, detail.partsKept)
+        assertEquals(1, detail.partsAdded)
+        assertEquals(1, detail.partsRemoved)
+        assertEquals(1, detail.assignmentsPreserved)
+        assertEquals(1, detail.assignmentsRemoved)
     }
 
     @Test
@@ -91,6 +104,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         assertEquals(0, report.weeksUpdated)
         assertEquals(0, report.assignmentsPreserved)
         assertEquals(0, report.assignmentsRemoved)
+        assertTrue(report.weekDetails.isEmpty())
         assertEquals(0, fixture.weekStore.saveCount)
     }
 

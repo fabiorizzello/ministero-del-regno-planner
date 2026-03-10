@@ -21,10 +21,20 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
+data class WeekRefreshDetail(
+    val weekStartDate: LocalDate,
+    val partsAdded: Int,
+    val partsRemoved: Int,
+    val partsKept: Int,
+    val assignmentsPreserved: Int,
+    val assignmentsRemoved: Int,
+)
+
 data class SchemaRefreshReport(
     val weeksUpdated: Int,
     val assignmentsPreserved: Int,
     val assignmentsRemoved: Int,
+    val weekDetails: List<WeekRefreshDetail> = emptyList(),
 )
 
 private typealias AssignmentKey = Pair<PartTypeId, Int>
@@ -77,6 +87,7 @@ class AggiornaProgrammaDaSchemiUseCase(
 
         var assignmentsPreserved = 0
         var assignmentsRemoved = 0
+        val weekDetails = mutableListOf<WeekRefreshDetail>()
 
         for (candidate in refreshCandidates) {
             val (preserved, removed) = calculateAssignmentDelta(
@@ -85,6 +96,20 @@ class AggiornaProgrammaDaSchemiUseCase(
             )
             assignmentsPreserved += preserved
             assignmentsRemoved += removed
+
+            val oldKeys = candidate.aggregate.weekPlan.parts
+                .map { it.partType.id to it.sortOrder }.toSet()
+            val newKeys = candidate.orderedPartTypes.mapIndexed { index, (partType, _) ->
+                partType.id to index
+            }.toSet()
+            weekDetails += WeekRefreshDetail(
+                weekStartDate = candidate.aggregate.weekPlan.weekStartDate,
+                partsAdded = (newKeys - oldKeys).size,
+                partsRemoved = (oldKeys - newKeys).size,
+                partsKept = (oldKeys intersect newKeys).size,
+                assignmentsPreserved = preserved,
+                assignmentsRemoved = removed,
+            )
         }
 
         if (!dryRun) {
@@ -103,6 +128,7 @@ class AggiornaProgrammaDaSchemiUseCase(
             weeksUpdated = refreshCandidates.size,
             assignmentsPreserved = assignmentsPreserved,
             assignmentsRemoved = assignmentsRemoved,
+            weekDetails = weekDetails,
         )
     }
 

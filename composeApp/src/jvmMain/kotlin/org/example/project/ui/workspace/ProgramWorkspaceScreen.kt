@@ -63,6 +63,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -70,6 +71,7 @@ import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
+import org.example.project.ui.components.dateFormatter
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
@@ -237,6 +239,14 @@ fun ProgramWorkspaceScreen() {
             isMarkingDelivered = assignmentState.isMarkingDelivered,
             onMarkAsDelivered = { assignmentVM.markAsDelivered(it) },
             onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
+        )
+    }
+
+    schemaState.pendingRefreshPreview?.let { preview ->
+        SchemaRefreshConfirmDialog(
+            report = preview,
+            onConfirm = { schemaVM.confirmProgramRefresh() },
+            onDismiss = { schemaVM.dismissProgramRefreshPreview() },
         )
     }
 
@@ -1243,4 +1253,80 @@ private fun DesktopInlineAction(
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+@Composable
+private fun SchemaRefreshConfirmDialog(
+    report: SchemaRefreshReport,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Aggiornamento programma") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Schemi aggiornati. Il programma ha ${report.weeksUpdated} settimane con modifiche:",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                report.weekDetails.forEach { week ->
+                    Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Text(
+                            week.weekStartDate.format(dateFormatter),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        val partChanges = buildList {
+                            if (week.partsAdded > 0) add("+${week.partsAdded} aggiunte")
+                            if (week.partsRemoved > 0) add("-${week.partsRemoved} rimosse")
+                            if (week.partsKept > 0 && week.partsAdded == 0 && week.partsRemoved == 0) {
+                                add("nessuna modifica alle parti")
+                            }
+                        }
+                        if (partChanges.isNotEmpty()) {
+                            Text(
+                                "Parti: ${partChanges.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        val assignmentSummary = buildList {
+                            if (week.assignmentsPreserved > 0) add("${week.assignmentsPreserved} preservate")
+                            if (week.assignmentsRemoved > 0) add("${week.assignmentsRemoved} da rimuovere")
+                        }
+                        if (assignmentSummary.isNotEmpty()) {
+                            Text(
+                                "Assegnazioni: ${assignmentSummary.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (week.assignmentsRemoved > 0) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (report.assignmentsRemoved > 0) {
+                    Text(
+                        "Totale: ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} da rimuovere",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            DesktopInlineAction(
+                label = "Aggiorna programma",
+                onClick = onConfirm,
+            )
+        },
+        dismissButton = {
+            DesktopInlineAction(
+                label = "Annulla",
+                onClick = onDismiss,
+            )
+        },
+    )
 }
