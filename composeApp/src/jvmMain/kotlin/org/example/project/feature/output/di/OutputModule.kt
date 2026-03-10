@@ -1,6 +1,7 @@
 package org.example.project.feature.output.di
 
 import org.example.project.feature.output.application.AnnullaConsegnaUseCase
+import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.FileOpener
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
@@ -28,4 +29,5 @@ val outputModule = module {
     single { AnnullaConsegnaUseCase(get(), get()) }
     single { CaricaStatoConsegneUseCase(get()) }
     single { VerificaConsegnaPreAssegnazioneUseCase(get()) }
+    single { CaricaRiepilogoConsegneProgrammaUseCase(get(), get(), get()) }
 }

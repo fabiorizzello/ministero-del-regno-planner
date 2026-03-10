@@ -52,6 +52,7 @@ val viewModelsModule = module {
             settings = get(),
             segnaComInviato = get(),
             caricaStatoConsegne = get(),
+            caricaRiepilogo = get(),
         )
     }
     factory {

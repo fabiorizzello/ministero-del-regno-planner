@@ -421,6 +421,21 @@ private data class WeekSection(
     val warnings: List<PartAssignmentWarning>,
 )
 
+@Composable
+private fun DialogCountChip(label: String, contentColor: Color, containerColor: Color) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = containerColor,
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = contentColor,
+        )
+    }
+}
+
 private fun buildWeekSections(
     tickets: List<AssignmentTicketImage>,
     warnings: List<PartAssignmentWarning>,
@@ -476,39 +491,49 @@ internal fun AssignmentTicketsDialog(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             "Biglietti assegnazioni",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-0.8).sp,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.5).sp,
                             ),
                             color = sketch.ink,
                         )
-                        Text(
-                            monthLabel.ifBlank { "Mese selezionato" },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = sketch.inkSoft,
-                        )
-                        Text(
-                            "Trascina una card fuori dall'app per copiare il PNG sul desktop o in un'altra area drop.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = sketch.inkMuted,
-                        )
+                        if (monthLabel.isNotBlank()) {
+                            Text(
+                                monthLabel,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = sketch.inkMuted,
+                            )
+                        }
                     }
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = sketch.surfaceMuted,
-                        border = BorderStroke(1.dp, sketch.lineSoft),
-                    ) {
-                        Text(
-                            "${tickets.size} PNG",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = sketch.inkSoft,
-                        )
+                    if (!isLoading && tickets.isNotEmpty()) {
+                        val pendingCount = tickets.count { ticket ->
+                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
+                            info == null || info.status != SlipDeliveryStatus.INVIATO
+                        }
+                        val sentCount = tickets.count { ticket ->
+                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
+                            info?.status == SlipDeliveryStatus.INVIATO
+                        }
+                        val blockedCount = partWarnings.size
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (pendingCount > 0) {
+                                DialogCountChip("$pendingCount da inviare", sketch.accent, sketch.accentSoft)
+                            }
+                            if (sentCount > 0) {
+                                DialogCountChip("$sentCount inviati", sketch.ok, sketch.ok.copy(alpha = 0.12f))
+                            }
+                            if (blockedCount > 0) {
+                                DialogCountChip("$blockedCount non inviabili", sketch.bad, sketch.bad.copy(alpha = 0.12f))
+                            }
+                        }
                     }
                 }
 
