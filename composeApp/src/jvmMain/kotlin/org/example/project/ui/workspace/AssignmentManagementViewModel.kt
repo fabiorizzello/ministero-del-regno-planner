@@ -267,9 +267,9 @@ internal class AssignmentManagementViewModel(
                     )
                 },
                 successUpdate = { state, result ->
-                    val today = LocalDate.now()
-                    val futureTickets = result.tickets.filter { it.weekStart >= today }
-                    val futureWarnings = result.warnings.filter { it.weekStart >= today }
+                    val cutoff = currentReferenceDate ?: LocalDate.now()
+                    val futureTickets = result.tickets.filter { it.weekStart >= cutoff }
+                    val futureWarnings = result.warnings.filter { it.weekStart >= cutoff }
                     scope.launch { loadDeliveryStatus(futureTickets) }
                     state.copy(
                         isAssignmentTicketsDialogOpen = true,
