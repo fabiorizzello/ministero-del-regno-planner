@@ -54,8 +54,8 @@ data class Proclamatore internal constructor(
             ).bind()
             Proclamatore(
                 id = id,
-                nome = nome,
-                cognome = cognome,
+                nome = nome.trim(),
+                cognome = cognome.trim(),
                 sesso = sesso,
                 sospeso = sospeso,
                 puoAssistere = puoAssistere,

@@ -149,8 +149,11 @@ internal class ProclamatoriListViewModel(
         scope.launch {
             val count = try {
                 contaAssegnazioni(candidate.id)
-            } catch (_: Exception) {
-                -1
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(notice = errorNotice("Errore nel conteggio assegnazioni: ${e.message}"))
+                }
+                return@launch
             }
             _uiState.update { it.copy(deleteCandidate = candidate, deleteAssignmentCount = count) }
         }
@@ -177,8 +180,13 @@ internal class ProclamatoriListViewModel(
         val ids = _uiState.value.selectedIds
         if (ids.isEmpty()) return
         scope.launch {
-            val total = ids.sumOf { id ->
-                try { contaAssegnazioni(id) } catch (_: Exception) { 0 }
+            val total = try {
+                ids.sumOf { id -> contaAssegnazioni(id) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(notice = errorNotice("Errore nel conteggio assegnazioni: ${e.message}"))
+                }
+                return@launch
             }
             _uiState.update { it.copy(showBatchDeleteConfirm = true, batchDeleteAssignmentCount = total) }
         }
