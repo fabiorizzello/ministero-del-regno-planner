@@ -43,13 +43,11 @@ class ImportaProclamatoriDaJsonUseCase(
         }
 
         val proclamatori = parseAndValidate(jsonContent).bind()
-        try {
+        Either.catch {
             transactionRunner.runInTransaction {
                 store.persistAll(proclamatori)
             }
-        } catch (e: Exception) {
-            raise(DomainError.ImportSalvataggioFallito(e.message))
-        }
+        }.mapLeft { DomainError.ImportSalvataggioFallito(it.message) }.bind()
         Result(importati = proclamatori.size, errori = 0)
     }
 
