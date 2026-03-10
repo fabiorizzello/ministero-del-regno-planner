@@ -668,6 +668,7 @@ fun ProgramWorkspaceScreen() {
                         WeekDetailHeader(
                             weekLabel = weekLabel,
                             monthLabel = monthLabel,
+                            isPast = selectedWeek.weekStartDate < currentMonday,
                             isCurrent = isCurrent,
                             isSkipped = isSkipped,
                             canMutate = canMutate,
