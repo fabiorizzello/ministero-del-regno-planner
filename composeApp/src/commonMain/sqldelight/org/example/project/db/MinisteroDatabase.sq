@@ -692,7 +692,7 @@ ON CONFLICT(id) DO UPDATE SET
 
 -- Schema anomalies (new)
 insertSchemaUpdateAnomaly:
-INSERT INTO schema_update_anomaly(
+INSERT OR IGNORE INTO schema_update_anomaly(
     id,
     person_id,
     part_type_id,

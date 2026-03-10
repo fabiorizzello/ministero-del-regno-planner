@@ -7,7 +7,6 @@ import org.example.project.feature.schemas.application.SchemaUpdateAnomaly
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyDraft
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.weeklyparts.domain.PartTypeId
-import java.util.UUID
 
 class SqlDelightSchemaUpdateAnomalyStore(
     private val database: MinisteroDatabase,
@@ -16,8 +15,9 @@ class SqlDelightSchemaUpdateAnomalyStore(
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {
         if (items.isEmpty()) return
         items.forEach { item ->
+            val deterministicId = "${item.personId.value}|${item.partTypeId.value}|${item.reason}".hashCode().toString()
             database.ministeroDatabaseQueries.insertSchemaUpdateAnomaly(
-                id = UUID.randomUUID().toString(),
+                id = deterministicId,
                 person_id = item.personId.value,
                 part_type_id = item.partTypeId.value,
                 reason = item.reason,
