@@ -14,11 +14,13 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioniSe
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.output.domain.ProgramDeliverySnapshot
 import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -67,6 +69,8 @@ internal data class AssignmentManagementUiState(
     val settingsSaved: Boolean = false,
     val skipRemoveConfirm: Boolean = false,
     val notice: FeedbackBannerModel? = null,
+    val deliverySnapshot: ProgramDeliverySnapshot? = null,
+    val isLoadingDeliverySnapshot: Boolean = false,
 ) {
     val ticketBadgeText: String? get() {
         if (assignmentTickets.isEmpty() && assignmentPartWarnings.isEmpty()) return null
@@ -100,9 +104,33 @@ internal class AssignmentManagementViewModel(
     private val settings: Settings,
     private val segnaComInviato: SegnaComInviatoUseCase,
     private val caricaStatoConsegne: CaricaStatoConsegneUseCase,
+    private val caricaRiepilogo: CaricaRiepilogoConsegneProgrammaUseCase,
 ) {
     private val _uiState = MutableStateFlow(AssignmentManagementUiState())
     val uiState: StateFlow<AssignmentManagementUiState> = _uiState.asStateFlow()
+
+    private var currentProgramId: ProgramMonthId? = null
+    private var currentReferenceDate: LocalDate? = null
+
+    fun loadDeliverySummary(programId: ProgramMonthId, referenceDate: LocalDate) {
+        currentProgramId = programId
+        currentReferenceDate = referenceDate
+        scope.launch {
+            _uiState.update { it.copy(isLoadingDeliverySnapshot = true) }
+            caricaRiepilogo(programId, referenceDate).fold(
+                ifLeft = { _uiState.update { it.copy(isLoadingDeliverySnapshot = false) } },
+                ifRight = { snapshot ->
+                    _uiState.update { it.copy(deliverySnapshot = snapshot, isLoadingDeliverySnapshot = false) }
+                },
+            )
+        }
+    }
+
+    private fun refreshDeliverySummary() {
+        val pid = currentProgramId ?: return
+        val ref = currentReferenceDate ?: return
+        loadDeliverySummary(pid, ref)
+    }
 
     fun onScreenEntered() {
         scope.launch {
@@ -214,6 +242,7 @@ internal class AssignmentManagementViewModel(
             )
             if (shouldReload) {
                 onSuccess()
+                refreshDeliverySummary()
             }
         }
     }
@@ -328,6 +357,7 @@ internal class AssignmentManagementViewModel(
             )
             if (shouldReload) {
                 onSuccess()
+                refreshDeliverySummary()
             }
         }
     }
@@ -376,7 +406,10 @@ internal class AssignmentManagementViewModel(
                 },
                 operation = { rimuoviAssegnazioniSettimana(weekStartDate) },
             )
-            if (succeeded) onSuccess()
+            if (succeeded) {
+                onSuccess()
+                refreshDeliverySummary()
+            }
         }
     }
 
@@ -402,6 +435,7 @@ internal class AssignmentManagementViewModel(
                 ifRight = {
                     loadDeliveryStatus(_uiState.value.assignmentTickets)
                     _uiState.update { it.copy(isMarkingDelivered = false) }
+                    refreshDeliverySummary()
                 }
             )
         }

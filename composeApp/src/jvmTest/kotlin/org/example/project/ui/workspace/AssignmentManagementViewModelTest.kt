@@ -17,6 +17,7 @@ import org.example.project.feature.assignments.application.AutoAssignProgramResu
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
+import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
@@ -326,6 +327,7 @@ class AssignmentManagementViewModelTest {
         genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
         segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
         caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),
+        caricaRiepilogo: CaricaRiepilogoConsegneProgrammaUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
         scope = scope,
         autoAssegnaProgramma = autoAssegna,
@@ -338,5 +340,6 @@ class AssignmentManagementViewModelTest {
         settings = mockk<Settings>(relaxed = true),
         segnaComInviato = segnaComInviato,
         caricaStatoConsegne = caricaStatoConsegne,
+        caricaRiepilogo = caricaRiepilogo,
     )
 }
