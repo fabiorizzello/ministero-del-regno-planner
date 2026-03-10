@@ -1,5 +1,22 @@
 # Review Notes — Findings aperti (2026-03-10)
 
+## High
+
+**High 73**: `annullaConsegna()` Either result silently discarded prima della riassegnazione.
+- `PersonPickerViewModel.kt:138` — `annullaConsegna(pickerWeeklyPartId, pickerWeekPlanId)` ritorna `Either<DomainError, Unit>` ma il risultato è ignorato. Se la cancellazione fallisce (errore DB), il flusso procede a `doAssign()`, lasciando il vecchio record di consegna attivo mentre un nuovo proclamatore viene assegnato → inconsistenza dati.
+- Confronto: `markAsDelivered()` a `AssignmentManagementViewModel.kt:396` usa correttamente `.fold()`.
+- Severità: **High** | Effort: S
+
+**High 74**: Eccezione non catturata in `loadDeliveryStatus` — nessun error handling.
+- `AssignmentManagementViewModel.kt:410-415` — `caricaStatoConsegne(weekPlanIds)` è una chiamata DB raw (no Either) senza try-catch dentro `scope.launch`. Errori SQL/IO crashano la coroutine silenziosamente, senza feedback utente. Chiamata da due punti: riga 255 (apertura ticket) e riga 403 (dopo mark delivered).
+- Severità: **High** | Effort: S
+
+**High 75**: Eccezione non catturata in `verificaConsegna` — stesso pattern.
+- `PersonPickerViewModel.kt:120` — `verificaConsegna(pickerWeeklyPartId, pickerWeekPlanId)` è una chiamata DB raw dentro `scope.launch` senza try-catch. Se fallisce, il flusso di assegnazione si blocca silenziosamente.
+- Severità: **High** | Effort: S
+
+---
+
 ## Medium
 
 **Medium 52**: Metodi di mutazione senza `context(tx: TransactionScope)` sulle interfacce store — **SISTEMICO**.
@@ -17,7 +34,6 @@
 **Medium 63**: `IOException` non catturata in `either {}` — propagazione eccezione non gestita in 2 use case.
 - `StampaProgrammaUseCase` e `GeneraImmaginiAssegnazioni.ensureOutputDir()`.
 - Severità: **Medium** | Effort: S
-- *(Rimandato — tocca file del plan slip-delivery-tracking)*
 
 **Medium 66**: Spec 002 disalignment — `AggiornaDatiRemotiUseCase` two-phase pattern non implementato.
 - La spec promette `fetchAndImport()` + `importSchemas()` (con conferma utente). L'implementazione è single-phase.
@@ -27,10 +43,30 @@
 **Medium 69**: Spec 006 FR-023 violazione — formato biglietto assegnazione mancante di role label.
 - PDF usa `"3 - Studio biblico"` invece di `"3. Studio biblico (Studente)"`.
 - Severità: **Medium** | Effort: S
-- *(Rimandato — tocca file del plan slip-delivery-tracking)*
 
 **Medium 15**: `feature/updates` — zero test coverage. *(in standby — architettura in evoluzione)*
 - Severità: **Medium** | Effort: M
+
+**Medium 76**: Duplicato `ImmediateTransactionRunner` in `OutputTestFixtures.kt`.
+- `OutputTestFixtures.kt:49-52` — copia esatta di `PassthroughTransactionRunner` da `core/TestTransactionRunners.kt`. Medium 62 aveva risolto questo pattern sistemicamente; US4 lo ha reintrodotto.
+- Call sites: `SegnaComInviatoUseCaseTest` ×1, `AnnullaConsegnaUseCaseTest` ×1.
+- Severità: **Medium** | Effort: S
+
+**Medium 77**: Zero test ViewModel-level per comportamento US4 delivery.
+- `AssignmentManagementViewModelTest.kt` — `makeViewModel` accetta `segnaComInviato`/`caricaStatoConsegne` ma nessun test esercita `markAsDelivered()`, `loadDeliveryStatus()`, `ticketBadgeText`, `isMarkingDelivered`.
+- Severità: **Medium** | Effort: M
+
+**Medium 78**: Test mancante per `CaricaStatoConsegne` con delivery attiva + cancellata per la stessa key.
+- `CaricaStatoConsegneUseCaseTest.kt` — il use case prioritizza `activeDelivery != null` su `lastCancelled != null` nel `when`, ma nessun test verifica questa priorità. Scenario reale: invio → cancellazione → reinvio.
+- Severità: **Medium** | Effort: S
+
+**Medium 79**: `SegnaComInviatoUseCaseTest` usa `runBlocking` invece di `runTest`.
+- `SegnaComInviatoUseCaseTest.kt:20,41` — tutti gli altri test use case US4 usano `runTest`. Inconsistente.
+- Severità: **Medium** | Effort: S
+
+**Medium 80**: Nessun feedback loading sul bottone "Segna come inviato".
+- `ProgramWorkspaceComponents.kt` (AssignmentTicketCard) — `isMarkingDelivered` blocca click concorrenti ma non viene passato alla UI. Il bottone non mostra stato disabled/loading durante l'operazione asincrona.
+- Severità: **Medium** | Effort: S
 
 ---
 
@@ -50,7 +86,15 @@
 
 **Low 69**: `searchProclaimers` SQL manca colonna `can_assist` → `puoAssistere` sempre `false` nei risultati. Impatto attuale nullo.
 - Effort: S
-- *(Rimandato — tocca MinisteroDatabase.sq del plan slip-delivery-tracking)*
+
+**Low 73**: `cancelledAt!!` in `CaricaStatoConsegneUseCase:22` e `FakeSlipDeliveryStore:24` — si affida alla garanzia della query SQL (`cancelled_at IS NOT NULL`) invece che alla type safety. Accettabile.
+- Effort: S
+
+**Low 74**: Branch `else` morto in `CaricaStatoConsegneUseCase:40-44` — `allKeys = activeByKey.keys + cancelledByKey.keys` rende ogni key presente in almeno una mappa, quindi `DA_INVIARE` non è mai raggiunto da qui.
+- Effort: S
+
+**Low 75**: `ticketBadgeText` ramo `ifEmpty { null }` irraggiungibile — `AssignmentManagementViewModel.kt:86`.
+- Effort: S
 
 ---
 
