@@ -1,6 +1,7 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRepository

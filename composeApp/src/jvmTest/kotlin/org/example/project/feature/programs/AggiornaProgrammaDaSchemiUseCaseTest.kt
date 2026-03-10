@@ -2,8 +2,8 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
@@ -100,7 +100,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             weekPlanStore = fixture.weekStore,
             schemaTemplateStore = fixture.schemaStore,
             partTypeStore = fixture.partTypeStore,
-            transactionRunner = ImmediateTxRunner(),
+            transactionRunner = PassthroughTransactionRunner,
         )
     }
 
@@ -167,10 +167,6 @@ private data class RefreshFixture(
     val schemaStore: SchemaTemplateStore,
     val partTypeStore: RefreshPartTypeStore,
 )
-
-private class ImmediateTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-}
 
 private class RefreshProgramStore(
     private val program: ProgramMonth,

@@ -2,8 +2,8 @@ package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.ImpostaStatoSettimanaUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -55,7 +55,7 @@ class ImpostaStatoSettimanaUseCaseTest {
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughImpostaTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(aggregate.weekPlan.id, WeekPlanStatus.SKIPPED, referenceDate = referenceDate)
@@ -70,7 +70,7 @@ class ImpostaStatoSettimanaUseCaseTest {
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughImpostaTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(aggregate.weekPlan.id, WeekPlanStatus.ACTIVE, referenceDate = referenceDate)
@@ -84,7 +84,7 @@ class ImpostaStatoSettimanaUseCaseTest {
         val store = EmptyImpostaWeekStore()
         val useCase = ImpostaStatoSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughImpostaTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(WeekPlanId("nonexistent"), WeekPlanStatus.SKIPPED, referenceDate = referenceDate)
@@ -101,7 +101,7 @@ class ImpostaStatoSettimanaUseCaseTest {
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughImpostaTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(aggregate.weekPlan.id, WeekPlanStatus.SKIPPED, referenceDate = referenceDate)
@@ -129,8 +129,3 @@ private class SingleIdWeekStore(
 }
 
 private class EmptyImpostaWeekStore : TestWeekPlanStore()
-
-private object PassthroughImpostaTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T =
-        with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-}

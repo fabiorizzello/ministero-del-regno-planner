@@ -2,6 +2,7 @@ package org.example.project.feature.diagnostics
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminazioneStoricoResult

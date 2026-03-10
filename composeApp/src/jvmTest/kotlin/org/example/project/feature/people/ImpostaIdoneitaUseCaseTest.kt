@@ -2,6 +2,7 @@ package org.example.project.feature.people
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
@@ -22,7 +23,7 @@ class ImpostaIdoneitaUseCaseTest {
     @Test
     fun `ImpostaIdoneitaConduzioneUseCase chiama setCanLead con i valori corretti`() = runBlocking {
         val store = RecordingEligibilityStore()
-        val useCase = ImpostaIdoneitaConduzioneUseCase(store, ImmediateTransactionRunner)
+        val useCase = ImpostaIdoneitaConduzioneUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(personId, partTypeId, canLead = true)
 
@@ -33,7 +34,7 @@ class ImpostaIdoneitaUseCaseTest {
     @Test
     fun `ImpostaIdoneitaConduzioneUseCase imposta canLead false`() = runBlocking {
         val store = RecordingEligibilityStore()
-        val useCase = ImpostaIdoneitaConduzioneUseCase(store, ImmediateTransactionRunner)
+        val useCase = ImpostaIdoneitaConduzioneUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(personId, partTypeId, canLead = false)
 
@@ -44,7 +45,7 @@ class ImpostaIdoneitaUseCaseTest {
     @Test
     fun `ImpostaIdoneitaAssistenzaUseCase chiama setCanAssist con i valori corretti`() = runBlocking {
         val store = RecordingEligibilityStore()
-        val useCase = ImpostaIdoneitaAssistenzaUseCase(store, ImmediateTransactionRunner)
+        val useCase = ImpostaIdoneitaAssistenzaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(personId, canAssist = true)
 
@@ -55,7 +56,7 @@ class ImpostaIdoneitaUseCaseTest {
     @Test
     fun `ImpostaIdoneitaAssistenzaUseCase imposta canAssist false`() = runBlocking {
         val store = RecordingEligibilityStore()
-        val useCase = ImpostaIdoneitaAssistenzaUseCase(store, ImmediateTransactionRunner)
+        val useCase = ImpostaIdoneitaAssistenzaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(personId, canAssist = false)
 

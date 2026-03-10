@@ -2,6 +2,7 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
 import org.example.project.feature.weeklyparts.domain.WeekPlan
@@ -46,7 +47,7 @@ class GeneraSettimaneProgrammaRegenerateTest {
             weekPlanStore = weekStore,
             schemaTemplateStore = schemaStore,
             partTypeStore = InMemoryPartTypeStore(partTypes = listOf(templatePart), fixedPart = null),
-            transactionRunner = ImmediateTransactionRunner(),
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(program.id)

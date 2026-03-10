@@ -3,8 +3,8 @@ package org.example.project.feature.programs
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
@@ -30,7 +30,7 @@ class EliminaProgrammaUseCaseTest {
             val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "current")
             val programStore = DeleteProgramStore(program)
             val weekStore = DeleteWeekStore(program.id)
-            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner)
 
             val result = useCase(program.id, referenceDate)
 
@@ -47,7 +47,7 @@ class EliminaProgrammaUseCaseTest {
             val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future")
             val programStore = DeleteProgramStore(program)
             val weekStore = DeleteWeekStore(program.id)
-            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner)
 
             val result = useCase(program.id, referenceDate)
 
@@ -62,7 +62,7 @@ class EliminaProgrammaUseCaseTest {
             val program = fixtureProgramMonth(YearMonth.of(2026, 1), id = "past")
             val programStore = DeleteProgramStore(program)
             val weekStore = DeleteWeekStore(program.id)
-            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner())
+            val useCase = EliminaProgrammaUseCase(programStore, weekStore, PassthroughTransactionRunner)
 
             val result = useCase(program.id, referenceDate)
 
@@ -71,10 +71,6 @@ class EliminaProgrammaUseCaseTest {
             assertTrue(programStore.deletedPrograms.isEmpty())
         }
     }
-}
-
-private class PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class DeleteProgramStore(

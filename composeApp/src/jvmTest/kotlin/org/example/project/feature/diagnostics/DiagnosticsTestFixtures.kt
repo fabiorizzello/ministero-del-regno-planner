@@ -1,8 +1,6 @@
 package org.example.project.feature.diagnostics
 
 import java.time.LocalDate
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.diagnostics.application.DiagnosticsStore
 
@@ -32,7 +30,3 @@ internal open class FakeDiagnosticsStore(
     }
 }
 
-internal object PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-        with(DefaultTransactionScope) { block() }
-}

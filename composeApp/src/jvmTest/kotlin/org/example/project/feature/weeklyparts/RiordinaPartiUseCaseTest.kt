@@ -3,7 +3,7 @@ package org.example.project.feature.weeklyparts
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -24,7 +24,7 @@ class RiordinaPartiUseCaseTest {
     fun `maps part ids to contiguous indexes`() {
         runBlocking {
             val store = TrackingSortWeekPlanStore()
-            val useCase = RiordinaPartiUseCase(store, RiordinaTxRunner)
+            val useCase = RiordinaPartiUseCase(store, PassthroughTransactionRunner)
 
             val result = useCase(
                 weekStartDate = store.weekDate,
@@ -50,7 +50,7 @@ class RiordinaPartiUseCaseTest {
     fun `returns typed error when update fails`() {
         runBlocking {
             val store = TrackingSortWeekPlanStore(throwOnSave = true)
-            val useCase = RiordinaPartiUseCase(store, RiordinaTxRunner)
+            val useCase = RiordinaPartiUseCase(store, PassthroughTransactionRunner)
 
             val result = useCase(
                 weekStartDate = store.weekDate,
@@ -62,10 +62,6 @@ class RiordinaPartiUseCaseTest {
             assertIs<DomainError.RiordinoPartiFallito>(left)
         }
     }
-}
-
-private object RiordinaTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class TrackingSortWeekPlanStore(

@@ -3,7 +3,7 @@ package org.example.project.feature.weeklyparts
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
@@ -29,7 +29,7 @@ class DomainErrorMappingWeeklyPartsUseCaseTest {
         val useCase = AggiungiParteUseCase(
             weekPlanStore = EmptyWeekPlanStore(),
             partTypeStore = NoopPartTypeStore,
-            transactionRunner = NoopTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -46,7 +46,7 @@ class DomainErrorMappingWeeklyPartsUseCaseTest {
         val weekStore = FixedPartWeekPlanStore()
         val useCase = RimuoviParteUseCase(
             weekPlanStore = weekStore,
-            transactionRunner = NoopTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -58,10 +58,6 @@ class DomainErrorMappingWeeklyPartsUseCaseTest {
         val left = assertIs<Either.Left<DomainError>>(result).value
         assertEquals(DomainError.ParteFissa("Parte Fissa"), left)
     }
-}
-
-private object NoopTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private object NoopPartTypeStore : PartTypeStore {

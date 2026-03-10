@@ -1,8 +1,7 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
@@ -20,11 +19,6 @@ import kotlin.test.assertEquals
 class SvuotaAssegnazioniProgrammaUseCaseTest {
 
     private val programId = ProgramMonthId("prog-1")
-
-    private object ImmediateTransactionRunner : TransactionRunner {
-        override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-            with(DefaultTransactionScope) { block() }
-    }
 
     // Simulates assignments stored for a program, partitioned by date
     private fun repositoryWith(entries: List<Pair<LocalDate, Assignment>>): AssignmentRepository {
@@ -59,7 +53,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
                 LocalDate.of(2026, 3, 16) to assignment("a3"),
             ),
         )
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, ImmediateTransactionRunner)
+        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
 
         val count = useCase.count(programId, fromDate)
 
@@ -75,7 +69,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
                 LocalDate.of(2026, 3, 9) to assignment("a2"),
             ),
         )
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, ImmediateTransactionRunner)
+        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
 
         val count = useCase.count(programId, fromDate)
 
@@ -101,7 +95,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
                 return toRemove.size
             }
         }
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, ImmediateTransactionRunner)
+        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
 
         val result = useCase.execute(programId, fromDate)
 
@@ -114,7 +108,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     @Test
     fun `execute on program with no assignments returns 0 without error`() = runBlocking {
         val repo = repositoryWith(emptyList())
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, ImmediateTransactionRunner)
+        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
 
         val result = useCase.execute(programId, LocalDate.of(2026, 3, 1))
 

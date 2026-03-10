@@ -2,6 +2,7 @@ package org.example.project.feature.people
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
@@ -29,7 +30,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
-            transactionRunner = ImmediateTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -50,7 +51,7 @@ class DomainErrorPeopleUseCaseTest {
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
             eligibilityStore = NoopEligibilityStore,
-            transactionRunner = ImmediateTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -71,7 +72,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(duplicate = true),
             store = InMemoryProclamatoriStore(),
-            transactionRunner = ImmediateTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -100,7 +101,7 @@ class DomainErrorPeopleUseCaseTest {
             query = FakeProclamatoriQuery(duplicate = false, people = listOf(esistente)),
             store = store,
             eligibilityStore = NoopEligibilityStore,
-            transactionRunner = ImmediateTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -126,7 +127,7 @@ class DomainErrorPeopleUseCaseTest {
         val useCase = ImportaProclamatoriDaJsonUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
-            transactionRunner = ImmediateTransactionRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase("not-a-json")

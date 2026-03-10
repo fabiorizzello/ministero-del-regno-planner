@@ -3,7 +3,7 @@ package org.example.project.feature.weeklyparts
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
@@ -27,7 +27,7 @@ class CreaSettimanaUseCaseTest {
         val useCase = CreaSettimanaUseCase(
             weekPlanStore = weekStore,
             partTypeStore = partTypeStore,
-            transactionRunner = CreaSettimanaTxRunner(),
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(LocalDate.of(2026, 3, 3)) // Tuesday
@@ -36,10 +36,6 @@ class CreaSettimanaUseCaseTest {
         assertIs<DomainError.DataSettimanaNonLunedi>(left)
         assertTrue(weekStore.savedWeeks.isEmpty())
     }
-}
-
-private class CreaSettimanaTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 private class SingleFixedPartTypeStore : PartTypeStore {
