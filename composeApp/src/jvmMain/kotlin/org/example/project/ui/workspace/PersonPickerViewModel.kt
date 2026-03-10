@@ -18,8 +18,10 @@ import org.example.project.feature.output.application.VerificaConsegnaPreAssegna
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
+import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeEitherOperationWithNotice
 import java.time.LocalDate
 
@@ -117,7 +119,14 @@ internal class PersonPickerViewModel(
         val pickerWeekPlanId = _state.value.pickerWeekPlanId ?: return
 
         scope.launch {
-            val previousStudent = verificaConsegna(pickerWeeklyPartId, pickerWeekPlanId)
+            val previousStudent = try {
+                verificaConsegna(pickerWeeklyPartId, pickerWeekPlanId)
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(notice = errorNotice("Errore verifica consegna: ${e.message}"))
+                }
+                return@launch
+            }
             if (previousStudent != null) {
                 _state.update {
                     it.copy(deliveryWarning = DeliveryWarningState(previousStudent, personId))
@@ -135,8 +144,14 @@ internal class PersonPickerViewModel(
         _state.update { it.copy(deliveryWarning = null) }
 
         scope.launch {
-            annullaConsegna(pickerWeeklyPartId, pickerWeekPlanId)
-            doAssign(warning.pendingPersonId, onSuccess)
+            annullaConsegna(pickerWeeklyPartId, pickerWeekPlanId).fold(
+                ifLeft = { error ->
+                    _state.update { it.copy(notice = errorNotice(error.toMessage())) }
+                },
+                ifRight = {
+                    doAssign(warning.pendingPersonId, onSuccess)
+                },
+            )
         }
     }
 
