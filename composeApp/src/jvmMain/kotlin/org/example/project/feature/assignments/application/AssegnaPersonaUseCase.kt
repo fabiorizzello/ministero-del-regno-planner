@@ -46,12 +46,12 @@ class AssegnaPersonaUseCase(
         val persona = personStore.load(personId)
             ?: raise(DomainError.NotFound("Proclamatore"))
 
-        val assignment = Assignment(
+        val assignment = Assignment.of(
             id = AssignmentId(UUID.randomUUID().toString()),
             weeklyPartId = weeklyPartId,
             personId = personId,
             slot = slot,
-        )
+        ).bind()
         val updated = aggregate.addAssignment(assignment, persona.sospeso).fold(
             ifLeft = { raise(it) },
             ifRight = { it },

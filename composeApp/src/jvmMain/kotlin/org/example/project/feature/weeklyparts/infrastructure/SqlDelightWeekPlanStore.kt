@@ -1,5 +1,6 @@
 package org.example.project.feature.weeklyparts.infrastructure
 
+import arrow.core.getOrElse
 import org.example.project.db.MinisteroDatabase
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.domain.Assignment
@@ -193,12 +194,12 @@ class SqlDelightWeekPlanStore(
 
         val assignments = database.ministeroDatabaseQueries
             .assignmentsForWeek(row.id) { id, weekly_part_id, person_id, slot, _, _, _ ->
-                Assignment(
+                Assignment.of(
                     id = AssignmentId(id),
                     weeklyPartId = WeeklyPartId(weekly_part_id),
                     personId = ProclamatoreId(person_id),
                     slot = slot.toInt(),
-                )
+                ).getOrElse { error("Invalid assignment from DB: $it") }
             }
             .executeAsList()
 

@@ -144,12 +144,12 @@ class AggiornaProgrammaDaSchemiUseCase(
                 val assignmentsToRestore = candidate.assignmentSnapshot[key].orEmpty()
                 assignmentsToRestore.forEach { old ->
                     add(
-                        Assignment(
+                        Assignment.of(
                             id = AssignmentId(UUID.randomUUID().toString()),
                             weeklyPartId = newPart.id,
                             personId = old.personId,
                             slot = old.slot,
-                        ),
+                        ).bind(),
                     )
                 }
             }
