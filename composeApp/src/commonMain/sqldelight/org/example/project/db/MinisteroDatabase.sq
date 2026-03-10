@@ -499,6 +499,16 @@ LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
 LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
 GROUP BY p.id;
 
+allAssignmentRankingData:
+SELECT
+    a.person_id,
+    wpl.week_start_date,
+    wp.part_type_id,
+    a.slot
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id;
+
 -- Diagnostics queries
 countWeekPlansBeforeDate:
 SELECT COUNT(*)
