@@ -1,0 +1,40 @@
+package org.example.project.feature.output.application
+
+import arrow.core.Either
+import arrow.core.raise.either
+import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
+import org.example.project.feature.output.domain.SlipDelivery
+import org.example.project.feature.output.domain.SlipDeliveryId
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import java.time.Instant
+import java.util.UUID
+
+class SegnaComInviatoUseCase(
+    private val store: SlipDeliveryStore,
+    private val transactionRunner: TransactionRunner,
+) {
+    suspend operator fun invoke(
+        weeklyPartId: WeeklyPartId,
+        weekPlanId: String,
+        studentName: String,
+        assistantName: String?,
+    ): Either<DomainError, Unit> = transactionRunner.runInTransaction {
+        either {
+            val existing = store.findActiveDelivery(weeklyPartId, weekPlanId)
+            if (existing != null) return@either
+
+            store.insert(
+                SlipDelivery(
+                    id = SlipDeliveryId(UUID.randomUUID().toString()),
+                    weeklyPartId = weeklyPartId,
+                    weekPlanId = weekPlanId,
+                    studentName = studentName,
+                    assistantName = assistantName,
+                    sentAt = Instant.now(),
+                    cancelledAt = null,
+                )
+            )
+        }
+    }
+}
