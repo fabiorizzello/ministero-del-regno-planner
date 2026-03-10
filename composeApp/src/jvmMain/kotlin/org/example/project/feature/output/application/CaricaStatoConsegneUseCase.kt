@@ -19,7 +19,7 @@ class CaricaStatoConsegneUseCase(
         val activeByKey = active.associateBy { it.weeklyPartId to it.weekPlanId }
         val cancelledByKey = cancelled
             .groupBy { it.weeklyPartId to it.weekPlanId }
-            .mapValues { (_, list) -> list.maxByOrNull { it.cancelledAt!! } }
+            .mapValues { (_, list) -> list.maxByOrNull { requireNotNull(it.cancelledAt) { "cancelled delivery must have cancelledAt" } } }
 
         val allKeys = activeByKey.keys + cancelledByKey.keys
         return allKeys.associateWith { key ->
@@ -32,15 +32,12 @@ class CaricaStatoConsegneUseCase(
                     activeDelivery = activeDelivery,
                     previousStudentName = null,
                 )
-                lastCancelled != null -> SlipDeliveryInfo(
+                // lastCancelled is guaranteed non-null here: allKeys = activeByKey.keys + cancelledByKey.keys,
+                // so every key is in at least one map; if activeDelivery is null, lastCancelled must exist.
+                else -> SlipDeliveryInfo(
                     status = SlipDeliveryStatus.DA_REINVIARE,
                     activeDelivery = null,
-                    previousStudentName = lastCancelled.studentName,
-                )
-                else -> SlipDeliveryInfo(
-                    status = SlipDeliveryStatus.DA_INVIARE,
-                    activeDelivery = null,
-                    previousStudentName = null,
+                    previousStudentName = lastCancelled?.studentName,
                 )
             }
         }

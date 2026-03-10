@@ -1,6 +1,7 @@
 package org.example.project.feature.output.application
 
 import kotlinx.coroutines.test.runTest
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -13,7 +14,7 @@ import kotlin.test.assertTrue
 class AnnullaConsegnaUseCaseTest {
 
     private val store = FakeSlipDeliveryStore()
-    private val useCase = AnnullaConsegnaUseCase(store, ImmediateTransactionRunner())
+    private val useCase = AnnullaConsegnaUseCase(store, PassthroughTransactionRunner)
 
     @Test
     fun `cancels active delivery for the given part and week`() = runTest {
