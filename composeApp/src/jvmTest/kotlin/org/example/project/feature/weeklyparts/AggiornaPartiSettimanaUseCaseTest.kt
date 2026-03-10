@@ -3,8 +3,7 @@ package org.example.project.feature.weeklyparts
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.AggiornaPartiSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
@@ -36,7 +35,7 @@ class AggiornaPartiSettimanaUseCaseTest {
 
         val store = AggiornaPartiWeekPlanStore(weekDate = weekDate, initialPartTypes = listOf(existingPartType))
         val partTypeStore = InMemoryPartTypeStore(listOf(existingPartType, newPartType))
-        val txRunner = AggiornaPartiTxRunner()
+        val txRunner = PassthroughTransactionRunner
 
         val useCase = AggiornaPartiSettimanaUseCase(
             weekPlanStore = store,
@@ -65,7 +64,7 @@ class AggiornaPartiSettimanaUseCaseTest {
         val pastWeekDate = LocalDate.of(2026, 2, 16) // Monday in the past
         val store = AggiornaPartiWeekPlanStore(weekDate = pastWeekDate, initialPartTypes = listOf(partType))
         val partTypeStore = InMemoryPartTypeStore(listOf(partType))
-        val txRunner = AggiornaPartiTxRunner()
+        val txRunner = PassthroughTransactionRunner
 
         val useCase = AggiornaPartiSettimanaUseCase(
             weekPlanStore = store,
@@ -94,7 +93,7 @@ class AggiornaPartiSettimanaUseCaseTest {
 
         val store = AggiornaPartiWeekPlanStore(weekDate = weekDate, initialPartTypes = listOf(pt1, pt2))
         val partTypeStore = InMemoryPartTypeStore(listOf(pt1, pt2))
-        val txRunner = AggiornaPartiTxRunner()
+        val txRunner = PassthroughTransactionRunner
 
         val useCase = AggiornaPartiSettimanaUseCase(
             weekPlanStore = store,
@@ -125,7 +124,7 @@ class AggiornaPartiSettimanaUseCaseTest {
         val partType = makePartType("pt-1", "LETTURA", fixed = false)
         val store = AggiornaPartiWeekPlanStore(weekDate = weekDate, initialPartTypes = listOf(partType))
         val partTypeStore = InMemoryPartTypeStore(listOf(partType))
-        val txRunner = AggiornaPartiTxRunner()
+        val txRunner = PassthroughTransactionRunner
 
         val useCase = AggiornaPartiSettimanaUseCase(
             weekPlanStore = store,
@@ -191,9 +190,4 @@ private class InMemoryPartTypeStore(
     override suspend fun findFixed(): PartType? = partTypes.firstOrNull { it.fixed }
     context(tx: TransactionScope)
     override suspend fun upsertAll(partTypes: List<PartType>) {}
-}
-
-private class AggiornaPartiTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-        with(DefaultTransactionScope) { block() }
 }

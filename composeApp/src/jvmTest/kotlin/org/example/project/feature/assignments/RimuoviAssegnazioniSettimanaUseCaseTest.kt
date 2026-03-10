@@ -2,8 +2,9 @@ package org.example.project.feature.assignments
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.CountingTransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -60,7 +61,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
         val store = SingleAggregateWeekStore(sampleAggregate(initialAssignments))
         val useCase = RimuoviAssegnazioniSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughRimuoviTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(weekStart)
@@ -74,7 +75,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
         val store = EmptyWeekStore()
         val useCase = RimuoviAssegnazioniSettimanaUseCase(
             weekPlanStore = store,
-            transactionRunner = PassthroughRimuoviTxRunner,
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(weekStart)
@@ -86,7 +87,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
     @Test
     fun `removal runs inside a transaction`() = runBlocking {
         val store = SingleAggregateWeekStore(sampleAggregate(listOf(assignment("a1"))))
-        val txRunner = CountingRimuoviTxRunner()
+        val txRunner = CountingTransactionRunner()
         val useCase = RimuoviAssegnazioniSettimanaUseCase(
             weekPlanStore = store,
             transactionRunner = txRunner,
@@ -118,18 +119,3 @@ private class SingleAggregateWeekStore(
 }
 
 private class EmptyWeekStore : TestWeekPlanStore()
-
-private object PassthroughRimuoviTxRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T =
-        with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-}
-
-private class CountingRimuoviTxRunner : TransactionRunner {
-    var calls: Int = 0
-        private set
-
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
-        calls += 1
-        return with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
-    }
-}

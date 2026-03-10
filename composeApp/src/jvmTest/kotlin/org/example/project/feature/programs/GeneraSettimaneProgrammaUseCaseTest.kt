@@ -2,8 +2,8 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramCreationContext
 import org.example.project.feature.programs.application.ProgramStore
@@ -54,7 +54,7 @@ class GeneraSettimaneProgrammaUseCaseTest {
             weekPlanStore = weekStore,
             schemaTemplateStore = schemaStore,
             partTypeStore = partTypeStore,
-            transactionRunner = ImmediateTransactionRunner(),
+            transactionRunner = PassthroughTransactionRunner,
         )
 
         val result = useCase(
@@ -93,10 +93,6 @@ internal fun partType(code: String, fixed: Boolean = false): PartType {
         fixed = fixed,
         sortOrder = 1,
     )
-}
-
-internal class ImmediateTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T = with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
 }
 
 internal class InMemoryProgramStoreGeneration(

@@ -3,7 +3,7 @@ package org.example.project.feature.people
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
@@ -20,7 +20,7 @@ class EliminaProclamatoreUseCaseTest {
 
     @Test
     fun `returns NotFound when person does not exist`() = runBlocking {
-        val tx = TrackingTransactionRunner()
+        val tx = CountingTransactionRunner()
         val store = InMemoryPeopleStore()
         val assignments = TrackingPersonAssignmentLifecycle()
         val useCase = EliminaProclamatoreUseCase(store, assignments, tx)
@@ -29,14 +29,14 @@ class EliminaProclamatoreUseCaseTest {
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         assertEquals(DomainError.NotFound("Proclamatore"), left)
-        assertEquals(0, tx.invocationCount)
+        assertEquals(0, tx.calls)
         assertTrue(assignments.removedPersonIds.isEmpty())
     }
 
     @Test
     fun `deletes assignments and person in a single transaction`() = runBlocking {
         val personId = ProclamatoreId("p1")
-        val tx = TrackingTransactionRunner()
+        val tx = CountingTransactionRunner()
         val store = InMemoryPeopleStore(
             initial = listOf(
                 Proclamatore(
@@ -53,19 +53,9 @@ class EliminaProclamatoreUseCaseTest {
         val result = useCase(personId)
 
         assertIs<Either.Right<Unit>>(result)
-        assertEquals(1, tx.invocationCount)
+        assertEquals(1, tx.calls)
         assertEquals(listOf(personId), assignments.removedPersonIds)
         assertEquals(emptyList(), store.currentIds())
-    }
-}
-
-private class TrackingTransactionRunner : TransactionRunner {
-    var invocationCount: Int = 0
-        private set
-
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
-        invocationCount += 1
-        return with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
     }
 }
 

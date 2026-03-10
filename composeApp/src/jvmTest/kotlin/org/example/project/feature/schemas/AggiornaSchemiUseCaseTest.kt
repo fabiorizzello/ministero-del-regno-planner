@@ -5,9 +5,8 @@ import com.russhwolf.settings.PreferencesSettings
 import java.util.UUID
 import java.util.prefs.Preferences
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
@@ -201,10 +200,7 @@ private fun buildUseCase(
     eligibilityStore = NoopEligibilityStore2(),
     schemaTemplateStore = templateStore,
     schemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore2(),
-    transactionRunner = object : TransactionRunner {
-        override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-            with(DefaultTransactionScope) { block() }
-    },
+    transactionRunner = PassthroughTransactionRunner,
     settings = PreferencesSettings(Preferences.userRoot().node("aggiorna-schemi-uc-test-${UUID.randomUUID()}")),
 )
 

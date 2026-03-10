@@ -3,8 +3,7 @@ package org.example.project.feature.weeklyparts
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -36,7 +35,7 @@ class RimuoviParteUseCaseTest {
                 WeeklyPart(id = WeeklyPartId("part-1"), partType = removable, sortOrder = 0),
             ),
         )
-        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = passthroughRunner())
+        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = PassthroughTransactionRunner)
 
         val result = useCase(
             weekStartDate = weekDate,
@@ -60,7 +59,7 @@ class RimuoviParteUseCaseTest {
                 WeeklyPart(id = WeeklyPartId("part-fixed"), partType = fixed, sortOrder = 0),
             ),
         )
-        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = passthroughRunner())
+        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = PassthroughTransactionRunner)
 
         val result = useCase(
             weekStartDate = weekDate,
@@ -81,7 +80,7 @@ class RimuoviParteUseCaseTest {
             weekDate = weekDate,
             parts = emptyList(),
         )
-        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = passthroughRunner())
+        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = PassthroughTransactionRunner)
 
         val result = useCase(
             weekStartDate = LocalDate.of(2026, 1, 5), // different date → not found
@@ -108,7 +107,7 @@ class RimuoviParteUseCaseTest {
                 WeeklyPart(id = WeeklyPartId("part-3"), partType = pt3, sortOrder = 2),
             ),
         )
-        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = passthroughRunner())
+        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = PassthroughTransactionRunner)
 
         val result = useCase(
             weekStartDate = weekDate,
@@ -171,9 +170,4 @@ private class RimuoviParteTestWeekPlanStore(
         savedAggregate = aggregate
         this.aggregate = aggregate
     }
-}
-
-private fun passthroughRunner(): TransactionRunner = object : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-        with(DefaultTransactionScope) { block() }
 }

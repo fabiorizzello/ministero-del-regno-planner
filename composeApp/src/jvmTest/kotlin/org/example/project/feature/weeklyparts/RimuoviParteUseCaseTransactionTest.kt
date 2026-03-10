@@ -2,7 +2,7 @@ package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
-import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.CountingTransactionRunner
 import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
@@ -21,7 +21,7 @@ class RimuoviParteUseCaseTransactionTest {
 
     @Test
     fun `remove part executes through transaction runner`() = runBlocking {
-        val txRunner = TrackingTransactionRunner()
+        val txRunner = CountingTransactionRunner()
         val weekStore = TransactionAwareWeekPlanStore()
         val useCase = RimuoviParteUseCase(
             weekPlanStore = weekStore,
@@ -35,17 +35,7 @@ class RimuoviParteUseCaseTransactionTest {
         )
 
         assertIs<Either.Right<Unit>>(result)
-        assertEquals(1, txRunner.invocationCount)
-    }
-}
-
-private class TrackingTransactionRunner : TransactionRunner {
-    var invocationCount: Int = 0
-        private set
-
-    override suspend fun <T> runInTransaction(block: suspend org.example.project.core.persistence.TransactionScope.() -> T): T {
-        invocationCount++
-        return with(org.example.project.core.persistence.DefaultTransactionScope) { block() }
+        assertEquals(1, txRunner.calls)
     }
 }
 

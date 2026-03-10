@@ -1,7 +1,5 @@
 package org.example.project.feature.assignments
 
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
@@ -22,25 +20,6 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import java.time.LocalDate
-
-// ---------------------------------------------------------------------------
-// TransactionRunner fakes
-// ---------------------------------------------------------------------------
-
-internal object PassthroughTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-        with(DefaultTransactionScope) { block() }
-}
-
-internal class CountingTransactionRunner : TransactionRunner {
-    var calls: Int = 0
-        private set
-
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T {
-        calls += 1
-        return with(DefaultTransactionScope) { block() }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // AssignmentRepository fakes
