@@ -84,17 +84,21 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 
 **Acceptance Scenarios**:
 
-1. **Given** connessione disponibile e nessuno schema locale, **When** si avvia
-   l'aggiornamento, **Then** i tipi di parte e gli schemi vengono scaricati e applicati
-   integralmente. `ImportResult.weeksNeedingConfirmation` è vuoto.
-2. **Given** alcune settimane già presenti localmente, **When** si esegue
-   `fetchAndImport`, **Then** le settimane già presenti vengono restituite in
-   `weeksNeedingConfirmation` senza essere sovrascritte; l'utente deve confermare
-   esplicitamente prima di chiamare `importSchemas`.
-3. **Given** l'utente ha confermato le settimane da sovrascrivere, **When** si chiama
-   `importSchemas`, **Then** le settimane esistenti vengono eliminate e ricreate con i
-   nuovi dati remoti.
-4. **Given** nessuna connessione, **When** si avvia l'aggiornamento, **Then** viene
+1. **Given** connessione disponibile, **When** si avvia l'aggiornamento, **Then** i tipi
+   di parte e gli schemi settimanali vengono scaricati e applicati atomicamente in una
+   singola transazione. Tutti i template settimanali del catalogo remoto sovrascrivono
+   quelli locali.
+2. **Given** un programma selezionato con settimane impattate dagli schemi aggiornati,
+   **When** l'aggiornamento schemi completa, **Then** il sistema esegue un dry-run del
+   refresh programma e mostra un dialog di conferma con il dettaglio per-settimana
+   (parti aggiunte/rimosse, assegnazioni preservate/da rimuovere).
+3. **Given** il dialog di conferma è visibile, **When** l'utente conferma, **Then**
+   `AggiornaProgrammaDaSchemiUseCase` viene eseguito (non dry-run) e le settimane del
+   programma vengono aggiornate atomicamente. Le assegnazioni matching per chiave
+   `(PartTypeId, sortOrder)` vengono preservate.
+4. **Given** il dialog di conferma è visibile, **When** l'utente annulla, **Then** gli
+   schemi restano aggiornati ma il programma non viene modificato.
+5. **Given** nessuna connessione, **When** si avvia l'aggiornamento, **Then** viene
    mostrato un errore di rete comprensibile e il DB non viene modificato.
 
 ---
@@ -109,13 +113,16 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   "La parte '...' non può essere rimossa" — le parti fisse non sono rimovibili.
 - Sort order dopo rimozione: i sortOrder vengono ricompattati a 0..n-1 contigui dopo
   ogni rimozione (`weekPlanStore.updateSortOrders`).
-- `AggiornaDatiRemotiUseCase` — flusso in due fasi:
-  1. `fetchAndImport()`: scarica tipi di parte e schemi; per le settimane già presenti
-     localmente restituisce `weeksNeedingConfirmation` invece di sovrascriverle.
-  2. `importSchemas(schemas)`: valida prima tutte le date (fuori da DB), poi esegue
-     eliminazione + ricreazione di ogni settimana dentro **una singola transazione**.
-     Se un'operazione fallisce a metà, il DB torna allo stato precedente. L'utente deve
-     confermare esplicitamente prima della fase 2.
+- `AggiornaSchemiUseCase` — aggiornamento schemi atomico in fase singola:
+  scarica catalogo remoto, valida tipi di parte e date upfront, poi in una singola
+  transazione: upsert part types, disattiva quelli rimossi, sovrascrive tutti i template
+  settimanali. Nessuna selezione per-settimana — il catalogo remoto sovrascrive sempre
+  integralmente quello locale.
+- Refresh programma con conferma utente: se un programma è selezionato e ha settimane
+  impattate, il ViewModel esegue un dry-run di `AggiornaProgrammaDaSchemiUseCase` e mostra
+  un dialog di anteprima con il dettaglio per-settimana (`WeekRefreshDetail`: parti
+  aggiunte/rimosse/invariate, assegnazioni preservate/da rimuovere). L'utente può
+  confermare (applica) o annullare (schemi aggiornati, programma invariato).
 
 ## Requirements *(mandatory)*
 
@@ -135,12 +142,12 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 - **FR-006**: Il sistema MUST consentire la ricerca dei tipi di parte disponibili per
   nome/codice.
 - **FR-007**: Il sistema MUST aggiornare il catalogo dei tipi di parte e gli schemi
-  settimanali da sorgente remoto su richiesta, in due fasi:
-  (1) `fetchAndImport`: scarica e applica; le settimane già presenti vengono segnalate
-  in `weeksNeedingConfirmation` senza sovrascrivere;
-  (2) `importSchemas`: valida tutte le date upfront, poi sovrascrive le settimane
-  confermate in **una singola transazione atomica** — se una qualsiasi sovrascrittura
-  fallisce, l'intera fase 2 viene annullata senza modifiche parziali al DB.
+  settimanali da sorgente remoto su richiesta. L'aggiornamento avviene in una **singola
+  transazione atomica**: validazione date upfront, poi upsert part types e sovrascrittura
+  di tutti i template settimanali. Se un programma è selezionato e ha settimane impattate,
+  il sistema MUST mostrare un'anteprima delle modifiche (`SchemaRefreshReport` con
+  `WeekRefreshDetail` per-settimana) e richiedere conferma esplicita dell'utente prima
+  di applicare il refresh al programma.
 - **FR-008**: Il sistema MUST caricare un WeekPlan per data di inizio settimana, o
   restituire null se non esiste.
 
@@ -181,9 +188,12 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   `part.partType.fixed` e restituisce errore di validazione se true.
 - Q: I sortOrder vengono aggiornati dopo la rimozione di una parte? → A: Sì — dopo
   ogni rimozione i sortOrder vengono ricompattati a valori contigui 0..n-1.
-- Q: AggiornaDatiRemotiUseCase ha fasi distinte? → A: Sì — `fetchAndImport()` è la
-  prima fase (skippa settimane esistenti, restituisce `weeksNeedingConfirmation`);
-  `importSchemas(schemas)` è la seconda fase (sovrascrive dopo conferma utente).
+- Q: AggiornaDatiRemotiUseCase ha fasi distinte? → A: L'import schemi
+  (`AggiornaSchemiUseCase`) è single-phase atomico — sovrascrive tutto il catalogo remoto
+  senza selezione per-settimana. La conferma utente si applica solo al **refresh del
+  programma attivo**: il ViewModel esegue un dry-run, mostra l'anteprima, e applica solo
+  dopo conferma. Se l'utente annulla, gli schemi restano aggiornati ma il programma non
+  viene modificato.
 - Q: SexRule.STESSO_SESSO nella spec 002 era errata? → A: Sì — la descrizione originale
   "stesso sesso OPPURE CONIUGE/GENITORE_FIGLIO" descriveva il comportamento atteso non
   implementato. Il codice attuale tratta STESSO_SESSO come non filtrante (`passaSesso = true`).
@@ -191,9 +201,9 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 
 ### Session 2026-03-03
 
-- Q: `importSchemas` era atomica? → A: No — ora è stata resa atomica: validazione date
-  upfront (fuori transazione, fail-fast), poi tutta la fase di delete+create dentro una
-  singola transazione `TransactionRunner`.
+- Q: L'import schemi è atomico? → A: Sì — `AggiornaSchemiUseCase` valida date upfront
+  (fuori transazione, fail-fast), poi tutta la fase di upsert+replace dentro una singola
+  transazione `TransactionRunner`.
 
 ### Session 2026-03-05
 

@@ -11,6 +11,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
+import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
@@ -34,6 +35,8 @@ internal data class SchemaManagementUiState(
     val isRefreshingProgramFromSchemas: Boolean = false,
     val impactedProgramIds: Set<ProgramMonthId> = emptySet(),
     val notice: FeedbackBannerModel? = null,
+    val pendingRefreshPreview: SchemaRefreshReport? = null,
+    val pendingRefreshProgramId: ProgramMonthId? = null,
 )
 
 internal class SchemaManagementViewModel(
@@ -45,6 +48,8 @@ internal class SchemaManagementViewModel(
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
     val state: StateFlow<SchemaManagementUiState> = _state.asStateFlow()
+
+    private var pendingOnComplete: (() -> Unit)? = null
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
@@ -102,13 +107,56 @@ internal class SchemaManagementViewModel(
                         )
                     }
                     if (selectedProgramId != null) {
-                        applyProgramRefresh(selectedProgramId, onProgramRefreshComplete)
+                        requestProgramRefreshPreview(selectedProgramId, onProgramRefreshComplete)
                     } else {
                         onProgramRefreshComplete()
                     }
                 }
             }
         }
+    }
+
+    private suspend fun requestProgramRefreshPreview(
+        programId: ProgramMonthId,
+        onComplete: () -> Unit,
+    ) {
+        when (val preview = aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = true)) {
+            is Either.Left -> {
+                _state.update {
+                    it.copy(notice = FeedbackBannerModel(preview.value.toMessage(), FeedbackBannerKind.ERROR))
+                }
+                onComplete()
+            }
+            is Either.Right -> {
+                val report = preview.value
+                if (report.weeksUpdated == 0) {
+                    onComplete()
+                } else {
+                    pendingOnComplete = onComplete
+                    _state.update {
+                        it.copy(
+                            pendingRefreshPreview = report,
+                            pendingRefreshProgramId = programId,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun confirmProgramRefresh() {
+        val programId = _state.value.pendingRefreshProgramId ?: return
+        val onComplete = pendingOnComplete ?: {}
+        pendingOnComplete = null
+        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        scope.launch { applyProgramRefresh(programId, onComplete) }
+    }
+
+    fun dismissProgramRefreshPreview() {
+        val onComplete = pendingOnComplete ?: {}
+        pendingOnComplete = null
+        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        onComplete()
     }
 
     private suspend fun applyProgramRefresh(programId: ProgramMonthId, onComplete: () -> Unit) {
