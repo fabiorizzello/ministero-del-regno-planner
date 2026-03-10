@@ -38,6 +38,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.Icons
@@ -85,6 +86,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -112,8 +114,11 @@ import org.example.project.feature.assignments.application.AutoAssignUnresolvedS
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.PartAssignmentWarning
+import org.example.project.feature.output.domain.SlipDeliveryInfo
+import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.DISPLAY_NUMBER_OFFSET
 import org.example.project.ui.components.formatWeekRangeLabel
@@ -436,8 +441,10 @@ internal fun AssignmentTicketsDialog(
     monthLabel: String,
     tickets: List<AssignmentTicketImage>,
     partWarnings: List<PartAssignmentWarning>,
+    deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo>,
     isLoading: Boolean,
     errorMessage: String?,
+    onMarkAsDelivered: (AssignmentTicketImage) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -554,36 +561,105 @@ internal fun AssignmentTicketsDialog(
                                 ) {
                                     sections.forEach { section ->
                                         TicketWeekHeader(section.weekStart, section.weekEnd)
-                                        val allItems: List<Any> = section.cards + section.warnings
-                                        allItems.chunked(cols).forEach { rowItems ->
+
+                                        val pendingTickets = section.cards.filter { ticket ->
+                                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
+                                            info?.status != SlipDeliveryStatus.INVIATO
+                                        }
+                                        val sentTickets = section.cards.filter { ticket ->
+                                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
+                                            info?.status == SlipDeliveryStatus.INVIATO
+                                        }
+                                        val pendingItems: List<Any> = pendingTickets + section.warnings
+
+                                        if (pendingItems.isNotEmpty()) {
+                                            Text(
+                                                "Da inviare",
+                                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                color = sketch.inkSoft,
+                                            )
+                                            pendingItems.chunked(cols).forEach { rowItems ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(bottom = 16.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                                ) {
+                                                    rowItems.forEach { item ->
+                                                        Box(modifier = Modifier.weight(1f)) {
+                                                            when (item) {
+                                                                is AssignmentTicketImage -> AssignmentTicketCard(
+                                                                    ticket = item,
+                                                                    deliveryInfo = deliveryStatus[item.weeklyPartId to item.weekPlanId],
+                                                                    onPreviewRequest = {
+                                                                        previewTicket = item
+                                                                        if (previewMap[item.imagePath] == null) {
+                                                                            previewMap[item.imagePath] = null
+                                                                        }
+                                                                    },
+                                                                    onMarkAsDelivered = { onMarkAsDelivered(item) },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                )
+                                                                is PartAssignmentWarning -> PartWarningCard(
+                                                                    warning = item,
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                    repeat(cols - rowItems.size) {
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if (sentTickets.isNotEmpty()) {
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(bottom = 16.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                rowItems.forEach { item ->
-                                                    Box(modifier = Modifier.weight(1f)) {
-                                                        when (item) {
-                                                            is AssignmentTicketImage -> AssignmentTicketCard(
+                                                Icon(
+                                                    imageVector = Icons.Filled.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = sketch.ok,
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                                Text(
+                                                    "Inviati",
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                    color = sketch.ok,
+                                                )
+                                            }
+                                            sentTickets.chunked(cols).forEach { rowItems ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(bottom = 16.dp)
+                                                        .alpha(0.6f),
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                                ) {
+                                                    rowItems.forEach { item ->
+                                                        Box(modifier = Modifier.weight(1f)) {
+                                                            AssignmentTicketCard(
                                                                 ticket = item,
+                                                                deliveryInfo = deliveryStatus[item.weeklyPartId to item.weekPlanId],
                                                                 onPreviewRequest = {
                                                                     previewTicket = item
                                                                     if (previewMap[item.imagePath] == null) {
                                                                         previewMap[item.imagePath] = null
                                                                     }
                                                                 },
-                                                                modifier = Modifier.fillMaxWidth(),
-                                                            )
-                                                            is PartAssignmentWarning -> PartWarningCard(
-                                                                warning = item,
+                                                                onMarkAsDelivered = null,
                                                                 modifier = Modifier.fillMaxWidth(),
                                                             )
                                                         }
                                                     }
-                                                }
-                                                repeat(cols - rowItems.size) {
-                                                    Spacer(modifier = Modifier.weight(1f))
+                                                    repeat(cols - rowItems.size) {
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                    }
                                                 }
                                             }
                                         }
@@ -704,7 +780,9 @@ private fun PartWarningCard(
 @Composable
 private fun AssignmentTicketCard(
     ticket: AssignmentTicketImage,
+    deliveryInfo: SlipDeliveryInfo?,
     onPreviewRequest: () -> Unit,
+    onMarkAsDelivered: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -758,6 +836,16 @@ private fun AssignmentTicketCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
+            if (deliveryInfo?.status == SlipDeliveryStatus.DA_REINVIARE && deliveryInfo.previousStudentName != null) {
+                Text(
+                    "Precedente: ${deliveryInfo.previousStudentName}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = sketch.warn,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -803,6 +891,42 @@ private fun AssignmentTicketCard(
                             color = sketch.accent,
                         )
                     }
+                }
+            }
+
+            if (onMarkAsDelivered != null) {
+                Surface(
+                    onClick = onMarkAsDelivered,
+                    shape = RoundedCornerShape(8.dp),
+                    color = sketch.accent,
+                    modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                ) {
+                    Text(
+                        "Segna come inviato",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            if (deliveryInfo?.status == SlipDeliveryStatus.INVIATO) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = sketch.ok,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        "Inviato",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = sketch.ok,
+                    )
                 }
             }
         }

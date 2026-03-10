@@ -50,6 +50,8 @@ val viewModelsModule = module {
             stampaProgramma = get(),
             generaImmaginiAssegnazioni = get(),
             settings = get(),
+            segnaComInviato = get(),
+            caricaStatoConsegne = get(),
         )
     }
     factory {
@@ -59,6 +61,8 @@ val viewModelsModule = module {
             rimuoviAssegnazione = get(),
             suggerisciProclamatori = get(),
             caricaAssegnazioni = get(),
+            verificaConsegna = get(),
+            annullaConsegna = get(),
         )
     }
     factory {

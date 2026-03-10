@@ -184,6 +184,28 @@ fun ProgramWorkspaceScreen() {
         }
     }
 
+    personPickerState.deliveryWarning?.let { warning ->
+        AlertDialog(
+            onDismissRequest = { personPickerVM.dismissDeliveryWarning() },
+            title = { Text("Biglietto già inviato") },
+            text = {
+                Text("Hai già inviato il biglietto a ${warning.previousStudentName}. Ricordati di avvisarlo del cambio.")
+            },
+            confirmButton = {
+                DesktopInlineAction(
+                    label = "Conferma",
+                    onClick = { personPickerVM.confirmAssignmentAfterWarning(onSuccess = reloadData) },
+                )
+            },
+            dismissButton = {
+                DesktopInlineAction(
+                    label = "Annulla",
+                    onClick = { personPickerVM.dismissDeliveryWarning() },
+                )
+            },
+        )
+    }
+
     if (partEditorState.isPartEditorOpen) {
         val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
@@ -209,8 +231,10 @@ fun ProgramWorkspaceScreen() {
             monthLabel = lifecycleState.selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: "",
             tickets = assignmentState.assignmentTickets,
             partWarnings = assignmentState.assignmentPartWarnings,
+            deliveryStatus = assignmentState.deliveryStatus,
             isLoading = assignmentState.isLoadingAssignmentTickets,
             errorMessage = assignmentState.assignmentTicketsError,
+            onMarkAsDelivered = { assignmentVM.markAsDelivered(it) },
             onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
         )
     }
@@ -695,6 +719,7 @@ fun ProgramWorkspaceScreen() {
                                                                 weekStartDate = selectedWeek.weekStartDate,
                                                                 weeklyPartId = part.id,
                                                                 slot = slot,
+                                                                weekPlanId = selectedWeek.id,
                                                             )
                                                         },
                                                         onRemoveAssignment = { assignmentId ->
@@ -764,6 +789,15 @@ fun ProgramWorkspaceScreen() {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
+                                assignmentState.ticketBadgeText?.let { badgeText ->
+                                    Text(
+                                        text = badgeText,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (badgeText == "Tutti inviati") MaterialTheme.workspaceSketch.ok
+                                                else MaterialTheme.workspaceSketch.inkMuted,
+                                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp),
+                                    )
+                                }
                                 ProgramRightPanelButton(
                                     label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
                                     icon = Icons.Filled.PictureAsPdf,

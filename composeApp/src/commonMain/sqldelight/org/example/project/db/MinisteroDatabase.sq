@@ -152,6 +152,55 @@ ON assignment(person_id);
 CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
 ON assignment(weekly_part_id, slot);
 
+CREATE TABLE slip_delivery (
+    id TEXT NOT NULL PRIMARY KEY,
+    weekly_part_id TEXT NOT NULL,
+    week_plan_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    assistant_name TEXT,
+    sent_at TEXT NOT NULL,
+    cancelled_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS slip_delivery_part_week_idx
+ON slip_delivery(weekly_part_id, week_plan_id);
+
+-- Slip delivery queries
+
+findActiveDelivery:
+SELECT id, weekly_part_id, week_plan_id, student_name, assistant_name, sent_at, cancelled_at
+FROM slip_delivery
+WHERE weekly_part_id = ? AND week_plan_id = ? AND cancelled_at IS NULL
+LIMIT 1;
+
+findLastCancelledDelivery:
+SELECT id, weekly_part_id, week_plan_id, student_name, assistant_name, sent_at, cancelled_at
+FROM slip_delivery
+WHERE weekly_part_id = ? AND week_plan_id = ? AND cancelled_at IS NOT NULL
+ORDER BY cancelled_at DESC
+LIMIT 1;
+
+listActiveDeliveriesByWeekPlanIds:
+SELECT id, weekly_part_id, week_plan_id, student_name, assistant_name, sent_at, cancelled_at
+FROM slip_delivery
+WHERE week_plan_id IN ?
+AND cancelled_at IS NULL;
+
+listCancelledDeliveriesByWeekPlanIds:
+SELECT id, weekly_part_id, week_plan_id, student_name, assistant_name, sent_at, cancelled_at
+FROM slip_delivery
+WHERE week_plan_id IN ?
+AND cancelled_at IS NOT NULL;
+
+insertDelivery:
+INSERT INTO slip_delivery(id, weekly_part_id, week_plan_id, student_name, assistant_name, sent_at, cancelled_at)
+VALUES (?, ?, ?, ?, ?, ?, NULL);
+
+cancelDelivery:
+UPDATE slip_delivery
+SET cancelled_at = ?
+WHERE id = ?;
+
 -- Person queries (existing)
 allAssignableProclaimers:
 SELECT id, first_name, last_name, sex, suspended, can_assist

@@ -17,7 +17,9 @@ import org.example.project.feature.assignments.application.AutoAssignProgramResu
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
+import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.TicketGenerationResult
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import arrow.core.Either
@@ -26,6 +28,8 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.ui.components.FeedbackBannerKind
 import com.russhwolf.settings.Settings
 import java.time.LocalDate
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -234,10 +238,13 @@ class AssignmentManagementViewModelTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
+            assistantName = null,
             weekStart = LocalDate.of(2026, 3, 2),
             weekEnd = LocalDate.of(2026, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
             assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
+            weeklyPartId = WeeklyPartId("p1"),
+            weekPlanId = WeekPlanId("week-1"),
         )
         coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()))
 
@@ -252,18 +259,20 @@ class AssignmentManagementViewModelTest {
     }
 
     @Test
-    fun `closeAssignmentTicketsDialog chiude modale e svuota lo stato`() = runTest {
+    fun `closeAssignmentTicketsDialog chiude modale ma mantiene i dati per badge`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val ticket = AssignmentTicketImage(
+            fullName = "Mario Rossi",
+            assistantName = null,
+            weekStart = LocalDate.of(2026, 3, 2),
+            weekEnd = LocalDate.of(2026, 3, 8),
+            imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
+            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
+            weeklyPartId = WeeklyPartId("p1"),
+            weekPlanId = WeekPlanId("week-1"),
+        )
         coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(
-            tickets = listOf(
-                AssignmentTicketImage(
-                    fullName = "Mario Rossi",
-                    weekStart = LocalDate.of(2026, 3, 2),
-                    weekEnd = LocalDate.of(2026, 3, 8),
-                    imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-                    assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
-                ),
-            ),
+            tickets = listOf(ticket),
             warnings = emptyList(),
         ))
 
@@ -273,7 +282,8 @@ class AssignmentManagementViewModelTest {
         vm.closeAssignmentTicketsDialog()
 
         assertFalse(vm.uiState.value.isAssignmentTicketsDialogOpen)
-        assertTrue(vm.uiState.value.assignmentTickets.isEmpty())
+        // Tickets and delivery status are retained for the badge
+        assertEquals(listOf(ticket), vm.uiState.value.assignmentTickets)
         assertNull(vm.uiState.value.assignmentTicketsError)
     }
 
@@ -314,6 +324,8 @@ class AssignmentManagementViewModelTest {
         svuota: SvuotaAssegnazioniProgrammaUseCase = mockk(relaxed = true),
         stampa: StampaProgrammaUseCase = mockk(relaxed = true),
         genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
+        segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
+        caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
         scope = scope,
         autoAssegnaProgramma = autoAssegna,
@@ -324,5 +336,7 @@ class AssignmentManagementViewModelTest {
         stampaProgramma = stampa,
         generaImmaginiAssegnazioni = genera,
         settings = mockk<Settings>(relaxed = true),
+        segnaComInviato = segnaComInviato,
+        caricaStatoConsegne = caricaStatoConsegne,
     )
 }

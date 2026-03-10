@@ -14,10 +14,16 @@ import org.example.project.feature.assignments.application.RimuoviAssegnazioniSe
 import org.example.project.feature.assignments.application.SalvaImpostazioniAssegnatoreUseCase
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.output.application.AssignmentTicketImage
+import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
 import org.example.project.feature.output.application.PartAssignmentWarning
+import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.output.domain.SlipDeliveryInfo
+import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -49,6 +55,8 @@ internal data class AssignmentManagementUiState(
     val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
     val assignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
     val assignmentTicketsError: String? = null,
+    val deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo> = emptyMap(),
+    val isMarkingDelivered: Boolean = false,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -59,7 +67,26 @@ internal data class AssignmentManagementUiState(
     val settingsSaved: Boolean = false,
     val skipRemoveConfirm: Boolean = false,
     val notice: FeedbackBannerModel? = null,
-)
+) {
+    val ticketBadgeText: String? get() {
+        if (assignmentTickets.isEmpty() && assignmentPartWarnings.isEmpty()) return null
+        val pending = assignmentTickets.count { ticket ->
+            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
+            info == null || info.status != SlipDeliveryStatus.INVIATO
+        }
+        val blocked = assignmentPartWarnings.size
+        return when {
+            pending == 0 && blocked == 0 && assignmentTickets.isNotEmpty() -> "Tutti inviati"
+            else -> buildString {
+                if (pending > 0) append("$pending da inviare")
+                if (blocked > 0) {
+                    if (isNotEmpty()) append(" \u00b7 ")
+                    append("$blocked bloccati")
+                }
+            }.ifEmpty { null }
+        }
+    }
+}
 
 internal class AssignmentManagementViewModel(
     private val scope: CoroutineScope,
@@ -71,6 +98,8 @@ internal class AssignmentManagementViewModel(
     private val stampaProgramma: StampaProgrammaUseCase,
     private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
     private val settings: Settings,
+    private val segnaComInviato: SegnaComInviatoUseCase,
+    private val caricaStatoConsegne: CaricaStatoConsegneUseCase,
 ) {
     private val _uiState = MutableStateFlow(AssignmentManagementUiState())
     val uiState: StateFlow<AssignmentManagementUiState> = _uiState.asStateFlow()
@@ -223,6 +252,7 @@ internal class AssignmentManagementViewModel(
                     )
                 },
                 successUpdate = { state, result ->
+                    scope.launch { loadDeliveryStatus(result.tickets) }
                     state.copy(
                         isAssignmentTicketsDialogOpen = true,
                         isLoadingAssignmentTickets = false,
@@ -251,8 +281,6 @@ internal class AssignmentManagementViewModel(
             it.copy(
                 isAssignmentTicketsDialogOpen = false,
                 isLoadingAssignmentTickets = false,
-                assignmentTickets = emptyList(),
-                assignmentPartWarnings = emptyList(),
                 assignmentTicketsError = null,
             )
         }
@@ -354,6 +382,36 @@ internal class AssignmentManagementViewModel(
 
     fun dismissClearWeekAssignments() {
         _uiState.update { it.copy(clearWeekAssignmentsConfirm = null) }
+    }
+
+    fun markAsDelivered(ticket: AssignmentTicketImage) {
+        if (_uiState.value.isMarkingDelivered) return
+        scope.launch {
+            _uiState.update { it.copy(isMarkingDelivered = true) }
+            segnaComInviato(
+                weeklyPartId = ticket.weeklyPartId,
+                weekPlanId = ticket.weekPlanId,
+                studentName = ticket.fullName,
+                assistantName = ticket.assistantName,
+            ).fold(
+                ifLeft = { error ->
+                    _uiState.update {
+                        it.copy(isMarkingDelivered = false, notice = errorNotice(error.toMessage()))
+                    }
+                },
+                ifRight = {
+                    loadDeliveryStatus(_uiState.value.assignmentTickets)
+                    _uiState.update { it.copy(isMarkingDelivered = false) }
+                }
+            )
+        }
+    }
+
+    private suspend fun loadDeliveryStatus(tickets: List<AssignmentTicketImage>) {
+        val weekPlanIds = tickets.map { it.weekPlanId }.distinct()
+        if (weekPlanIds.isEmpty()) return
+        val status = caricaStatoConsegne(weekPlanIds)
+        _uiState.update { it.copy(deliveryStatus = status) }
     }
 
     private suspend fun loadAssignmentSettings() {

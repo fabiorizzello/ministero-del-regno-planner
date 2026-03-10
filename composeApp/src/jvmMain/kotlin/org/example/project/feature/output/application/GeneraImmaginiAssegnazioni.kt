@@ -24,6 +24,7 @@ import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.feature.weeklyparts.domain.sundayOf
 
@@ -38,10 +39,13 @@ data class AssignmentTicketLine(
 
 data class AssignmentTicketImage(
     val fullName: String,
+    val assistantName: String?,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
     val imagePath: Path,
     val assignments: List<AssignmentTicketLine>,
+    val weeklyPartId: WeeklyPartId,
+    val weekPlanId: WeekPlanId,
 )
 
 data class PartAssignmentWarning(
@@ -65,6 +69,8 @@ private data class AssignmentSlipWithOrder(
     val sortOrder: Int,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
+    val weeklyPartId: WeeklyPartId,
+    val weekPlanId: WeekPlanId,
 )
 
 class GeneraImmaginiAssegnazioni(
@@ -155,6 +161,7 @@ class GeneraImmaginiAssegnazioni(
                     ).bind()
                     AssignmentTicketImage(
                         fullName = slipWithOrder.slip.studentName,
+                        assistantName = slipWithOrder.slip.assistantName,
                         weekStart = slipWithOrder.weekStart,
                         weekEnd = slipWithOrder.weekEnd,
                         imagePath = imagePath,
@@ -165,6 +172,8 @@ class GeneraImmaginiAssegnazioni(
                                 partNumber = slipWithOrder.slip.partNumber,
                             )
                         ),
+                        weeklyPartId = slipWithOrder.weeklyPartId,
+                        weekPlanId = slipWithOrder.weekPlanId,
                     )
                 }
 
@@ -240,6 +249,8 @@ class GeneraImmaginiAssegnazioni(
                 sortOrder = part.sortOrder,
                 weekStart = weekPlan.weekStartDate,
                 weekEnd = weekEnd,
+                weeklyPartId = part.id,
+                weekPlanId = weekPlan.id,
             )
         }
     }
