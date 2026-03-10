@@ -70,7 +70,7 @@ class GeneraSettimaneProgrammaUseCase(
         }
 
         val aggregates = weekSpecs.map { spec ->
-            val week = WeekPlan(
+            val week = WeekPlan.of(
                 id = WeekPlanId(UUID.randomUUID().toString()),
                 weekStartDate = spec.weekStartDate,
                 parts = spec.orderedPartTypes.mapIndexed { index, (partType, revisionId) ->
@@ -83,7 +83,7 @@ class GeneraSettimaneProgrammaUseCase(
                 },
                 programId = programId,
                 status = spec.status,
-            )
+            ).bind()
             WeekPlanAggregate(
                 weekPlan = week,
                 assignments = emptyList(),

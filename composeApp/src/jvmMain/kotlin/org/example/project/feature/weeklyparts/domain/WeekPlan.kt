@@ -1,7 +1,11 @@
 package org.example.project.feature.weeklyparts.domain
 
+import arrow.core.Either
+import arrow.core.raise.either
+import arrow.core.raise.ensure
 import java.time.DayOfWeek
 import java.time.LocalDate
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.domain.ProgramMonthId
 
 @JvmInline
@@ -12,16 +16,25 @@ enum class WeekPlanStatus {
     SKIPPED,
 }
 
-data class WeekPlan(
+data class WeekPlan internal constructor(
     val id: WeekPlanId,
     val weekStartDate: LocalDate,
     val parts: List<WeeklyPart>,
     val programId: ProgramMonthId? = null,
     val status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
 ) {
-    init {
-        require(weekStartDate.dayOfWeek == DayOfWeek.MONDAY) {
-            "weekStartDate deve essere un lunedì, ricevuto: $weekStartDate (${weekStartDate.dayOfWeek})"
+    companion object {
+        fun of(
+            id: WeekPlanId,
+            weekStartDate: LocalDate,
+            parts: List<WeeklyPart> = emptyList(),
+            programId: ProgramMonthId? = null,
+            status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
+        ): Either<DomainError, WeekPlan> = either {
+            ensure(weekStartDate.dayOfWeek == DayOfWeek.MONDAY) {
+                DomainError.DataSettimanaNonLunedi
+            }
+            WeekPlan(id = id, weekStartDate = weekStartDate, parts = parts, programId = programId, status = status)
         }
     }
 
