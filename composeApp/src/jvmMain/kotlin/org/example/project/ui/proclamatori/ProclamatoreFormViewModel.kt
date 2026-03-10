@@ -1,6 +1,7 @@
 package org.example.project.ui.proclamatori
 
 import arrow.core.Either
+import arrow.core.raise.either
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,7 +26,6 @@ import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.FeedbackBannerModel
-import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
@@ -45,10 +45,6 @@ private data class LoadedProclamatoreData(
     val proclamatore: Proclamatore,
     val options: List<LeadEligibilityOptionUi>,
 )
-
-private class ProclamatoreNotFoundException : Exception("Studente non trovato")
-
-private class SubmitFormDomainError(val domainError: DomainError) : Exception(domainError.toString())
 
 internal data class ProclamatoreFormUiState(
     val isLoading: Boolean = false,
@@ -244,7 +240,7 @@ internal class ProclamatoreFormViewModel(
 
     fun loadForEdit(id: ProclamatoreId, onNotFound: () -> Unit, onSuccess: () -> Unit) {
         scope.launch {
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { state, result: LoadedProclamatoreData ->
                     onSuccess()
@@ -271,14 +267,14 @@ internal class ProclamatoreFormViewModel(
                     )
                 },
                 errorUpdate = { state, error ->
-                    if (error is ProclamatoreNotFoundException) {
+                    if (error is DomainError.NotFound) {
                         onNotFound()
                     }
-                    state.copy(isLoading = false, formError = if (error is ProclamatoreNotFoundException) null else "Errore: ${error.message}")
+                    state.copy(isLoading = false, formError = if (error is DomainError.NotFound) null else error.toMessage())
                 },
                 operation = {
                     val loaded = carica(id)
-                        ?: throw ProclamatoreNotFoundException()
+                        ?: return@executeEitherOperation Either.Left(DomainError.NotFound("Studente"))
                     val eligibilityByPartType = caricaIdoneita(id)
                         .associate { eligibility ->
                             eligibility.partTypeId to eligibility.canLead
@@ -287,9 +283,11 @@ internal class ProclamatoreFormViewModel(
                         sesso = loaded.sesso,
                         selected = eligibilityByPartType,
                     )
-                    LoadedProclamatoreData(
-                        proclamatore = loaded,
-                        options = options,
+                    Either.Right(
+                        LoadedProclamatoreData(
+                            proclamatore = loaded,
+                            options = options,
+                        ),
                     )
                 },
             )
@@ -314,7 +312,7 @@ internal class ProclamatoreFormViewModel(
             val capturedNome = state.nome
             val capturedCognome = state.cognome
 
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isLoading = true) },
                 successUpdate = { currentState, futureWeeks: List<LocalDate> ->
                     val operation = if (capturedRoute == ProclamatoriRoute.Nuovo) {
@@ -333,56 +331,45 @@ internal class ProclamatoreFormViewModel(
                     currentState.copy(isLoading = false)
                 },
                 errorUpdate = { currentState, error ->
-                    val errorMessage = when (error) {
-                        is SubmitFormDomainError -> error.domainError.toMessage()
-                        else -> "Errore: ${error.message}"
-                    }
                     currentState.copy(
                         isLoading = false,
-                        formError = errorMessage,
+                        formError = error.toMessage(),
                     )
                 },
                 operation = {
-                    val futureWeeks: List<LocalDate>
-                    val person: Proclamatore
+                    either {
+                        val futureWeeks: List<LocalDate>
+                        val person: Proclamatore
 
-                    if (capturedRoute == ProclamatoriRoute.Nuovo) {
-                        person = crea(
-                            CreaProclamatoreUseCase.Command(
-                                nome = capturedNome,
-                                cognome = capturedCognome,
-                                sesso = state.sesso,
-                                sospeso = state.sospeso,
-                                puoAssistere = state.puoAssistere,
-                            ),
-                        ).fold(
-                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
-                            ifRight = { it },
-                        )
-                        futureWeeks = emptyList()
-                    } else {
-                        val outcome = aggiorna(
-                            AggiornaProclamatoreUseCase.Command(
-                                id = requireNotNull(currentEditId),
-                                nome = capturedNome,
-                                cognome = capturedCognome,
-                                sesso = state.sesso,
-                                sospeso = state.sospeso,
-                                puoAssistere = state.puoAssistere,
-                            ),
-                        ).fold(
-                            ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
-                            ifRight = { it },
-                        )
-                        person = outcome.proclamatore
-                        futureWeeks = outcome.futureWeeksWhereAssigned
+                        if (capturedRoute == ProclamatoriRoute.Nuovo) {
+                            person = crea(
+                                CreaProclamatoreUseCase.Command(
+                                    nome = capturedNome,
+                                    cognome = capturedCognome,
+                                    sesso = state.sesso,
+                                    sospeso = state.sospeso,
+                                    puoAssistere = state.puoAssistere,
+                                ),
+                            ).bind()
+                            futureWeeks = emptyList()
+                        } else {
+                            val outcome = aggiorna(
+                                AggiornaProclamatoreUseCase.Command(
+                                    id = requireNotNull(currentEditId),
+                                    nome = capturedNome,
+                                    cognome = capturedCognome,
+                                    sesso = state.sesso,
+                                    sospeso = state.sospeso,
+                                    puoAssistere = state.puoAssistere,
+                                ),
+                            ).bind()
+                            person = outcome.proclamatore
+                            futureWeeks = outcome.futureWeeksWhereAssigned
+                        }
+
+                        persistLeadEligibilityAsEither(person, capturedOptions).bind()
+                        futureWeeks
                     }
-
-                    persistLeadEligibilityAsEither(person, capturedOptions).fold(
-                        ifLeft = { err: DomainError -> throw SubmitFormDomainError(err) },
-                        ifRight = { },
-                    )
-                    futureWeeks
                 },
             )
         }
