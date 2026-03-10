@@ -61,6 +61,8 @@ val viewModelsModule = module {
             rimuoviAssegnazione = get(),
             suggerisciProclamatori = get(),
             caricaAssegnazioni = get(),
+            verificaConsegna = get(),
+            annullaConsegna = get(),
         )
     }
     factory {

@@ -184,6 +184,28 @@ fun ProgramWorkspaceScreen() {
         }
     }
 
+    personPickerState.deliveryWarning?.let { warning ->
+        AlertDialog(
+            onDismissRequest = { personPickerVM.dismissDeliveryWarning() },
+            title = { Text("Biglietto già inviato") },
+            text = {
+                Text("Hai già inviato il biglietto a ${warning.previousStudentName}. Ricordati di avvisarlo del cambio.")
+            },
+            confirmButton = {
+                DesktopInlineAction(
+                    label = "Conferma",
+                    onClick = { personPickerVM.confirmAssignmentAfterWarning(onSuccess = reloadData) },
+                )
+            },
+            dismissButton = {
+                DesktopInlineAction(
+                    label = "Annulla",
+                    onClick = { personPickerVM.dismissDeliveryWarning() },
+                )
+            },
+        )
+    }
+
     if (partEditorState.isPartEditorOpen) {
         val editingWeek = lifecycleState.selectedProgramWeeks.firstOrNull { it.id.value == partEditorState.partEditorWeekId }
         if (editingWeek != null) {
@@ -697,6 +719,7 @@ fun ProgramWorkspaceScreen() {
                                                                 weekStartDate = selectedWeek.weekStartDate,
                                                                 weeklyPartId = part.id,
                                                                 slot = slot,
+                                                                weekPlanId = selectedWeek.id.value,
                                                             )
                                                         },
                                                         onRemoveAssignment = { assignmentId ->
