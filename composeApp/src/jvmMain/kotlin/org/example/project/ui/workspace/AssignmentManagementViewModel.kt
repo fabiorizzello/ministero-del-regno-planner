@@ -118,12 +118,18 @@ internal class AssignmentManagementViewModel(
         scope.launch {
             _uiState.update { it.copy(isLoadingDeliverySnapshot = true) }
             caricaRiepilogo(programId, referenceDate).fold(
-                ifLeft = { _uiState.update { it.copy(isLoadingDeliverySnapshot = false) } },
+                ifLeft = { _uiState.update { it.copy(deliverySnapshot = null, isLoadingDeliverySnapshot = false) } },
                 ifRight = { snapshot ->
                     _uiState.update { it.copy(deliverySnapshot = snapshot, isLoadingDeliverySnapshot = false) }
                 },
             )
         }
+    }
+
+    fun clearDeliverySummary() {
+        currentProgramId = null
+        currentReferenceDate = null
+        _uiState.update { it.copy(deliverySnapshot = null, isLoadingDeliverySnapshot = false) }
     }
 
     private fun refreshDeliverySummary() {

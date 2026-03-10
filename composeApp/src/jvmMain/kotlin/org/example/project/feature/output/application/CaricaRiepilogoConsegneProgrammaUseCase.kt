@@ -28,7 +28,7 @@ class CaricaRiepilogoConsegneProgrammaUseCase(
         val weekPlanIds = weeks.map { it.id }.toSet()
         val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weekPlanIds)
         val activeDeliveries = slipDeliveryStore.listActiveDeliveries(weekPlanIds.toList())
-        val deliveredPartIds = activeDeliveries.map { it.weeklyPartId }.toSet()
+        val deliveredKeys = activeDeliveries.map { it.weeklyPartId to it.weekPlanId }.toSet()
 
         var pending = 0
         var blocked = 0
@@ -38,7 +38,7 @@ class CaricaRiepilogoConsegneProgrammaUseCase(
             val complete = completePartIds(week.parts, assignments)
             for (part in week.parts) {
                 if (part.id in complete) {
-                    if (part.id !in deliveredPartIds) {
+                    if ((part.id to week.id) !in deliveredKeys) {
                         pending++
                     }
                 } else {
