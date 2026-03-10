@@ -22,7 +22,6 @@ import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import org.example.project.feature.output.domain.ProgramDeliverySnapshot
 import org.example.project.feature.output.domain.SlipDeliveryInfo
-import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -71,26 +70,7 @@ internal data class AssignmentManagementUiState(
     val notice: FeedbackBannerModel? = null,
     val deliverySnapshot: ProgramDeliverySnapshot? = null,
     val isLoadingDeliverySnapshot: Boolean = false,
-) {
-    val ticketBadgeText: String? get() {
-        if (assignmentTickets.isEmpty() && assignmentPartWarnings.isEmpty()) return null
-        val pending = assignmentTickets.count { ticket ->
-            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
-            info == null || info.status != SlipDeliveryStatus.INVIATO
-        }
-        val blocked = assignmentPartWarnings.size
-        return when {
-            pending == 0 && blocked == 0 && assignmentTickets.isNotEmpty() -> "Tutti inviati"
-            else -> buildString {
-                if (pending > 0) append("$pending da inviare")
-                if (blocked > 0) {
-                    if (isNotEmpty()) append(" \u00b7 ")
-                    append("$blocked bloccati")
-                }
-            }
-        }
-    }
-}
+)
 
 internal class AssignmentManagementViewModel(
     private val scope: CoroutineScope,
