@@ -1,5 +1,6 @@
 package org.example.project.feature.people.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
@@ -12,6 +13,7 @@ import java.util.UUID
 class SqlDelightEligibilityStore(
     private val database: MinisteroDatabase,
 ) : EligibilityStore {
+    context(tx: TransactionScope)
     override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {
         database.ministeroDatabaseQueries.updatePersonSuspended(
             suspended = if (suspended) 1L else 0L,
@@ -19,6 +21,7 @@ class SqlDelightEligibilityStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {
         database.ministeroDatabaseQueries.updatePersonCanAssist(
             can_assist = if (canAssist) 1L else 0L,
@@ -26,6 +29,7 @@ class SqlDelightEligibilityStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {
         database.ministeroDatabaseQueries.upsertPersonPartTypeEligibility(
             id = UUID.randomUUID().toString(),
@@ -72,6 +76,7 @@ class SqlDelightEligibilityStore(
             .mapValues { (_, ids) -> ids.toSet() }
     }
 
+    context(tx: TransactionScope)
     override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {
         if (partTypeIds.isEmpty()) return
         database.ministeroDatabaseQueries.deleteLeadEligibilityByPartTypes(partTypeIds.map { it.value })

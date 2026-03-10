@@ -12,7 +12,7 @@ import org.koin.dsl.module
 val programsModule = module {
     // Programs (monthly)
     single<ProgramStore> { SqlDelightProgramStore(get()) }
-    single { CreaProssimoProgrammaUseCase(get()) }
+    single { CreaProssimoProgrammaUseCase(get(), get()) }
     single { CaricaProgrammiAttiviUseCase(get()) }
     single { EliminaProgrammaUseCase(get(), get(), get()) }
     single { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }

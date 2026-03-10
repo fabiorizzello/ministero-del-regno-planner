@@ -1,5 +1,6 @@
 package org.example.project.feature.programs.infrastructure
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonth
@@ -25,6 +26,7 @@ class SqlDelightProgramStore(
             .executeAsOneOrNull()
     }
 
+    context(tx: TransactionScope)
     override suspend fun save(program: ProgramMonth) {
         database.ministeroDatabaseQueries.insertProgramMonthly(
             id = program.id.value,
@@ -37,6 +39,7 @@ class SqlDelightProgramStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime) {
         database.ministeroDatabaseQueries.updateProgramTemplateAppliedAt(
             template_applied_at = templateAppliedAt.toString(),
@@ -44,6 +47,7 @@ class SqlDelightProgramStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun delete(id: ProgramMonthId) {
         database.ministeroDatabaseQueries.deleteProgramMonthly(id.value)
     }

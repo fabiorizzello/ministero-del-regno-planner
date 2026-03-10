@@ -1,5 +1,6 @@
 package org.example.project.feature.programs.application
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.programs.domain.ProgramTimelineStatus
@@ -15,9 +16,9 @@ data class ProgramCreationContext(
 interface ProgramStore {
     suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth>
     suspend fun findById(id: ProgramMonthId): ProgramMonth?
-    suspend fun save(program: ProgramMonth)
-    suspend fun delete(id: ProgramMonthId)
-    suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime)
+    context(tx: TransactionScope) suspend fun save(program: ProgramMonth)
+    context(tx: TransactionScope) suspend fun delete(id: ProgramMonthId)
+    context(tx: TransactionScope) suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime)
     suspend fun loadCreationContext(referenceDate: LocalDate): ProgramCreationContext {
         val existing = listCurrentAndFuture(referenceDate)
         val existingByMonth = existing.map { it.yearMonth }.toSet()

@@ -77,6 +77,7 @@ private class InMemoryPeopleStore(
 
     override suspend fun load(id: ProclamatoreId): Proclamatore? = byId[id]
 
+    context(tx: TransactionScope)
     override suspend fun persist(aggregateRoot: Proclamatore) {
         byId[aggregateRoot.id] = aggregateRoot
     }
@@ -86,6 +87,7 @@ private class InMemoryPeopleStore(
         aggregateRoots.forEach { byId[it.id] = it }
     }
 
+    context(tx: TransactionScope)
     override suspend fun remove(id: ProclamatoreId) {
         byId.remove(id)
     }

@@ -3,6 +3,7 @@ package org.example.project.feature.programs.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthAggregate
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -14,6 +15,7 @@ import java.util.UUID
 
 class CreaProssimoProgrammaUseCase(
     private val programStore: ProgramStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(
         targetYear: Int,
@@ -32,7 +34,7 @@ class CreaProssimoProgrammaUseCase(
         )?.let { raise(it) }
 
         val program = createProgram(target)
-        programStore.save(program)
+        transactionRunner.runInTransaction { programStore.save(program) }
         program
     }
 

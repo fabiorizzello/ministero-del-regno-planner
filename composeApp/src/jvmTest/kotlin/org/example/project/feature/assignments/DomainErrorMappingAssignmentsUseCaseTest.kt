@@ -227,9 +227,11 @@ private class SinglePersonStore(
     private val person: Proclamatore,
 ) : ProclamatoriAggregateStore {
     override suspend fun load(id: ProclamatoreId): Proclamatore? = if (id == person.id) person else null
+    context(tx: TransactionScope)
     override suspend fun persist(aggregateRoot: Proclamatore) {}
     context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {}
+    context(tx: TransactionScope)
     override suspend fun remove(id: ProclamatoreId) {}
 }
 

@@ -3,6 +3,7 @@ package org.example.project.feature.people
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
 import org.example.project.core.PassthroughTransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
@@ -71,16 +72,16 @@ private class RecordingEligibilityStore : EligibilityStore {
     var lastCanLead: Triple<ProclamatoreId, PartTypeId, Boolean>? = null
     var lastCanAssist: Pair<ProclamatoreId, Boolean>? = null
 
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
-    override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {
+    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {
         lastCanAssist = Pair(personId, canAssist)
     }
-    override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {
+    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {
         lastCanLead = Triple(personId, partTypeId, canLead)
     }
     override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
     override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> = emptyList()
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> = emptyMap()
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
+    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
 }

@@ -1,5 +1,6 @@
 package org.example.project.feature.people.application
 
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import java.time.LocalDate
@@ -15,9 +16,9 @@ data class EligibilityCleanupCandidate(
 )
 
 interface EligibilityStore {
-    suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean)
-    suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean)
-    suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean)
+    context(tx: TransactionScope) suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean)
+    context(tx: TransactionScope) suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean)
+    context(tx: TransactionScope) suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean)
     suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility>
     suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate>
 
@@ -28,6 +29,6 @@ interface EligibilityStore {
      */
     suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>>
 
-    suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>)
+    context(tx: TransactionScope) suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>)
     suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate>
 }

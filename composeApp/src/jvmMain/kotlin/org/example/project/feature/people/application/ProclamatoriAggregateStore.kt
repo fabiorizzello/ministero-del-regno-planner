@@ -7,5 +7,5 @@ import org.example.project.feature.people.domain.ProclamatoreId
 
 interface ProclamatoriAggregateStore : AggregateStore<ProclamatoreId, Proclamatore> {
     context(tx: TransactionScope) suspend fun persistAll(aggregateRoots: Collection<Proclamatore>)
-    suspend fun remove(id: ProclamatoreId)
+    context(tx: TransactionScope) suspend fun remove(id: ProclamatoreId)
 }
