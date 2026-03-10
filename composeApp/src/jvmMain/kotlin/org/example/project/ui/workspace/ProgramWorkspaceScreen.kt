@@ -766,6 +766,15 @@ fun ProgramWorkspaceScreen() {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
+                                assignmentState.ticketBadgeText?.let { badgeText ->
+                                    Text(
+                                        text = badgeText,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (badgeText == "Tutti inviati") MaterialTheme.workspaceSketch.ok
+                                                else MaterialTheme.workspaceSketch.inkMuted,
+                                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp),
+                                    )
+                                }
                                 ProgramRightPanelButton(
                                     label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
                                     icon = Icons.Filled.PictureAsPdf,

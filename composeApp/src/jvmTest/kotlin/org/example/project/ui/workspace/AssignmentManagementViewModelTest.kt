@@ -257,20 +257,19 @@ class AssignmentManagementViewModelTest {
     }
 
     @Test
-    fun `closeAssignmentTicketsDialog chiude modale e svuota lo stato`() = runTest {
+    fun `closeAssignmentTicketsDialog chiude modale ma mantiene i dati per badge`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val ticket = AssignmentTicketImage(
+            fullName = "Mario Rossi",
+            weekStart = LocalDate.of(2026, 3, 2),
+            weekEnd = LocalDate.of(2026, 3, 8),
+            imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
+            assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
+            weeklyPartId = WeeklyPartId("p1"),
+            weekPlanId = "week-1",
+        )
         coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(
-            tickets = listOf(
-                AssignmentTicketImage(
-                    fullName = "Mario Rossi",
-                    weekStart = LocalDate.of(2026, 3, 2),
-                    weekEnd = LocalDate.of(2026, 3, 8),
-                    imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
-                    assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
-                    weeklyPartId = WeeklyPartId("p1"),
-                    weekPlanId = "week-1",
-                ),
-            ),
+            tickets = listOf(ticket),
             warnings = emptyList(),
         ))
 
@@ -280,7 +279,8 @@ class AssignmentManagementViewModelTest {
         vm.closeAssignmentTicketsDialog()
 
         assertFalse(vm.uiState.value.isAssignmentTicketsDialogOpen)
-        assertTrue(vm.uiState.value.assignmentTickets.isEmpty())
+        // Tickets and delivery status are retained for the badge
+        assertEquals(listOf(ticket), vm.uiState.value.assignmentTickets)
         assertNull(vm.uiState.value.assignmentTicketsError)
     }
 
