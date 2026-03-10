@@ -11,11 +11,10 @@ import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.updates.UpdateVersionComparator
-import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class VerificaAggiornamenti(
-    private val client: GitHubReleasesClient,
+    private val releaseSource: UpdateReleaseSource,
     private val settingsStore: UpdateSettingsStore,
     private val statusStore: UpdateStatusStore,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -26,8 +25,7 @@ class VerificaAggiornamenti(
         val now = Instant.now()
         val channel = settingsStore.loadChannel()
         val result = either<DomainError, UpdateCheckResult> {
-            val release = runCatching { client.fetchLatestRelease(channel) }
-                .getOrElse { raise(DomainError.Network(it.message ?: "Connessione fallita")) }
+            val release = releaseSource.fetchLatestRelease(channel).bind()
             val currentVersion = AppVersion.current
             val latestVersion = release?.version
             val updateAvailable = if (latestVersion.isNullOrBlank() || currentVersion == "unknown") {
@@ -43,7 +41,10 @@ class VerificaAggiornamenti(
                 checkedAt = now,
             )
         }
-        settingsStore.saveLastCheck(now)
+        runCatching { settingsStore.saveLastCheck(now) }
+            .onFailure { error ->
+                logger.warn(error) { "Salvataggio timestamp ultimo check fallito: ${error.message}" }
+            }
         statusStore.update(result)
         if (result.isRight()) {
             logger.info { "Check aggiornamenti completato. Update disponibile: ${result.getOrNull()?.updateAvailable}" }

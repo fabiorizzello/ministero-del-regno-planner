@@ -25,23 +25,39 @@ class AggiornaApplicazione(
 
     suspend operator fun invoke(asset: UpdateAsset): Either<DomainError, Path> = withContext(dispatcher) {
         either {
-            val updatesDir = AppRuntime.paths().exportsDir.resolve("updates")
-            Files.createDirectories(updatesDir)
+            val updatesDir = Either.catch {
+                AppRuntime.paths().exportsDir.resolve("updates").also { Files.createDirectories(it) }
+            }.mapLeft { error ->
+                DomainError.Validation("Impossibile preparare la cartella aggiornamenti: ${error.message ?: "errore sconosciuto"}")
+            }.bind()
             val outputPath = updatesDir.resolve(asset.name)
 
             logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
-            val response = httpClient.get(asset.downloadUrl)
+            val response = Either.catch { httpClient.get(asset.downloadUrl) }
+                .mapLeft { error ->
+                    DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}")
+                }
+                .bind()
             if (!response.status.isSuccess()) {
                 raise(DomainError.Network("Download aggiornamento fallito: HTTP ${response.status.value}"))
             }
+            val body = Either.catch { response.bodyAsBytes() }
+                .mapLeft { error ->
+                    DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}")
+                }
+                .bind()
 
-            Files.write(
-                outputPath,
-                response.bodyAsBytes(),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING,
-                StandardOpenOption.WRITE,
-            )
+            Either.catch {
+                Files.write(
+                    outputPath,
+                    body,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE,
+                )
+            }.mapLeft { error ->
+                DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}")
+            }.bind()
 
             logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
             openFile(outputPath)
