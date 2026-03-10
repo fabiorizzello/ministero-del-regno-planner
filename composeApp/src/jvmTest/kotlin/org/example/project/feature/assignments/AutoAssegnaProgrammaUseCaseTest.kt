@@ -1,6 +1,6 @@
 package org.example.project.feature.assignments
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
@@ -28,7 +28,7 @@ import kotlin.test.assertEquals
 class AutoAssegnaProgrammaUseCaseTest {
 
     @Test
-    fun `auto assign creates assignment and reports success for single slot`() = runBlocking {
+    fun `auto assign creates assignment and reports success for single slot`() = runTest {
         val weekStart = LocalDate.of(2026, 3, 9)
         val programId = ProgramMonthId("program-1")
         val partType = PartType(

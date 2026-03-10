@@ -1,6 +1,6 @@
 package org.example.project.feature.assignments
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.feature.assignments.application.AssignmentSettings
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
@@ -72,7 +72,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `candidato in cooldown con strictCooldown=false appare ma con score peggiore`() = runBlocking {
+    fun `candidato in cooldown con strictCooldown=false appare ma con score peggiore`() = runTest {
         // cooldown attivo: lastGlobalWeeks=1 < assistCooldownWeeks=2
         val personInCooldown = person(id = "p-cooldown", nome = "Carlo", cognome = "Verdi", sesso = Sesso.M)
         // nessun cooldown: lastGlobalWeeks=10
@@ -122,7 +122,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `candidato in cooldown con strictCooldown=true viene escluso dalla lista`() = runBlocking {
+    fun `candidato in cooldown con strictCooldown=true viene escluso dalla lista`() = runTest {
         val personInCooldown = person(id = "p-cooldown", nome = "Carlo", cognome = "Verdi", sesso = Sesso.M)
         val personNoCooldown = person(id = "p-ok", nome = "Mario", cognome = "Rossi", sesso = Sesso.M)
 
@@ -167,7 +167,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `score del candidato in cooldown e' peggiore di quello senza cooldown anche con meno settimane`() = runBlocking {
+    fun `score del candidato in cooldown e' peggiore di quello senza cooldown anche con meno settimane`() = runTest {
         // personInCooldown: lastGlobalWeeks=1 (in cooldown), lastForPartTypeWeeks=1
         // personNoCooldown: lastGlobalWeeks=3 (fuori cooldown, assistCooldownWeeks=2)
         // Score slot=2 (assistWeight=1):
@@ -220,7 +220,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `persona non inclusa nel ranking SQL non compare nei suggeriti`() = runBlocking {
+    fun `persona non inclusa nel ranking SQL non compare nei suggeriti`() = runTest {
         val personSospesa = person(id = "p-sospeso", nome = "Giulia", cognome = "Neri", sesso = Sesso.F, sospeso = true)
         val personAttiva = person(id = "p-attivo", nome = "Marco", cognome = "Blu", sesso = Sesso.M)
 
@@ -259,7 +259,7 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `slot 1 filtra i candidati senza idoneita' conduzione per il partType`() = runBlocking {
+    fun `slot 1 filtra i candidati senza idoneita' conduzione per il partType`() = runTest {
         val personEligible = person(id = "p-lead", nome = "Fabio", cognome = "Brun", sesso = Sesso.M)
         val personNotEligible = person(id = "p-noLead", nome = "Sara", cognome = "Galli", sesso = Sesso.F)
 

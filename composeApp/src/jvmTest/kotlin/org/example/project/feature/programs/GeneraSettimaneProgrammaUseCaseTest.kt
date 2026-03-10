@@ -1,7 +1,7 @@
 package org.example.project.feature.programs
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
@@ -31,7 +31,7 @@ import kotlin.test.assertIs
 class GeneraSettimaneProgrammaUseCaseTest {
 
     @Test
-    fun `generates all weeks with template and fixed fallback, honoring skipped weeks`() = runBlocking {
+    fun `generates all weeks with template and fixed fallback, honoring skipped weeks`() = runTest {
         val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "program-1")
         val programStore = InMemoryProgramStoreGeneration(program)
         val templatePart = partType("tpl")

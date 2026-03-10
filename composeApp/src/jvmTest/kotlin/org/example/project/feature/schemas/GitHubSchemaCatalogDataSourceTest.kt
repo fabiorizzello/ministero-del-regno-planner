@@ -3,7 +3,7 @@ package org.example.project.feature.schemas
 import com.sun.net.httpserver.HttpServer
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.feature.schemas.infrastructure.GitHubSchemaCatalogDataSource
 import java.io.IOException
 import java.net.InetSocketAddress
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class GitHubSchemaCatalogDataSourceTest {
 
     @Test
-    fun `fetchCatalog throws IOException when HTTP status is not success`() = runBlocking {
+    fun `fetchCatalog throws IOException when HTTP status is not success`() = runTest {
         val body = """{"version":"v1","partTypes":[],"weeks":[]}"""
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/catalog.json") { exchange ->

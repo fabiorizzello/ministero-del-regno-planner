@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.db.MinisteroDatabase
 import org.example.project.core.persistence.SqlDelightTransactionRunner
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -39,7 +39,7 @@ class WeeklyPartSnapshotTest {
     )
 
     @Test
-    fun `partsForWeek include snapshot quando revisione esiste`() = runBlocking<Unit> {
+    fun `partsForWeek include snapshot quando revisione esiste`() = runTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)
@@ -74,7 +74,7 @@ class WeeklyPartSnapshotTest {
     }
 
     @Test
-    fun `partsForWeek ha null snapshot quando nessuna revisione salvata`() = runBlocking<Unit> {
+    fun `partsForWeek ha null snapshot quando nessuna revisione salvata`() = runTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)
@@ -106,7 +106,7 @@ class WeeklyPartSnapshotTest {
     }
 
     @Test
-    fun `snapshot riflette attributi al momento di creazione non quelli attuali`() = runBlocking<Unit> {
+    fun `snapshot riflette attributi al momento di creazione non quelli attuali`() = runTest {
         val db = inMemoryDb()
         val partTypeStore = SqlDelightPartTypeStore(db)
         val weekStore = SqlDelightWeekPlanStore(db)

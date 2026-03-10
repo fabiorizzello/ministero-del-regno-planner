@@ -1,7 +1,7 @@
 package org.example.project.feature.people
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
@@ -19,7 +19,7 @@ class ImportaProclamatoriDaJsonUseCaseTest {
 
     // 1. Happy path: JSON valido con version=1 e array proclamatori → tutti salvati nello store
     @Test
-    fun `valid json with version 1 imports all proclamatori`() = runBlocking {
+    fun `valid json with version 1 imports all proclamatori`() = runTest {
         val store = ImportaJsonInMemoryStore()
         val useCase = buildUseCase(store = store)
 
@@ -36,7 +36,7 @@ class ImportaProclamatoriDaJsonUseCaseTest {
 
     // 2. Archivio non vuoto → ImportArchivioNonVuoto
     @Test
-    fun `non-empty archive returns ImportArchivioNonVuoto`() = runBlocking {
+    fun `non-empty archive returns ImportArchivioNonVuoto`() = runTest {
         val existing = listOf(
             Proclamatore(id = ProclamatoreId("p1"), nome = "Marco", cognome = "Verdi", sesso = Sesso.M),
         )
@@ -54,7 +54,7 @@ class ImportaProclamatoriDaJsonUseCaseTest {
 
     // 3. Array proclamatori vuoto nel JSON → ImportSenzaProclamatori
     @Test
-    fun `empty proclamatori array returns ImportSenzaProclamatori`() = runBlocking {
+    fun `empty proclamatori array returns ImportSenzaProclamatori`() = runTest {
         val store = ImportaJsonInMemoryStore()
         val useCase = buildUseCase(store = store)
 
@@ -69,7 +69,7 @@ class ImportaProclamatoriDaJsonUseCaseTest {
 
     // 4. JSON con elemento duplicato (stesso nome+cognome) → ImportContenutoNonValido con posizione duplicato
     @Test
-    fun `duplicate nome cognome returns ImportContenutoNonValido mentioning position`() = runBlocking {
+    fun `duplicate nome cognome returns ImportContenutoNonValido mentioning position`() = runTest {
         val store = ImportaJsonInMemoryStore()
         val useCase = buildUseCase(store = store)
 
@@ -96,7 +96,7 @@ class ImportaProclamatoriDaJsonUseCaseTest {
 
     // 5. Versione schema != 1 → ImportVersioneSchemaNonSupportata
     @Test
-    fun `version other than 1 returns ImportVersioneSchemaNonSupportata`() = runBlocking {
+    fun `version other than 1 returns ImportVersioneSchemaNonSupportata`() = runTest {
         val store = ImportaJsonInMemoryStore()
         val useCase = buildUseCase(store = store)
 

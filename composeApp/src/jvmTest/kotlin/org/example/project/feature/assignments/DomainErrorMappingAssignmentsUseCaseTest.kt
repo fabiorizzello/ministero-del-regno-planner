@@ -1,7 +1,7 @@
 package org.example.project.feature.assignments
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
@@ -33,7 +33,7 @@ import kotlin.test.assertIs
 class DomainErrorMappingAssignmentsUseCaseTest {
 
     @Test
-    fun `assegna persona happy path saves assignment with correct slot and personId`() = runBlocking {
+    fun `assegna persona happy path saves assignment with correct slot and personId`() = runTest {
         val week = sampleWeek(peopleCount = 2)
         val store = SingleWeekStore(week, assignments = emptyList())
         val useCase = AssegnaPersonaUseCase(
@@ -58,7 +58,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
     }
 
     @Test
-    fun `assegna persona maps suspended to PersonaSospesa`() = runBlocking {
+    fun `assegna persona maps suspended to PersonaSospesa`() = runTest {
         val week = sampleWeek(peopleCount = 2)
         val useCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(week, assignments = emptyList()),
@@ -86,7 +86,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
     }
 
     @Test
-    fun `assegna persona maps invalid slot to SlotNonValido`() = runBlocking {
+    fun `assegna persona maps invalid slot to SlotNonValido`() = runTest {
         val week = sampleWeek(peopleCount = 2)
         val useCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(week, assignments = emptyList()),
@@ -106,7 +106,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
     }
 
     @Test
-    fun `assegna persona maps duplicate in week to PersonaGiaAssegnata`() = runBlocking {
+    fun `assegna persona maps duplicate in week to PersonaGiaAssegnata`() = runTest {
         val week = sampleWeek(peopleCount = 2)
         val useCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(
@@ -137,7 +137,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
 
     @Test
     fun `rimuovi assegnazione maps repository exceptions to typed domain error`() {
-        runBlocking {
+        runTest {
             val useCase = RimuoviAssegnazioneUseCase(
                 assignmentStore = object : AssignmentRepository by FakeAssignmentRepository() {
                     context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {

@@ -1,6 +1,6 @@
 package org.example.project.feature.assignments
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
 class SexMismatchPolicyTest {
 
     @Test
-    fun `manual suggestions keep STESSO_SESSO mismatch candidates annotated`() = runBlocking {
+    fun `manual suggestions keep STESSO_SESSO mismatch candidates annotated`() = runTest {
         val fixture = SexMismatchFixture()
         val suggest = fixture.createSuggestUseCase()
 
@@ -50,7 +50,7 @@ class SexMismatchPolicyTest {
     }
 
     @Test
-    fun `auto assign leaves slot unresolved when only mismatch candidates exist`() = runBlocking {
+    fun `auto assign leaves slot unresolved when only mismatch candidates exist`() = runTest {
         val fixture = SexMismatchFixture()
         val suggest = fixture.createSuggestUseCase()
         val autoAssign = AutoAssegnaProgrammaUseCase(

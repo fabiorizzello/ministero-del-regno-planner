@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -50,7 +50,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `setting SKIPPED on future ACTIVE week succeeds and updates status`() = runBlocking {
+    fun `setting SKIPPED on future ACTIVE week succeeds and updates status`() = runTest {
         val aggregate = aggregateForDate(futureMonday, WeekPlanStatus.ACTIVE)
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
@@ -65,7 +65,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `setting ACTIVE on SKIPPED week succeeds (reactivation is always allowed)`() = runBlocking {
+    fun `setting ACTIVE on SKIPPED week succeeds (reactivation is always allowed)`() = runTest {
         val aggregate = aggregateForDate(futureMonday, WeekPlanStatus.SKIPPED)
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
@@ -80,7 +80,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `invoke on missing week returns NotFound error`() = runBlocking {
+    fun `invoke on missing week returns NotFound error`() = runTest {
         val store = EmptyImpostaWeekStore()
         val useCase = ImpostaStatoSettimanaUseCase(
             weekPlanStore = store,
@@ -95,7 +95,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `setting SKIPPED on a past week returns SettimanaImmutabile`() = runBlocking {
+    fun `setting SKIPPED on a past week returns SettimanaImmutabile`() = runTest {
         // pastMonday is before referenceDate so canBeMutated returns false
         val aggregate = aggregateForDate(pastMonday, WeekPlanStatus.ACTIVE)
         val store = SingleIdWeekStore(aggregate)

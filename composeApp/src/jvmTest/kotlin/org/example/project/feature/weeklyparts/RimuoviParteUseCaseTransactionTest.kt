@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.CountingTransactionRunner
 import org.example.project.feature.weeklyparts.application.RimuoviParteUseCase
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -20,7 +20,7 @@ import kotlin.test.assertIs
 class RimuoviParteUseCaseTransactionTest {
 
     @Test
-    fun `remove part executes through transaction runner`() = runBlocking {
+    fun `remove part executes through transaction runner`() = runTest {
         val txRunner = CountingTransactionRunner()
         val weekStore = TransactionAwareWeekPlanStore()
         val useCase = RimuoviParteUseCase(

@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.persistence.SqlDelightTransactionRunner
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -31,7 +31,7 @@ class PartTypeRevisionTest {
     )
 
     @Test
-    fun `upsertAll crea revisione e imposta current_revision_id`() = runBlocking<Unit> {
+    fun `upsertAll crea revisione e imposta current_revision_id`() = runTest {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
         val txRunner = SqlDelightTransactionRunner(db)
@@ -44,7 +44,7 @@ class PartTypeRevisionTest {
     }
 
     @Test
-    fun `secondo upsertAll crea nuova revisione con numero incrementato`() = runBlocking {
+    fun `secondo upsertAll crea nuova revisione con numero incrementato`() = runTest {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
         val txRunner = SqlDelightTransactionRunner(db)
@@ -64,7 +64,7 @@ class PartTypeRevisionTest {
     }
 
     @Test
-    fun `secondo upsertAll aggiorna current_revision_id al nuovo snapshot`() = runBlocking<Unit> {
+    fun `secondo upsertAll aggiorna current_revision_id al nuovo snapshot`() = runTest {
         val db = inMemoryDb()
         val store = SqlDelightPartTypeStore(db)
         val txRunner = SqlDelightTransactionRunner(db)
