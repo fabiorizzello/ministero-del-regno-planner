@@ -60,12 +60,11 @@ data class TicketGenerationResult(
     val warnings: List<PartAssignmentWarning>,
 )
 
-private data class PersonTicketSheet(
-    val fullName: String,
+private data class AssignmentSlipWithOrder(
+    val slip: PdfAssignmentsRenderer.AssignmentSlip,
+    val sortOrder: Int,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
-    val assignments: List<AssignmentTicketLine>,
-    val primaryPartSortOrder: Int,
 )
 
 class GeneraImmaginiAssegnazioni(
@@ -87,19 +86,24 @@ class GeneraImmaginiAssegnazioni(
             val weekPlan = weekPlanQueries.findByDate(weekStartDate)
                 ?: raise(DomainError.NotFound("Settimana per $weekStartDate"))
             val assignments = caricaAssegnazioni(weekStartDate)
-            val sheets = buildPersonTicketSheets(
+            val slips = buildAssignmentSlips(
                 weekPlan = weekPlan,
                 assignments = assignments,
                 selectedPartIds = selectedPartIds,
             )
             val outputDir = ensureOutputDir()
 
-            sheets.map { sheet ->
-                val baseName = buildWeeklyImageBaseName(sheet.weekStart, sheet.weekEnd, sheet.fullName)
-                renderTicketImage(
+            slips.map { slipWithOrder ->
+                val baseName = buildWeeklySlipBaseName(
+                    weekStart = slipWithOrder.weekStart,
+                    weekEnd = slipWithOrder.weekEnd,
+                    partNumber = slipWithOrder.slip.partNumber,
+                    studentName = slipWithOrder.slip.studentName,
+                )
+                renderSlipImage(
                     outputDir = outputDir,
                     baseName = baseName,
-                    sheet = sheet,
+                    slip = slipWithOrder.slip,
                 ).bind()
             }
         }
@@ -128,32 +132,39 @@ class GeneraImmaginiAssegnazioni(
             val tickets = weekAssignmentsByWeek
                 .flatMap { (week, weekAssignments) ->
                     val completePartIds = completePartIds(week, weekAssignments)
-                    buildPersonTicketSheets(
+                    buildAssignmentSlips(
                         weekPlan = week,
                         assignments = weekAssignments,
                         selectedPartIds = completePartIds,
                     )
                 }
-                .sortedWith(compareBy({ it.weekStart }, { it.primaryPartSortOrder }, { it.fullName.lowercase() }))
-                .map { sheet ->
-                    val baseName = buildProgramImageBaseName(
+                .sortedWith(compareBy({ it.weekStart }, { it.sortOrder }, { it.slip.studentName.lowercase() }))
+                .map { slipWithOrder ->
+                    val baseName = buildProgramSlipBaseName(
                         year = program.year,
                         month = program.month,
-                        weekStart = sheet.weekStart,
-                        weekEnd = sheet.weekEnd,
-                        fullName = sheet.fullName,
+                        weekStart = slipWithOrder.weekStart,
+                        weekEnd = slipWithOrder.weekEnd,
+                        partNumber = slipWithOrder.slip.partNumber,
+                        studentName = slipWithOrder.slip.studentName,
                     )
-                    val imagePath = renderTicketImage(
+                    val imagePath = renderSlipImage(
                         outputDir = outputDir,
                         baseName = baseName,
-                        sheet = sheet,
+                        slip = slipWithOrder.slip,
                     ).bind()
                     AssignmentTicketImage(
-                        fullName = sheet.fullName,
-                        weekStart = sheet.weekStart,
-                        weekEnd = sheet.weekEnd,
+                        fullName = slipWithOrder.slip.studentName,
+                        weekStart = slipWithOrder.weekStart,
+                        weekEnd = slipWithOrder.weekEnd,
                         imagePath = imagePath,
-                        assignments = sheet.assignments,
+                        assignments = listOf(
+                            AssignmentTicketLine(
+                                partLabel = slipWithOrder.slip.partLabel,
+                                roleLabel = null,
+                                partNumber = slipWithOrder.slip.partNumber,
+                            )
+                        ),
                     )
                 }
 
@@ -197,11 +208,11 @@ class GeneraImmaginiAssegnazioni(
             }
     }
 
-    private fun buildPersonTicketSheets(
+    private fun buildAssignmentSlips(
         weekPlan: WeekPlan,
         assignments: List<AssignmentWithPerson>,
         selectedPartIds: Set<WeeklyPartId>,
-    ): List<PersonTicketSheet> {
+    ): List<AssignmentSlipWithOrder> {
         if (weekPlan.status == WeekPlanStatus.SKIPPED) return emptyList()
         val selectedParts = weekPlan.parts
             .filter { selectedPartIds.isEmpty() || selectedPartIds.contains(it.id) }
@@ -209,64 +220,47 @@ class GeneraImmaginiAssegnazioni(
         if (selectedParts.isEmpty()) return emptyList()
 
         val selectedPartIdsSet = selectedParts.mapTo(mutableSetOf()) { it.id }
-        val partsById = selectedParts.associateBy { it.id }
-        val partOrderMap = selectedParts.associate { it.id to it.sortOrder }
-
-        return assignments
+        val assignmentsByPart = assignments
             .filter { it.weeklyPartId in selectedPartIdsSet }
-            .groupBy { it.personId }
-            .values
-            .filter { personAssignments -> personAssignments.any { it.slot == 1 } }
-            .map { personAssignments ->
-                val orderedAssignments = personAssignments.sortedWith(
-                    compareBy({ partOrderMap[it.weeklyPartId] ?: Int.MAX_VALUE }, { it.slot }),
-                )
-                val firstPartSortOrder = partOrderMap[orderedAssignments.first().weeklyPartId] ?: Int.MAX_VALUE
-                PersonTicketSheet(
-                    fullName = orderedAssignments.first().fullName,
+            .groupBy { it.weeklyPartId }
+
+        val weekEnd = sundayOf(weekPlan.weekStartDate)
+        return selectedParts.mapNotNull { part ->
+            val partAssignments = assignmentsByPart[part.id] ?: return@mapNotNull null
+            val student = partAssignments.firstOrNull { it.slot == 1 } ?: return@mapNotNull null
+            val assistant = partAssignments.firstOrNull { it.slot == 2 }
+            AssignmentSlipWithOrder(
+                slip = PdfAssignmentsRenderer.AssignmentSlip(
+                    studentName = student.fullName,
+                    assistantName = assistant?.fullName,
                     weekStart = weekPlan.weekStartDate,
-                    weekEnd = sundayOf(weekPlan.weekStartDate),
-                    primaryPartSortOrder = firstPartSortOrder,
-                    assignments = orderedAssignments.map { assignment ->
-                        val part = checkNotNull(partsById[assignment.weeklyPartId]) {
-                            "Parte non trovata per assegnazione ${assignment.id.value}"
-                        }
-                        AssignmentTicketLine(
-                            partLabel = partDisplayLabel(part),
-                            roleLabel = slotRoleLabel(part, assignment.slot),
-                            partNumber = part.sortOrder + PART_DISPLAY_NUMBER_OFFSET,
-                        )
-                    },
-                )
-            }
-            .sortedWith(compareBy({ it.primaryPartSortOrder }, { it.fullName.lowercase() }))
+                    partNumber = part.sortOrder + PART_DISPLAY_NUMBER_OFFSET,
+                    partLabel = partDisplayLabel(part),
+                ),
+                sortOrder = part.sortOrder,
+                weekStart = weekPlan.weekStartDate,
+                weekEnd = weekEnd,
+            )
+        }
     }
 
-    private fun renderTicketImage(
+    private fun renderSlipImage(
         outputDir: Path,
         baseName: String,
-        sheet: PersonTicketSheet,
+        slip: PdfAssignmentsRenderer.AssignmentSlip,
     ): Either<DomainError, Path> {
         val pdfPath = outputDir.resolve("$baseName-tmp.pdf")
         val pngPath = outputDir.resolve("$baseName.png")
         return try {
-            renderer.renderPersonSheetPdf(
-                PdfAssignmentsRenderer.PersonSheet(
-                    fullName = sheet.fullName,
-                    weekStart = sheet.weekStart,
-                    weekEnd = sheet.weekEnd,
-                    assignments = sheet.assignments.map(::buildSheetAssignmentLabel),
-                ),
-                pdfPath,
-            )
+            renderer.renderAssignmentSlipPdf(slip, pdfPath)
             pdfToPngRenderer(pdfPath, pngPath)
             logger.info { "Immagine creata: ${pngPath.toAbsolutePath()}" }
             pngPath.right()
         } catch (error: Exception) {
             logger.error(error) {
-                "Generazione immagine fallita per ${sheet.fullName} (pdf=${pdfPath.toAbsolutePath()}, png=${pngPath.toAbsolutePath()}): ${error.message}"
+                "Generazione immagine fallita per ${slip.studentName} (pdf=${pdfPath.toAbsolutePath()}, png=${pngPath.toAbsolutePath()}): ${error.message}"
             }
-            DomainError.Validation("Errore generando immagine per ${sheet.fullName}: ${error.message}").left()
+            DomainError.Validation("Errore generando immagine per ${slip.studentName}: ${error.message}").left()
         } finally {
             runCatching { Files.deleteIfExists(pdfPath) }
                 .onFailure { cleanupError ->
@@ -297,40 +291,33 @@ internal fun cleanupProgramTicketExports(
     }
 }
 
-internal fun buildWeeklyImageBaseName(
+internal fun buildWeeklySlipBaseName(
     weekStart: LocalDate,
     weekEnd: LocalDate,
-    fullName: String,
+    partNumber: Int,
+    studentName: String,
 ): String {
     val yearMonth = weekStart.format(weekImagePrefixFormatter)
     val startDay = weekStart.dayOfMonth.toString().padStart(2, '0')
     val endDay = weekEnd.dayOfMonth.toString().padStart(2, '0')
-    return "${yearMonth}${startDay}-${endDay}_${sanitizeFileName(fullName)}"
+    return "${yearMonth}${startDay}-${endDay}_p${partNumber}_${sanitizeFileName(studentName)}"
 }
 
-internal fun buildProgramImageBaseName(
+internal fun buildProgramSlipBaseName(
     year: Int,
     month: Int,
     weekStart: LocalDate,
     weekEnd: LocalDate,
-    fullName: String,
+    partNumber: Int,
+    studentName: String,
 ): String {
     val monthPrefix = LocalDate.of(year, month, 1).format(monthImagePrefixFormatter)
-    return "biglietto-$monthPrefix-${weekStart.format(DateTimeFormatter.BASIC_ISO_DATE)}-${weekEnd.dayOfMonth.toString().padStart(2, '0')}-${sanitizeFileName(fullName)}"
+    return "biglietto-$monthPrefix-${weekStart.format(DateTimeFormatter.BASIC_ISO_DATE)}-${weekEnd.dayOfMonth.toString().padStart(2, '0')}-p${partNumber}-${sanitizeFileName(studentName)}"
 }
 
 private fun partDisplayLabel(part: WeeklyPart): String = part.snapshot?.label ?: part.partType.label
-
-private fun slotRoleLabel(
-    part: WeeklyPart,
-    slot: Int,
-): String? = if (part.partType.peopleCount > 1 && slot > 1) "Assistente" else null
-
-private fun buildSheetAssignmentLabel(line: AssignmentTicketLine): String =
-    "${line.partNumber}. ${line.partLabel}${line.roleLabel?.let { " ($it)" } ?: ""}"
 
 private fun sanitizeFileName(fullName: String): String = fullName
     .trim()
     .replace(Regex("\\s+"), "_")
     .replace(Regex("[^A-Za-z0-9_]+"), "")
-
