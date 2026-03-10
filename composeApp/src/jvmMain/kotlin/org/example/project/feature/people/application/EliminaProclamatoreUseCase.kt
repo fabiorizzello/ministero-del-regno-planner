@@ -14,13 +14,11 @@ class EliminaProclamatoreUseCase(
 ) {
     suspend operator fun invoke(id: ProclamatoreId): Either<DomainError, Unit> = either {
         store.load(id) ?: raise(DomainError.NotFound("Proclamatore"))
-        try {
+        Either.catch {
             transactionRunner.runInTransaction {
                 assignmentStore.removeAllForPerson(id)
                 store.remove(id)
             }
-        } catch (e: Exception) {
-            raise(DomainError.EliminazioneProclamatoreFallita(e.message))
-        }
+        }.mapLeft { DomainError.EliminazioneProclamatoreFallita(it.message) }.bind()
     }
 }
