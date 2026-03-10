@@ -82,14 +82,17 @@ private class DeleteProgramStore(
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = if (id == program.id) program else null
 
+    context(tx: TransactionScope)
     override suspend fun save(program: ProgramMonth) {
         // no-op
     }
 
+    context(tx: TransactionScope)
     override suspend fun delete(id: ProgramMonthId) {
         deletedPrograms.add(id)
     }
 
+    context(tx: TransactionScope)
     override suspend fun updateTemplateAppliedAt(id: ProgramMonthId, templateAppliedAt: LocalDateTime) {
         // no-op
     }

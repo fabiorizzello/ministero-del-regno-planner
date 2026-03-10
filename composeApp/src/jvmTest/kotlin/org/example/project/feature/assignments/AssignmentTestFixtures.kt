@@ -60,15 +60,15 @@ internal class StaticAssignmentRepository(
 internal class StaticEligibilityStore(
     private val eligible: Set<EligibilityCleanupCandidate>,
 ) : EligibilityStore {
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
-    override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
-    override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
     override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
     override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> =
         eligible.filter { it.partTypeId in partTypeIds }
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
         eligible.groupBy({ it.partTypeId }, { it.personId }).mapValues { (_, ids) -> ids.toSet() }
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
+    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
 }
 
@@ -77,15 +77,15 @@ internal class SingleCandidateEligibilityStore(
     private val personId: ProclamatoreId,
     private val partTypeId: PartTypeId,
 ) : EligibilityStore {
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
-    override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
-    override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
     override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
     override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> =
         if (partTypeId in partTypeIds) listOf(EligibilityCleanupCandidate(personId, partTypeId)) else emptyList()
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
         mapOf(partTypeId to setOf(personId))
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
+    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
 }
 

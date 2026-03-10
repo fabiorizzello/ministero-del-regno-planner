@@ -2,6 +2,7 @@ package org.example.project.feature.programs
 
 import arrow.core.Either
 import kotlinx.coroutines.runBlocking
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.domain.ProgramMonth
@@ -17,7 +18,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
     fun `blocks target outside current plus two window`() = runBlocking {
         val referenceDate = LocalDate.of(2026, 2, 10)
         val store = InMemoryProgramStore()
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 5, referenceDate)
 
@@ -29,7 +30,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
     fun `blocks current plus two when current plus one is missing`() = runBlocking {
         val referenceDate = LocalDate.of(2026, 2, 10)
         val store = InMemoryProgramStore()
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 4, referenceDate)
 
@@ -41,7 +42,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
     fun `allows first creation as current plus one when current is missing`() = runBlocking {
         val referenceDate = LocalDate.of(2026, 2, 10)
         val store = InMemoryProgramStore()
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 3, referenceDate)
 
@@ -55,7 +56,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
     fun `allows current month creation when no programs exist`() = runBlocking {
         val referenceDate = LocalDate.of(2026, 2, 10)
         val store = InMemoryProgramStore()
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 2, referenceDate)
 
@@ -71,7 +72,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
         val store = InMemoryProgramStore(
             programs = mutableListOf(fixtureProgramMonth(YearMonth.of(2026, 3))),
         )
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 2, referenceDate)
 
@@ -85,7 +86,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
         val store = InMemoryProgramStore(
             programs = mutableListOf(fixtureProgramMonth(YearMonth.of(2026, 3))),
         )
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 4, referenceDate)
 
@@ -102,7 +103,7 @@ class CreaProgrammaMeseTargetUseCaseTest {
                 fixtureProgramMonth(YearMonth.of(2026, 4)),
             ),
         )
-        val useCase = CreaProssimoProgrammaUseCase(store)
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(2026, 2, referenceDate)
 

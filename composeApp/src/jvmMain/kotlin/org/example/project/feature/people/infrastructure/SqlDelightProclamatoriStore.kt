@@ -16,6 +16,7 @@ class SqlDelightProclamatoriStore(
             .executeAsOneOrNull()
     }
 
+    context(tx: TransactionScope)
     override suspend fun persist(aggregateRoot: Proclamatore) {
         persistInternal(aggregateRoot)
     }
@@ -41,6 +42,7 @@ class SqlDelightProclamatoriStore(
         )
     }
 
+    context(tx: TransactionScope)
     override suspend fun remove(id: ProclamatoreId) {
         database.ministeroDatabaseQueries.deleteProclaimerById(id.value)
     }

@@ -157,21 +157,23 @@ private class ImpostaSospesoInMemoryStore(initial: List<Proclamatore> = emptyLis
     private val byId = initial.associateBy { it.id }.toMutableMap()
 
     override suspend fun load(id: ProclamatoreId): Proclamatore? = byId[id]
+    context(tx: TransactionScope)
     override suspend fun persist(aggregateRoot: Proclamatore) { byId[aggregateRoot.id] = aggregateRoot }
     context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) {
         aggregateRoots.forEach { byId[it.id] = it }
     }
+    context(tx: TransactionScope)
     override suspend fun remove(id: ProclamatoreId) { byId.remove(id) }
 }
 
 private class StubEligibilityStore(private val futureWeeks: List<LocalDate>) : EligibilityStore {
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
-    override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
-    override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
     override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
     override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> = emptyList()
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> = emptyMap()
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
+    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = futureWeeks
 }

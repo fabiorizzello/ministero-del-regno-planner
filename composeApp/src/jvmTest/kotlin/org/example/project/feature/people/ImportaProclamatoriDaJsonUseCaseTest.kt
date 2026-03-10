@@ -130,8 +130,10 @@ private class ImportaJsonInMemoryStore : ProclamatoriAggregateStore {
     val persisted = mutableListOf<Proclamatore>()
 
     override suspend fun load(id: ProclamatoreId): Proclamatore? = persisted.firstOrNull { it.id == id }
+    context(tx: TransactionScope)
     override suspend fun persist(aggregateRoot: Proclamatore) { persisted.add(aggregateRoot) }
     context(tx: TransactionScope)
     override suspend fun persistAll(aggregateRoots: Collection<Proclamatore>) { persisted.addAll(aggregateRoots) }
+    context(tx: TransactionScope)
     override suspend fun remove(id: ProclamatoreId) { persisted.removeIf { it.id == id } }
 }
