@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -444,6 +445,7 @@ internal fun AssignmentTicketsDialog(
     deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo>,
     isLoading: Boolean,
     errorMessage: String?,
+    isMarkingDelivered: Boolean,
     onMarkAsDelivered: (AssignmentTicketImage) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -599,6 +601,7 @@ internal fun AssignmentTicketsDialog(
                                                                         }
                                                                     },
                                                                     onMarkAsDelivered = { onMarkAsDelivered(item) },
+                                                                    isMarkingDelivered = isMarkingDelivered,
                                                                     modifier = Modifier.fillMaxWidth(),
                                                                 )
                                                                 is PartAssignmentWarning -> PartWarningCard(
@@ -783,6 +786,7 @@ private fun AssignmentTicketCard(
     deliveryInfo: SlipDeliveryInfo?,
     onPreviewRequest: () -> Unit,
     onMarkAsDelivered: (() -> Unit)?,
+    isMarkingDelivered: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -897,17 +901,33 @@ private fun AssignmentTicketCard(
             if (onMarkAsDelivered != null) {
                 Surface(
                     onClick = onMarkAsDelivered,
+                    enabled = !isMarkingDelivered,
                     shape = RoundedCornerShape(8.dp),
-                    color = sketch.accent,
+                    color = if (isMarkingDelivered) sketch.accent.copy(alpha = 0.5f) else sketch.accent,
                     modifier = Modifier.fillMaxWidth().handCursorOnHover(),
                 ) {
-                    Text(
-                        "Segna come inviato",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isMarkingDelivered) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            if (isMarkingDelivered) "Invio in corso\u2026" else "Segna come inviato",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
 
