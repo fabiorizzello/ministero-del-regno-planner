@@ -1,6 +1,6 @@
 package org.example.project.feature.output.application
 
-import arrow.core.right
+import arrow.core.left
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.awt.image.BufferedImage
@@ -28,6 +28,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import javax.imageio.ImageIO
+import org.example.project.core.domain.DomainError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -207,6 +208,81 @@ class GeneraImmaginiAssegnazioniTest {
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
 
         assertEquals(listOf("Anna Bianchi"), result.tickets.map { it.fullName })
+    }
+
+    @Test
+    fun `generateProgramTickets ritorna NotFound se programma non esiste`() = runTest {
+        val programId = ProgramMonthId("program-inesistente")
+        val programStore = mockk<ProgramStore>()
+        coEvery { programStore.findById(programId) } returns null
+
+        val useCase = GeneraImmaginiAssegnazioni(
+            programStore = programStore,
+            weekPlanQueries = mockk(),
+            caricaAssegnazioni = mockk(),
+            renderer = PdfAssignmentsRenderer(),
+            outputDirProvider = { Files.createTempDirectory("ticket-exports-notfound") },
+        )
+
+        val result = useCase.generateProgramTickets(programId)
+
+        assertIs<arrow.core.Either.Left<DomainError.NotFound>>(result)
+    }
+
+    @Test
+    fun `invoke ritorna NotFound se settimana non esiste`() = runTest {
+        val weekDate = LocalDate.of(2026, 3, 2)
+        val weekPlanQueries = mockk<WeekPlanQueries>()
+        coEvery { weekPlanQueries.findByDate(weekDate) } returns null
+
+        val useCase = GeneraImmaginiAssegnazioni(
+            programStore = mockk(),
+            weekPlanQueries = weekPlanQueries,
+            caricaAssegnazioni = mockk(),
+            renderer = PdfAssignmentsRenderer(),
+            outputDirProvider = { Files.createTempDirectory("ticket-exports-invoke-notfound") },
+        )
+
+        val result = useCase(weekDate, emptySet())
+
+        assertIs<arrow.core.Either.Left<DomainError.NotFound>>(result)
+    }
+
+    @Test
+    fun `renderTicketImage ritorna Validation se pdfToPngRenderer lancia eccezione`() = runTest {
+        val tempDir = Files.createTempDirectory("ticket-exports-renderfail")
+        val programId = ProgramMonthId("program-2026-03")
+        val programStore = mockk<ProgramStore>()
+        val weekPlanQueries = mockk<WeekPlanQueries>()
+        val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val week = weekPlan(
+            id = "week-1",
+            monday = LocalDate.of(2026, 3, 2),
+            status = WeekPlanStatus.ACTIVE,
+            parts = listOf(singleSlotPart("p1", "Lettura")),
+        )
+        coEvery { programStore.findById(programId) } returns ProgramMonth(
+            id = programId, year = 2026, month = 3,
+            startDate = LocalDate.of(2026, 3, 1), endDate = LocalDate.of(2026, 3, 31),
+            templateAppliedAt = null, createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
+        )
+        coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(week)
+        coEvery { caricaAssegnazioni(week.weekStartDate) } returns listOf(
+            assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+        )
+
+        val useCase = GeneraImmaginiAssegnazioni(
+            programStore = programStore,
+            weekPlanQueries = weekPlanQueries,
+            caricaAssegnazioni = caricaAssegnazioni,
+            renderer = PdfAssignmentsRenderer(),
+            outputDirProvider = { tempDir },
+            pdfToPngRenderer = { _, _ -> throw RuntimeException("PDF rendering fallito") },
+        )
+
+        val result = useCase.generateProgramTickets(programId)
+
+        assertIs<arrow.core.Either.Left<DomainError.Validation>>(result)
     }
 
     private fun weekPlan(

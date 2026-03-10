@@ -277,6 +277,34 @@ class AssignmentManagementViewModelTest {
         assertNull(vm.uiState.value.assignmentTicketsError)
     }
 
+    @Test
+    fun `printSelectedProgram mostra errore e disabilita loading su Either Left`() = runTest {
+        val stampa = mockk<StampaProgrammaUseCase>()
+        coEvery { stampa(programId) } returns Either.Left(DomainError.NotFound("Programma"))
+
+        val vm = makeViewModel(scope = this, stampa = stampa)
+        vm.printSelectedProgram(programId)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isPrintingProgram)
+        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+    }
+
+    @Test
+    fun `openAssignmentTickets mostra errore e testa loading su Either Left`() = runTest {
+        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        coEvery { genera.generateProgramTickets(programId) } returns Either.Left(DomainError.NotFound("Programma"))
+
+        val vm = makeViewModel(scope = this, genera = genera)
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isAssignmentTicketsDialogOpen)
+        assertFalse(vm.uiState.value.isLoadingAssignmentTickets)
+        assertTrue(vm.uiState.value.assignmentTickets.isEmpty())
+        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private fun makeViewModel(
