@@ -1,5 +1,6 @@
 package org.example.project.feature.output.application
 
+import arrow.core.right
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.awt.image.BufferedImage
@@ -95,7 +96,7 @@ class GeneraImmaginiAssegnazioniTest {
             },
         )
 
-        val result = useCase.generateProgramTickets(programId)
+        val result = useCase.generateProgramTickets(programId).getOrNull()!!
 
         assertEquals(listOf("Zeno Alfa", "Anna Bianchi"), result.tickets.map { it.fullName })
         assertNull(result.tickets.first().assignments.single().roleLabel)
@@ -145,7 +146,7 @@ class GeneraImmaginiAssegnazioniTest {
             },
         )
 
-        val result = useCase.generateProgramTickets(programId)
+        val result = useCase.generateProgramTickets(programId).getOrNull()!!
 
         // Biglietti: solo parti complete → Mario Rossi (Studio slot 1)
         // Anna Bianchi esclusa: la sua parte (Visita) è parziale → compare come ghost, non come biglietto
@@ -203,7 +204,7 @@ class GeneraImmaginiAssegnazioniTest {
             },
         )
 
-        val result = useCase.generateProgramTickets(programId)
+        val result = useCase.generateProgramTickets(programId).getOrNull()!!
 
         assertEquals(listOf("Anna Bianchi"), result.tickets.map { it.fullName })
     }

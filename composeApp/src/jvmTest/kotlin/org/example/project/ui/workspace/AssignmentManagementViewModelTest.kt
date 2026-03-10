@@ -218,7 +218,7 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `printSelectedProgram apre pdf senza mostrare banner di successo`() = runTest {
         val stampa = mockk<StampaProgrammaUseCase>()
-        coEvery { stampa(programId) } returns Paths.get("C:\\temp\\programma.pdf")
+        coEvery { stampa(programId) } returns Either.Right(Paths.get("C:\\temp\\programma.pdf"))
 
         val vm = makeViewModel(scope = this, stampa = stampa)
         vm.printSelectedProgram(programId)
@@ -239,7 +239,7 @@ class AssignmentManagementViewModelTest {
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
             assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
         )
-        coEvery { genera.generateProgramTickets(programId) } returns TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList())
+        coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()))
 
         val vm = makeViewModel(scope = this, genera = genera)
         vm.openAssignmentTickets(programId)
@@ -254,7 +254,7 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `closeAssignmentTicketsDialog chiude modale e svuota lo stato`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
-        coEvery { genera.generateProgramTickets(programId) } returns TicketGenerationResult(
+        coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(
             tickets = listOf(
                 AssignmentTicketImage(
                     fullName = "Mario Rossi",
@@ -265,7 +265,7 @@ class AssignmentManagementViewModelTest {
                 ),
             ),
             warnings = emptyList(),
-        )
+        ))
 
         val vm = makeViewModel(scope = this, genera = genera)
         vm.openAssignmentTickets(programId)
