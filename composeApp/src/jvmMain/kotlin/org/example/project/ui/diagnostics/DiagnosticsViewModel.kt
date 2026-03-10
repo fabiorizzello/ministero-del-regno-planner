@@ -192,7 +192,7 @@ internal class DiagnosticsViewModel(
         val option = _state.value.selectedRetention
         val cutoffDate = option.cutoffDate()
         scope.launch {
-            _state.executeAsyncOperation(
+            _state.executeEitherOperation(
                 loadingUpdate = { it.copy(isCleaning = true, showCleanupConfirmDialog = false) },
                 successUpdate = { state, result ->
                     val baseDetails = buildString {
@@ -216,18 +216,16 @@ internal class DiagnosticsViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isCleaning = false,
-                        notice = errorNotice("Pulizia dati non completata: ${error.message}"),
+                        notice = errorNotice("Pulizia dati non completata: ${error.toMessage()}"),
                     )
                 },
                 operation = {
                     val deleted = contaStorico(cutoffDate)
-                    val eliminaResult = when (val r = eliminaStorico(cutoffDate)) {
-                        is Either.Left -> throw RuntimeException(r.value.toMessage())
-                        is Either.Right -> r.value
+                    eliminaStorico(cutoffDate).map { eliminaResult ->
+                        val updatedUsage = loadStorageUsage()
+                        val updatedPreview = contaStorico(cutoffDate)
+                        CleanupExecutionResult(deleted, updatedUsage, updatedPreview, eliminaResult.vacuumExecuted)
                     }
-                    val updatedUsage = loadStorageUsage()
-                    val updatedPreview = contaStorico(cutoffDate)
-                    CleanupExecutionResult(deleted, updatedUsage, updatedPreview, eliminaResult.vacuumExecuted)
                 },
             )
         }
