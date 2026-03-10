@@ -38,6 +38,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -443,6 +444,7 @@ internal fun AssignmentTicketsDialog(
     val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
 
     val previewMap = remember(tickets) { mutableStateMapOf<Path, ImageBitmap?>() }
+    var previewTicket by remember { mutableStateOf<AssignmentTicketImage?>(null) }
 
     Window(
         onCloseRequest = onDismiss,
@@ -450,18 +452,12 @@ internal fun AssignmentTicketsDialog(
         title = if (monthLabel.isBlank()) "Biglietti assegnazioni" else "Biglietti assegnazioni - $monthLabel",
         resizable = true,
     ) {
-        LaunchedEffect(tickets) {
-            tickets.forEach { ticket ->
-                launch(Dispatchers.IO) {
-                    previewMap[ticket.imagePath] = loadAssignmentTicketPreview(ticket.imagePath)
-                }
-            }
-        }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = sketch.surface,
         ) {
+            Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -571,7 +567,12 @@ internal fun AssignmentTicketsDialog(
                                                         when (item) {
                                                             is AssignmentTicketImage -> AssignmentTicketCard(
                                                                 ticket = item,
-                                                                preview = previewMap[item.imagePath],
+                                                                onPreviewRequest = {
+                                                                    previewTicket = item
+                                                                    if (previewMap[item.imagePath] == null) {
+                                                                        previewMap[item.imagePath] = null
+                                                                    }
+                                                                },
                                                                 modifier = Modifier.fillMaxWidth(),
                                                             )
                                                             is PartAssignmentWarning -> PartWarningCard(
@@ -596,6 +597,23 @@ internal fun AssignmentTicketsDialog(
                         }
                     }
                 }
+            }
+
+            val currentPreview = previewTicket
+            if (currentPreview != null) {
+                LaunchedEffect(currentPreview.imagePath) {
+                    if (previewMap[currentPreview.imagePath] == null) {
+                        launch(Dispatchers.IO) {
+                            previewMap[currentPreview.imagePath] = loadAssignmentTicketPreview(currentPreview.imagePath)
+                        }
+                    }
+                }
+                TicketPreviewOverlay(
+                    ticket = currentPreview,
+                    preview = previewMap[currentPreview.imagePath],
+                    onDismiss = { previewTicket = null },
+                )
+            }
             }
         }
     }
@@ -686,12 +704,13 @@ private fun PartWarningCard(
 @Composable
 private fun AssignmentTicketCard(
     ticket: AssignmentTicketImage,
-    preview: ImageBitmap?,
+    onPreviewRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
+    val line = ticket.assignments.firstOrNull()
 
     Surface(
         modifier = modifier
@@ -705,7 +724,7 @@ private fun AssignmentTicketCard(
                     supportedActions = listOf(DragAndDropTransferAction.Copy),
                 )
             },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         color = if (hovered) sketch.surface else sketch.surfaceMuted,
         border = BorderStroke(
             1.dp,
@@ -715,109 +734,76 @@ private fun AssignmentTicketCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            if (line != null) {
                 Text(
-                    formatWeekRangeLabel(ticket.weekStart, ticket.weekEnd),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.35.sp,
-                    ),
-                    color = sketch.accent,
-                )
-                Text(
-                    ticket.fullName,
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    "${line.partNumber}. ${line.partLabel}",
+                    style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.4).sp,
+                        letterSpacing = (-0.3).sp,
                     ),
                     color = sketch.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Surface(
-                modifier = Modifier.fillMaxWidth().height(96.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = sketch.surface,
-                border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = 0.85f)),
-            ) {
-                if (preview != null) {
-                    Image(
-                        bitmap = preview,
-                        contentDescription = "Anteprima biglietto ${ticket.fullName}",
-                        modifier = Modifier.fillMaxSize().background(Color.White),
-                        contentScale = ContentScale.Fit,
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Image,
-                                contentDescription = null,
-                                tint = sketch.inkMuted,
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Text(
-                                "Anteprima PNG",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = sketch.inkMuted,
-                            )
-                        }
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ticket.assignments.forEach { line ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Text(
-                            "${line.partNumber}. ${line.partLabel}",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = sketch.inkSoft,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (line.roleLabel != null) {
-                            Text(
-                                line.roleLabel,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = sketch.inkMuted,
-                            )
-                        }
-                    }
-                }
-            }
+            Text(
+                ticket.fullName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = sketch.inkSoft,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.DragIndicator,
-                    contentDescription = null,
-                    tint = sketch.inkMuted,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    "Trascina per copiare il PNG",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = sketch.inkMuted,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DragIndicator,
+                        contentDescription = null,
+                        tint = sketch.inkMuted,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        "Trascina PNG",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = sketch.inkMuted,
+                    )
+                }
+                Surface(
+                    onClick = onPreviewRequest,
+                    shape = RoundedCornerShape(8.dp),
+                    color = sketch.accent.copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, sketch.accent.copy(alpha = 0.3f)),
+                    modifier = Modifier.handCursorOnHover(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Visibility,
+                            contentDescription = "Visualizza biglietto",
+                            tint = sketch.accent,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            "Visualizza",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = sketch.accent,
+                        )
+                    }
+                }
             }
         }
     }
@@ -861,6 +847,93 @@ private class FileListTransferable(
             throw UnsupportedFlavorException(flavor)
         }
         return files
+    }
+}
+
+@Composable
+private fun TicketPreviewOverlay(
+    ticket: AssignmentTicketImage,
+    preview: ImageBitmap?,
+    onDismiss: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val line = ticket.assignments.firstOrNull()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ),
+            shape = RoundedCornerShape(20.dp),
+            color = sketch.surface,
+            shadowElevation = 12.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (line != null) {
+                            Text(
+                                "${line.partNumber}. ${line.partLabel}",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = sketch.ink,
+                            )
+                        }
+                        Text(
+                            "${ticket.fullName} — ${formatWeekRangeLabel(ticket.weekStart, ticket.weekEnd)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = sketch.inkSoft,
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, contentDescription = "Chiudi", tint = sketch.inkMuted)
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, sketch.lineSoft),
+                ) {
+                    if (preview != null) {
+                        Image(
+                            bitmap = preview,
+                            contentDescription = "Biglietto ${ticket.fullName}",
+                            modifier = Modifier.heightIn(max = 480.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.size(300.dp, 400.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("Caricamento...", color = sketch.inkMuted)
+                        }
+                    }
+                }
+
+            }
+        }
     }
 }
 

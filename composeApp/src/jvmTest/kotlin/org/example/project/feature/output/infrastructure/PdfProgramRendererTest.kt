@@ -34,7 +34,7 @@ class PdfProgramRendererTest {
                 assertTrue(text.contains("Mario Rossi"))
                 assertTrue(text.contains("Studente"))
                 assertTrue(text.contains("Non assegnato"))
-                assertTrue(text.contains("Settimana non assegnata"))
+                assertTrue(text.contains("Settimana saltata"))
             }
         } finally {
             outputPath.toFile().delete()
@@ -107,7 +107,7 @@ class PdfProgramRendererTest {
                 weekEndDate = LocalDate.of(2026, 3, 29),
                 statusLabel = "Saltata",
                 cards = emptyList(),
-                emptyStateLabel = "Settimana non assegnata",
+                emptyStateLabel = "Settimana saltata",
             ),
             section(
                 weekStart = LocalDate.of(2026, 3, 30),

@@ -165,13 +165,14 @@ class PdfProgramRenderer {
 
         var cursorY = yTop - layout.weekHeaderHeight - layout.headerGap
         if (section.cards.isEmpty()) {
+            val emptyLabel = section.emptyStateLabel ?: "Nessuna parte configurata"
             drawTextLine(
                 content = content,
                 font = fonts.bold,
                 fontSize = layout.titleFontSize,
-                x = x,
+                x = centeredX(fonts.bold, layout.titleFontSize, emptyLabel, x, width),
                 y = cursorY - layout.titleFontSize,
-                text = section.emptyStateLabel ?: "Nessuna parte configurata",
+                text = emptyLabel,
                 color = primaryInk,
             )
             return

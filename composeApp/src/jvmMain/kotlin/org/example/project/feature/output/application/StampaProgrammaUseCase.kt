@@ -58,7 +58,7 @@ internal fun buildProgramWeekPrintSection(
             weekEndDate = week.weekStartDate.plusDays(6),
             statusLabel = weekPlanStatusLabel(week.status),
             cards = emptyList(),
-            emptyStateLabel = "Settimana non assegnata",
+            emptyStateLabel = "Settimana saltata",
         )
     }
 

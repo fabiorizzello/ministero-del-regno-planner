@@ -67,38 +67,86 @@ insieme parti vuoto (tutte) e con subset parti -> verificare contenuto e naming 
 
 ---
 
-### User Story 3 - Export immagini per proclamatore (Priority: P3)
+### User Story 3 - Biglietti S-89 per parte (Priority: P1)
 
-L'utente vuole generare una scheda immagine PNG per ogni proclamatore assegnato in
-settimana, con l'elenco delle parti assegnate.
+L'utente vuole generare un biglietto S-89 (PNG) per ogni parte completamente assegnata
+del programma mensile. Ogni biglietto corrisponde a una parte (studente + assistente
+opzionale) e viene prodotto compilando il template ufficiale S-89 con overlay dei dati.
 
-**Why this priority**: Utile per distribuzioni individuali rapide senza aprire PDF.
+**Why this priority**: È il mezzo principale di distribuzione delle assegnazioni ai
+proclamatori. Ogni biglietto viene consegnato individualmente.
 
-**Independent Test**: Con una settimana con parti complete e parti incomplete -> avviare
-export biglietti -> verificare che vengano prodotti PNG solo per proclamatori con slot 1
-in parti complete, e card ghost per le parti incomplete.
+**Independent Test**: Con un programma con parti complete, parziali e vuote -> generare
+biglietti -> verificare 1 PNG per parte completa (con studente + assistente), card ghost
+per parti incomplete, e template S-89 compilato correttamente.
 
 **Acceptance Scenarios**:
 
-1. **Given** assegnazioni presenti in settimana, **When** si genera export immagini,
-   **Then** viene creato un file PNG solo per i proclamatori con ruolo principale (slot 1)
-   in parti **completamente coperte** (tutti gli slot assegnati); i proclamatori in parti
-   incomplete e i proclamatori esclusivamente slot 2+ non ricevono biglietto.
-2. **Given** selezione di parti limitata, **When** si genera export immagini, **Then**
-   ogni PNG include solo le assegnazioni appartenenti alle parti selezionate.
+1. **Given** assegnazioni presenti in settimana, **When** si generano i biglietti,
+   **Then** viene creato un file PNG per ogni parte **completamente coperta** (tutti gli
+   slot assegnati) che ha almeno lo slot 1 (studente). Il PNG è prodotto compilando il
+   template S-89 con: nome studente, nome assistente (se presente), data settimana,
+   numero e etichetta parte, checkbox "Sala principale" sempre selezionato.
+2. **Given** una parte con 2 slot entrambi assegnati, **When** si genera il biglietto,
+   **Then** il PNG include sia lo studente (slot 1) che l'assistente (slot 2) nel
+   template S-89.
 3. **Given** un errore durante rendering/conversione, **When** l'operazione fallisce,
-   **Then** viene restituito un errore con contesto del proclamatore e path coinvolti.
+   **Then** viene restituito un errore con contesto dello studente e path coinvolti.
 4. **Given** l'export immagini termina, **When** il file temporaneo PDF non serve piu,
    **Then** il sistema tenta la pulizia del temporaneo.
 5. **Given** una parte con slot non tutti compilati, **When** si visualizzano i biglietti,
-   **Then** la UI mostra una card ghost "Parte parziale (N/M assegnati)" al posto di
-   qualsiasi biglietto per quella parte; nessun PNG viene generato per nessuno dei
-   proclamatori assegnati in quella parte, nemmeno per lo slot 1.
+   **Then** la UI mostra una card ghost "Parte parziale (N/M assegnati)"; nessun PNG
+   viene generato per quella parte.
 6. **Given** una parte completamente priva di assegnazioni, **When** si visualizzano i biglietti,
    **Then** la UI mostra una card ghost "Parte vuota"; nessun PNG viene generato.
 7. **Given** biglietti già generati per un mese, **When** si rigenerano i biglietti dello
    stesso mese, **Then** i PNG precedenti del mese vengono eliminati prima di produrre
    i nuovi; i biglietti di altri mesi non vengono toccati.
+
+---
+
+### User Story 4 - Tracking consegna biglietti S-89 (Priority: P1)
+
+L'utente genera i biglietti S-89 di un programma mensile e li distribuisce uno alla volta
+ai proclamatori (via drag & drop, WhatsApp, stampa, ecc.). Vuole tracciare quali biglietti
+ha già consegnato, quali restano da consegnare, e ricevere un avviso se modifica
+un'assegnazione per cui il biglietto era già stato consegnato.
+
+**Why this priority**: Senza tracking, l'utente deve ricordare a memoria quali biglietti ha
+già distribuito. Con 15-25 biglietti al mese e distribuzione graduale nell'arco di giorni,
+il rischio di dimenticanze o doppi invii è alto.
+
+**Independent Test**: Generare biglietti per un programma con parti complete → segnare
+alcuni come inviati → verificare separazione nella dialog → cambiare assegnazione di un
+biglietto inviato → verificare warning e reset stato.
+
+**Acceptance Scenarios**:
+
+1. **Given** un biglietto generato in dialog, **When** l'utente clicca "Segna come inviato",
+   **Then** il sistema registra la consegna con `studentName`, `assistantName`, `sentAt` e
+   il biglietto si sposta nella sezione "Inviati" della dialog.
+2. **Given** un biglietto già inviato, **When** l'utente trascina o visualizza il biglietto,
+   **Then** il biglietto resta utilizzabile normalmente (drag & drop, visualizza); lo stato
+   "inviato" non impedisce nessuna azione.
+3. **Given** biglietti inviati e non inviati per lo stesso programma, **When** l'utente apre
+   la dialog biglietti, **Then** la dialog mostra due sezioni per settimana:
+   **"Da inviare"** (prominente, in alto) e **"Inviati"** (visivamente secondaria, sotto).
+   I biglietti da inviare hanno il pulsante "Segna come inviato" ben visibile come azione
+   successiva suggerita.
+4. **Given** un'assegnazione il cui biglietto è stato inviato, **When** l'utente modifica
+   l'assegnazione (cambia studente o assistente), **Then** il sistema mostra un dialog di
+   conferma: _"Hai già inviato il biglietto a {studentName}. Ricordati di avvisarlo del
+   cambio."_ Se l'utente conferma, la consegna precedente viene annullata (`cancelledAt`)
+   e il nuovo biglietto appare come "Da inviare".
+5. **Given** una consegna annullata per cambio assegnazione, **When** il nuovo biglietto
+   viene visualizzato nella sezione "Da inviare", **Then** la card mostra una nota
+   informativa: _"Precedente: {vecchio studentName}"_.
+6. **Given** un programma con biglietti generati, **When** l'utente visualizza il pulsante
+   del programma che apre i biglietti, **Then** il pulsante mostra un badge con i contatori:
+   _"N da inviare"_ e, se presenti, _"M bloccati"_ (parti vuote o parziali).
+7. **Given** tutti i biglietti di un programma inviati e nessun warning, **When** l'utente
+   visualizza il pulsante, **Then** il badge mostra _"Tutti inviati"_ con indicatore
+   visivo di completamento.
 
 ---
 
@@ -117,6 +165,18 @@ in parti complete, e card ghost per le parti incomplete.
   la creazione del nuovo PDF.
 - Errore di cleanup del PDF temporaneo nella generazione immagini: il fallimento viene
   loggato ma non annulla automaticamente i PNG gia prodotti.
+- Biglietto inviato e poi rigenerato (nuova generazione biglietti mese): la consegna
+  resta valida se l'assegnazione non è cambiata; se l'assegnazione è cambiata, la
+  consegna precedente risulta annullata.
+- Parte precedentemente completa diventa parziale (rimozione assegnazione): la consegna
+  precedente viene annullata; il biglietto sparisce dalla dialog e la parte appare come
+  ghost parziale.
+- Doppio click su "Segna come inviato": il sistema è idempotente, non crea duplicati
+  se esiste già una consegna attiva per la stessa parte/settimana.
+- Programma senza biglietti generati: il badge mostra solo i contatori bloccati (warning),
+  nessun contatore "da inviare" finché i biglietti non vengono generati.
+- Consegna annullata multipla (cambio assegnazione 2+ volte): la nota "Precedente" mostra
+  solo l'ultimo assegnatario a cui era stato inviato, non l'intera catena.
 
 ## Requirements *(mandatory)*
 
@@ -178,6 +238,30 @@ in parti complete, e card ghost per le parti incomplete.
   (crescente), poi per `fullName` alfabetico. All'interno di `buildPersonTicketSheets`
   (export settimanale) l'ordinamento MUST applicare gli stessi criteri escludendo
   `weekStart`.
+- **FR-025**: Il sistema MUST tracciare la consegna dei biglietti S-89 in una tabella
+  dedicata `slip_delivery(id, weekly_part_id, week_plan_id, student_name, assistant_name,
+  sent_at, cancelled_at)`. La chiave logica è `(weekly_part_id, week_plan_id)` con al
+  massimo una riga attiva (`cancelled_at IS NULL`) per coppia.
+- **FR-026**: La UI MUST fornire un pulsante "Segna come inviato" su ogni biglietto nella
+  sezione "Da inviare". Il pulsante MUST essere visivamente prominente (accent color,
+  stile filled) per guidare l'utente verso l'azione successiva.
+- **FR-027**: La dialog biglietti MUST separare i biglietti in due sezioni per settimana:
+  "Da inviare" (in alto, prominente) e "Inviati" (in basso, visivamente secondaria con
+  stile attenuato e indicatore di completamento). Le card ghost (parti vuote/parziali)
+  MUST apparire nella sezione "Da inviare".
+- **FR-028**: Quando l'utente modifica un'assegnazione il cui biglietto è stato inviato,
+  il sistema MUST mostrare un dialog di conferma con il messaggio di avviso che include
+  il nome del precedente assegnatario. Solo dopo conferma il sistema MUST annullare la
+  consegna (impostando `cancelled_at`) e procedere con la modifica.
+- **FR-029**: Un biglietto nella sezione "Da inviare" il cui predecessore è stato annullato
+  MUST mostrare una nota informativa con il nome del precedente assegnatario
+  (es. "Precedente: Mario Rossi").
+- **FR-030**: Il pulsante che apre la dialog biglietti MUST mostrare un badge con:
+  (a) il numero di biglietti da inviare, (b) il numero di parti bloccate (vuote/parziali).
+  Se tutti i biglietti sono inviati e non ci sono warning, il badge MUST mostrare
+  "Tutti inviati".
+- **FR-031**: Il "Segna come inviato" MUST essere idempotente: se esiste già una consegna
+  attiva per la stessa `(weekly_part_id, week_plan_id)`, l'operazione non crea duplicati.
 - **FR-019**: Il titolo del mese nel PDF mensile MUST essere centrato orizzontalmente
   sull'intera larghezza della pagina.
 - **FR-020**: Le intestazioni di ogni sezione settimana nel PDF mensile MUST essere
@@ -196,8 +280,8 @@ in parti complete, e card ghost per le parti incomplete.
 - **ProgramWeekPrintSlot**: `roleLabel`, `assignedTo`, `isAssigned`; riga ruolo/persona
   della card.
 - **RenderedPart**: label + righe assegnazioni gia materializzate per PDF settimanale.
-- **PersonSheet**: `fullName`, `weekStart`, `weekEnd`, `assignments`; modello intermedio
-  per la scheda individuale esportata in PNG.
+- **AssignmentSlip**: `studentName`, `assistantName?`, `weekStart`, `partNumber`,
+  `partLabel`; modello per compilare il template S-89 con overlay dati.
 - **AssignmentTicketLine**: `partLabel`, `roleLabel`, `partNumber`; riga di assegnazione
   nella scheda del proclamatore. `partNumber = sortOrder + 3` (`PART_DISPLAY_NUMBER_OFFSET`
   in `OutputConstants.kt`).
@@ -207,6 +291,13 @@ in parti complete, e card ghost per le parti incomplete.
   `expectedCount`; segnalazione di parte parziale (`isPartial`) o vuota (`isEmpty`).
 - **TicketGenerationResult**: `tickets: List<AssignmentTicketImage>`, `warnings: List<PartAssignmentWarning>`;
   risultato aggregato di `generateProgramTickets`.
+- **SlipDelivery**: `id`, `weeklyPartId`, `weekPlanId`, `studentName`, `assistantName?`,
+  `sentAt`, `cancelledAt?`; record di consegna di un biglietto S-89. Una sola consegna
+  attiva per coppia `(weeklyPartId, weekPlanId)`.
+- **SlipDeliveryStatus** (derivato): per ogni biglietto, lo stato è `DA_INVIARE` (nessuna
+  consegna attiva), `INVIATO` (consegna attiva presente), o `DA_REINVIARE` (consegna
+  precedente annullata, nessuna attiva). Nel caso `DA_REINVIARE`, viene esposto il
+  `previousStudentName` dell'ultima consegna annullata.
 
 ## Success Criteria *(mandatory)*
 
@@ -221,6 +312,9 @@ in parti complete, e card ghost per le parti incomplete.
   complete, e 1 card ghost per ogni parte incompleta (le due categorie sono mutuamente
   esclusive per parte), con tasso di successo del 100% su input validi.
 - **SC-005**: Durante ogni export, la UI resta responsiva (nessun freeze percepibile).
+- **SC-006**: La marcatura "inviato" è immediata (< 100ms) — scrittura locale su DB.
+- **SC-007**: Il badge contatori sul pulsante biglietti si aggiorna in tempo reale dopo
+  ogni marcatura o modifica assegnazione, senza necessità di riaprire la dialog.
 
 ## Clarifications
 
@@ -274,3 +368,27 @@ in parti complete, e card ghost per le parti incomplete.
   che nel PDF del biglietto il numero compare come prefisso: "3. Studio biblico".
   Calcolato come `sortOrder + 3` dove 3 è `PART_DISPLAY_NUMBER_OFFSET` (le parti fisse
   di apertura sono numerate 1 e 2). (FR-023).
+
+### Session 2026-03-10
+
+- Q: Cosa triggera lo stato "inviato" di un biglietto? -> A: Un pulsante esplicito
+  "Segna come inviato" sulla card del biglietto. Non il drag & drop (che non ha callback
+  affidabile di completamento su desktop). Il pulsante è l'azione prominente nella
+  sezione "Da inviare" per guidare l'utente.
+- Q: La granularità dello stato è per persona o per parte? -> A: Per parte
+  (`weekly_part_id` + `week_plan_id`). Il biglietto S-89 è uno per parte.
+- Q: Cosa succede allo stato "inviato" quando cambio assegnazione? -> A: Reset
+  automatico. Il sistema annulla la consegna precedente (`cancelled_at = now`) e il
+  nuovo biglietto appare come "Da inviare" con nota "Precedente: {vecchio nome}".
+  L'utente riceve un warning prima della modifica.
+- Q: Il warning su riassegnazione è bloccante? -> A: È un dialog di conferma. L'utente
+  può annullare la modifica. Se conferma, il sistema procede e annulla la consegna.
+  È solo un avviso testuale, non una notifica automatica all'assegnatario.
+- Q: La tabella `slip_delivery` traccia anche le consegne annullate? -> A: Sì. La riga
+  non viene eliminata ma marcata con `cancelled_at`. Questo permette di mostrare
+  "Precedente: {nome}" nel biglietto da reinviare.
+- Q: Come sono separati "da inviare" e "inviati" nella dialog? -> A: Stessa dialog,
+  sezioni diverse. Per ogni settimana: prima "Da inviare" (prominente) poi "Inviati"
+  (attenuato). Non due dialog separate.
+- Q: Cosa mostra il badge sul pulsante biglietti? -> A: "N da inviare" + "M bloccati"
+  (parti vuote/parziali). Se tutto inviato: "Tutti inviati".

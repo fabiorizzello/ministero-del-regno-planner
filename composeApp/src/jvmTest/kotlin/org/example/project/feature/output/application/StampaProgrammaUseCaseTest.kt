@@ -128,7 +128,7 @@ class StampaProgrammaUseCaseTest {
         )
 
         assertEquals(emptyList(), section.cards)
-        assertEquals("Settimana non assegnata", section.emptyStateLabel)
+        assertEquals("Settimana saltata", section.emptyStateLabel)
     }
 
     @Test

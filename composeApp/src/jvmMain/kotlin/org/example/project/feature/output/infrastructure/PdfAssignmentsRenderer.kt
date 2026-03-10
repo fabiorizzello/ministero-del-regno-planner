@@ -52,21 +52,21 @@ class PdfAssignmentsRenderer {
             val page = document.getPage(0)
             PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true).use { content ->
                 content.setNonStrokingColor(Color.BLACK)
-                content.setFont(helvetica, 12f)
+                content.setFont(helvetica, 11f)
 
-                // Nome e cognome: value starts at x=119.9, y=262.2
-                drawSlipValue(content, slip.studentName, x = 119.9f, y = 262.2f)
+                // Nome e cognome: baseline allineata al label
+                drawSlipValue(content, slip.studentName, x = 119.9f, y = 266.5f)
 
-                // Assistente: value starts at x=82.4, y=238.9
+                // Assistente
                 if (!slip.assistantName.isNullOrBlank()) {
-                    drawSlipValue(content, slip.assistantName, x = 82.4f, y = 238.9f)
+                    drawSlipValue(content, slip.assistantName, x = 82.4f, y = 243.2f)
                 }
 
-                // Data: value starts at x=47.7, y=215.7
-                drawSlipValue(content, slip.weekStart.format(dateFormatter), x = 47.7f, y = 215.7f)
+                // Data
+                drawSlipValue(content, slip.weekStart.format(dateFormatter), x = 47.7f, y = 219.9f)
 
-                // Parte n.: value starts at x=67.9, y=192.4 — numero + etichetta
-                drawSlipValue(content, "${slip.partNumber} - ${slip.partLabel}", x = 67.9f, y = 192.4f)
+                // Parte n.: numero + etichetta
+                drawSlipValue(content, "${slip.partNumber} - ${slip.partLabel}", x = 67.9f, y = 196.6f)
 
                 // Checkbox Sala principale: always checked — draw X at checkbox position
                 // Checkbox char at x=24.7, y range 140.6-154.2, center ~147.4
