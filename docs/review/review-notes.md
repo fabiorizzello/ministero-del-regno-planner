@@ -7,11 +7,6 @@
 - Severità: **Medium** | Effort: S
 - *(Rimandato — tocca file del plan slip-delivery-tracking)*
 
-**Medium 66**: Spec 002 disalignment — `AggiornaDatiRemotiUseCase` two-phase pattern non implementato.
-- La spec promette `fetchAndImport()` + `importSchemas()` (con conferma utente). L'implementazione è single-phase.
-- Fix: allineare spec a implementazione oppure implementare two-phase.
-- Severità: **Medium** | Effort: M
-
 **Medium 69**: Spec 006 FR-023 violazione — formato biglietto assegnazione mancante di role label.
 - PDF usa `"3 - Studio biblico"` invece di `"3. Studio biblico (Studente)"`.
 - Severità: **Medium** | Effort: S
@@ -28,17 +23,20 @@
 
 ## Low
 
-**Low 61**: `fetchRankingFromDb()` esegue query sequenziali potenzialmente eccessivi. Basso impatto pratico (1 utente).
-- Effort: L
-
-**Low 64**: `runBlocking` usato in 18+ test invece di `runTest`. Basso impatto pratico (test JVM single-thread).
-- Effort: M
-
 **Low 69**: `searchProclaimers` SQL manca colonna `can_assist` → `puoAssistere` sempre `false` nei risultati. Impatto attuale nullo.
 - Effort: S
 - *(Rimandato — tocca MinisteroDatabase.sq del plan slip-delivery-tracking)*
 
 ---
+
+## Findings risolti (Batch 13 — 2026-03-10)
+
+- **Low 61**: `fetchRankingFromDb()` ottimizzato — da ~79 query sequenziali a 2 query bulk (`allAssignmentRankingData` + `allAssignableProclaimers`) + ranking in-memory. `SuggestionRankingCache` invariato.
+- **Low 64**: `runBlocking` → `runTest` migrato in 34 file test. Nessun file non-test toccato.
+
+## Findings risolti (Batch 12 — 2026-03-10)
+
+- **Medium 66**: Spec 002 allineata + implementato flusso conferma refresh programma. Import schemi atomico single-phase; dry-run preview con `WeekRefreshDetail` per-settimana; dialog conferma prima di applicare refresh programma. Spec FR-007, US4, Edge Cases, Clarifications aggiornati.
 
 ## Findings risolti (Batch 11 — 2026-03-10)
 
