@@ -1,7 +1,5 @@
 package org.example.project.feature.output.application
 
-import org.example.project.core.persistence.DefaultTransactionScope
-import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
@@ -21,7 +19,7 @@ internal class FakeSlipDeliveryStore : SlipDeliveryStore {
     override suspend fun findLastCancelledDelivery(weeklyPartId: WeeklyPartId, weekPlanId: WeekPlanId): SlipDelivery? =
         cancelledDeliveries
             .filter { it.weeklyPartId == weeklyPartId && it.weekPlanId == weekPlanId }
-            .maxByOrNull { it.cancelledAt!! }
+            .maxByOrNull { requireNotNull(it.cancelledAt) { "cancelled delivery must have cancelledAt" } }
 
     override suspend fun listActiveDeliveries(weekPlanIds: List<WeekPlanId>): List<SlipDelivery> =
         activeDeliveries.values.filter { it.weekPlanId in weekPlanIds }
@@ -44,9 +42,4 @@ internal class FakeSlipDeliveryStore : SlipDeliveryStore {
             cancelledDeliveries += removed.copy(cancelledAt = cancelledAt)
         }
     }
-}
-
-internal class ImmediateTransactionRunner : TransactionRunner {
-    override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T =
-        with(DefaultTransactionScope) { block() }
 }

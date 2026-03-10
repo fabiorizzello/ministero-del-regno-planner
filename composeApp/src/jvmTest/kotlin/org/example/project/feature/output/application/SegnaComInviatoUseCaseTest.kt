@@ -1,7 +1,8 @@
 package org.example.project.feature.output.application
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.output.domain.SlipDelivery
 import org.example.project.feature.output.domain.SlipDeliveryId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -17,9 +18,9 @@ class SegnaComInviatoUseCaseTest {
     private val weekPlanId = WeekPlanId("plan-1")
 
     @Test
-    fun `marks slip as delivered creates new delivery record`() = runBlocking {
+    fun `marks slip as delivered creates new delivery record`() = runTest {
         val store = FakeSlipDeliveryStore()
-        val useCase = SegnaComInviatoUseCase(store, ImmediateTransactionRunner())
+        val useCase = SegnaComInviatoUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(
             weeklyPartId = weeklyPartId,
@@ -38,7 +39,7 @@ class SegnaComInviatoUseCaseTest {
     }
 
     @Test
-    fun `idempotent - does not create duplicate if active delivery exists`() = runBlocking {
+    fun `idempotent - does not create duplicate if active delivery exists`() = runTest {
         val store = FakeSlipDeliveryStore()
         store.activeDeliveries[weeklyPartId to weekPlanId] = SlipDelivery(
             id = SlipDeliveryId("existing-1"),
@@ -49,7 +50,7 @@ class SegnaComInviatoUseCaseTest {
             sentAt = Instant.now(),
             cancelledAt = null,
         )
-        val useCase = SegnaComInviatoUseCase(store, ImmediateTransactionRunner())
+        val useCase = SegnaComInviatoUseCase(store, PassthroughTransactionRunner)
 
         val result = useCase(
             weeklyPartId = weeklyPartId,

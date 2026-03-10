@@ -67,4 +67,39 @@ class CaricaStatoConsegneUseCaseTest {
         assertNull(info.activeDelivery)
         assertEquals("Luigi Bianchi", info.previousStudentName)
     }
+
+    @Test
+    fun `active delivery takes priority over cancelled for same key`() = runTest {
+        val key = WeeklyPartId("wp1") to WeekPlanId("plan-1")
+
+        // Set up both an active and a cancelled delivery for the same key
+        val activeDelivery = SlipDelivery(
+            id = SlipDeliveryId("d2"),
+            weeklyPartId = WeeklyPartId("wp1"),
+            weekPlanId = WeekPlanId("plan-1"),
+            studentName = "Mario Rossi",
+            assistantName = null,
+            sentAt = Instant.parse("2026-03-10T10:00:00Z"),
+            cancelledAt = null,
+        )
+        store.activeDeliveries[key] = activeDelivery
+
+        val cancelledDelivery = SlipDelivery(
+            id = SlipDeliveryId("d1"),
+            weeklyPartId = WeeklyPartId("wp1"),
+            weekPlanId = WeekPlanId("plan-1"),
+            studentName = "Luigi Bianchi",
+            assistantName = null,
+            sentAt = Instant.parse("2026-03-08T10:00:00Z"),
+            cancelledAt = Instant.parse("2026-03-09T12:00:00Z"),
+        )
+        store.cancelledDeliveries += cancelledDelivery
+
+        val result = useCase(listOf(WeekPlanId("plan-1")))
+
+        val info = result[key]!!
+        assertEquals(SlipDeliveryStatus.INVIATO, info.status)
+        assertEquals(activeDelivery, info.activeDelivery)
+        assertNull(info.previousStudentName)
+    }
 }
