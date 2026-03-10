@@ -1,5 +1,7 @@
 package org.example.project.feature.output.application
 
+import arrow.core.Either
+import arrow.core.raise.either
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.YearMonth
@@ -10,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.AppRuntime
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.output.infrastructure.PdfProgramRenderer
@@ -111,9 +114,10 @@ class StampaProgrammaUseCase(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    suspend operator fun invoke(programId: ProgramMonthId): Path = withContext(dispatcher) {
+    suspend operator fun invoke(programId: ProgramMonthId): Either<DomainError, Path> = withContext(dispatcher) {
+        either {
         val program = programStore.findById(programId)
-            ?: throw IllegalStateException("Programma non trovato")
+            ?: raise(DomainError.NotFound("Programma"))
 
         val weeks = weekPlanStore.listByProgram(programId).sortedBy { it.weekStartDate }
         val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
@@ -138,6 +142,7 @@ class StampaProgrammaUseCase(
 
         fileOpener.open(outputPath)
         outputPath
+        }
     }
 
     private fun prepareMonthlyProgramOutputPath(

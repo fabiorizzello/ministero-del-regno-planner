@@ -192,7 +192,7 @@ internal class AssignmentManagementViewModel(
     fun printSelectedProgram(programId: ProgramMonthId) {
         if (_uiState.value.isPrintingProgram) return
         scope.launch {
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isPrintingProgram = true) },
                 successUpdate = { state, _ ->
                     state.copy(
@@ -202,7 +202,7 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isPrintingProgram = false,
-                        notice = errorNotice("Errore stampa programma: ${error.message}"),
+                        notice = errorNotice(error.toMessage()),
                     )
                 },
                 operation = { stampaProgramma(programId) },
@@ -213,7 +213,7 @@ internal class AssignmentManagementViewModel(
     fun openAssignmentTickets(programId: ProgramMonthId) {
         if (_uiState.value.isLoadingAssignmentTickets) return
         scope.launch {
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = {
                     it.copy(
                         isAssignmentTicketsDialogOpen = true,
@@ -237,8 +237,8 @@ internal class AssignmentManagementViewModel(
                         isLoadingAssignmentTickets = false,
                         assignmentTickets = emptyList(),
                         assignmentPartWarnings = emptyList(),
-                        assignmentTicketsError = error.message ?: "Errore generazione biglietti",
-                        notice = errorNotice("Errore biglietti assegnazioni: ${error.message}"),
+                        assignmentTicketsError = error.toMessage(),
+                        notice = errorNotice(error.toMessage()),
                     )
                 },
                 operation = { generaImmaginiAssegnazioni.generateProgramTickets(programId) },

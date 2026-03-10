@@ -1,22 +1,23 @@
 package org.example.project.feature.output.application
 
-import java.awt.image.BufferedImage
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import arrow.core.raise.either
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import javax.imageio.ImageIO
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.apache.pdfbox.Loader
-import org.apache.pdfbox.rendering.PDFRenderer
 import org.example.project.core.config.AppRuntime
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
+import org.example.project.feature.output.infrastructure.renderPdfToPngFile
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
@@ -81,83 +82,87 @@ class GeneraImmaginiAssegnazioni(
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         selectedPartIds: Set<WeeklyPartId>,
-    ): List<Path> = withContext(dispatcher) {
-        val weekPlan = weekPlanQueries.findByDate(weekStartDate)
-            ?: throw IllegalStateException("Settimana non trovata per $weekStartDate")
-        val assignments = caricaAssegnazioni(weekStartDate)
-        val sheets = buildPersonTicketSheets(
-            weekPlan = weekPlan,
-            assignments = assignments,
-            selectedPartIds = selectedPartIds,
-        )
-        val outputDir = ensureOutputDir()
-
-        sheets.map { sheet ->
-            val baseName = buildWeeklyImageBaseName(sheet.weekStart, sheet.weekEnd, sheet.fullName)
-            renderTicketImage(
-                outputDir = outputDir,
-                baseName = baseName,
-                sheet = sheet,
+    ): Either<DomainError, List<Path>> = withContext(dispatcher) {
+        either {
+            val weekPlan = weekPlanQueries.findByDate(weekStartDate)
+                ?: raise(DomainError.NotFound("Settimana per $weekStartDate"))
+            val assignments = caricaAssegnazioni(weekStartDate)
+            val sheets = buildPersonTicketSheets(
+                weekPlan = weekPlan,
+                assignments = assignments,
+                selectedPartIds = selectedPartIds,
             )
-        }
-    }
+            val outputDir = ensureOutputDir()
 
-    suspend fun generateProgramTickets(programId: ProgramMonthId): TicketGenerationResult = withContext(dispatcher) {
-        val program = programStore.findById(programId)
-            ?: throw IllegalStateException("Programma non trovato")
-        val weeks = weekPlanQueries.listByProgram(programId)
-            .sortedBy { it.weekStartDate }
-        val outputDir = ensureOutputDir()
-        cleanupProgramTicketExports(
-            outputDir = outputDir,
-            year = program.year,
-            month = program.month,
-        ) { path, error ->
-            logger.warn { "Cleanup biglietto non riuscito (${path.fileName}): ${error.message}" }
-        }
-
-        val activeWeeks = weeks.filter { it.status == WeekPlanStatus.ACTIVE }
-        val weekAssignmentsByWeek = activeWeeks.map { week ->
-            week to caricaAssegnazioni(week.weekStartDate)
-        }
-
-        val tickets = weekAssignmentsByWeek
-            .flatMap { (week, weekAssignments) ->
-                val completePartIds = completePartIds(week, weekAssignments)
-                buildPersonTicketSheets(
-                    weekPlan = week,
-                    assignments = weekAssignments,
-                    selectedPartIds = completePartIds,
-                )
-            }
-            .sortedWith(compareBy({ it.weekStart }, { it.primaryPartSortOrder }, { it.fullName.lowercase() }))
-            .map { sheet ->
-                val baseName = buildProgramImageBaseName(
-                    year = program.year,
-                    month = program.month,
-                    weekStart = sheet.weekStart,
-                    weekEnd = sheet.weekEnd,
-                    fullName = sheet.fullName,
-                )
-                val imagePath = renderTicketImage(
+            sheets.map { sheet ->
+                val baseName = buildWeeklyImageBaseName(sheet.weekStart, sheet.weekEnd, sheet.fullName)
+                renderTicketImage(
                     outputDir = outputDir,
                     baseName = baseName,
                     sheet = sheet,
-                )
-                AssignmentTicketImage(
-                    fullName = sheet.fullName,
-                    weekStart = sheet.weekStart,
-                    weekEnd = sheet.weekEnd,
-                    imagePath = imagePath,
-                    assignments = sheet.assignments,
-                )
+                ).bind()
+            }
+        }
+    }
+
+    suspend fun generateProgramTickets(programId: ProgramMonthId): Either<DomainError, TicketGenerationResult> = withContext(dispatcher) {
+        either {
+            val program = programStore.findById(programId)
+                ?: raise(DomainError.NotFound("Programma"))
+            val weeks = weekPlanQueries.listByProgram(programId)
+                .sortedBy { it.weekStartDate }
+            val outputDir = ensureOutputDir()
+            cleanupProgramTicketExports(
+                outputDir = outputDir,
+                year = program.year,
+                month = program.month,
+            ) { path, error ->
+                logger.warn { "Cleanup biglietto non riuscito (${path.fileName}): ${error.message}" }
             }
 
-        val warnings = weekAssignmentsByWeek.flatMap { (week, weekAssignments) ->
-            buildPartWarnings(week, weekAssignments)
-        }
+            val activeWeeks = weeks.filter { it.status == WeekPlanStatus.ACTIVE }
+            val weekAssignmentsByWeek = activeWeeks.map { week ->
+                week to caricaAssegnazioni(week.weekStartDate)
+            }
 
-        TicketGenerationResult(tickets = tickets, warnings = warnings)
+            val tickets = weekAssignmentsByWeek
+                .flatMap { (week, weekAssignments) ->
+                    val completePartIds = completePartIds(week, weekAssignments)
+                    buildPersonTicketSheets(
+                        weekPlan = week,
+                        assignments = weekAssignments,
+                        selectedPartIds = completePartIds,
+                    )
+                }
+                .sortedWith(compareBy({ it.weekStart }, { it.primaryPartSortOrder }, { it.fullName.lowercase() }))
+                .map { sheet ->
+                    val baseName = buildProgramImageBaseName(
+                        year = program.year,
+                        month = program.month,
+                        weekStart = sheet.weekStart,
+                        weekEnd = sheet.weekEnd,
+                        fullName = sheet.fullName,
+                    )
+                    val imagePath = renderTicketImage(
+                        outputDir = outputDir,
+                        baseName = baseName,
+                        sheet = sheet,
+                    ).bind()
+                    AssignmentTicketImage(
+                        fullName = sheet.fullName,
+                        weekStart = sheet.weekStart,
+                        weekEnd = sheet.weekEnd,
+                        imagePath = imagePath,
+                        assignments = sheet.assignments,
+                    )
+                }
+
+            val warnings = weekAssignmentsByWeek.flatMap { (week, weekAssignments) ->
+                buildPartWarnings(week, weekAssignments)
+            }
+
+            TicketGenerationResult(tickets = tickets, warnings = warnings)
+        }
     }
 
     private fun completePartIds(
@@ -241,10 +246,10 @@ class GeneraImmaginiAssegnazioni(
         outputDir: Path,
         baseName: String,
         sheet: PersonTicketSheet,
-    ): Path {
+    ): Either<DomainError, Path> {
         val pdfPath = outputDir.resolve("$baseName-tmp.pdf")
         val pngPath = outputDir.resolve("$baseName.png")
-        try {
+        return try {
             renderer.renderPersonSheetPdf(
                 PdfAssignmentsRenderer.PersonSheet(
                     fullName = sheet.fullName,
@@ -256,15 +261,12 @@ class GeneraImmaginiAssegnazioni(
             )
             pdfToPngRenderer(pdfPath, pngPath)
             logger.info { "Immagine creata: ${pngPath.toAbsolutePath()}" }
-            return pngPath
+            pngPath.right()
         } catch (error: Exception) {
             logger.error(error) {
                 "Generazione immagine fallita per ${sheet.fullName} (pdf=${pdfPath.toAbsolutePath()}, png=${pngPath.toAbsolutePath()}): ${error.message}"
             }
-            throw IllegalStateException(
-                "Errore generando immagine per ${sheet.fullName} (pdf=$pdfPath, png=$pngPath): ${error.message}",
-                error,
-            )
+            DomainError.Validation("Errore generando immagine per ${sheet.fullName}: ${error.message}").left()
         } finally {
             runCatching { Files.deleteIfExists(pdfPath) }
                 .onFailure { cleanupError ->
@@ -332,10 +334,3 @@ private fun sanitizeFileName(fullName: String): String = fullName
     .replace(Regex("\\s+"), "_")
     .replace(Regex("[^A-Za-z0-9_]+"), "")
 
-private fun renderPdfToPngFile(pdfPath: Path, pngPath: Path) {
-    Loader.loadPDF(pdfPath.toFile()).use { document ->
-        val renderer = PDFRenderer(document)
-        val image: BufferedImage = renderer.renderImageWithDPI(0, 200f)
-        ImageIO.write(image, "png", pngPath.toFile())
-    }
-}
