@@ -2,13 +2,6 @@
 
 ## Findings aperti (ordinati per severità)
 
-### High
-
-2. `feature/output`: tutti e tre i use case usano `throw IllegalStateException` invece di `Either<DomainError, T>`.
-   - Pattern inconsistente con tutto il resto del codebase; il ViewModel usa `runCatching` come workaround.
-   - `GeneraImmaginiAssegnazioni` aggiunge un ulteriore throw in `renderTicketImage()` — espansione del problema con nuovi metodi.
-   - Evidenze (righe aggiornate): `StampaProgrammaUseCase.kt:116`, `GeneraImmaginiAssegnazioni.kt:86,107,264`.
-
 ### Medium
 
 2. Copertura integration migliorabile sui boundary esterni.
@@ -16,16 +9,17 @@
    - `PdfAssignmentsRenderer` ha zero test unitari su `renderWeeklyAssignmentsPdf()` e `renderPersonSheetPdf()`.
    - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `PdfAssignmentsRenderer.kt`.
 
-4. `GeneraImmaginiAssegnazioni`: logica PDF→PNG (`renderPdfToPngFile`) nel layer application.
-   - `Loader.loadPDF`, `PDFRenderer`, `ImageIO.write` sono infrastruttura; dovrebbero stare in `infrastructure/`.
-   - Evidenza: `GeneraImmaginiAssegnazioni.kt:335-341`, `:13-14`.
-
 15. `feature/updates` — zero test coverage. *(in standby — architettura in evoluzione)*
     - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient` non hanno nessun test.
     - `UpdateScheduler` rimosso (non più schedulato automaticamente).
     - Evidenza: `feature/updates/application/*.kt`, `feature/updates/infrastructure/*.kt`.
 
 ---
+
+## Findings risolti (Batch 4 — 2026-03-10)
+
+- **High 2**: `StampaProgrammaUseCase` e `GeneraImmaginiAssegnazioni` convertiti a `Either<DomainError, T>`; `throw IllegalStateException` rimpiazzati con `raise(DomainError.NotFound)`; `renderTicketImage` ora ritorna `Either<DomainError, Path>` con try/catch al boundary infrastruttura; `AssignmentManagementViewModel` migrato da `executeAsyncOperation` a `executeEitherOperation`. Aggiunti test per percorsi di errore (NotFound, rendering fallito).
+- **Medium 4**: `renderPdfToPngFile` (`Loader.loadPDF`, `PDFRenderer`, `ImageIO.write`) estratta da application layer a `infrastructure/PdfToImageConverter.kt`; iniettata come lambda `(Path, Path) -> Unit` — comportamento e testabilità invariati.
 
 ## Findings risolti (Batch A — 2026-03-10)
 
@@ -68,11 +62,13 @@
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
 - `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-10, Batch 1+2+3+A findings fixer — 14 finding risolti)
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
+- `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-10, Batch 4 — High 2 + Medium 4)
+- Totale test JVM: `231` | Failure: `0` | Error: `0`
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **quasi production-ready**.
 
-Rimasto aperto: (1) feature/output fuori dal modello Either (High 2 + Medium 4), (2) PdfAssignmentsRenderer zero test (Medium 2), (3) feature/updates test in standby (Medium 15).
+Rimasto aperto: (1) PdfAssignmentsRenderer zero test (Medium 2), (2) feature/updates test in standby (Medium 15).
 
 Sessione 2026-03-10: risolti SqlDelightSchemaUpdateAnomalyStore (idempotenza), Finding 24 (WeekPlan smart constructor). Rimosso UpdateScheduler (check solo su richiesta). Aggiunto spec 007 aggiornamento applicazione. Aggiunto GitHub Actions workflow release. Prima release v0.1.0 taggata e pushata.
