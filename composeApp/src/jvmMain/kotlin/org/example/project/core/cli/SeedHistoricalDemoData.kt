@@ -4,9 +4,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.example.project.core.bootstrap.AppBootstrap
-import org.example.project.core.persistence.DatabaseProvider
+import org.example.project.core.di.coreModule
+import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.weeklyparts.infrastructure.parsePartTypeFromJson
 import org.example.project.feature.weeklyparts.domain.SexRule
+import org.koin.core.context.GlobalContext
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
 import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -29,7 +33,11 @@ fun main(args: Array<String>) {
     require(config.futureMonths >= 0) { "--future-months deve essere >= 0" }
 
     AppBootstrap.initialize()
-    val db = DatabaseProvider.database()
+    if (GlobalContext.getOrNull() == null) {
+        startKoin { modules(coreModule) }
+    }
+    val koin = GlobalContext.get()
+    val db = koin.get<MinisteroDatabase>()
     val queries = db.ministeroDatabaseQueries
     val random = Random(RANDOM_SEED)
     val now = LocalDate.now()
@@ -83,6 +91,8 @@ fun main(args: Array<String>) {
     println("Settimane programma inserite: ${report.weeksInserted}")
     println("Parti settimanali inserite: ${report.partsInserted}")
     println("Assegnazioni inserite: ${report.assignmentsInserted}")
+
+    stopKoin()
 }
 
 private data class SeedCliConfig(
