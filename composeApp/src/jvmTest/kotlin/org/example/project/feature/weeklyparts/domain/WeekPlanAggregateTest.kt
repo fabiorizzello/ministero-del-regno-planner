@@ -1,5 +1,6 @@
 package org.example.project.feature.weeklyparts.domain
 
+import arrow.core.Either
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -165,6 +166,45 @@ class WeekPlanAggregateTest {
         assertEquals(2, updated.weekPlan.parts.size)
         assertEquals(WeeklyPartId("part-new"), updated.weekPlan.parts.last().id)
         assertEquals(1, updated.weekPlan.parts.last().sortOrder)
+    }
+
+    // --- WeekPlan.of() smart constructor error path tests ---
+
+    @Test
+    fun `WeekPlan of returns Left when date is not a Monday`() {
+        val result = WeekPlan.of(
+            id = WeekPlanId("w1"),
+            weekStartDate = LocalDate.of(2026, 3, 3), // Tuesday
+        )
+
+        assertIs<Either.Left<DomainError>>(result)
+        assertIs<DomainError.DataSettimanaNonLunedi>(result.value)
+        Unit
+    }
+
+    @Test
+    fun `WeekPlan of returns Left when id is blank`() {
+        val result = WeekPlan.of(
+            id = WeekPlanId(""),
+            weekStartDate = LocalDate.of(2026, 3, 2), // Monday
+        )
+
+        assertIs<Either.Left<DomainError>>(result)
+        assertIs<DomainError.Validation>(result.value)
+        Unit
+    }
+
+    @Test
+    fun `WeekPlan of returns Right for valid inputs`() {
+        val monday = LocalDate.of(2026, 3, 2)
+        val result = WeekPlan.of(
+            id = WeekPlanId("w1"),
+            weekStartDate = monday,
+        )
+
+        val weekPlan = assertIs<Either.Right<WeekPlan>>(result).value
+        assertEquals(WeekPlanId("w1"), weekPlan.id)
+        assertEquals(monday, weekPlan.weekStartDate)
     }
 
     private fun aggregateWithSinglePart(

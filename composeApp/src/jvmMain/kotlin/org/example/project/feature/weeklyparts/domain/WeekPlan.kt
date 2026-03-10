@@ -31,6 +31,9 @@ data class WeekPlan internal constructor(
             programId: ProgramMonthId? = null,
             status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
         ): Either<DomainError, WeekPlan> = either {
+            ensure(id.value.isNotBlank()) {
+                DomainError.Validation("WeekPlanId non può essere vuoto")
+            }
             ensure(weekStartDate.dayOfWeek == DayOfWeek.MONDAY) {
                 DomainError.DataSettimanaNonLunedi
             }
