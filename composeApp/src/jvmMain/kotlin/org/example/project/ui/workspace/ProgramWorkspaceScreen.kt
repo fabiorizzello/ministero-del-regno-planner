@@ -75,6 +75,7 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.formatMonthYearLabel
 import org.example.project.ui.components.formatWeekRangeLabel
 import org.example.project.ui.components.handCursorOnHover
+import org.example.project.ui.components.workspace.DeliveryBadge
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
@@ -799,14 +800,13 @@ fun ProgramWorkspaceScreen() {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
-                                assignmentState.ticketBadgeText?.let { badgeText ->
-                                    Text(
-                                        text = badgeText,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (badgeText == "Tutti inviati") MaterialTheme.workspaceSketch.ok
-                                                else MaterialTheme.workspaceSketch.inkMuted,
-                                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp),
-                                    )
+                                assignmentState.deliverySnapshot?.let { snapshot ->
+                                    if (snapshot.pending > 0 || snapshot.blocked > 0 || snapshot.allDelivered) {
+                                        DeliveryBadge(
+                                            snapshot = snapshot,
+                                            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp),
+                                        )
+                                    }
                                 }
                                 ProgramRightPanelButton(
                                     label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
