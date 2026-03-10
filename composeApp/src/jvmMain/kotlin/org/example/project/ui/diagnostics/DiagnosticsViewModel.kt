@@ -305,6 +305,9 @@ internal class DiagnosticsViewModel(
         _state.update { state ->
             when (result) {
                 is Either.Left -> state.copy(
+                    updateAvailable = false,
+                    updateLatestVersion = null,
+                    updateAsset = null,
                     updateStatusText = "Errore verifica: ${result.value.toMessage()}",
                 )
                 is Either.Right -> {
