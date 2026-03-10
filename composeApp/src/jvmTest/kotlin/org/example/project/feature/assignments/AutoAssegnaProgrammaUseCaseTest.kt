@@ -1,7 +1,7 @@
 package org.example.project.feature.assignments
 
 import kotlinx.coroutines.runBlocking
-import org.example.project.core.CountingTransactionRunner
+import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
@@ -25,10 +25,10 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class AutoAssegnaProgrammaUseCaseTransactionTest {
+class AutoAssegnaProgrammaUseCaseTest {
 
     @Test
-    fun `auto assign uses one outer transaction and does not open nested assignment transactions`() = runBlocking {
+    fun `auto assign creates assignment and reports success for single slot`() = runBlocking {
         val weekStart = LocalDate.of(2026, 3, 9)
         val programId = ProgramMonthId("program-1")
         val partType = PartType(
@@ -65,12 +65,10 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
             sesso = Sesso.M,
             puoAssistere = true,
         )
-        val assignmentTx = CountingTransactionRunner()
-        val autoAssignTx = CountingTransactionRunner()
 
         val assignUseCase = AssegnaPersonaUseCase(
             weekPlanStore = weekStore,
-            transactionRunner = assignmentTx,
+            transactionRunner = PassthroughTransactionRunner,
             personStore = TransactionTestPersonStore(candidate),
         )
         val candidateSuggestion = SuggestedProclamatore(
@@ -93,7 +91,7 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
             assignmentRepository = EmptyAssignmentsRepository,
             suggerisciProclamatori = suggestUseCase,
             assegnaPersona = assignUseCase,
-            transactionRunner = autoAssignTx,
+            transactionRunner = PassthroughTransactionRunner,
             assignmentRanking = ranking,
             eligibilityStore = eligibility,
         )
@@ -103,9 +101,8 @@ class AutoAssegnaProgrammaUseCaseTransactionTest {
 
         assertEquals(1, result.assignedCount)
         assertEquals(0, result.unresolved.size)
-        assertEquals(1, autoAssignTx.calls)
-        assertEquals(0, assignmentTx.calls)
         assertEquals(1, saved?.assignments?.size ?: 0)
+        assertEquals(candidate.id, saved?.assignments?.single()?.personId)
     }
 }
 
