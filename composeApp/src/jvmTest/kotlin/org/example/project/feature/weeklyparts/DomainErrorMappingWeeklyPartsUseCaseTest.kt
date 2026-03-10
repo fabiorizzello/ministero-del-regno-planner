@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -25,7 +25,7 @@ import kotlin.test.assertIs
 class DomainErrorMappingWeeklyPartsUseCaseTest {
 
     @Test
-    fun `aggiungi parte returns NotFound when week is missing`() = runBlocking {
+    fun `aggiungi parte returns NotFound when week is missing`() = runTest {
         val useCase = AggiungiParteUseCase(
             weekPlanStore = EmptyWeekPlanStore(),
             partTypeStore = NoopPartTypeStore,
@@ -42,7 +42,7 @@ class DomainErrorMappingWeeklyPartsUseCaseTest {
     }
 
     @Test
-    fun `rimuovi parte returns ParteFissa for fixed part`() = runBlocking {
+    fun `rimuovi parte returns ParteFissa for fixed part`() = runTest {
         val weekStore = FixedPartWeekPlanStore()
         val useCase = RimuoviParteUseCase(
             weekPlanStore = weekStore,

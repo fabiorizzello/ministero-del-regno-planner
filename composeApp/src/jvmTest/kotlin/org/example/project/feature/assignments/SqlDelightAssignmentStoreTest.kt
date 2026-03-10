@@ -1,7 +1,7 @@
 package org.example.project.feature.assignments
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.DefaultTransactionScope
 import org.example.project.db.MinisteroDatabase
@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 class SqlDelightAssignmentStoreTest {
 
     @Test
-    fun `save propagates persistence exception without IllegalStateException wrapper`() = runBlocking {
+    fun `save propagates persistence exception without IllegalStateException wrapper`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,
@@ -51,7 +51,7 @@ class SqlDelightAssignmentStoreTest {
     }
 
     @Test
-    fun `suggestedProclamatori uses absolute distance when latest assignment is in the future`() = runBlocking {
+    fun `suggestedProclamatori uses absolute distance when latest assignment is in the future`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,
@@ -130,7 +130,7 @@ class SqlDelightAssignmentStoreTest {
     }
 
     @Test
-    fun `suggestedProclamatori uses absolute distance for future-only assignments`() = runBlocking {
+    fun `suggestedProclamatori uses absolute distance for future-only assignments`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,
@@ -202,7 +202,7 @@ class SqlDelightAssignmentStoreTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `addAssignment rileva duplicato cross-part nella stessa settimana`() = runBlocking {
+    fun `addAssignment rileva duplicato cross-part nella stessa settimana`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,
@@ -325,7 +325,7 @@ class SqlDelightAssignmentStoreTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `preloadSuggestionRanking popola globalBeforeByDate correttamente`() = runBlocking {
+    fun `preloadSuggestionRanking popola globalBeforeByDate correttamente`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,
@@ -419,7 +419,7 @@ class SqlDelightAssignmentStoreTest {
     }
 
     @Test
-    fun `preloadSuggestionRanking costruisce cache corretta per più proclamatori e più date di riferimento`() = runBlocking {
+    fun `preloadSuggestionRanking costruisce cache corretta per più proclamatori e più date di riferimento`() = runTest {
         val driver = JdbcSqliteDriver(
             url = JdbcSqliteDriver.IN_MEMORY,
             schema = MinisteroDatabase.Schema,

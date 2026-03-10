@@ -1,7 +1,7 @@
 package org.example.project.feature.assignments
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
@@ -56,7 +56,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
     )
 
     @Test
-    fun `removing assignments on week with two assignments leaves aggregate empty`() = runBlocking {
+    fun `removing assignments on week with two assignments leaves aggregate empty`() = runTest {
         val initialAssignments = listOf(assignment("a1", slot = 1), assignment("a2", slot = 2))
         val store = SingleAggregateWeekStore(sampleAggregate(initialAssignments))
         val useCase = RimuoviAssegnazioniSettimanaUseCase(
@@ -71,7 +71,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
     }
 
     @Test
-    fun `invoke on missing week returns NotFound`() = runBlocking {
+    fun `invoke on missing week returns NotFound`() = runTest {
         val store = EmptyWeekStore()
         val useCase = RimuoviAssegnazioniSettimanaUseCase(
             weekPlanStore = store,
@@ -85,7 +85,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
     }
 
     @Test
-    fun `removal runs inside a transaction`() = runBlocking {
+    fun `removal runs inside a transaction`() = runTest {
         val store = SingleAggregateWeekStore(sampleAggregate(listOf(assignment("a1"))))
         val txRunner = CountingTransactionRunner()
         val useCase = RimuoviAssegnazioniSettimanaUseCase(

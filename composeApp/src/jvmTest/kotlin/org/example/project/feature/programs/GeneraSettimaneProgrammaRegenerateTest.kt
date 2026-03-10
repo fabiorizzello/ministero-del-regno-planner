@@ -1,7 +1,7 @@
 package org.example.project.feature.programs
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 class GeneraSettimaneProgrammaRegenerateTest {
 
     @Test
-    fun `regenerate clears old weeks and updates template timestamp once`() = runBlocking {
+    fun `regenerate clears old weeks and updates template timestamp once`() = runTest {
         val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "program-regen")
         val oldWeeks = listOf(
             WeekPlan(

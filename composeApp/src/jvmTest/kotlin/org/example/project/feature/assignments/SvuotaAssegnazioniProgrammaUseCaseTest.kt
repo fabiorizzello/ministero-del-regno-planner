@@ -1,6 +1,6 @@
 package org.example.project.feature.assignments
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssignmentRepository
@@ -44,7 +44,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     )
 
     @Test
-    fun `count returns correct number of assignments from fromDate`() = runBlocking {
+    fun `count returns correct number of assignments from fromDate`() = runTest {
         val fromDate = LocalDate.of(2026, 3, 9)
         val repo = repositoryWith(
             listOf(
@@ -61,7 +61,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     }
 
     @Test
-    fun `count with future fromDate excludes past assignments`() = runBlocking {
+    fun `count with future fromDate excludes past assignments`() = runTest {
         val fromDate = LocalDate.of(2026, 4, 1)
         val repo = repositoryWith(
             listOf(
@@ -77,7 +77,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     }
 
     @Test
-    fun `execute removes only assignments on or after fromDate and preserves earlier ones`() = runBlocking {
+    fun `execute removes only assignments on or after fromDate and preserves earlier ones`() = runTest {
         val fromDate = LocalDate.of(2026, 3, 9)
         val earlyDate = LocalDate.of(2026, 3, 2)
         val stored = mutableListOf(
@@ -106,7 +106,7 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     }
 
     @Test
-    fun `execute on program with no assignments returns 0 without error`() = runBlocking {
+    fun `execute on program with no assignments returns 0 without error`() = runTest {
         val repo = repositoryWith(emptyList())
         val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
 

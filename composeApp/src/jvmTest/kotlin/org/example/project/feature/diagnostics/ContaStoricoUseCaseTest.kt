@@ -1,6 +1,6 @@
 package org.example.project.feature.diagnostics
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import java.time.LocalDate
 import kotlin.test.Test
@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 class ContaStoricoUseCaseTest {
 
     @Test
-    fun `returns counts from store`() = runBlocking {
+    fun `returns counts from store`() = runTest {
         val store = FakeDiagnosticsStore(
             weekPlansCount = 5L,
             weeklyPartsCount = 12L,
@@ -25,7 +25,7 @@ class ContaStoricoUseCaseTest {
     }
 
     @Test
-    fun `passes correct cutoff date to store`() = runBlocking {
+    fun `passes correct cutoff date to store`() = runTest {
         val store = FakeDiagnosticsStore()
         val useCase = ContaStoricoUseCase(store)
         val cutoff = LocalDate.of(2026, 3, 15)
@@ -36,7 +36,7 @@ class ContaStoricoUseCaseTest {
     }
 
     @Test
-    fun `hasData is false when all counts are zero`() = runBlocking {
+    fun `hasData is false when all counts are zero`() = runTest {
         val store = FakeDiagnosticsStore(
             weekPlansCount = 0L,
             weeklyPartsCount = 0L,
@@ -50,7 +50,7 @@ class ContaStoricoUseCaseTest {
     }
 
     @Test
-    fun `hasData is true when any count is positive`() = runBlocking {
+    fun `hasData is true when any count is positive`() = runTest {
         val store = FakeDiagnosticsStore(
             weekPlansCount = 1L,
             weeklyPartsCount = 0L,

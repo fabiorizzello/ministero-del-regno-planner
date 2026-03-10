@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class CreaSettimanaUseCaseTest {
 
     @Test
-    fun `returns typed error when date is not monday`() = runBlocking {
+    fun `returns typed error when date is not monday`() = runTest {
         val weekStore = InMemoryWeekPlanStore()
         val partTypeStore = SingleFixedPartTypeStore()
         val useCase = CreaSettimanaUseCase(

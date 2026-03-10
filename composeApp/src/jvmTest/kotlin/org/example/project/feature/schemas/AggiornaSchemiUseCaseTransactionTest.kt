@@ -3,7 +3,7 @@ package org.example.project.feature.schemas
 import arrow.core.Either
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
@@ -36,7 +36,7 @@ import kotlin.test.assertTrue
 class AggiornaSchemiUseCaseTransactionTest {
 
     @Test
-    fun `stores last schema import timestamp inside transaction`() = runBlocking {
+    fun `stores last schema import timestamp inside transaction`() = runTest {
         val txRunner = TrackingTransactionRunner()
         val settings = TrackingSettings(txRunner)
         val partType = PartType(
@@ -78,7 +78,7 @@ class AggiornaSchemiUseCaseTransactionTest {
     }
 
     @Test
-    fun `rolls back part types and templates when replaceAll fails mid-transaction`() = runBlocking {
+    fun `rolls back part types and templates when replaceAll fails mid-transaction`() = runTest {
         val existingPartType = PartType(
             id = PartTypeId("pt-existing"),
             code = "ESISTENTE",

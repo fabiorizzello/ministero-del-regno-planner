@@ -1,7 +1,7 @@
 package org.example.project.feature.programs
 
 import arrow.core.getOrElse
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
 import org.example.project.feature.programs.application.ProgramStore
@@ -18,7 +18,7 @@ import kotlin.test.fail
 class CaricaProgrammiAttiviUseCaseTest {
 
     @Test
-    fun `returns current and max two future programs sorted chronologically`() = runBlocking {
+    fun `returns current and max two future programs sorted chronologically`() = runTest {
         val referenceDate = LocalDate.of(2026, 2, 12)
         val store = SnapshotStore(
             programs = mutableListOf(
@@ -37,7 +37,7 @@ class CaricaProgrammiAttiviUseCaseTest {
     }
 
     @Test
-    fun `returns null current when only future programs exist`() = runBlocking {
+    fun `returns null current when only future programs exist`() = runTest {
         val referenceDate = LocalDate.of(2026, 2, 12)
         val store = SnapshotStore(
             programs = mutableListOf(

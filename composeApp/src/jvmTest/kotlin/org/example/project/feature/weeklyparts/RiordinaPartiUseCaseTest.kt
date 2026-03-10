@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.feature.weeklyparts.application.RiordinaPartiUseCase
@@ -22,7 +22,7 @@ class RiordinaPartiUseCaseTest {
 
     @Test
     fun `maps part ids to contiguous indexes`() {
-        runBlocking {
+        runTest {
             val store = TrackingSortWeekPlanStore()
             val useCase = RiordinaPartiUseCase(store, PassthroughTransactionRunner)
 
@@ -48,7 +48,7 @@ class RiordinaPartiUseCaseTest {
 
     @Test
     fun `returns typed error when update fails`() {
-        runBlocking {
+        runTest {
             val store = TrackingSortWeekPlanStore(throwOnSave = true)
             val useCase = RiordinaPartiUseCase(store, PassthroughTransactionRunner)
 

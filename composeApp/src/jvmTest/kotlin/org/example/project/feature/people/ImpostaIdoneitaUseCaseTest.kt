@@ -1,7 +1,7 @@
 package org.example.project.feature.people
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
@@ -22,7 +22,7 @@ class ImpostaIdoneitaUseCaseTest {
     private val partTypeId = PartTypeId("pt-1")
 
     @Test
-    fun `ImpostaIdoneitaConduzioneUseCase chiama setCanLead con i valori corretti`() = runBlocking {
+    fun `ImpostaIdoneitaConduzioneUseCase chiama setCanLead con i valori corretti`() = runTest {
         val store = RecordingEligibilityStore()
         val useCase = ImpostaIdoneitaConduzioneUseCase(store, PassthroughTransactionRunner)
 
@@ -33,7 +33,7 @@ class ImpostaIdoneitaUseCaseTest {
     }
 
     @Test
-    fun `ImpostaIdoneitaConduzioneUseCase imposta canLead false`() = runBlocking {
+    fun `ImpostaIdoneitaConduzioneUseCase imposta canLead false`() = runTest {
         val store = RecordingEligibilityStore()
         val useCase = ImpostaIdoneitaConduzioneUseCase(store, PassthroughTransactionRunner)
 
@@ -44,7 +44,7 @@ class ImpostaIdoneitaUseCaseTest {
     }
 
     @Test
-    fun `ImpostaIdoneitaAssistenzaUseCase chiama setCanAssist con i valori corretti`() = runBlocking {
+    fun `ImpostaIdoneitaAssistenzaUseCase chiama setCanAssist con i valori corretti`() = runTest {
         val store = RecordingEligibilityStore()
         val useCase = ImpostaIdoneitaAssistenzaUseCase(store, PassthroughTransactionRunner)
 
@@ -55,7 +55,7 @@ class ImpostaIdoneitaUseCaseTest {
     }
 
     @Test
-    fun `ImpostaIdoneitaAssistenzaUseCase imposta canAssist false`() = runBlocking {
+    fun `ImpostaIdoneitaAssistenzaUseCase imposta canAssist false`() = runTest {
         val store = RecordingEligibilityStore()
         val useCase = ImpostaIdoneitaAssistenzaUseCase(store, PassthroughTransactionRunner)
 

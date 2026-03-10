@@ -1,7 +1,7 @@
 package org.example.project.feature.diagnostics
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
@@ -17,7 +17,7 @@ class EliminaStoricoUseCaseTest {
     private val cutoff = LocalDate.of(2026, 1, 1)
 
     @Test
-    fun `happy path - deletes week plans and returns Right with vacuum result`() = runBlocking {
+    fun `happy path - deletes week plans and returns Right with vacuum result`() = runTest {
         val store = FakeDiagnosticsStore()
         var vacuumCalled = false
         val useCase = EliminaStoricoUseCase(
@@ -35,7 +35,7 @@ class EliminaStoricoUseCaseTest {
     }
 
     @Test
-    fun `passes correct cutoff date to store delete`() = runBlocking {
+    fun `passes correct cutoff date to store delete`() = runTest {
         val store = FakeDiagnosticsStore()
         val useCase = EliminaStoricoUseCase(
             store = store,
@@ -50,7 +50,7 @@ class EliminaStoricoUseCaseTest {
     }
 
     @Test
-    fun `vacuum failure returns Right with vacuumExecuted false`() = runBlocking {
+    fun `vacuum failure returns Right with vacuumExecuted false`() = runTest {
         val store = FakeDiagnosticsStore()
         val useCase = EliminaStoricoUseCase(
             store = store,
@@ -65,7 +65,7 @@ class EliminaStoricoUseCaseTest {
     }
 
     @Test
-    fun `vacuum is called after transaction completes`() = runBlocking {
+    fun `vacuum is called after transaction completes`() = runTest {
         val callOrder = mutableListOf<String>()
         val store = object : FakeDiagnosticsStore() {
             context(tx: TransactionScope)
@@ -86,7 +86,7 @@ class EliminaStoricoUseCaseTest {
     }
 
     @Test
-    fun `default vacuumDatabase lambda returns false without real DB`() = runBlocking {
+    fun `default vacuumDatabase lambda returns false without real DB`() = runTest {
         val store = FakeDiagnosticsStore()
         val useCase = EliminaStoricoUseCase(
             store = store,

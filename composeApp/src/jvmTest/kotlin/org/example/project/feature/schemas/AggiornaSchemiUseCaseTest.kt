@@ -4,7 +4,7 @@ import arrow.core.Either
 import com.russhwolf.settings.PreferencesSettings
 import java.util.UUID
 import java.util.prefs.Preferences
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
@@ -35,7 +35,7 @@ class AggiornaSchemiUseCaseTest {
 
     // 1. Import di schemi validi → schemi salvati correttamente nel store
     @Test
-    fun `valid catalog imports part types and week templates`() = runBlocking {
+    fun `valid catalog imports part types and week templates`() = runTest {
         val pt = makePartType("pt-1", "LETTURA")
         val templateStore = InMemorySchemaTemplateStore2()
         val partTypeStore = InMemoryPartTypeStore2()
@@ -66,7 +66,7 @@ class AggiornaSchemiUseCaseTest {
 
     // 2. Incoerenza catalogo: week references a code not in partTypes → DomainError.CatalogoSchemiIncoerente
     @Test
-    fun `catalog with unknown part type code returns CatalogoSchemiIncoerente`() = runBlocking {
+    fun `catalog with unknown part type code returns CatalogoSchemiIncoerente`() = runTest {
         val pt = makePartType("pt-1", "LETTURA")
         val useCase = buildUseCase(
             catalog = RemoteSchemaCatalog(
@@ -90,7 +90,7 @@ class AggiornaSchemiUseCaseTest {
 
     // 3. replaceAll force-replaces existing templates
     @Test
-    fun `invoking twice replaces previous templates`() = runBlocking {
+    fun `invoking twice replaces previous templates`() = runTest {
         val pt1 = makePartType("pt-1", "LETTURA")
         val pt2 = makePartType("pt-2", "DISCORSO")
         val templateStore = InMemorySchemaTemplateStore2()
@@ -134,7 +134,7 @@ class AggiornaSchemiUseCaseTest {
     // A non-Monday parseable date would be accepted (no day-of-week check in source).
     // An unparseable date string → DataSchemaNonValida.
     @Test
-    fun `unparseable date string in week returns DataSchemaNonValida`() = runBlocking {
+    fun `unparseable date string in week returns DataSchemaNonValida`() = runTest {
         val pt = makePartType("pt-1", "LETTURA")
         val useCase = buildUseCase(
             catalog = RemoteSchemaCatalog(
@@ -158,7 +158,7 @@ class AggiornaSchemiUseCaseTest {
 
     // 5. Version is forwarded in result
     @Test
-    fun `result contains catalog version`() = runBlocking {
+    fun `result contains catalog version`() = runTest {
         val pt = makePartType("pt-1", "LETTURA")
         val useCase = buildUseCase(
             catalog = RemoteSchemaCatalog(

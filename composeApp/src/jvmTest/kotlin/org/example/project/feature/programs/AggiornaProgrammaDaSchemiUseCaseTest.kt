@@ -1,7 +1,7 @@
 package org.example.project.feature.programs
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.domain.Assignment
@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
 class AggiornaProgrammaDaSchemiUseCaseTest {
 
     @Test
-    fun `dry run reports preserved and removed assignments`() = runBlocking {
+    fun `dry run reports preserved and removed assignments`() = runTest {
         val fixture = refreshFixture()
         val useCase = buildUseCase(fixture)
 
@@ -67,7 +67,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
     }
 
     @Test
-    fun `apply refresh preserves only matching assignments and updates timestamp`() = runBlocking {
+    fun `apply refresh preserves only matching assignments and updates timestamp`() = runTest {
         val fixture = refreshFixture()
         val useCase = buildUseCase(fixture)
 
@@ -90,7 +90,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
     }
 
     @Test
-    fun `skipped weeks are not refreshed`() = runBlocking {
+    fun `skipped weeks are not refreshed`() = runTest {
         val fixture = refreshFixture(weekStatus = WeekPlanStatus.SKIPPED)
         val useCase = buildUseCase(fixture)
 

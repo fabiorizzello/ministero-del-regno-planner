@@ -1,7 +1,7 @@
 package org.example.project.feature.people
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 class EliminaProclamatoreUseCaseTest {
 
     @Test
-    fun `returns NotFound when person does not exist`() = runBlocking {
+    fun `returns NotFound when person does not exist`() = runTest {
         val tx = CountingTransactionRunner()
         val store = InMemoryPeopleStore()
         val assignments = TrackingPersonAssignmentLifecycle()
@@ -34,7 +34,7 @@ class EliminaProclamatoreUseCaseTest {
     }
 
     @Test
-    fun `deletes assignments and person in a single transaction`() = runBlocking {
+    fun `deletes assignments and person in a single transaction`() = runTest {
         val personId = ProclamatoreId("p1")
         val tx = CountingTransactionRunner()
         val store = InMemoryPeopleStore(

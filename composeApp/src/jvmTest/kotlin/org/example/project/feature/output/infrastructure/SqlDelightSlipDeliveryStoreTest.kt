@@ -1,7 +1,7 @@
 package org.example.project.feature.output.infrastructure
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.persistence.DefaultTransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.output.domain.SlipDelivery
@@ -44,7 +44,7 @@ class SqlDelightSlipDeliveryStoreTest {
     )
 
     @Test
-    fun `insert and findActiveDelivery returns the delivery`() = runBlocking {
+    fun `insert and findActiveDelivery returns the delivery`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
         val d = delivery()
@@ -64,7 +64,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `insert without assistant name`() = runBlocking {
+    fun `insert without assistant name`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
         val d = delivery(assistantName = null)
@@ -77,7 +77,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `findActiveDelivery returns null when no delivery exists`() = runBlocking {
+    fun `findActiveDelivery returns null when no delivery exists`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -86,7 +86,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `cancel sets cancelledAt and findActiveDelivery returns null`() = runBlocking {
+    fun `cancel sets cancelledAt and findActiveDelivery returns null`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
         val d = delivery()
@@ -100,7 +100,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `findLastCancelledDelivery returns most recent cancelled`() = runBlocking {
+    fun `findLastCancelledDelivery returns most recent cancelled`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -123,7 +123,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `findLastCancelledDelivery returns null when no cancelled delivery exists`() = runBlocking {
+    fun `findLastCancelledDelivery returns null when no cancelled delivery exists`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
         val d = delivery()
@@ -135,7 +135,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `listActiveDeliveries returns only active across multiple weekPlanIds`() = runBlocking {
+    fun `listActiveDeliveries returns only active across multiple weekPlanIds`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -160,7 +160,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `listActiveDeliveries returns empty for empty weekPlanIds`() = runBlocking {
+    fun `listActiveDeliveries returns empty for empty weekPlanIds`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -169,7 +169,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `listCancelledDeliveries returns only cancelled`() = runBlocking {
+    fun `listCancelledDeliveries returns only cancelled`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -189,7 +189,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `listCancelledDeliveries returns empty for empty weekPlanIds`() = runBlocking {
+    fun `listCancelledDeliveries returns empty for empty weekPlanIds`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 
@@ -198,7 +198,7 @@ class SqlDelightSlipDeliveryStoreTest {
     }
 
     @Test
-    fun `findActiveDelivery scopes by weeklyPartId and weekPlanId`() = runBlocking {
+    fun `findActiveDelivery scopes by weeklyPartId and weekPlanId`() = runTest {
         val database = createDb()
         val store = SqlDelightSlipDeliveryStore(database)
 

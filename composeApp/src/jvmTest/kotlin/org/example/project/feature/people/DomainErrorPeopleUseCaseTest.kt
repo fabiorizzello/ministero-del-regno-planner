@@ -1,7 +1,7 @@
 package org.example.project.feature.people
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 class DomainErrorPeopleUseCaseTest {
 
     @Test
-    fun `crea proclamatore returns NomeObbligatorio`() = runBlocking {
+    fun `crea proclamatore returns NomeObbligatorio`() = runTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
@@ -46,7 +46,7 @@ class DomainErrorPeopleUseCaseTest {
     }
 
     @Test
-    fun `aggiorna proclamatore returns NotFound when missing`() = runBlocking {
+    fun `aggiorna proclamatore returns NotFound when missing`() = runTest {
         val useCase = AggiornaProclamatoreUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),
@@ -68,7 +68,7 @@ class DomainErrorPeopleUseCaseTest {
     }
 
     @Test
-    fun `crea proclamatore returns ProclamatoreDuplicato when nome e cognome esistono gia`() = runBlocking {
+    fun `crea proclamatore returns ProclamatoreDuplicato when nome e cognome esistono gia`() = runTest {
         val useCase = CreaProclamatoreUseCase(
             query = FakeProclamatoriQuery(duplicate = true),
             store = InMemoryProclamatoriStore(),
@@ -88,7 +88,7 @@ class DomainErrorPeopleUseCaseTest {
     }
 
     @Test
-    fun `aggiorna proclamatore happy path restituisce proclamatore aggiornato`() = runBlocking {
+    fun `aggiorna proclamatore happy path restituisce proclamatore aggiornato`() = runTest {
         val personId = ProclamatoreId("p1")
         val esistente = Proclamatore(
             id = personId,
@@ -123,7 +123,7 @@ class DomainErrorPeopleUseCaseTest {
     }
 
     @Test
-    fun `importa proclamatori returns ImportJsonNonValido for invalid payload`() = runBlocking {
+    fun `importa proclamatori returns ImportJsonNonValido for invalid payload`() = runTest {
         val useCase = ImportaProclamatoriDaJsonUseCase(
             query = FakeProclamatoriQuery(),
             store = InMemoryProclamatoriStore(),

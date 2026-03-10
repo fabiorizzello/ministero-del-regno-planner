@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -27,7 +27,7 @@ class RimuoviParteUseCaseTest {
 
     // 1. Happy path: parte rimovibile → Either.Right, aggregate salvato senza la parte
     @Test
-    fun `happy path removes part and saves aggregate without it`() = runBlocking {
+    fun `happy path removes part and saves aggregate without it`() = runTest {
         val removable = makePartType("pt-1", "LETTURA", fixed = false)
         val store = RimuoviParteTestWeekPlanStore(
             weekDate = weekDate,
@@ -51,7 +51,7 @@ class RimuoviParteUseCaseTest {
 
     // 2. Parte fissa → Either.Left<DomainError.ParteFissa>
     @Test
-    fun `fixed part returns ParteFissa`() = runBlocking {
+    fun `fixed part returns ParteFissa`() = runTest {
         val fixed = makePartType("pt-fixed", "FISSA", fixed = true, label = "Parte Fissa")
         val store = RimuoviParteTestWeekPlanStore(
             weekDate = weekDate,
@@ -75,7 +75,7 @@ class RimuoviParteUseCaseTest {
 
     // 3. Settimana non trovata → Either.Left<DomainError.NotFound>
     @Test
-    fun `missing week returns NotFound`() = runBlocking {
+    fun `missing week returns NotFound`() = runTest {
         val store = RimuoviParteTestWeekPlanStore(
             weekDate = weekDate,
             parts = emptyList(),
@@ -95,7 +95,7 @@ class RimuoviParteUseCaseTest {
 
     // 4. Sort order delle parti rimanenti è ricompattato dopo la rimozione
     @Test
-    fun `sort orders are recompacted after removal`() = runBlocking {
+    fun `sort orders are recompacted after removal`() = runTest {
         val pt1 = makePartType("pt-1", "LETTURA", fixed = false)
         val pt2 = makePartType("pt-2", "DISCORSO", fixed = false)
         val pt3 = makePartType("pt-3", "STUDIO", fixed = false)

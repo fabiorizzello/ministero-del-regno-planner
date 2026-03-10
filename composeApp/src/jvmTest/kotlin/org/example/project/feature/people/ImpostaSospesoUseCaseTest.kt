@@ -1,7 +1,7 @@
 package org.example.project.feature.people
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
@@ -32,7 +32,7 @@ class ImpostaSospesoUseCaseTest {
 
     @Test
     fun `sospensione di persona attiva senza assegnazioni future - futureWeeks empty e persona risulta sospesa`() =
-        runBlocking {
+        runTest {
             val personId = ProclamatoreId("p1")
             val persona = makePersona(personId, sospeso = false)
             val store = ImpostaSospesoInMemoryStore(listOf(persona))
@@ -54,7 +54,7 @@ class ImpostaSospesoUseCaseTest {
         }
 
     @Test
-    fun `sospensione di persona con assegnazioni future - futureWeeks non empty`() = runBlocking {
+    fun `sospensione di persona con assegnazioni future - futureWeeks non empty`() = runTest {
         val personId = ProclamatoreId("p2")
         val persona = makePersona(personId, sospeso = false)
         val store = ImpostaSospesoInMemoryStore(listOf(persona))
@@ -80,7 +80,7 @@ class ImpostaSospesoUseCaseTest {
     }
 
     @Test
-    fun `riattivazione di persona sospesa - persona risulta non sospesa`() = runBlocking {
+    fun `riattivazione di persona sospesa - persona risulta non sospesa`() = runTest {
         val personId = ProclamatoreId("p3")
         val persona = makePersona(personId, sospeso = true)
         val store = ImpostaSospesoInMemoryStore(listOf(persona))
@@ -103,7 +103,7 @@ class ImpostaSospesoUseCaseTest {
     }
 
     @Test
-    fun `sospensione di persona gia sospesa - idempotente, nessun errore`() = runBlocking {
+    fun `sospensione di persona gia sospesa - idempotente, nessun errore`() = runTest {
         val personId = ProclamatoreId("p4")
         val persona = makePersona(personId, sospeso = true)
         val store = ImpostaSospesoInMemoryStore(listOf(persona))

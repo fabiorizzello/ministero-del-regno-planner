@@ -1,7 +1,7 @@
 package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -29,7 +29,7 @@ class AggiornaPartiSettimanaUseCaseTest {
 
     // 1. Aggiunta parte a settimana mutabile → parte aggiunta correttamente
     @Test
-    fun `replace parts on mutable week succeeds and stores new parts`() = runBlocking {
+    fun `replace parts on mutable week succeeds and stores new parts`() = runTest {
         val existingPartType = makePartType("pt-1", "LETTURA", fixed = false)
         val newPartType = makePartType("pt-2", "DISCORSO", fixed = false)
 
@@ -58,7 +58,7 @@ class AggiornaPartiSettimanaUseCaseTest {
 
     // 2. Aggiunta parte a settimana passata/immutabile → DomainError.SettimanaImmutabile
     @Test
-    fun `replace parts on past week returns SettimanaImmutabile`() = runBlocking {
+    fun `replace parts on past week returns SettimanaImmutabile`() = runTest {
         val partType = makePartType("pt-1", "LETTURA", fixed = false)
         // week in the past
         val pastWeekDate = LocalDate.of(2026, 2, 16) // Monday in the past
@@ -87,7 +87,7 @@ class AggiornaPartiSettimanaUseCaseTest {
     // replaceParts replaces all parts at once — after replacement only the listed parts remain,
     // with sort orders starting from 0 contiguously.
     @Test
-    fun `replacing parts recompacts sort orders starting from zero`() = runBlocking {
+    fun `replacing parts recompacts sort orders starting from zero`() = runTest {
         val pt1 = makePartType("pt-1", "LETTURA", fixed = false)
         val pt2 = makePartType("pt-2", "DISCORSO", fixed = false)
 
@@ -120,7 +120,7 @@ class AggiornaPartiSettimanaUseCaseTest {
     // 4. Lista parte fissa → OrdinePartiNonValido (empty list) or SettimanaImmutabile:
     // The use-case checks isEmpty() before calling replaceParts, returning OrdinePartiNonValido.
     @Test
-    fun `empty part list returns OrdinePartiNonValido`() = runBlocking {
+    fun `empty part list returns OrdinePartiNonValido`() = runTest {
         val partType = makePartType("pt-1", "LETTURA", fixed = false)
         val store = AggiornaPartiWeekPlanStore(weekDate = weekDate, initialPartTypes = listOf(partType))
         val partTypeStore = InMemoryPartTypeStore(listOf(partType))

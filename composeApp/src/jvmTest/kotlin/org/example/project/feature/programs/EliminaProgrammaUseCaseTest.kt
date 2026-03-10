@@ -1,7 +1,7 @@
 package org.example.project.feature.programs
 
 import arrow.core.Either
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -25,7 +25,7 @@ class EliminaProgrammaUseCaseTest {
 
     @Test
     fun `allows deleting current program`() {
-        runBlocking {
+        runTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 2), id = "current")
             val programStore = DeleteProgramStore(program)
@@ -42,7 +42,7 @@ class EliminaProgrammaUseCaseTest {
 
     @Test
     fun `allows deleting future program`() {
-        runBlocking {
+        runTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "future")
             val programStore = DeleteProgramStore(program)
@@ -57,7 +57,7 @@ class EliminaProgrammaUseCaseTest {
 
     @Test
     fun `blocks deleting past program`() {
-        runBlocking {
+        runTest {
             val referenceDate = LocalDate.of(2026, 2, 12)
             val program = fixtureProgramMonth(YearMonth.of(2026, 1), id = "past")
             val programStore = DeleteProgramStore(program)
