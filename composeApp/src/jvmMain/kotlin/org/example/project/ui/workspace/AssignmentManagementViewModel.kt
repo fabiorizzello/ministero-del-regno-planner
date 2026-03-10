@@ -83,7 +83,7 @@ internal data class AssignmentManagementUiState(
                     if (isNotEmpty()) append(" \u00b7 ")
                     append("$blocked bloccati")
                 }
-            }.ifEmpty { null }
+            }
         }
     }
 }
@@ -410,8 +410,14 @@ internal class AssignmentManagementViewModel(
     private suspend fun loadDeliveryStatus(tickets: List<AssignmentTicketImage>) {
         val weekPlanIds = tickets.map { it.weekPlanId }.distinct()
         if (weekPlanIds.isEmpty()) return
-        val status = caricaStatoConsegne(weekPlanIds)
-        _uiState.update { it.copy(deliveryStatus = status) }
+        try {
+            val status = caricaStatoConsegne(weekPlanIds)
+            _uiState.update { it.copy(deliveryStatus = status) }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(notice = errorNotice("Errore caricamento stato consegne: ${e.message}"))
+            }
+        }
     }
 
     private suspend fun loadAssignmentSettings() {
