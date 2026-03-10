@@ -42,6 +42,8 @@ data class AssignmentTicketImage(
     val weekEnd: LocalDate,
     val imagePath: Path,
     val assignments: List<AssignmentTicketLine>,
+    val weeklyPartId: WeeklyPartId,
+    val weekPlanId: String,
 )
 
 data class PartAssignmentWarning(
@@ -65,6 +67,8 @@ private data class AssignmentSlipWithOrder(
     val sortOrder: Int,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
+    val weeklyPartId: WeeklyPartId,
+    val weekPlanId: String,
 )
 
 class GeneraImmaginiAssegnazioni(
@@ -165,6 +169,8 @@ class GeneraImmaginiAssegnazioni(
                                 partNumber = slipWithOrder.slip.partNumber,
                             )
                         ),
+                        weeklyPartId = slipWithOrder.weeklyPartId,
+                        weekPlanId = slipWithOrder.weekPlanId,
                     )
                 }
 
@@ -240,6 +246,8 @@ class GeneraImmaginiAssegnazioni(
                 sortOrder = part.sortOrder,
                 weekStart = weekPlan.weekStartDate,
                 weekEnd = weekEnd,
+                weeklyPartId = part.id,
+                weekPlanId = weekPlan.id.value,
             )
         }
     }

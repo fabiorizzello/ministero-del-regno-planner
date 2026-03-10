@@ -26,6 +26,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.ui.components.FeedbackBannerKind
 import com.russhwolf.settings.Settings
 import java.time.LocalDate
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -238,6 +239,8 @@ class AssignmentManagementViewModelTest {
             weekEnd = LocalDate.of(2026, 3, 8),
             imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
             assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
+            weeklyPartId = WeeklyPartId("p1"),
+            weekPlanId = "week-1",
         )
         coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()))
 
@@ -262,6 +265,8 @@ class AssignmentManagementViewModelTest {
                     weekEnd = LocalDate.of(2026, 3, 8),
                     imagePath = Paths.get("C:\\exports\\assegnazioni\\biglietto.png"),
                     assignments = listOf(AssignmentTicketLine(partLabel = "Studio biblico", roleLabel = null, partNumber = 3)),
+                    weeklyPartId = WeeklyPartId("p1"),
+                    weekPlanId = "week-1",
                 ),
             ),
             warnings = emptyList(),
