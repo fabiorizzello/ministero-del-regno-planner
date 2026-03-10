@@ -1,5 +1,6 @@
 package org.example.project.feature.assignments.infrastructure
 
+import arrow.core.getOrElse
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.people.domain.Proclamatore
@@ -26,7 +27,7 @@ private fun mapAssignmentWithPersonRow(
     last_name: String,
     sex: String,
 ): AssignmentWithPerson {
-    return AssignmentWithPerson(
+    return AssignmentWithPerson.of(
         id = AssignmentId(id),
         weeklyPartId = WeeklyPartId(weekly_part_id),
         personId = ProclamatoreId(person_id),
@@ -37,7 +38,7 @@ private fun mapAssignmentWithPersonRow(
             cognome = last_name,
             sesso = parseSessoOrDefault(sex),
         ),
-    )
+    ).getOrElse { error("Invalid AssignmentWithPerson from DB: $it") }
 }
 
 /**
@@ -74,8 +75,7 @@ internal fun mapAssignmentRawRow(
 
 /**
  * Converts a raw row to [AssignmentWithPerson], returning null and logging a warning
- * if the slot is invalid (< 1). This guards against corrupt DB data that would otherwise
- * crash the app via the [AssignmentWithPerson] init block `require`.
+ * if the slot is invalid (< 1). This guards against corrupt DB data.
  */
 internal fun AssignmentRawRow.toAssignmentWithPersonOrNull(): AssignmentWithPerson? {
     if (slot < 1) {
