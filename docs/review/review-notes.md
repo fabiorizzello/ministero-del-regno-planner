@@ -23,8 +23,9 @@
 
 
 
-15. `feature/updates` — zero test coverage.
-    - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient`, `UpdateScheduler` non hanno nessun test.
+15. `feature/updates` — zero test coverage. *(in standby — architettura in evoluzione)*
+    - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient` non hanno nessun test.
+    - `UpdateScheduler` rimosso (non più schedulato automaticamente).
     - Evidenza: `feature/updates/application/*.kt`, `feature/updates/infrastructure/*.kt`.
 
 ### Low
