@@ -77,6 +77,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draganddrop.DragAndDropTransferAction
@@ -231,17 +236,25 @@ internal fun PartEditorDialog(
                         Text("Modifica parti", style = MaterialTheme.typography.titleLarge)
                         Text("Settimana $weekLabel", style = MaterialTheme.typography.bodyMedium)
                     }
-                    IconButton(
-                        onClick = onDismiss,
-                        enabled = !isSaving,
-                        modifier = Modifier.size(32.dp).handCursorOnHover(enabled = !isSaving),
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            positioning = TooltipAnchorPosition.Above,
+                        ),
+                        tooltip = { PlainTooltip { Text("Esc per chiudere") } },
+                        state = rememberTooltipState(),
                     ) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = "Chiudi",
-                            modifier = Modifier.size(18.dp),
-                            tint = sketch.inkMuted,
-                        )
+                        IconButton(
+                            onClick = onDismiss,
+                            enabled = !isSaving,
+                            modifier = Modifier.size(32.dp).handCursorOnHover(enabled = !isSaving),
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Chiudi",
+                                modifier = Modifier.size(18.dp),
+                                tint = sketch.inkMuted,
+                            )
+                        }
                     }
                 }
                 Text(
@@ -475,6 +488,16 @@ internal fun AssignmentTicketsDialog(
         state = windowState,
         title = if (monthLabel.isBlank()) "Biglietti assegnazioni" else "Biglietti assegnazioni - $monthLabel",
         resizable = true,
+        onPreviewKeyEvent = { event ->
+            if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
+                if (previewTicket != null) {
+                    previewTicket = null
+                } else {
+                    onDismiss()
+                }
+                true
+            } else false
+        },
     ) {
 
         Surface(
@@ -1019,6 +1042,7 @@ private class FileListTransferable(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TicketPreviewOverlay(
     ticket: AssignmentTicketImage,
@@ -1074,8 +1098,16 @@ private fun TicketPreviewOverlay(
                             color = sketch.inkSoft,
                         )
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Filled.Close, contentDescription = "Chiudi", tint = sketch.inkMuted)
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            positioning = TooltipAnchorPosition.Above,
+                        ),
+                        tooltip = { PlainTooltip { Text("Esc per chiudere") } },
+                        state = rememberTooltipState(),
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Filled.Close, contentDescription = "Chiudi", tint = sketch.inkMuted)
+                        }
                     }
                 }
 
@@ -1355,6 +1387,7 @@ private fun WeekSidebarTag(label: String, color: Color) {
 internal fun WeekDetailHeader(
     weekLabel: String,
     monthLabel: String,
+    isPast: Boolean,
     isCurrent: Boolean,
     isSkipped: Boolean,
     canMutate: Boolean,
@@ -1388,6 +1421,7 @@ internal fun WeekDetailHeader(
                     when {
                         isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
                         isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
+                        isPast -> WeekDetailBadge("PASSATA", sketch.inkMuted)
                     }
                 }
                 Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
