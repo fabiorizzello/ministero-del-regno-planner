@@ -4,17 +4,16 @@
 
 ### Medium
 
-2. Copertura integration migliorabile sui boundary esterni.
-   - HTTP client e PDF rendering ancora poco coperti.
-   - `PdfAssignmentsRenderer` ha zero test unitari su `renderWeeklyAssignmentsPdf()` e `renderPersonSheetPdf()`.
-   - Evidenze: `GitHubSchemaCatalogDataSource.kt:40`, `GitHubReleasesClient.kt:38`, `PdfAssignmentsRenderer.kt`.
-
 15. `feature/updates` — zero test coverage. *(in standby — architettura in evoluzione)*
     - `VerificaAggiornamenti`, `AggiornaApplicazione`, `GitHubReleasesClient` non hanno nessun test.
     - `UpdateScheduler` rimosso (non più schedulato automaticamente).
     - Evidenza: `feature/updates/application/*.kt`, `feature/updates/infrastructure/*.kt`.
 
 ---
+
+## Findings risolti (Batch 5 — 2026-03-10)
+
+- **Medium 2**: 6 integration test aggiunti per `PdfAssignmentsRenderer` — coprono `renderPersonSheetPdf` (contenuto testo, mkdir, assegnazioni vuote) e `renderWeeklyAssignmentsPdf` (contenuto, multi-page, mkdir). Pattern: renderer reale + `PDFTextStripper`, stesso stile di `PdfProgramRendererTest`.
 
 ## Findings risolti (Batch 4 — 2026-03-10)
 
@@ -64,11 +63,13 @@
 - Totale test JVM: `226` | Failure: `0` | Error: `0`
 - `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-10, Batch 4 — High 2 + Medium 4)
 - Totale test JVM: `231` | Failure: `0` | Error: `0`
+- `./gradlew :composeApp:jvmTest` → `BUILD SUCCESSFUL` (2026-03-10, Batch 5 — Medium 2)
+- Totale test JVM: `237` | Failure: `0` | Error: `0`
 
 ## Stato finale sintetico
 
 Con i vincoli richiesti (DDD rigoroso, aggregate-root centric, transazione unica per use case mutante), stato attuale: **quasi production-ready**.
 
-Rimasto aperto: (1) PdfAssignmentsRenderer zero test (Medium 2), (2) feature/updates test in standby (Medium 15).
+Rimasto aperto: (1) feature/updates test in standby (Medium 15).
 
 Sessione 2026-03-10: risolti SqlDelightSchemaUpdateAnomalyStore (idempotenza), Finding 24 (WeekPlan smart constructor). Rimosso UpdateScheduler (check solo su richiesta). Aggiunto spec 007 aggiornamento applicazione. Aggiunto GitHub Actions workflow release. Prima release v0.1.0 taggata e pushata.
