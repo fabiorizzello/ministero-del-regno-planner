@@ -17,7 +17,9 @@ import org.example.project.feature.assignments.application.AutoAssignProgramResu
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
+import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.TicketGenerationResult
 import org.example.project.feature.output.application.StampaProgrammaUseCase
 import arrow.core.Either
@@ -319,6 +321,8 @@ class AssignmentManagementViewModelTest {
         svuota: SvuotaAssegnazioniProgrammaUseCase = mockk(relaxed = true),
         stampa: StampaProgrammaUseCase = mockk(relaxed = true),
         genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
+        segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
+        caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
         scope = scope,
         autoAssegnaProgramma = autoAssegna,
@@ -329,5 +333,7 @@ class AssignmentManagementViewModelTest {
         stampaProgramma = stampa,
         generaImmaginiAssegnazioni = genera,
         settings = mockk<Settings>(relaxed = true),
+        segnaComInviato = segnaComInviato,
+        caricaStatoConsegne = caricaStatoConsegne,
     )
 }

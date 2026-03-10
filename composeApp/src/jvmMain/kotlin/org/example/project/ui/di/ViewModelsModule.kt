@@ -50,6 +50,8 @@ val viewModelsModule = module {
             stampaProgramma = get(),
             generaImmaginiAssegnazioni = get(),
             settings = get(),
+            segnaComInviato = get(),
+            caricaStatoConsegne = get(),
         )
     }
     factory {
