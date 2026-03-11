@@ -149,9 +149,6 @@ ON week_plan(program_id);
 CREATE INDEX IF NOT EXISTS assignment_person_id_idx
 ON assignment(person_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS assignment_unique_part_slot
-ON assignment(weekly_part_id, slot);
-
 CREATE TABLE slip_delivery (
     id TEXT NOT NULL PRIMARY KEY,
     weekly_part_id TEXT NOT NULL,
@@ -159,7 +156,9 @@ CREATE TABLE slip_delivery (
     student_name TEXT NOT NULL,
     assistant_name TEXT,
     sent_at TEXT NOT NULL,
-    cancelled_at TEXT
+    cancelled_at TEXT,
+    FOREIGN KEY (weekly_part_id) REFERENCES weekly_part(id) ON DELETE CASCADE,
+    FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS slip_delivery_part_week_idx
