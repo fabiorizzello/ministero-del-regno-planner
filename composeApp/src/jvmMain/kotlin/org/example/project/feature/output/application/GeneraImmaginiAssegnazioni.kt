@@ -98,7 +98,7 @@ class GeneraImmaginiAssegnazioni(
                 assignments = assignments,
                 selectedPartIds = selectedPartIds,
             )
-            val outputDir = ensureOutputDir()
+            val outputDir = ensureOutputDir().bind()
 
             slips.map { slipWithOrder ->
                 val baseName = buildWeeklySlipBaseName(
@@ -122,7 +122,7 @@ class GeneraImmaginiAssegnazioni(
                 ?: raise(DomainError.NotFound("Programma"))
             val weeks = weekPlanQueries.listByProgram(programId)
                 .sortedBy { it.weekStartDate }
-            val outputDir = ensureOutputDir()
+            val outputDir = ensureOutputDir().bind()
             cleanupProgramTicketExports(
                 outputDir = outputDir,
                 year = program.year,
@@ -271,10 +271,11 @@ class GeneraImmaginiAssegnazioni(
         }
     }
 
-    private fun ensureOutputDir(): Path {
+    private fun ensureOutputDir(): Either<DomainError, Path> {
         val outputDir = outputDirProvider()
-        Files.createDirectories(outputDir)
-        return outputDir
+        return Either.catch { Files.createDirectories(outputDir) }
+            .mapLeft { DomainError.Validation("Impossibile creare directory output: ${it.message}") }
+            .map { outputDir }
     }
 }
 

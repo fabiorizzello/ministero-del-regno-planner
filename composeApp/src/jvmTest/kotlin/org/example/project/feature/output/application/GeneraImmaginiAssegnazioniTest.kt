@@ -249,6 +249,66 @@ class GeneraImmaginiAssegnazioniTest {
     }
 
     @Test
+    fun `invoke ritorna Validation se directory output non puo essere creata`() = runTest {
+        val blockerFile = Files.createTempFile("blocker", ".txt")
+        val impossibleDir = blockerFile.resolve("subdir")
+        val weekDate = LocalDate.of(2026, 3, 2)
+        val weekPlanQueries = mockk<WeekPlanQueries>()
+        val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val week = weekPlan(
+            id = "week-1",
+            monday = weekDate,
+            status = WeekPlanStatus.ACTIVE,
+            parts = listOf(singleSlotPart("p1", "Lettura")),
+        )
+        coEvery { weekPlanQueries.findByDate(weekDate) } returns week
+        coEvery { caricaAssegnazioni(weekDate) } returns listOf(
+            assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+        )
+
+        val useCase = GeneraImmaginiAssegnazioni(
+            programStore = mockk(),
+            weekPlanQueries = weekPlanQueries,
+            caricaAssegnazioni = caricaAssegnazioni,
+            renderer = PdfAssignmentsRenderer(),
+            outputDirProvider = { impossibleDir },
+        )
+
+        val result = useCase(weekDate, emptySet())
+
+        assertIs<arrow.core.Either.Left<DomainError.Validation>>(result)
+        Unit
+    }
+
+    @Test
+    fun `generateProgramTickets ritorna Validation se directory output non puo essere creata`() = runTest {
+        val blockerFile = Files.createTempFile("blocker", ".txt")
+        val impossibleDir = blockerFile.resolve("subdir")
+        val programId = ProgramMonthId("program-2026-03")
+        val programStore = mockk<ProgramStore>()
+        coEvery { programStore.findById(programId) } returns ProgramMonth(
+            id = programId, year = 2026, month = 3,
+            startDate = LocalDate.of(2026, 3, 1), endDate = LocalDate.of(2026, 3, 31),
+            templateAppliedAt = null, createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
+        )
+        val weekPlanQueries = mockk<WeekPlanQueries>()
+        coEvery { weekPlanQueries.listByProgram(programId) } returns emptyList()
+
+        val useCase = GeneraImmaginiAssegnazioni(
+            programStore = programStore,
+            weekPlanQueries = weekPlanQueries,
+            caricaAssegnazioni = mockk(),
+            renderer = PdfAssignmentsRenderer(),
+            outputDirProvider = { impossibleDir },
+        )
+
+        val result = useCase.generateProgramTickets(programId)
+
+        assertIs<arrow.core.Either.Left<DomainError.Validation>>(result)
+        Unit
+    }
+
+    @Test
     fun `renderTicketImage ritorna Validation se pdfToPngRenderer lancia eccezione`() = runTest {
         val tempDir = Files.createTempDirectory("ticket-exports-renderfail")
         val programId = ProgramMonthId("program-2026-03")

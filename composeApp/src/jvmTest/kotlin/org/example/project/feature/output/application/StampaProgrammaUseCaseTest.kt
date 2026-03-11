@@ -1,16 +1,28 @@
 package org.example.project.feature.output.application
 
+import io.mockk.coEvery
+import io.mockk.mockk
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
+import kotlinx.coroutines.test.runTest
+import org.example.project.core.domain.DomainError
+import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.person
+import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintCard
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintCardStatus
 import org.example.project.feature.output.infrastructure.ProgramWeekPrintSlot
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.programs.application.ProgramStore
+import org.example.project.feature.programs.domain.ProgramMonth
+import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
@@ -22,6 +34,7 @@ import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -162,6 +175,37 @@ class StampaProgrammaUseCaseTest {
         } finally {
             outputDir.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun `invoke ritorna Validation se directory output non puo essere creata`() = runTest {
+        val blockerFile = Files.createTempFile("blocker", ".txt")
+        val impossibleDir = blockerFile.resolve("subdir")
+        val programId = ProgramMonthId("program-2026-03")
+        val programStore = mockk<ProgramStore>()
+        val weekPlanQueries = mockk<WeekPlanQueries>()
+        val assignmentRepository = mockk<AssignmentRepository>()
+        coEvery { programStore.findById(programId) } returns ProgramMonth(
+            id = programId, year = 2026, month = 3,
+            startDate = LocalDate.of(2026, 3, 1), endDate = LocalDate.of(2026, 3, 31),
+            templateAppliedAt = null, createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
+        )
+        coEvery { weekPlanQueries.listByProgram(programId) } returns emptyList()
+        coEvery { assignmentRepository.listByWeekPlanIds(emptySet()) } returns emptyMap()
+
+        val useCase = StampaProgrammaUseCase(
+            programStore = programStore,
+            weekPlanStore = weekPlanQueries,
+            assignmentRepository = assignmentRepository,
+            renderer = mockk(),
+            fileOpener = mockk(),
+            programExportDirProvider = { impossibleDir },
+        )
+
+        val result = useCase(programId)
+
+        assertIs<arrow.core.Either.Left<DomainError.Validation>>(result)
+        Unit
     }
 
     private fun partType(
