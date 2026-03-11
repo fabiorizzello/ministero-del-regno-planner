@@ -25,7 +25,6 @@ import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.successNotice
-import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.executeEitherOperationWithNotice
 
 internal data class SchemaUpdateAnomalyUi(
@@ -63,6 +62,7 @@ internal class ProclamatoriListViewModel(
     private val elimina: EliminaProclamatoreUseCase,
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
+    private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val partTypeStore: PartTypeStore,
@@ -213,7 +213,7 @@ internal class ProclamatoriListViewModel(
     fun dismissSchemaUpdateAnomalies() {
         if (_uiState.value.isDismissingSchemaAnomalies) return
         scope.launch {
-            _uiState.executeAsyncOperationWithNotice(
+            _uiState.executeEitherOperationWithNotice(
                 loadingUpdate = { it.copy(isDismissingSchemaAnomalies = true) },
                 noticeUpdate = { state, notice -> state.copy(isDismissingSchemaAnomalies = false, notice = notice) },
                 successMessage = "Pannello anomalie archiviato",
