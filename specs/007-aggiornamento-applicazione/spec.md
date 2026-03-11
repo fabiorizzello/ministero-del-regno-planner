@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-aggiornamento-applicazione`
 **Created**: 2026-03-10
-**Status**: Parzialmente implementato — check manuale e release GitHub automatica funzionanti, installazione silenziosa da completare
+**Status**: Parzialmente implementato — check manuale e release locale funzionanti, installazione silenziosa da completare
 
 ---
 
@@ -116,53 +116,62 @@ Al riavvio dopo un aggiornamento, la nuova versione dell'app rileva automaticame
 
 ---
 
-## Processo di rilascio — GitHub Actions
+## Processo di rilascio — Script locale
 
-**Stato**: Implementato per release stable
+**Stato**: Implementato
 
-Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubReleasesClient` lo trovi come asset scaricabile), il repository usa un workflow CI/CD dedicato in `.github/workflows/release.yml`.
+Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubReleasesClient` lo trovi come asset scaricabile), si usa lo script PowerShell `scripts/release-local.ps1`, eseguito manualmente dalla macchina Windows dello sviluppatore.
 
-### Trigger
+### Prerequisiti
 
-Il workflow parte su push di un tag stable nel formato `v*.*.*` (es. `v1.3.0`):
+- **Windows** (JPackage/WiX è Windows-only per la generazione MSI)
+- **JDK 21** — passare `-JavaHome` o impostare `JAVA_HOME`
+- **GitHub token** con permessi `repo` — passare `-GitHubToken` oppure impostare `GH_TOKEN`/`GITHUB_TOKEN`
 
-```yaml
-on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+### Uso rapido
+
+```powershell
+# Solo build locale (verifica MSI senza pubblicare)
+.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1"
+
+# Release completa: test + build + tag + push + GitHub Release + upload MSI
+$env:GH_TOKEN = "ghp_..."
+.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1" -RunTests -PublishRemote
 ```
 
-### Requisiti runner
+### Flusso `-PublishRemote`
 
-La build MSI può avvenire **solo su Windows** (JPackage/WiX è Windows-only):
+`-PublishRemote` attiva automaticamente `-CreateTag`, `-PushTag` e `-PublishRelease`. Il flusso completo:
 
-```yaml
-jobs:
-  build-and-release:
-    runs-on: windows-latest
-```
+1. **(opzionale)** Esegue `:composeApp:jvmTest` se `-RunTests` è presente.
+2. Verifica che il working tree git sia pulito (nessun file non committato).
+3. Esegue `:composeApp:packageMsi -Papp.version=X.Y.Z` (e `:composeApp:packageExe` se `-IncludeExe`).
+4. Crea il tag annotato `vX.Y.Z` (skip se esiste già).
+5. Push del tag su `origin`.
+6. Crea la GitHub Release (o la aggiorna se esiste già per quel tag) — non-draft, non-prerelease.
+7. Carica il file MSI come asset (sovrascrive asset omonimo se presente).
 
-### Passi principali
+### Flag principali
 
-1. **Checkout** del repo al tag.
-2. **Setup JDK 21** (stesso major usato in sviluppo).
-3. **Estrai versione** dal tag (`${{ github.ref_name }}` → `v1.3.0` → strip prefisso `v` → `1.3.0`).
-4. **Build MSI**:
-   ```
-   ./gradlew :composeApp:packageMsi -Papp.version=1.3.0
-   ```
-   Output: `composeApp/build/compose/binaries/main/msi/scuola-di-ministero-1.3.0.msi`
-5. **Trova il file MSI** generato nella cartella output Compose.
-6. **Crea GitHub Release** non-draft, non-prerelease, con il tag come riferimento e carica il file MSI come asset.
+| Flag | Descrizione |
+|---|---|
+| `-Version` (obbligatorio) | Versione nel formato `MAJOR.MINOR.PATCH` (es. `1.3.0`) |
+| `-JavaHome` | Path al JDK; default: `$env:JAVA_HOME` |
+| `-RunTests` | Esegue i test JVM prima del packaging |
+| `-PublishRemote` | Flusso completo: tag + push + release + upload |
+| `-IncludeExe` | Pubblica anche l'EXE oltre all'MSI |
+| `-ReleaseNotesFile` | File markdown con le note di release |
+| `-ReleaseBody` | Note di release inline (alternativa a `-ReleaseNotesFile`) |
+| `-WhatIf` | Dry run — mostra cosa farebbe senza eseguire |
+| `-OpenOutput` | Apre la cartella di output in Explorer dopo il build |
 
 ### Note
 
 - Il `packageVersion` in Gradle (`numericVersion`) deve essere in formato `MAJOR.MINOR.PATCH` senza suffisso — JPackage rifiuta versioni con trattino (es. `1.3.0-dev`). Il campo `appVersion` può contenere il suffisso per uso interno, ma `numericVersion = appVersion.substringBefore("-")` già lo gestisce.
 - L'upgrade code MSI viene derivato automaticamente da JPackage in base a `packageName`. Non modificare `packageName` tra release oppure Windows tratterà le versioni come prodotti diversi (doppia installazione).
-- `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Il workflow deve uploadare il file `.msi`.
-- Il GITHUB_TOKEN fornito automaticamente da Actions è sufficiente per creare release e caricare asset nello stesso repository.
-- La release automation pubblica solo release **stable**. I tag `vX.Y.Z` producono release normali (`prerelease: false`).
+- `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Lo script deve uploadare il file `.msi`.
+- Lo script supporta `-WhatIf` per verificare il flusso senza effetti collaterali.
+- Lo script rileva il repository slug automaticamente dal remote `origin`; può essere sovrascritto con `-Repository owner/repo`.
 
 ---
 
@@ -178,5 +187,5 @@ jobs:
 | `AggiornaApplicazione` — download | ✅ Implementato |
 | `AggiornaApplicazione` — install silenziosa | ❌ Da implementare |
 | Banner riavvio in `DiagnosticsViewModel` | ❌ Da implementare |
-| GitHub Actions workflow release stable | ✅ Implementato |
+| Script release locale (`release-local.ps1`) | ✅ Implementato |
 | Documentazione migration SQLDelight | ❌ Da formalizzare |
