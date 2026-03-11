@@ -110,6 +110,7 @@ function Assert-JavaMajorVersionAtLeast {
         [int]$MinimumMajorVersion
     )
 
+    $versionOutput = @()
     try {
         $versionOutput = & $JavaExePath -version 2>&1
         if ($LASTEXITCODE -ne 0) {
