@@ -260,7 +260,7 @@ class AssignmentManagementViewModelTest {
     }
 
     @Test
-    fun `closeAssignmentTicketsDialog chiude modale ma mantiene i dati per badge`() = runTest {
+    fun `closeAssignmentTicketsDialog chiude modale e pulisce stato`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioni>()
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
@@ -283,8 +283,7 @@ class AssignmentManagementViewModelTest {
         vm.closeAssignmentTicketsDialog()
 
         assertFalse(vm.uiState.value.isAssignmentTicketsDialogOpen)
-        // Tickets and delivery status are retained for the badge
-        assertEquals(listOf(ticket), vm.uiState.value.assignmentTickets)
+        assertEquals(emptyList(), vm.uiState.value.assignmentTickets)
         assertNull(vm.uiState.value.assignmentTicketsError)
     }
 
