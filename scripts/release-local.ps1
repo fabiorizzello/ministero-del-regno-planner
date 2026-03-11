@@ -316,8 +316,12 @@ if ($PublishRemote) {
         Push-Location $repoRoot
         try {
             $releaseExists = $false
-            & $ghExe.Source release view $tagName 2>$null | Out-Null
-            if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+            try {
+                & $ghExe.Source release view $tagName *> $null
+                if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+            } catch {
+                $releaseExists = $false
+            }
 
             if ($releaseExists) {
                 Write-Step "Release $tagName esistente - aggiornamento asset"
