@@ -23,7 +23,22 @@ class SqlDelightSlipDeliveryStoreTest {
             schema = MinisteroDatabase.Schema,
         )
         driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
-        return MinisteroDatabase(driver)
+        val db = MinisteroDatabase(driver)
+        seedParents(db)
+        return db
+    }
+
+    /** Seed parent records required by slip_delivery FK constraints. */
+    private fun seedParents(database: MinisteroDatabase) {
+        val q = database.ministeroDatabaseQueries
+        q.upsertPartType("pt-1", "pt-test", "Test Part", 1, "UOMO", 0, 0)
+        q.insertWeekPlan("week-1", "2026-03-09")
+        q.insertWeekPlan("week-2", "2026-03-16")
+        q.insertWeekPlan("week-99", "2026-03-23")
+        q.insertWeeklyPart("wp-1", "week-1", "pt-1", null, 0)
+        q.insertWeeklyPart("wp-2", "week-1", "pt-1", null, 1)
+        q.insertWeeklyPart("wp-3", "week-1", "pt-1", null, 2)
+        q.insertWeeklyPart("wp-4", "week-99", "pt-1", null, 0)
     }
 
     private fun delivery(
