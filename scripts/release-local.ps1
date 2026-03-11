@@ -320,7 +320,7 @@ if ($PublishRemote) {
             if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
 
             if ($releaseExists) {
-                Write-Step "Release $tagName esistente — aggiornamento asset"
+                Write-Step "Release $tagName esistente - aggiornamento asset"
 
                 if (-not [string]::IsNullOrWhiteSpace($ReleaseBody) -or -not [string]::IsNullOrWhiteSpace($ReleaseNotesFile)) {
                     & $ghExe.Source release edit $tagName @notesArgs
