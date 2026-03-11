@@ -40,6 +40,7 @@ class PdfAssignmentsRenderer {
         val weekStart: LocalDate,
         val partNumber: Int,
         val partLabel: String,
+        val roleLabel: String? = null,
     )
 
     fun renderAssignmentSlipPdf(slip: AssignmentSlip, outputPath: Path) {
@@ -65,8 +66,9 @@ class PdfAssignmentsRenderer {
                 // Data
                 drawSlipValue(content, slip.weekStart.format(dateFormatter), x = 47.7f, y = 219.9f)
 
-                // Parte n.: numero + etichetta
-                drawSlipValue(content, "${slip.partNumber} - ${slip.partLabel}", x = 67.9f, y = 196.6f)
+                // Parte n.: numero + etichetta + role label
+                val roleSuffix = slip.roleLabel?.let { " ($it)" } ?: ""
+                drawSlipValue(content, "${slip.partNumber}. ${slip.partLabel}$roleSuffix", x = 67.9f, y = 196.6f)
 
                 // Checkbox Sala principale: always checked — draw X at checkbox position
                 // Checkbox char at x=24.7, y range 140.6-154.2, center ~147.4
