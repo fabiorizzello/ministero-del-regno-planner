@@ -159,6 +159,10 @@ fun main() {
                 AppScreen(
                     initialUiScale = initialUiScale,
                     onUiScaleChange = settingsStore::saveUiScale,
+                    onRestartRequested = {
+                        settingsStore.save(windowState.toSettingsSnapshot())
+                        exitApplication()
+                    },
                 )
             }
         }

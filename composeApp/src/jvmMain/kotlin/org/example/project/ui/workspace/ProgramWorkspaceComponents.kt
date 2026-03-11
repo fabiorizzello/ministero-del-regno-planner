@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -635,11 +636,16 @@ internal fun AssignmentTicketsDialog(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
+                                                        .height(IntrinsicSize.Min)
                                                         .padding(bottom = 16.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                                 ) {
                                                     rowItems.forEach { item ->
-                                                        Box(modifier = Modifier.weight(1f)) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .fillMaxHeight(),
+                                                        ) {
                                                             when (item) {
                                                                 is AssignmentTicketImage -> AssignmentTicketCard(
                                                                     ticket = item,
@@ -653,11 +659,15 @@ internal fun AssignmentTicketsDialog(
                                                                     onMarkAsDelivered = { onMarkAsDelivered(item) },
                                                                     onCancelDelivery = null,
                                                                     isMarkingDelivered = isMarkingDelivered,
-                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .fillMaxHeight(),
                                                                 )
                                                                 is PartAssignmentWarning -> PartWarningCard(
                                                                     warning = item,
-                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .fillMaxHeight(),
                                                                 )
                                                             }
                                                         }
@@ -691,12 +701,17 @@ internal fun AssignmentTicketsDialog(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
+                                                        .height(IntrinsicSize.Min)
                                                         .padding(bottom = 16.dp)
                                                         .alpha(0.6f),
                                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                                 ) {
                                                     rowItems.forEach { item ->
-                                                        Box(modifier = Modifier.weight(1f)) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .fillMaxHeight(),
+                                                        ) {
                                                             AssignmentTicketCard(
                                                                 ticket = item,
                                                                 deliveryInfo = deliveryStatus[item.weeklyPartId to item.weekPlanId],
@@ -709,7 +724,9 @@ internal fun AssignmentTicketsDialog(
                                                                 onMarkAsDelivered = null,
                                                                 onCancelDelivery = { onCancelDelivery(item) },
                                                                 isCancellingDelivery = isCancellingDelivery,
-                                                                modifier = Modifier.fillMaxWidth(),
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .fillMaxHeight(),
                                                             )
                                                         }
                                                     }
@@ -871,6 +888,7 @@ private fun AssignmentTicketCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -952,6 +970,8 @@ private fun AssignmentTicketCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
 
             if (onMarkAsDelivered != null) {
                 Surface(
@@ -1607,6 +1627,7 @@ internal fun SidebarFooterButton(
     icon: ImageVector,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    tooltip: String? = null,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
@@ -1618,35 +1639,37 @@ internal fun SidebarFooterButton(
         hovered -> sketch.surfaceMuted
         else -> sketch.surface
     }
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .handCursorOnHover(enabled)
-            .hoverable(interactionSource)
-            .focusable(enabled = enabled, interactionSource = interactionSource)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        shape = RoundedCornerShape(8.dp),
-        color = bgColor,
-        border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    WorkspaceTooltipWrap(tooltip) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .handCursorOnHover(enabled)
+                .hoverable(interactionSource)
+                .focusable(enabled = enabled, interactionSource = interactionSource)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            shape = RoundedCornerShape(8.dp),
+            color = bgColor,
+            border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
         ) {
-            Icon(icon, contentDescription = null, tint = sketch.inkSoft.copy(alpha = alpha), modifier = Modifier.size(12.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = sketch.inkSoft.copy(alpha = alpha),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(icon, contentDescription = null, tint = sketch.inkSoft.copy(alpha = alpha), modifier = Modifier.size(12.dp))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = sketch.inkSoft.copy(alpha = alpha),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -1659,6 +1682,7 @@ internal fun ProgramRightPanelButton(
     enabled: Boolean,
     iconColor: Color? = null,
     onClick: () -> Unit,
+    tooltip: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -1682,42 +1706,44 @@ internal fun ProgramRightPanelButton(
     }
     val contentColor = if (isPrimary) Color.White.copy(alpha = alpha) else sketch.inkSoft.copy(alpha = alpha)
     val iconTint = (iconColor ?: contentColor).copy(alpha = alpha)
-    Surface(
-        modifier = modifier
-            .handCursorOnHover(enabled)
-            .hoverable(interactionSource)
-            .focusable(enabled = enabled, interactionSource = interactionSource)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        shape = RoundedCornerShape(8.dp),
-        color = container,
-        border = BorderStroke(1.dp, border),
-    ) {
-        Row(
-            modifier = Modifier
-                .height(34.dp)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+    WorkspaceTooltipWrap(tooltip) {
+        Surface(
+            modifier = modifier
+                .handCursorOnHover(enabled)
+                .hoverable(interactionSource)
+                .focusable(enabled = enabled, interactionSource = interactionSource)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            shape = RoundedCornerShape(8.dp),
+            color = container,
+            border = BorderStroke(1.dp, border),
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(13.dp),
-            )
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.weight(1f),
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier
+                    .height(34.dp)
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(13.dp),
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    modifier = Modifier.weight(1f),
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -1973,6 +1999,7 @@ internal fun ProgramDangerButton(
     icon: ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
+    tooltip: String? = null,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
@@ -1989,43 +2016,66 @@ internal fun ProgramDangerButton(
         enabled && hovered -> sketch.bad.copy(alpha = 0.58f)
         else -> sketch.bad.copy(alpha = 0.45f * alpha)
     }
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .handCursorOnHover(enabled)
-            .hoverable(interactionSource)
-            .focusable(enabled = enabled, interactionSource = interactionSource)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        shape = RoundedCornerShape(8.dp),
-        color = container,
-        border = BorderStroke(1.dp, border),
-    ) {
-        Row(
+    WorkspaceTooltipWrap(tooltip) {
+        Surface(
             modifier = Modifier
-                .height(34.dp)
-                .padding(horizontal = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxWidth()
+                .handCursorOnHover(enabled)
+                .hoverable(interactionSource)
+                .focusable(enabled = enabled, interactionSource = interactionSource)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            shape = RoundedCornerShape(8.dp),
+            color = container,
+            border = BorderStroke(1.dp, border),
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = sketch.bad.copy(alpha = alpha),
-                modifier = Modifier.size(12.dp),
-            )
-            Text(
-                label,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = sketch.bad.copy(alpha = alpha),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier
+                    .height(34.dp)
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = sketch.bad.copy(alpha = alpha),
+                    modifier = Modifier.size(12.dp),
+                )
+                Text(
+                    label,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = sketch.bad.copy(alpha = alpha),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkspaceTooltipWrap(
+    tooltip: String?,
+    content: @Composable () -> Unit,
+) {
+    if (tooltip.isNullOrBlank()) {
+        content()
+    } else {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                positioning = TooltipAnchorPosition.Above,
+            ),
+            tooltip = { PlainTooltip { Text(tooltip) } },
+            state = rememberTooltipState(),
+        ) {
+            content()
         }
     }
 }

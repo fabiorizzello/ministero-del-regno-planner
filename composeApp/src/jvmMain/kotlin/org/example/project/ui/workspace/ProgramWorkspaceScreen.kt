@@ -590,6 +590,7 @@ fun ProgramWorkspaceScreen() {
                             label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
                                 "Aggiornamento..." else "Aggiorna schemi",
                             icon = Icons.Filled.Refresh,
+                            tooltip = "Scarica gli schemi aggiornati e riallinea il programma selezionato",
                             onClick = {
                                 schemaVM.refreshSchemasAndProgram(
                                     selectedProgramId = lifecycleState.selectedProgramId,
@@ -795,6 +796,7 @@ fun ProgramWorkspaceScreen() {
                                     icon = Icons.Filled.PlayArrow,
                                     isPrimary = true,
                                     enabled = !assignmentState.isAutoAssigning,
+                                    tooltip = "Distribuisce automaticamente le assegnazioni del mese selezionato",
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
                                             assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
@@ -807,6 +809,7 @@ fun ProgramWorkspaceScreen() {
                                     icon = Icons.Filled.Image,
                                     isPrimary = false,
                                     enabled = !assignmentState.isLoadingAssignmentTickets,
+                                    tooltip = "Genera e apre i biglietti immagine per le assegnazioni del mese",
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
                                             assignmentVM.openAssignmentTickets(programId)
@@ -826,6 +829,7 @@ fun ProgramWorkspaceScreen() {
                                     isPrimary = false,
                                     iconColor = MaterialTheme.workspaceSketch.bad,
                                     enabled = !assignmentState.isPrintingProgram,
+                                    tooltip = "Genera il PDF del programma mensile attuale",
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
                                             assignmentVM.printSelectedProgram(programId)
@@ -909,6 +913,7 @@ fun ProgramWorkspaceScreen() {
                                 label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni future",
                                 icon = Icons.Filled.ClearAll,
                                 enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
+                                tooltip = "Rimuove tutte le assegnazioni future dal mese selezionato",
                                 onClick = {
                                     lifecycleState.selectedProgramId?.let { programId ->
                                         assignmentVM.requestClearAssignments(programId, fromFutureDate)
@@ -921,6 +926,7 @@ fun ProgramWorkspaceScreen() {
                                 label = if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese",
                                 icon = Icons.Filled.Delete,
                                 enabled = !lifecycleState.isDeletingSelectedProgram,
+                                tooltip = "Elimina il mese selezionato con settimane e assegnazioni collegate",
                                 onClick = { lifecycleVM.requestDeleteSelectedProgram() },
                             )
                         }

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-aggiornamento-applicazione`
 **Created**: 2026-03-10
-**Status**: Parzialmente implementato — check manuale funzionante, installazione silenziosa da completare
+**Status**: Parzialmente implementato — check manuale e release GitHub automatica funzionanti, installazione silenziosa da completare
 
 ---
 
@@ -22,7 +22,8 @@ L'applicazione distribuisce aggiornamenti tramite **GitHub Releases**. Il proces
   - Alternativa senza UAC: `INSTALLSCOPE=perUser` installa in `%LOCALAPPDATA%\Programs`.
 - **Upgrade code**: JPackage genera un upgrade code stabile derivato da `packageName`. Due MSI con lo stesso `packageName` si riconoscono come versioni dello stesso prodotto — il nuovo disinstalla automaticamente il vecchio.
 - **Migrazioni DB**: SQLDelight gestisce le migrazioni in autonomia al primo avvio della nuova versione, confrontando `schemaVersion` nel DB con quella nel JAR. I file `.sqm` in `commonMain/sqldelight/.../migrations/` devono essere aggiunti ad ogni modifica di schema.
-- **Canale di release**: `UpdateChannel.STABLE` usa `/releases/latest`; `PREVIEW` usa `/releases` e prende il primo. Il repo sorgente è in `RemoteConfig.UPDATE_REPO`.
+- **Canale di release**: il prodotto supporta solo il canale **stable**. Il client interroga `GitHub Releases /releases/latest` del repository configurato in `RemoteConfig.UPDATE_REPO`.
+- **Out of scope**: beta, preview, prerelease e workflow separati per canali alternativi non fanno parte della feature.
 
 ---
 
@@ -117,13 +118,13 @@ Al riavvio dopo un aggiornamento, la nuova versione dell'app rileva automaticame
 
 ## Processo di rilascio — GitHub Actions
 
-**Stato**: Da implementare
+**Stato**: Implementato per release stable
 
-Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubReleasesClient` lo trovi come asset scaricabile), serve un workflow CI/CD.
+Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubReleasesClient` lo trovi come asset scaricabile), il repository usa un workflow CI/CD dedicato in `.github/workflows/release.yml`.
 
 ### Trigger
 
-Il workflow parte su push di un tag nel formato `v*.*.*` (es. `v1.3.0`):
+Il workflow parte su push di un tag stable nel formato `v*.*.*` (es. `v1.3.0`):
 
 ```yaml
 on:
@@ -138,7 +139,7 @@ La build MSI può avvenire **solo su Windows** (JPackage/WiX è Windows-only):
 
 ```yaml
 jobs:
-  release:
+  build-and-release:
     runs-on: windows-latest
 ```
 
@@ -152,7 +153,8 @@ jobs:
    ./gradlew :composeApp:packageMsi -Papp.version=1.3.0
    ```
    Output: `composeApp/build/compose/binaries/main/msi/scuola-di-ministero-1.3.0.msi`
-5. **Crea GitHub Release** con il tag come nome e carica il file MSI come asset.
+5. **Trova il file MSI** generato nella cartella output Compose.
+6. **Crea GitHub Release** non-draft, non-prerelease, con il tag come riferimento e carica il file MSI come asset.
 
 ### Note
 
@@ -160,6 +162,7 @@ jobs:
 - L'upgrade code MSI viene derivato automaticamente da JPackage in base a `packageName`. Non modificare `packageName` tra release oppure Windows tratterà le versioni come prodotti diversi (doppia installazione).
 - `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Il workflow deve uploadare il file `.msi`.
 - Il GITHUB_TOKEN fornito automaticamente da Actions è sufficiente per creare release e caricare asset nello stesso repository.
+- La release automation pubblica solo release **stable**. I tag `vX.Y.Z` producono release normali (`prerelease: false`).
 
 ---
 
@@ -175,5 +178,5 @@ jobs:
 | `AggiornaApplicazione` — download | ✅ Implementato |
 | `AggiornaApplicazione` — install silenziosa | ❌ Da implementare |
 | Banner riavvio in `DiagnosticsViewModel` | ❌ Da implementare |
-| GitHub Actions workflow release | ❌ Da implementare |
+| GitHub Actions workflow release stable | ✅ Implementato |
 | Documentazione migration SQLDelight | ❌ Da formalizzare |

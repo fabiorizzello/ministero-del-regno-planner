@@ -30,23 +30,13 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
-import org.example.project.core.config.UpdateSettingsStore
-import arrow.core.Either
-import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.feature.diagnostics.application.StoricoPreview
-import org.example.project.feature.updates.application.AggiornaApplicazione
-import org.example.project.feature.updates.application.UpdateAsset
-import org.example.project.core.config.UpdateChannel
-import org.example.project.feature.updates.application.UpdateCheckResult
-import org.example.project.feature.updates.application.UpdateStatusStore
-import org.example.project.feature.updates.application.VerificaAggiornamenti
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
-import org.example.project.ui.components.executeAsyncOperationWithNotice
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
 
@@ -81,36 +71,15 @@ internal data class DiagnosticsUiState(
     val isExporting: Boolean = false,
     val showCleanupConfirmDialog: Boolean = false,
     val notice: FeedbackBannerModel? = null,
-    val updateChannel: UpdateChannel = UpdateChannel.STABLE,
-    val updateAvailable: Boolean = false,
-    val updateLatestVersion: String? = null,
-    val updateLastCheck: Instant? = null,
-    val updateStatusText: String = "Nessun controllo eseguito",
-    val updateAsset: UpdateAsset? = null,
-    val isCheckingUpdates: Boolean = false,
-    val isUpdating: Boolean = false,
 )
 
 internal class DiagnosticsViewModel(
     private val scope: CoroutineScope,
     private val contaStorico: ContaStoricoUseCase,
     private val eliminaStorico: EliminaStoricoUseCase,
-    private val verificaAggiornamenti: VerificaAggiornamenti,
-    private val aggiornaApplicazione: AggiornaApplicazione,
-    private val updateStatusStore: UpdateStatusStore,
-    private val updateSettingsStore: UpdateSettingsStore,
 ) {
     private val _state = MutableStateFlow(initialState())
     val state: StateFlow<DiagnosticsUiState> = _state.asStateFlow()
-
-    init {
-        _state.update { it.copy(updateChannel = updateSettingsStore.loadChannel(), updateLastCheck = updateSettingsStore.loadLastCheck()) }
-        scope.launch {
-            updateStatusStore.state.collect { result ->
-                if (result != null) applyUpdateResult(result)
-            }
-        }
-    }
 
     fun onScreenEntered() {
         refreshStorageUsage()
@@ -241,39 +210,6 @@ internal class DiagnosticsViewModel(
         _state.update { it.copy(notice = null) }
     }
 
-    fun checkUpdates() {
-        if (_state.value.isCheckingUpdates) return
-        scope.launch {
-            _state.update { it.copy(isCheckingUpdates = true) }
-            val result = verificaAggiornamenti()
-            applyUpdateResult(result)
-            _state.update { it.copy(isCheckingUpdates = false) }
-        }
-    }
-
-    fun startUpdate() {
-        val asset = _state.value.updateAsset ?: return
-        if (_state.value.isUpdating) return
-        scope.launch {
-            _state.executeEitherOperation(
-                loadingUpdate = { it.copy(isUpdating = true) },
-                successUpdate = { state, path ->
-                    state.copy(
-                        isUpdating = false,
-                        notice = successNotice("Installer scaricato: ${path.fileName}"),
-                    )
-                },
-                errorUpdate = { state, error ->
-                    state.copy(
-                        isUpdating = false,
-                        notice = errorNotice("Aggiornamento non riuscito: ${error.toMessage()}"),
-                    )
-                },
-                operation = { aggiornaApplicazione(asset) },
-            )
-        }
-    }
-
     fun copySupportInfo() {
         val snapshot = _state.value
         val content = buildSupportInfo(snapshot)
@@ -298,33 +234,6 @@ internal class DiagnosticsViewModel(
             }
         }.onFailure { error ->
             _state.update { it.copy(notice = errorNotice("$errorPrefix: ${error.message}")) }
-        }
-    }
-
-    private fun applyUpdateResult(result: Either<DomainError, UpdateCheckResult>) {
-        _state.update { state ->
-            when (result) {
-                is Either.Left -> state.copy(
-                    updateAvailable = false,
-                    updateLatestVersion = null,
-                    updateAsset = null,
-                    updateStatusText = "Errore verifica: ${result.value.toMessage()}",
-                )
-                is Either.Right -> {
-                    val r = result.value
-                    state.copy(
-                        updateAvailable = r.updateAvailable,
-                        updateLatestVersion = r.latestVersion,
-                        updateLastCheck = r.checkedAt,
-                        updateStatusText = when {
-                            r.latestVersion.isNullOrBlank() -> "Nessuna release trovata"
-                            r.updateAvailable -> "Aggiornamento disponibile: ${r.latestVersion}"
-                            else -> "App aggiornata (v${r.currentVersion})"
-                        },
-                        updateAsset = r.asset,
-                    )
-                }
-            }
         }
     }
 

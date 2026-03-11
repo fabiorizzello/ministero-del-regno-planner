@@ -1,6 +1,7 @@
 package org.example.project.feature.updates.application
 
 import java.time.Instant
+import java.nio.file.Path
 import org.example.project.core.config.UpdateChannel
 
 data class UpdateAsset(
@@ -21,5 +22,12 @@ data class UpdateCheckResult(
     val latestVersion: String?,
     val updateAvailable: Boolean,
     val asset: UpdateAsset?,
+    val releaseTitle: String?,
+    val releaseNotes: String?,
     val checkedAt: Instant,
+)
+
+data class UpdateInstallResult(
+    val installerPath: Path,
+    val restartRequired: Boolean,
 )

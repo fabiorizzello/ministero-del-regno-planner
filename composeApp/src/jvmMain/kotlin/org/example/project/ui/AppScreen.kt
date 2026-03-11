@@ -8,6 +8,7 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,22 +20,39 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.SystemUpdateAlt
+import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,10 +85,13 @@ import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
+import org.example.project.ui.updates.UpdateCenterUiState
+import org.example.project.ui.updates.UpdateCenterViewModel
 import org.example.project.ui.workspace.ProgramWorkspaceScreen
 import org.jetbrains.jewel.window.DecoratedWindowScope
 import org.jetbrains.jewel.window.TitleBar
 import org.jetbrains.jewel.window.newFullscreenControls
+import org.koin.core.context.GlobalContext
 
 internal val LocalSectionNavigator = staticCompositionLocalOf<(AppSection) -> Unit> { {} }
 private const val UI_SCALE_MIN = 0.85f
@@ -97,6 +118,7 @@ internal enum class AppSection(
 fun DecoratedWindowScope.AppScreen(
     initialUiScale: Float = 1f,
     onUiScaleChange: (Float) -> Unit = {},
+    onRestartRequested: () -> Unit = {},
 ) {
     AppTheme {
         val spacing = MaterialTheme.spacing
@@ -107,6 +129,9 @@ fun DecoratedWindowScope.AppScreen(
         }
         var draftUiScale by remember { mutableFloatStateOf(uiScale) }
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
+        var isUpdateMenuExpanded by rememberSaveable { mutableStateOf(false) }
+        val updateViewModel = remember { GlobalContext.get().get<UpdateCenterViewModel>() }
+        val updateState by updateViewModel.state.collectAsState()
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
             Density(
@@ -207,6 +232,7 @@ fun DecoratedWindowScope.AppScreen(
                                             selected = currentSection == section,
                                             onClick = { navigateToSection(section) },
                                             section = section,
+                                            tooltip = "Apri ${section.label}",
                                             tag = when (section) {
                                                 AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
                                                 AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
@@ -225,10 +251,36 @@ fun DecoratedWindowScope.AppScreen(
                                         onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
                                         icon = Icons.Filled.BugReport,
                                         contentDescription = "Diagnostica",
+                                        tooltip = "Apri strumenti diagnostici",
                                         modifier = Modifier.alpha(
                                             if (currentSection == AppSection.DIAGNOSTICS) 0.75f else 0.35f
                                         ),
                                     )
+                                    Box {
+                                        UpdateToolbarAction(
+                                            state = updateState,
+                                            onClick = { isUpdateMenuExpanded = true },
+                                        )
+                                        DropdownMenu(
+                                            expanded = isUpdateMenuExpanded,
+                                            onDismissRequest = { isUpdateMenuExpanded = false },
+                                            properties = PopupProperties(focusable = true),
+                                            shape = RoundedCornerShape(12.dp),
+                                            containerColor = sketch.surface,
+                                            border = BorderStroke(1.dp, sketch.lineSoft),
+                                            shadowElevation = 8.dp,
+                                        ) {
+                                            UpdateCenterMenu(
+                                                state = updateState,
+                                                onCheckUpdates = updateViewModel::checkUpdates,
+                                                onStartUpdate = updateViewModel::startUpdate,
+                                                onRestart = {
+                                                    isUpdateMenuExpanded = false
+                                                    onRestartRequested()
+                                                },
+                                            )
+                                        }
+                                    }
                                     Box {
                                         ToolbarIconAction(
                                             onClick = {
@@ -237,6 +289,7 @@ fun DecoratedWindowScope.AppScreen(
                                             },
                                             icon = Icons.Filled.FormatSize,
                                             contentDescription = "Dimensione testo",
+                                            tooltip = "Regola la scala dell'interfaccia",
                                         )
                                         DropdownMenu(
                                             expanded = isSizeMenuExpanded,
@@ -307,6 +360,7 @@ fun DecoratedWindowScope.AppScreen(
                                                             enabled = draftPercentage != preset,
                                                             selected = draftPercentage == preset,
                                                             label = "${preset}%",
+                                                            tooltip = "Imposta la scala al ${preset}%",
                                                             modifier = Modifier.weight(1f),
                                                         )
                                                     }
@@ -319,11 +373,13 @@ fun DecoratedWindowScope.AppScreen(
                                                         onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
                                                         enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
                                                         label = "-${UI_SCALE_STEP_PERCENT}%",
+                                                        tooltip = "Riduci la scala di ${UI_SCALE_STEP_PERCENT} punti",
                                                     )
                                                     ScaleMenuButton(
                                                         onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
                                                         enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
                                                         label = "+${UI_SCALE_STEP_PERCENT}%",
+                                                        tooltip = "Aumenta la scala di ${UI_SCALE_STEP_PERCENT} punti",
                                                     )
                                                 }
                                             }
@@ -350,6 +406,7 @@ private fun TopBarSectionButton(
     selected: Boolean,
     onClick: () -> Unit,
     section: AppSection,
+    tooltip: String? = null,
     tag: String,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -378,39 +435,41 @@ private fun TopBarSectionButton(
         else -> sketch.toolbarInkMuted
     }
 
-    Surface(
-        modifier = Modifier
-            .testTag(tag)
-            .handCursorOnHover()
-            .hoverable(interactionSource)
-            .focusable(interactionSource = interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        shape = shape,
-        color = containerColor,
-        border = border,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    TooltipWrap(tooltip) {
+        Surface(
+            modifier = Modifier
+                .testTag(tag)
+                .handCursorOnHover()
+                .hoverable(interactionSource)
+                .focusable(interactionSource = interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            shape = shape,
+            color = containerColor,
+            border = border,
         ) {
-            Icon(
-                imageVector = section.icon,
-                contentDescription = section.label,
-                tint = contentColor,
-                modifier = Modifier.width(15.dp),
-            )
-            Text(
-                text = section.label,
-                color = contentColor,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = section.icon,
+                    contentDescription = section.label,
+                    tint = contentColor,
+                    modifier = Modifier.width(15.dp),
+                )
+                Text(
+                    text = section.label,
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -455,6 +514,7 @@ private fun ScaleMenuButton(
     label: String,
     enabled: Boolean,
     selected: Boolean = false,
+    tooltip: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -463,42 +523,44 @@ private fun ScaleMenuButton(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled || selected) 1f else 0.45f
 
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = when {
-            selected -> sketch.accentSoft
-            (isHovered || isFocused) && enabled -> sketch.surface
-            else -> sketch.surfaceMuted
-        },
-        border = BorderStroke(
-            1.dp,
-            when {
-                selected -> sketch.accent.copy(alpha = 0.72f)
-                isFocused && enabled -> sketch.accent.copy(alpha = 0.72f)
-                else -> sketch.lineSoft.copy(alpha = alpha)
+    TooltipWrap(tooltip) {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = when {
+                selected -> sketch.accentSoft
+                (isHovered || isFocused) && enabled -> sketch.surface
+                else -> sketch.surfaceMuted
             },
-        ),
-        modifier = modifier
-            .hoverable(interactionSource)
-            .focusable(enabled = enabled && !selected, interactionSource = interactionSource)
-            .handCursorOnHover(enabled = enabled && !selected)
-            .clickable(
-                enabled = enabled && !selected,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
+            border = BorderStroke(
+                1.dp,
+                when {
+                    selected -> sketch.accent.copy(alpha = 0.72f)
+                    isFocused && enabled -> sketch.accent.copy(alpha = 0.72f)
+                    else -> sketch.lineSoft.copy(alpha = alpha)
+                },
             ),
-    ) {
-        Text(
-            text = label,
-            color = (if (selected) sketch.accent else sketch.inkSoft).copy(alpha = alpha),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            ),
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
+            modifier = modifier
+                .hoverable(interactionSource)
+                .focusable(enabled = enabled && !selected, interactionSource = interactionSource)
+                .handCursorOnHover(enabled = enabled && !selected)
+                .clickable(
+                    enabled = enabled && !selected,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        ) {
+            Text(
+                text = label,
+                color = (if (selected) sketch.accent else sketch.inkSoft).copy(alpha = alpha),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                ),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 
@@ -507,6 +569,7 @@ private fun ToolbarIconAction(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
+    tooltip: String? = null,
     isDestructive: Boolean = false,
     enabled: Boolean = true,
     fillHeight: Boolean = false,
@@ -539,31 +602,639 @@ private fun ToolbarIconAction(
         sketch.toolbarInkMuted.copy(alpha = alpha)
     }
 
-    Surface(
-        shape = if (fillHeight) RoundedCornerShape(0.dp) else CircleShape,
-        color = bg,
-        border = border,
-        modifier = modifier
-            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
-            .hoverable(interactionSource)
-            .focusable(enabled = enabled, interactionSource = interactionSource)
-            .handCursorOnHover(enabled = enabled)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
+    TooltipWrap(tooltip) {
+        Surface(
+            shape = if (fillHeight) RoundedCornerShape(0.dp) else CircleShape,
+            color = bg,
+            border = border,
+            modifier = modifier
+                .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
+                .hoverable(interactionSource)
+                .focusable(enabled = enabled, interactionSource = interactionSource)
+                .handCursorOnHover(enabled = enabled)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        ) {
+            Box(
+                modifier = if (fillHeight) Modifier.size(48.dp) else Modifier.size(28.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = tint,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UpdateToolbarAction(
+    state: UpdateCenterUiState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val bg = when {
+        state.restartRequired -> sketch.ok.copy(alpha = 0.14f)
+        state.updateAvailable -> sketch.warn.copy(alpha = 0.12f)
+        state.hasError -> sketch.bad.copy(alpha = 0.1f)
+        isFocused -> sketch.accentSoft.copy(alpha = 0.8f)
+        isHovered -> sketch.toolbarSurface
+        else -> Color.Transparent
+    }
+    val border = when {
+        state.restartRequired -> BorderStroke(1.dp, sketch.ok.copy(alpha = 0.45f))
+        state.updateAvailable -> BorderStroke(1.dp, sketch.warn.copy(alpha = 0.45f))
+        state.hasError -> BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f))
+        isFocused -> BorderStroke(1.dp, sketch.accent.copy(alpha = 0.7f))
+        isHovered -> BorderStroke(1.dp, sketch.toolbarBorder)
+        else -> null
+    }
+    val tint = if (state.restartRequired) sketch.ok else sketch.toolbarInkMuted
+    val tooltipText = when {
+        state.restartRequired -> "Aggiornamento installato. Riavvia per applicare"
+        state.isInstalling -> "Installazione aggiornamento in corso"
+        state.isDownloading -> "Download aggiornamento in corso"
+        state.isChecking -> "Verifica aggiornamenti in corso"
+        state.updateAvailable -> "Aggiornamento disponibile"
+        state.hasError -> state.statusText
+        else -> "Aggiornamenti applicazione"
+    }
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+            positioning = TooltipAnchorPosition.Above,
+        ),
+        tooltip = { PlainTooltip { Text(tooltipText) } },
+        state = rememberTooltipState(),
     ) {
-        Box(
-            modifier = if (fillHeight) Modifier.size(48.dp) else Modifier.size(28.dp),
-            contentAlignment = Alignment.Center,
+        Surface(
+            shape = CircleShape,
+            color = bg,
+            border = border,
+            modifier = modifier
+                .hoverable(interactionSource)
+                .focusable(interactionSource = interactionSource)
+                .handCursorOnHover()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        ) {
+            Box(
+                modifier = Modifier.size(28.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SystemUpdateAlt,
+                    contentDescription = "Aggiornamenti applicazione",
+                    tint = tint,
+                    modifier = Modifier.size(16.dp),
+                )
+                UpdateToolbarStatusBadge(
+                    state = state,
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateToolbarStatusBadge(
+    state: UpdateCenterUiState,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val badgeModifier = modifier
+        .size(12.dp)
+        .clip(CircleShape)
+
+    when {
+        state.isBusy -> Surface(
+            modifier = badgeModifier,
+            shape = CircleShape,
+            color = sketch.surface,
+            border = BorderStroke(1.dp, sketch.lineSoft),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(10.dp),
+                    strokeWidth = 1.25.dp,
+                    color = if (state.isDownloading || state.isInstalling) sketch.warn else sketch.accent,
+                )
+            }
+        }
+
+        state.restartRequired -> Surface(
+            modifier = badgeModifier,
+            shape = CircleShape,
+            color = sketch.ok,
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tint,
+                imageVector = Icons.Filled.RestartAlt,
+                contentDescription = null,
+                tint = sketch.surface,
+                modifier = Modifier.padding(1.dp),
+            )
+        }
+
+        state.hasError -> Surface(
+            modifier = badgeModifier,
+            shape = CircleShape,
+            color = sketch.bad,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Error,
+                contentDescription = null,
+                tint = sketch.surface,
+                modifier = Modifier.padding(1.dp),
+            )
+        }
+
+        state.updateAvailable -> Surface(
+            modifier = badgeModifier,
+            shape = CircleShape,
+            color = sketch.warn,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ArrowCircleUp,
+                contentDescription = null,
+                tint = sketch.surface,
+                modifier = Modifier.padding(1.dp),
             )
         }
     }
 }
+
+@Composable
+private fun UpdateCenterMenu(
+    state: UpdateCenterUiState,
+    onCheckUpdates: () -> Unit,
+    onStartUpdate: () -> Unit,
+    onRestart: () -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    Column(
+        modifier = Modifier
+            .width(392.dp)
+            .padding(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.md),
+    ) {
+        UpdateHeroCard(state = state)
+        UpdateFlowRow(state = state)
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = sketch.surfaceMuted,
+            border = BorderStroke(1.dp, sketch.lineSoft),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                UpdateCenterInfoRow(label = "Versione attuale", value = state.currentVersion)
+                UpdateCenterInfoRow(
+                    label = "Ultimo controllo",
+                    value = state.lastCheck?.let(::formatUpdateTimestamp) ?: "mai",
+                )
+                if (!state.latestVersion.isNullOrBlank()) {
+                    UpdateCenterInfoRow(label = "Ultima release", value = state.latestVersion)
+                }
+            }
+        }
+        if (!state.releaseTitle.isNullOrBlank()) {
+            UpdateReleaseNotesCard(
+                title = state.releaseTitle,
+                notes = state.releaseNotes,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            UpdateMenuAction(
+                label = if (state.isChecking) "Verifica..." else "Verifica",
+                icon = Icons.Filled.Refresh,
+                onClick = onCheckUpdates,
+                enabled = !state.isBusy && !state.restartRequired,
+                modifier = Modifier.weight(1f),
+                tooltip = "Controlla se esiste una release piu' recente",
+            )
+            when {
+                state.restartRequired -> UpdateMenuAction(
+                    label = "Riavvia",
+                    icon = Icons.Filled.CheckCircle,
+                    onClick = onRestart,
+                    modifier = Modifier.weight(1f),
+                    emphasized = true,
+                    tooltip = "Chiude e riapre l'app per completare l'aggiornamento",
+                )
+
+                else -> UpdateMenuAction(
+                    label = when {
+                        state.isInstalling -> "Installazione..."
+                        state.isDownloading -> "Download..."
+                        else -> "Aggiorna"
+                    },
+                    icon = Icons.Filled.FileOpen,
+                    onClick = onStartUpdate,
+                    enabled = state.updateAvailable && state.updateAsset != null && !state.isBusy,
+                    modifier = Modifier.weight(1f),
+                    emphasized = state.updateAvailable,
+                    tooltip = "Scarica e installa in modo silenzioso la release disponibile",
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateHeroCard(state: UpdateCenterUiState) {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    val tone = when {
+        state.restartRequired -> UpdateHeroTone("Aggiornamento installato", sketch.ok, Icons.Filled.RestartAlt)
+        state.isInstalling -> UpdateHeroTone("Installazione in corso", sketch.warn, Icons.Filled.FileOpen)
+        state.isDownloading -> UpdateHeroTone("Download in corso", sketch.warn, Icons.Filled.FileOpen)
+        state.isChecking -> UpdateHeroTone("Verifica release", sketch.accent, Icons.Filled.Refresh)
+        state.updateAvailable -> UpdateHeroTone("Release disponibile", sketch.warn, Icons.Filled.ArrowCircleUp)
+        state.hasError -> UpdateHeroTone("Attenzione richiesta", sketch.bad, Icons.Filled.ErrorOutline)
+        else -> UpdateHeroTone("Canale stabile", sketch.inkSoft, Icons.Filled.SystemUpdateAlt)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = sketch.surface,
+        border = BorderStroke(1.dp, sketch.lineSoft),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(96.dp)
+                    .background(tone.accent.copy(alpha = 0.9f)),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = sketch.surfaceMuted,
+                        border = BorderStroke(1.dp, sketch.lineSoft),
+                    ) {
+                        Icon(
+                            imageVector = tone.icon,
+                            contentDescription = null,
+                            tint = tone.accent,
+                            modifier = Modifier.padding(8.dp).size(16.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = tone.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = sketch.ink,
+                        )
+                        Text(
+                            text = state.statusText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = sketch.inkSoft,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = sketch.surfaceMuted,
+                        border = BorderStroke(1.dp, sketch.lineSoft),
+                    ) {
+                        Text(
+                            text = updateVersionSummary(state),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = sketch.inkSoft,
+                        )
+                    }
+                }
+                UpdateStatusPill(state = state)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateFlowRow(state: UpdateCenterUiState) {
+    val spacing = MaterialTheme.spacing
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+    ) {
+        UpdateFlowStep(
+            label = "Verifica",
+            completed = state.lastCheck != null && !state.isChecking,
+            active = state.isChecking,
+            modifier = Modifier.weight(1f),
+        )
+        UpdateFlowStep(
+            label = "Download",
+            completed = state.isInstalling || state.restartRequired,
+            active = state.isDownloading,
+            modifier = Modifier.weight(1f),
+        )
+        UpdateFlowStep(
+            label = "Installa",
+            completed = state.restartRequired,
+            active = state.isInstalling,
+            modifier = Modifier.weight(1f),
+        )
+        UpdateFlowStep(
+            label = "Riavvia",
+            completed = false,
+            active = state.restartRequired,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun UpdateFlowStep(
+    label: String,
+    completed: Boolean,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val (background, border, content) = when {
+        active -> Triple(sketch.surface, sketch.accent.copy(alpha = 0.32f), sketch.accent)
+        completed -> Triple(sketch.surface, sketch.ok.copy(alpha = 0.22f), sketch.ok)
+        else -> Triple(sketch.surfaceMuted, sketch.lineSoft, sketch.inkMuted)
+    }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = background,
+        border = BorderStroke(1.dp, border),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (active) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(10.dp),
+                    strokeWidth = 1.4.dp,
+                    color = content,
+                )
+            } else if (completed) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = content,
+                    modifier = Modifier.size(10.dp),
+                )
+            }
+            Text(
+                text = label,
+                modifier = Modifier.padding(start = if (active || completed) 6.dp else 0.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+            )
+        }
+    }
+}
+
+private fun updateVersionSummary(state: UpdateCenterUiState): String {
+    val current = "v${state.currentVersion}"
+    val latest = state.latestVersion
+    return if (latest.isNullOrBlank() || latest == state.currentVersion) current else "$current -> $latest"
+}
+
+private data class UpdateHeroTone(
+    val title: String,
+    val accent: Color,
+    val icon: ImageVector,
+)
+
+@Composable
+private fun UpdateStatusPill(state: UpdateCenterUiState) {
+    val sketch = MaterialTheme.workspaceSketch
+    val (label, background, content) = when {
+        state.restartRequired -> Triple("Pronto al riavvio", sketch.surfaceMuted, sketch.ok)
+        state.isInstalling -> Triple("Installazione in corso", sketch.surfaceMuted, sketch.warn)
+        state.isDownloading -> Triple("Download in corso", sketch.surfaceMuted, sketch.warn)
+        state.isChecking -> Triple("Verifica in corso", sketch.surfaceMuted, sketch.accent)
+        state.updateAvailable -> Triple("Update disponibile", sketch.surfaceMuted, sketch.warn)
+        state.hasError -> Triple("Verifica fallita", sketch.surfaceMuted, sketch.bad)
+        else -> Triple("Stabile", sketch.surfaceMuted, sketch.inkMuted)
+    }
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = background,
+        border = BorderStroke(1.dp, content.copy(alpha = 0.24f)),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+        )
+    }
+}
+
+@Composable
+private fun UpdateCenterInfoRow(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(108.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = sketch.inkMuted,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = sketch.ink,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun UpdateReleaseNotesCard(title: String?, notes: String?) {
+    val sketch = MaterialTheme.workspaceSketch
+    val spacing = MaterialTheme.spacing
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = sketch.surfaceMuted,
+        border = BorderStroke(1.dp, sketch.lineSoft),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "Dettagli release",
+                style = MaterialTheme.typography.labelMedium,
+                color = sketch.inkMuted,
+            )
+            Text(
+                text = title.orEmpty(),
+                style = MaterialTheme.typography.labelLarge,
+                color = sketch.ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!notes.isNullOrBlank()) {
+                Text(
+                    text = notes,
+                    modifier = Modifier
+                        .height(96.dp)
+                        .verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkSoft,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UpdateMenuAction(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    emphasized: Boolean = false,
+    tooltip: String? = null,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val borderColor = when {
+        !enabled -> sketch.lineSoft.copy(alpha = 0.7f)
+        emphasized -> sketch.warn.copy(alpha = 0.5f)
+        isHovered -> sketch.accent.copy(alpha = 0.45f)
+        else -> sketch.lineStrong
+    }
+    val background = when {
+        !enabled -> sketch.surfaceMuted.copy(alpha = 0.65f)
+        emphasized -> sketch.warn.copy(alpha = 0.12f)
+        isHovered -> sketch.accentSoft.copy(alpha = 0.7f)
+        else -> sketch.surface
+    }
+    val content = when {
+        !enabled -> sketch.inkMuted.copy(alpha = 0.7f)
+        emphasized -> sketch.warn
+        else -> sketch.inkSoft
+    }
+    val actionContent: @Composable (Modifier) -> Unit = { anchorModifier ->
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = background,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = modifier
+                .then(anchorModifier)
+                .handCursorOnHover(enabled = enabled)
+                .hoverable(interactionSource, enabled = enabled)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = content,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(start = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = content,
+                )
+            }
+        }
+    }
+
+    if (tooltip.isNullOrBlank()) {
+        actionContent(Modifier)
+    } else {
+        TooltipWrap(tooltip) {
+            actionContent(Modifier)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TooltipWrap(
+    tooltip: String?,
+    content: @Composable () -> Unit,
+) {
+    if (tooltip.isNullOrBlank()) {
+        content()
+    } else {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                positioning = TooltipAnchorPosition.Above,
+            ),
+            tooltip = { PlainTooltip { Text(tooltip) } },
+            state = rememberTooltipState(),
+        ) {
+            content()
+        }
+    }
+}
+
+private fun formatUpdateTimestamp(instant: java.time.Instant): String =
+    instant.atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))

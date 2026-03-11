@@ -8,6 +8,7 @@ import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
+import org.example.project.ui.updates.UpdateCenterViewModel
 import org.example.project.ui.workspace.AssignmentManagementViewModel
 import org.example.project.ui.workspace.PartEditorViewModel
 import org.example.project.ui.workspace.PersonPickerViewModel
@@ -91,6 +92,11 @@ val viewModelsModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             contaStorico = get<ContaStoricoUseCase>(),
             eliminaStorico = get<EliminaStoricoUseCase>(),
+        )
+    }
+    factory {
+        UpdateCenterViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             verificaAggiornamenti = get(),
             aggiornaApplicazione = get(),
             updateStatusStore = get(),

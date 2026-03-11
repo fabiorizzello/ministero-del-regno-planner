@@ -38,6 +38,8 @@ class VerificaAggiornamenti(
                 latestVersion = latestVersion,
                 updateAvailable = updateAvailable,
                 asset = release?.asset,
+                releaseTitle = release?.title,
+                releaseNotes = release?.notes,
                 checkedAt = now,
             )
         }

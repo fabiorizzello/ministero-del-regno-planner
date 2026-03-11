@@ -33,14 +33,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,13 +54,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -158,81 +164,45 @@ fun DiagnosticsScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.exportDiagnosticsBundle() },
-                        enabled = !state.isExporting && !state.isCleaning,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(34.dp)
-                            .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
-                        elevation = diagnosticsFlatButtonElevation(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    ) {
-                        if (state.isExporting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(16.dp),
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text("Esportazione...")
-                        } else {
-                            Icon(Icons.Filled.FileOpen, contentDescription = "Esporta diagnostica")
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text("Esporta diagnostica")
+                    DiagnosticsTooltipWrap("Crea un archivio ZIP con database, log recenti e metadata di supporto") {
+                        OutlinedButton(
+                            onClick = { viewModel.exportDiagnosticsBundle() },
+                            enabled = !state.isExporting && !state.isCleaning,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(34.dp)
+                                .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
+                            elevation = diagnosticsFlatButtonElevation(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        ) {
+                            if (state.isExporting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .width(16.dp)
+                                        .height(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Esportazione...")
+                            } else {
+                                Icon(Icons.Filled.FileOpen, contentDescription = "Esporta diagnostica")
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Esporta diagnostica")
+                            }
                         }
                     }
                     DiagnosticsOutlinedActionButton(
                         label = "Apri cartella export",
                         icon = Icons.Filled.FolderOpen,
                         onClick = { viewModel.openExportsFolder() },
+                        tooltip = "Apre la cartella dove vengono salvati ZIP diagnostici e file esportati",
                         modifier = Modifier.weight(1f),
                     )
                     DiagnosticsOutlinedActionButton(
                         label = "Copia info supporto",
                         icon = Icons.Filled.ContentCopy,
                         onClick = { viewModel.copySupportInfo() },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-
-            Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = sectionCardShape,
-            border = sectionCardBorder,
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(
-                modifier = Modifier.padding(spacing.xl),
-                verticalArrangement = Arrangement.spacedBy(spacing.md),
-            ) {
-                Text("Aggiornamenti applicazione", style = MaterialTheme.typography.titleMedium)
-                Text(state.updateStatusText, style = MaterialTheme.typography.bodyMedium)
-                val lastCheck = state.updateLastCheck?.let { formatUpdateCheck(it) } ?: "mai"
-                DiagnosticsInfoRow(label = "Ultimo controllo", value = lastCheck)
-                if (state.updateAvailable && state.updateLatestVersion != null) {
-                    DiagnosticsInfoRow(label = "Versione disponibile", value = state.updateLatestVersion!!)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    DiagnosticsOutlinedActionButton(
-                        label = if (state.isCheckingUpdates) "Verifica in corso..." else "Verifica aggiornamenti",
-                        icon = Icons.Filled.Refresh,
-                        onClick = { viewModel.checkUpdates() },
-                        enabled = !state.isCheckingUpdates,
-                        modifier = Modifier.weight(1f),
-                    )
-                    DiagnosticsOutlinedActionButton(
-                        label = if (state.isUpdating) "Aggiornamento..." else "Aggiorna",
-                        icon = Icons.Filled.FileOpen,
-                        onClick = { viewModel.startUpdate() },
-                        enabled = state.updateAvailable && state.updateAsset != null && !state.isUpdating,
+                        tooltip = "Copia negli appunti versione app, percorsi e dimensioni utili per assistenza",
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -264,18 +234,21 @@ fun DiagnosticsScreen() {
                         icon = Icons.Filled.Refresh,
                         onClick = { viewModel.refreshStorageUsage() },
                         enabled = !state.isLoading,
+                        tooltip = "Ricalcola la dimensione corrente di database e log",
                         modifier = Modifier.weight(1f),
                     )
                     DiagnosticsOutlinedActionButton(
                         label = "Apri cartella log",
                         icon = Icons.Filled.FolderOpen,
                         onClick = { viewModel.openLogsFolder() },
+                        tooltip = "Apre la cartella dei log dell'applicazione",
                         modifier = Modifier.weight(1f),
                     )
                     DiagnosticsOutlinedActionButton(
                         label = "Apri cartella dati",
                         icon = Icons.Filled.FolderOpen,
                         onClick = { viewModel.openDataFolder() },
+                        tooltip = "Apre la cartella che contiene il database locale",
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -338,38 +311,41 @@ fun DiagnosticsScreen() {
                         icon = Icons.Filled.Refresh,
                         onClick = { viewModel.refreshCleanupPreview() },
                         enabled = !state.isCleaning && !state.isExporting,
+                        tooltip = "Ricalcola quante settimane, parti e assegnazioni verrebbero eliminate",
                         modifier = Modifier.weight(1f),
                     )
-                    Button(
-                        onClick = { viewModel.requestCleanup() },
-                        enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(34.dp)
-                            .handCursorOnHover(
-                                enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
+                    DiagnosticsTooltipWrap("Avvia la rimozione definitiva dei dati storici inclusi nell'anteprima") {
+                        Button(
+                            onClick = { viewModel.requestCleanup() },
+                            enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(34.dp)
+                                .handCursorOnHover(
+                                    enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
+                                ),
+                            elevation = diagnosticsFlatButtonElevation(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
                             ),
-                        elevation = diagnosticsFlatButtonElevation(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError,
-                        ),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                    ) {
-                        if (state.isCleaning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .width(18.dp)
-                                    .height(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onError,
-                            )
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text("Pulizia in corso...")
-                        } else {
-                            Icon(Icons.Filled.Delete, contentDescription = "Elimina dati storici")
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text("Elimina dati storici")
+                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                        ) {
+                            if (state.isCleaning) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .width(18.dp)
+                                        .height(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onError,
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Pulizia in corso...")
+                            } else {
+                                Icon(Icons.Filled.Delete, contentDescription = "Elimina dati storici")
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Elimina dati storici")
+                            }
                         }
                     }
                 }
@@ -381,11 +357,6 @@ fun DiagnosticsScreen() {
 private fun formatCutoffDate(option: DiagnosticsRetentionOption): String {
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ITALIAN)
     return option.cutoffDate().format(formatter)
-}
-
-private fun formatUpdateCheck(instant: java.time.Instant): String {
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ITALIAN)
-    return instant.atZone(java.time.ZoneId.systemDefault()).format(formatter)
 }
 
 private fun retentionMeaning(option: DiagnosticsRetentionOption): String =
@@ -452,6 +423,7 @@ private fun DiagnosticsOutlinedActionButton(
     icon: ImageVector,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    tooltip: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -474,43 +446,66 @@ private fun DiagnosticsOutlinedActionButton(
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
     }
-    Surface(
-        modifier = modifier
-            .height(34.dp)
-            .handCursorOnHover(enabled = enabled)
-            .hoverable(interactionSource, enabled = enabled)
-            .focusable(enabled = enabled, interactionSource = interactionSource)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        shape = RoundedCornerShape(999.dp),
-        border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor),
-        color = containerColor,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+    DiagnosticsTooltipWrap(tooltip) {
+        Surface(
+            modifier = modifier
+                .height(34.dp)
+                .handCursorOnHover(enabled = enabled)
+                .hoverable(interactionSource, enabled = enabled)
+                .focusable(enabled = enabled, interactionSource = interactionSource)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            shape = RoundedCornerShape(999.dp),
+            border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor),
+            color = containerColor,
         ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                modifier = Modifier.size(14.dp),
-                tint = contentColor,
-            )
-            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(14.dp),
+                    tint = contentColor,
+                )
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DiagnosticsTooltipWrap(
+    tooltip: String?,
+    content: @Composable () -> Unit,
+) {
+    if (tooltip.isNullOrBlank()) {
+        content()
+    } else {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                positioning = TooltipAnchorPosition.Above,
+            ),
+            tooltip = { PlainTooltip { Text(tooltip) } },
+            state = rememberTooltipState(),
+        ) {
+            content()
         }
     }
 }
