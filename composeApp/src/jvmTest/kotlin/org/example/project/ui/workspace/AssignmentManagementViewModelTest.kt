@@ -20,9 +20,13 @@ import org.example.project.feature.output.application.AssignmentTicketLine
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.TicketGenerationResult
 import org.example.project.feature.output.application.StampaProgrammaUseCase
+import org.example.project.feature.output.domain.ProgramDeliverySnapshot
+import org.example.project.feature.output.domain.SlipDeliveryInfo
+import org.example.project.feature.output.domain.SlipDeliveryStatus
 import arrow.core.Either
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -315,6 +319,220 @@ class AssignmentManagementViewModelTest {
         assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
     }
 
+    // ── markAsDelivered ────────────────────────────────────────────────────────
+
+    @Test
+    fun `markAsDelivered successo ricarica delivery status e summary`() = runTest {
+        val ticket = makeTicket()
+        val segna = mockk<SegnaComInviatoUseCase>()
+        coEvery { segna(any(), any(), any(), any()) } returns Either.Right(Unit)
+
+        val deliveryInfo = SlipDeliveryInfo(
+            status = SlipDeliveryStatus.INVIATO,
+            activeDelivery = null,
+            previousStudentName = null,
+        )
+        val caricaStato = mockk<CaricaStatoConsegneUseCase>()
+        coEvery { caricaStato(any()) } returns mapOf(
+            (ticket.weeklyPartId to ticket.weekPlanId) to deliveryInfo,
+        )
+
+        val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
+        coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 0, blocked = 0))
+
+        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+
+        val vm = makeViewModel(
+            scope = this,
+            genera = genera,
+            segnaComInviato = segna,
+            caricaStatoConsegne = caricaStato,
+            caricaRiepilogo = caricaRiep,
+        )
+        // Set reference date so tickets pass the cutoff filter
+        vm.loadDeliverySummary(programId, referenceDate)
+        advanceUntilIdle()
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+
+        vm.markAsDelivered(ticket)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isMarkingDelivered)
+        assertNull(vm.uiState.value.notice)
+        coVerify(exactly = 1) { segna(ticket.weeklyPartId, ticket.weekPlanId, ticket.fullName, ticket.assistantName) }
+        // deliveryStatus was reloaded
+        assertEquals(SlipDeliveryStatus.INVIATO, vm.uiState.value.deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]?.status)
+    }
+
+    @Test
+    fun `markAsDelivered errore mostra notice di errore`() = runTest {
+        val ticket = makeTicket()
+        val segna = mockk<SegnaComInviatoUseCase>()
+        coEvery { segna(any(), any(), any(), any()) } returns Either.Left(DomainError.Validation("consegna fallita"))
+
+        val vm = makeViewModel(scope = this, segnaComInviato = segna)
+        vm.markAsDelivered(ticket)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isMarkingDelivered)
+        assertNotNull(vm.uiState.value.notice)
+        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+    }
+
+    @Test
+    fun `markAsDelivered ignora seconda chiamata mentre la prima e' in corso`() = runTest {
+        val ticket = makeTicket()
+        val blocker = CompletableDeferred<Either<DomainError, Unit>>()
+        val segna = mockk<SegnaComInviatoUseCase>()
+        coEvery { segna(any(), any(), any(), any()) } coAnswers { blocker.await() }
+
+        val vm = makeViewModel(scope = this, segnaComInviato = segna)
+        vm.markAsDelivered(ticket)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isMarkingDelivered)
+        vm.markAsDelivered(ticket) // guard — should be ignored
+
+        coVerify(exactly = 1) { segna(any(), any(), any(), any()) }
+
+        blocker.complete(Either.Right(Unit))
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isMarkingDelivered)
+    }
+
+    // ── cancelDelivery ───────────────────────────────────────────────────────
+
+    @Test
+    fun `cancelDelivery successo ricarica delivery status e summary`() = runTest {
+        val ticket = makeTicket()
+        val annulla = mockk<AnnullaConsegnaUseCase>()
+        coEvery { annulla(any(), any()) } returns Either.Right(Unit)
+
+        val deliveryInfo = SlipDeliveryInfo(
+            status = SlipDeliveryStatus.DA_REINVIARE,
+            activeDelivery = null,
+            previousStudentName = "Mario Rossi",
+        )
+        val caricaStato = mockk<CaricaStatoConsegneUseCase>()
+        coEvery { caricaStato(any()) } returns mapOf(
+            (ticket.weeklyPartId to ticket.weekPlanId) to deliveryInfo,
+        )
+
+        val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
+        coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 1, blocked = 0))
+
+        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+
+        val vm = makeViewModel(
+            scope = this,
+            genera = genera,
+            annullaConsegna = annulla,
+            caricaStatoConsegne = caricaStato,
+            caricaRiepilogo = caricaRiep,
+        )
+        // Set reference date so tickets pass the cutoff filter
+        vm.loadDeliverySummary(programId, referenceDate)
+        advanceUntilIdle()
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+
+        vm.cancelDelivery(ticket)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isCancellingDelivery)
+        assertNull(vm.uiState.value.notice)
+        coVerify(exactly = 1) { annulla(ticket.weeklyPartId, ticket.weekPlanId) }
+        // deliveryStatus was reloaded
+        assertEquals(SlipDeliveryStatus.DA_REINVIARE, vm.uiState.value.deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]?.status)
+        // delivery summary was refreshed
+        assertEquals(1, vm.uiState.value.deliverySnapshot?.pending)
+    }
+
+    @Test
+    fun `cancelDelivery errore mostra notice di errore`() = runTest {
+        val ticket = makeTicket()
+        val annulla = mockk<AnnullaConsegnaUseCase>()
+        coEvery { annulla(any(), any()) } returns Either.Left(DomainError.Validation("annullamento fallito"))
+
+        val vm = makeViewModel(scope = this, annullaConsegna = annulla)
+        vm.cancelDelivery(ticket)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isCancellingDelivery)
+        assertNotNull(vm.uiState.value.notice)
+        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+    }
+
+    @Test
+    fun `cancelDelivery ignora seconda chiamata mentre la prima e' in corso`() = runTest {
+        val ticket = makeTicket()
+        val blocker = CompletableDeferred<Either<DomainError, Unit>>()
+        val annulla = mockk<AnnullaConsegnaUseCase>()
+        coEvery { annulla(any(), any()) } coAnswers { blocker.await() }
+
+        val vm = makeViewModel(scope = this, annullaConsegna = annulla)
+        vm.cancelDelivery(ticket)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isCancellingDelivery)
+        vm.cancelDelivery(ticket) // guard — should be ignored
+
+        coVerify(exactly = 1) { annulla(any(), any()) }
+
+        blocker.complete(Either.Right(Unit))
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isCancellingDelivery)
+    }
+
+    // ── loadDeliveryStatus ───────────────────────────────────────────────────
+
+    @Test
+    fun `openAssignmentTickets popola deliveryStatus per i ticket generati`() = runTest {
+        val ticket = makeTicket()
+        val deliveryInfo = SlipDeliveryInfo(
+            status = SlipDeliveryStatus.INVIATO,
+            activeDelivery = null,
+            previousStudentName = null,
+        )
+        val caricaStato = mockk<CaricaStatoConsegneUseCase>()
+        coEvery { caricaStato(any()) } returns mapOf(
+            (ticket.weeklyPartId to ticket.weekPlanId) to deliveryInfo,
+        )
+
+        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+
+        val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
+        coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 0, blocked = 0))
+
+        val vm = makeViewModel(
+            scope = this,
+            genera = genera,
+            caricaStatoConsegne = caricaStato,
+            caricaRiepilogo = caricaRiep,
+        )
+        // Set reference date so tickets pass the cutoff filter
+        vm.loadDeliverySummary(programId, referenceDate)
+        advanceUntilIdle()
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+
+        val status = vm.uiState.value.deliveryStatus
+        assertEquals(1, status.size)
+        val key = ticket.weeklyPartId to ticket.weekPlanId
+        assertEquals(SlipDeliveryStatus.INVIATO, status[key]?.status)
+        coVerify { caricaStato(listOf(ticket.weekPlanId)) }
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private fun makeViewModel(
@@ -325,7 +543,7 @@ class AssignmentManagementViewModelTest {
         stampa: StampaProgrammaUseCase = mockk(relaxed = true),
         genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
         segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
-        annullaConsegna: org.example.project.feature.output.application.AnnullaConsegnaUseCase = mockk(relaxed = true),
+        annullaConsegna: AnnullaConsegnaUseCase = mockk(relaxed = true),
         caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),
         caricaRiepilogo: CaricaRiepilogoConsegneProgrammaUseCase = mockk(relaxed = true),
     ) = AssignmentManagementViewModel(
@@ -342,5 +560,21 @@ class AssignmentManagementViewModelTest {
         annullaConsegna = annullaConsegna,
         caricaStatoConsegne = caricaStatoConsegne,
         caricaRiepilogo = caricaRiepilogo,
+    )
+
+    private fun makeTicket(
+        weeklyPartId: WeeklyPartId = WeeklyPartId("wp1"),
+        weekPlanId: WeekPlanId = WeekPlanId("week-1"),
+        fullName: String = "Mario Rossi",
+        assistantName: String? = null,
+    ) = AssignmentTicketImage(
+        fullName = fullName,
+        assistantName = assistantName,
+        weekStart = LocalDate.of(2027, 3, 2),
+        weekEnd = LocalDate.of(2027, 3, 8),
+        imagePath = Paths.get("/tmp/biglietto.png"),
+        assignments = listOf(AssignmentTicketLine(partLabel = "Lettura", roleLabel = null, partNumber = 1)),
+        weeklyPartId = weeklyPartId,
+        weekPlanId = weekPlanId,
     )
 }
