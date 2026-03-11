@@ -1029,14 +1029,44 @@ private fun AssignmentTicketCard(
                         )
                     }
                     if (onCancelDelivery != null) {
-                        Text(
-                            if (isCancellingDelivery) "Annullamento\u2026" else "Annulla invio",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier
-                                .handCursorOnHover()
-                                .clickable(enabled = !isCancellingDelivery) { onCancelDelivery() },
-                        )
+                        val cancelInteraction = remember { MutableInteractionSource() }
+                        val cancelHovered by cancelInteraction.collectIsHoveredAsState()
+                        val errorColor = MaterialTheme.colorScheme.error
+                        Surface(
+                            onClick = { onCancelDelivery() },
+                            enabled = !isCancellingDelivery,
+                            shape = RoundedCornerShape(6.dp),
+                            color = errorColor.copy(alpha = when {
+                                isCancellingDelivery -> 0.06f
+                                cancelHovered -> 0.18f
+                                else -> 0.08f
+                            }),
+                            border = BorderStroke(
+                                1.dp,
+                                errorColor.copy(alpha = if (cancelHovered) 0.6f else 0.25f),
+                            ),
+                            interactionSource = cancelInteraction,
+                            modifier = Modifier.hoverable(cancelInteraction).handCursorOnHover(),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (isCancellingDelivery) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 1.5.dp,
+                                        color = errorColor,
+                                    )
+                                }
+                                Text(
+                                    if (isCancellingDelivery) "Annullamento\u2026" else "Annulla invio",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = errorColor.copy(alpha = if (cancelHovered) 1f else 0.8f),
+                                )
+                            }
+                        }
                     }
                 }
             }

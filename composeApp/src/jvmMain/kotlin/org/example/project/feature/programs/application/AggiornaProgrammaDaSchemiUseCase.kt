@@ -1,7 +1,6 @@
 package org.example.project.feature.programs.application
 
 import arrow.core.Either
-import arrow.core.getOrElse
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
@@ -113,15 +112,14 @@ class AggiornaProgrammaDaSchemiUseCase(
         }
 
         if (!dryRun) {
-            Either.catch {
-                transactionRunner.runInTransaction {
+            transactionRunner.runInTransactionEither {
+                either {
                     for (candidate in refreshCandidates) {
-                        applyRefreshCandidate(candidate, referenceDate)
-                            .getOrElse { e -> error("Schema refresh failed: $e") }
+                        applyRefreshCandidate(candidate, referenceDate).bind()
                     }
                     programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
                 }
-            }.mapLeft { DomainError.Validation(it.message ?: "Errore aggiornamento schema") }.bind()
+            }.bind()
         }
 
         SchemaRefreshReport(

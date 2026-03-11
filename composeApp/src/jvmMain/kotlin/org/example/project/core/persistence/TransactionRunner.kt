@@ -1,8 +1,11 @@
 package org.example.project.core.persistence
 
+import arrow.core.Either
+import arrow.core.getOrElse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.example.project.core.domain.DomainError
 import org.example.project.db.MinisteroDatabase
 
 /** Marker scope disponibile solo durante [TransactionRunner.runInTransaction]. */
@@ -11,6 +14,12 @@ interface TransactionScope
 /** Default transaction scope implementation. */
 object DefaultTransactionScope : TransactionScope
 
+/**
+ * Sentinel exception used to trigger transaction rollback when a block
+ * returns [Either.Left]. Stacktrace suppressed (control flow only).
+ */
+private class DomainErrorRollback(val error: DomainError) : Exception(null, null, true, false)
+
 interface TransactionRunner {
     /**
      * Runs the given block within a database transaction.
@@ -18,6 +27,35 @@ interface TransactionRunner {
      * calls under the hood with the same shared SQLite connection.
      */
     suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T
+
+    /**
+     * Runs [block] in a transaction. If [block] returns [Either.Left],
+     * the transaction is rolled back and the Left is returned.
+     * If [block] throws, the transaction is rolled back and the exception
+     * is wrapped in [DomainError.Validation].
+     *
+     * Use `either { }` inside the block to get `.bind()` and `raise()` support:
+     * ```
+     * transactionRunner.runInTransactionEither {
+     *     either {
+     *         val entity = store.load(id) ?: raise(DomainError.NotFound("..."))
+     *         someEither.bind()
+     *         store.persist(entity)
+     *     }
+     * }.bind()
+     * ```
+     */
+    suspend fun <T> runInTransactionEither(
+        block: suspend TransactionScope.() -> Either<DomainError, T>,
+    ): Either<DomainError, T> = try {
+        runInTransaction {
+            block().getOrElse { throw DomainErrorRollback(it) }
+        }.let { Either.Right(it) }
+    } catch (e: DomainErrorRollback) {
+        Either.Left(e.error)
+    } catch (e: Throwable) {
+        Either.Left(DomainError.Validation(e.message ?: "Errore transazione"))
+    }
 }
 
 class SqlDelightTransactionRunner(

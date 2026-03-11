@@ -12,6 +12,13 @@
 
 ---
 
+## Findings risolti (Batch 19 — 2026-03-11)
+
+- **Medium 86**: `slip_delivery` table — aggiunte FK constraints `ON DELETE CASCADE` su `weekly_part_id` e `week_plan_id`. Test `SqlDelightSlipDeliveryStoreTest` aggiornato con seed parent records.
+- **Low 86**: Rimosso `CREATE UNIQUE INDEX assignment_unique_part_slot` duplicato — la table constraint `UNIQUE(weekly_part_id, slot)` è sufficiente.
+
+---
+
 ## Findings risolti (Batch 18 — 2026-03-11)
 
 - **Low 85**: `ArchivaAnomalieSchemaUseCase` — aggiunto return type `Either<DomainError, Unit>` con `Either.catch { }.mapLeft { }`. Caller migrato a `executeEitherOperationWithNotice`.
