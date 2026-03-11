@@ -21,7 +21,7 @@ class SqlDelightProclamatoriQuery(
             clean,
             clean,
             clean,
-            ::mapProclamatoreRow,
+            ::mapProclamatoreAssignableRow,
         )
         return query.asFlow().mapToList(Dispatchers.IO).first()
     }

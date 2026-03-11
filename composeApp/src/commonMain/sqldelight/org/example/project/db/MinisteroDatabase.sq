@@ -209,7 +209,7 @@ WHERE suspended = 0
 ORDER BY last_name, first_name;
 
 searchProclaimers:
-SELECT id, first_name, last_name, sex, suspended
+SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
 WHERE (
     ? = 1
