@@ -132,7 +132,7 @@ class StampaProgrammaUseCase(
         val outputPath = prepareMonthlyProgramOutputPath(
             outputDir = programExportDirProvider(),
             outputFileName = outputFileName,
-        )
+        ).bind()
 
         renderer.renderMonthlyProgramPdf(
             title = "Programma ${YearMonth.of(program.year, program.month).format(monthTitleFormatter)}",
@@ -148,15 +148,18 @@ class StampaProgrammaUseCase(
     private fun prepareMonthlyProgramOutputPath(
         outputDir: Path,
         outputFileName: String,
-    ): Path {
-        Files.createDirectories(outputDir)
-        cleanupMonthlyProgramExports(
-            outputDir = outputDir,
-            keepFileName = outputFileName,
-        ) { path, error ->
-            logger.warn { "Cleanup PDF programma non riuscito (${path.fileName}): ${error.message}" }
-        }
-        return outputDir.resolve(outputFileName)
+    ): Either<DomainError, Path> {
+        return Either.catch { Files.createDirectories(outputDir) }
+            .mapLeft { DomainError.Validation("Impossibile creare directory output: ${it.message}") }
+            .map {
+                cleanupMonthlyProgramExports(
+                    outputDir = outputDir,
+                    keepFileName = outputFileName,
+                ) { path, error ->
+                    logger.warn { "Cleanup PDF programma non riuscito (${path.fileName}): ${error.message}" }
+                }
+                outputDir.resolve(outputFileName)
+            }
     }
 }
 
