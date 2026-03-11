@@ -633,6 +633,15 @@ JOIN part_type pt ON pt.id = swp.part_type_id
 WHERE swp.schema_week_id = ?
 ORDER BY swp.sort_order;
 
+listSchemaWeeksWithParts:
+SELECT
+    sw.week_start_date,
+    swp.part_type_id,
+    swp.sort_order AS part_sort_order
+FROM schema_week sw
+LEFT JOIN schema_week_part swp ON swp.schema_week_id = sw.id
+ORDER BY sw.week_start_date, swp.sort_order;
+
 -- Part type revisions (new)
 findPartTypeById:
 SELECT id, code, label, people_count, sex_rule, fixed, active, sort_order, current_revision_id

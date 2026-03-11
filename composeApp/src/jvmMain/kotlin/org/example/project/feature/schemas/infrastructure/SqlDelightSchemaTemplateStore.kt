@@ -52,18 +52,18 @@ class SqlDelightSchemaTemplateStore(
     }
 
     override suspend fun listAll(): List<StoredSchemaWeekTemplate> {
-        return database.ministeroDatabaseQueries
-            .listSchemaWeeks()
+        val rows = database.ministeroDatabaseQueries
+            .listSchemaWeeksWithParts()
             .executeAsList()
-            .map { week ->
-                val partIds = database.ministeroDatabaseQueries
-                    .schemaPartsByWeek(week.id) { _, _, part_type_id, _, _, _, _, _, _, _ ->
-                        PartTypeId(part_type_id)
-                    }
-                    .executeAsList()
+
+        return rows
+            .groupBy { it.week_start_date }
+            .map { (weekDate, groupRows) ->
                 StoredSchemaWeekTemplate(
-                    weekStartDate = LocalDate.parse(week.week_start_date),
-                    partTypeIds = partIds,
+                    weekStartDate = LocalDate.parse(weekDate),
+                    partTypeIds = groupRows.mapNotNull { row ->
+                        row.part_type_id?.let { PartTypeId(it) }
+                    },
                 )
             }
     }
