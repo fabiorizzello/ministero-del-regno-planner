@@ -303,7 +303,10 @@ internal class AssignmentManagementViewModel(
             it.copy(
                 isAssignmentTicketsDialogOpen = false,
                 isLoadingAssignmentTickets = false,
+                assignmentTickets = emptyList(),
+                assignmentPartWarnings = emptyList(),
                 assignmentTicketsError = null,
+                deliveryStatus = emptyMap(),
             )
         }
     }

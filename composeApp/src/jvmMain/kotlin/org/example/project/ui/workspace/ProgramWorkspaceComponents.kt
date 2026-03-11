@@ -913,7 +913,7 @@ private fun AssignmentTicketCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            if (deliveryInfo?.status == SlipDeliveryStatus.DA_REINVIARE && deliveryInfo.previousStudentName != null) {
+            if (deliveryInfo?.status == SlipDeliveryStatus.DA_REINVIARE && deliveryInfo.previousStudentName != null && deliveryInfo.previousStudentName != ticket.fullName) {
                 Text(
                     "Precedente: ${deliveryInfo.previousStudentName}",
                     style = MaterialTheme.typography.labelSmall,
