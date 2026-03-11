@@ -104,6 +104,30 @@ function Assert-Executable {
     }
 }
 
+function Assert-JavaMajorVersionAtLeast {
+    param(
+        [string]$JavaExePath,
+        [int]$MinimumMajorVersion
+    )
+
+    $versionOutput = & $JavaExePath -version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossibile leggere la versione Java da: $JavaExePath"
+    }
+
+    $firstLine = ($versionOutput | Select-Object -First 1)
+    $versionText = [string]$firstLine
+    $match = [System.Text.RegularExpressions.Regex]::Match($versionText, 'version "(\d+)(?:\.(\d+))?.*"')
+    if (-not $match.Success) {
+        throw "Formato versione Java non riconosciuto: $versionText"
+    }
+
+    $majorVersion = [int]$match.Groups[1].Value
+    if ($majorVersion -lt $MinimumMajorVersion) {
+        throw "JAVA_HOME deve puntare ad almeno JDK $MinimumMajorVersion. Rilevato JDK $majorVersion in: $JavaExePath"
+    }
+}
+
 function Invoke-External {
     param(
         [string]$FilePath,
@@ -194,7 +218,9 @@ $resolvedJavaHome = Resolve-JavaHomeValue -ExplicitJavaHome $JavaHome
 $env:JAVA_HOME = $resolvedJavaHome
 
 Assert-Executable -Path $gradleWrapper -Label 'Gradle wrapper'
-Assert-Executable -Path (Join-Path $resolvedJavaHome 'bin\java.exe') -Label 'Java'
+$javaExePath = Join-Path $resolvedJavaHome 'bin\java.exe'
+Assert-Executable -Path $javaExePath -Label 'Java'
+Assert-JavaMajorVersionAtLeast -JavaExePath $javaExePath -MinimumMajorVersion 21
 
 if ($PublishRemote -and -not $ghExe) {
     throw "GitHub CLI (gh) non trovato. Installalo con: winget install GitHub.cli"
