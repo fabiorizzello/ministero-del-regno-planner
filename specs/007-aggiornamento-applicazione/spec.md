@@ -126,7 +126,7 @@ Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubRe
 
 - **Windows** (JPackage/WiX è Windows-only per la generazione MSI)
 - **JDK 21** — passare `-JavaHome` o impostare `JAVA_HOME`
-- **GitHub token** con permessi `repo` — passare `-GitHubToken` oppure impostare `GH_TOKEN`/`GITHUB_TOKEN`
+- **GitHub CLI (`gh`)** — autenticato con `gh auth login` (`winget install GitHub.cli`)
 
 ### Uso rapido
 
@@ -171,7 +171,7 @@ $env:GH_TOKEN = "ghp_..."
 - L'upgrade code MSI viene derivato automaticamente da JPackage in base a `packageName`. Non modificare `packageName` tra release oppure Windows tratterà le versioni come prodotti diversi (doppia installazione).
 - `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Lo script deve uploadare il file `.msi`.
 - Lo script supporta `-WhatIf` per verificare il flusso senza effetti collaterali.
-- Lo script rileva il repository slug automaticamente dal remote `origin`; può essere sovrascritto con `-Repository owner/repo`.
+- `gh` rileva il repository automaticamente dal remote git — non serve configurazione aggiuntiva.
 
 ---
 
