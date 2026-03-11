@@ -134,22 +134,21 @@ Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubRe
 # Solo build locale (verifica MSI senza pubblicare)
 .\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1"
 
-# Release completa: test + build + tag + push + GitHub Release + upload MSI
-$env:GH_TOKEN = "ghp_..."
+# Release completa: version bump + test + build + tag + push + release
 .\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1" -RunTests -PublishRemote
 ```
 
 ### Flusso `-PublishRemote`
 
-`-PublishRemote` attiva automaticamente `-CreateTag`, `-PushTag` e `-PublishRelease`. Il flusso completo:
+Il flusso è **completamente automatico e idempotente** — ogni step verifica se è già stato completato, così un re-run dopo un fallimento riprende da dove si era fermato:
 
-1. **(opzionale)** Esegue `:composeApp:jvmTest` se `-RunTests` è presente.
-2. Verifica che il working tree git sia pulito (nessun file non committato).
-3. Esegue `:composeApp:packageMsi -Papp.version=X.Y.Z` (e `:composeApp:packageExe` se `-IncludeExe`).
-4. Crea il tag annotato `vX.Y.Z` (skip se esiste già).
-5. Push del tag su `origin`.
-6. Crea la GitHub Release (o la aggiorna se esiste già per quel tag) — non-draft, non-prerelease.
-7. Carica il file MSI come asset (sovrascrive asset omonimo se presente).
+1. Verifica che il working tree git sia pulito.
+2. Aggiorna `app.version` in `gradle.properties` e committa (skip se già alla versione target).
+3. **(opzionale)** Esegue `:composeApp:jvmTest` se `-RunTests` è presente.
+4. Esegue `:composeApp:packageMsi -Papp.version=X.Y.Z` (e `:composeApp:packageExe` se `-IncludeExe`).
+5. Crea il tag annotato `vX.Y.Z` (skip se esiste già).
+6. Push del tag su `origin` (idempotente).
+7. Crea la GitHub Release via `gh` (o la aggiorna se esiste già) e carica il file MSI come asset (`--clobber`).
 
 ### Flag principali
 
@@ -158,7 +157,7 @@ $env:GH_TOKEN = "ghp_..."
 | `-Version` (obbligatorio) | Versione nel formato `MAJOR.MINOR.PATCH` (es. `1.3.0`) |
 | `-JavaHome` | Path al JDK; default: `$env:JAVA_HOME` |
 | `-RunTests` | Esegue i test JVM prima del packaging |
-| `-PublishRemote` | Flusso completo: tag + push + release + upload |
+| `-PublishRemote` | Flusso completo automatico (version bump → release) |
 | `-IncludeExe` | Pubblica anche l'EXE oltre all'MSI |
 | `-ReleaseNotesFile` | File markdown con le note di release |
 | `-ReleaseBody` | Note di release inline (alternativa a `-ReleaseNotesFile`) |
