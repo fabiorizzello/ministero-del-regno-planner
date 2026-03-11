@@ -12,6 +12,10 @@
 
 ---
 
+## Findings risolti (Batch 18 — 2026-03-11)
+
+- **Low 85**: `ArchivaAnomalieSchemaUseCase` — aggiunto return type `Either<DomainError, Unit>` con `Either.catch { }.mapLeft { }`. Caller migrato a `executeEitherOperationWithNotice`.
+
 ## Findings risolti (Batch 17 — 2026-03-11)
 
 - **Low 76**: Aggiunti 24 test per `UpdateVersionComparator` — coprono prefisso v/V, componenti variabili, garbage input, stringhe vuote, whitespace.

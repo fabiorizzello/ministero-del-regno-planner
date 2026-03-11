@@ -64,7 +64,6 @@ internal class ProclamatoriListViewModel(
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
     private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
-    private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val partTypeStore: PartTypeStore,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriListUiState())
@@ -217,7 +216,6 @@ internal class ProclamatoriListViewModel(
                 loadingUpdate = { it.copy(isDismissingSchemaAnomalies = true) },
                 noticeUpdate = { state, notice -> state.copy(isDismissingSchemaAnomalies = false, notice = notice) },
                 successMessage = "Pannello anomalie archiviato",
-                errorMessagePrefix = "Archiviazione anomalie non completata",
                 operation = { archivaAnomalieSchema() },
                 onSuccess = { _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) } },
             )
