@@ -232,7 +232,8 @@ biglietto inviato → verificare warning e reset stato.
   di apertura occupano i numeri 1 e 2). La costante è definita in
   `feature/output/application/OutputConstants.kt` come `internal const PART_DISPLAY_NUMBER_OFFSET = 3`.
   La UI MUST mostrare il numero come prefisso dell'etichetta parte (es. "3. Studio biblico").
-  Il PDF del biglietto MUST includere il numero nel formato "3. Studio biblico (Studente)".
+  Il PDF del biglietto MUST includere il numero nel formato "3. Studio biblico".
+  Il role label "(Studente)" NON è incluso perché i biglietti sono sempre per lo studente.
 - **FR-024**: I biglietti prodotti da `generateProgramTickets` MUST essere ordinati per
   `weekStart` (crescente), poi per `sortOrder` della parte principale del proclamatore
   (crescente), poi per `fullName` alfabetico. All'interno di `buildPersonTicketSheets`

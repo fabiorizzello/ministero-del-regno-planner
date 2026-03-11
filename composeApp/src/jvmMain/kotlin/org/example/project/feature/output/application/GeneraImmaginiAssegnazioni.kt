@@ -169,7 +169,7 @@ class GeneraImmaginiAssegnazioni(
                         assignments = listOf(
                             AssignmentTicketLine(
                                 partLabel = slipWithOrder.slip.partLabel,
-                                roleLabel = slipWithOrder.slip.roleLabel,
+                                roleLabel = null,
                                 partNumber = slipWithOrder.slip.partNumber,
                             )
                         ),
@@ -236,7 +236,6 @@ class GeneraImmaginiAssegnazioni(
                     weekStart = weekPlan.weekStartDate,
                     partNumber = part.sortOrder + PART_DISPLAY_NUMBER_OFFSET,
                     partLabel = partDisplayLabel(part),
-                    roleLabel = student.roleLabel,
                 ),
                 sortOrder = part.sortOrder,
                 weekStart = weekPlan.weekStartDate,
