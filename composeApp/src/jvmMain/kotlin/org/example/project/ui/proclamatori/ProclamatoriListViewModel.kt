@@ -17,6 +17,7 @@ import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
 import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
+import org.example.project.feature.schemas.application.ArchivaAnomalieSchemaUseCase
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -63,6 +64,7 @@ internal class ProclamatoriListViewModel(
     private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
+    private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val partTypeStore: PartTypeStore,
 ) {
     private val _uiState = MutableStateFlow(ProclamatoriListUiState())
@@ -216,7 +218,7 @@ internal class ProclamatoriListViewModel(
                 noticeUpdate = { state, notice -> state.copy(isDismissingSchemaAnomalies = false, notice = notice) },
                 successMessage = "Pannello anomalie archiviato",
                 errorMessagePrefix = "Archiviazione anomalie non completata",
-                operation = { schemaUpdateAnomalyStore.dismissAllOpen() },
+                operation = { archivaAnomalieSchema() },
                 onSuccess = { _uiState.update { it.copy(schemaUpdateAnomalies = emptyList()) } },
             )
         }

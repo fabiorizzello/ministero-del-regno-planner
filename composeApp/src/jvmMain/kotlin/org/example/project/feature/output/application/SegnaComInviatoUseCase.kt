@@ -1,7 +1,6 @@
 package org.example.project.feature.output.application
 
 import arrow.core.Either
-import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.output.domain.SlipDelivery
@@ -20,10 +19,10 @@ class SegnaComInviatoUseCase(
         weekPlanId: WeekPlanId,
         studentName: String,
         assistantName: String?,
-    ): Either<DomainError, Unit> = transactionRunner.runInTransaction {
-        either {
+    ): Either<DomainError, Unit> = Either.catch {
+        transactionRunner.runInTransaction {
             val existing = store.findActiveDelivery(weeklyPartId, weekPlanId)
-            if (existing != null) return@either
+            if (existing != null) return@runInTransaction
 
             store.insert(
                 SlipDelivery(
@@ -37,5 +36,5 @@ class SegnaComInviatoUseCase(
                 )
             )
         }
-    }
+    }.mapLeft { DomainError.Validation("Errore registrazione consegna: ${it.message}") }
 }

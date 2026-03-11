@@ -1180,4 +1180,4 @@ private fun TooltipWrap(
 
 private fun formatUpdateTimestamp(instant: java.time.Instant): String =
     instant.atZone(java.time.ZoneId.systemDefault())
-        .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+        .format(org.example.project.ui.components.timestampFormatter)

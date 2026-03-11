@@ -8,6 +8,8 @@ import java.util.Locale
 private val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ITALIAN)
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM", Locale.ITALIAN)
 internal val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
+internal val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ITALIAN)
+internal val shortDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ITALIAN)
 
 /** Offset added to sortOrder for user-facing part numbers (meeting program convention). */
 const val DISPLAY_NUMBER_OFFSET = 3

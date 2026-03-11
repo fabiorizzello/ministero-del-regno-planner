@@ -84,6 +84,7 @@ val viewModelsModule = module {
             importaDaJson = get(),
             contaAssegnazioni = get(),
             schemaUpdateAnomalyStore = get(),
+            archivaAnomalieSchema = get(),
             partTypeStore = get(),
         )
     }

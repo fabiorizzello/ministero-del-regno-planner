@@ -755,7 +755,7 @@ private fun CompactSearchInput(
 private fun formatAnomalyDate(createdAt: String): String {
     return try {
         val dt = java.time.LocalDateTime.parse(createdAt)
-        dt.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+        dt.format(org.example.project.ui.components.shortDateFormatter)
     } catch (_: Exception) {
         createdAt.substringBefore('T')
     }

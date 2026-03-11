@@ -3,6 +3,7 @@ package org.example.project.feature.assignments.infrastructure
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.application.AssignmentSettings
 import org.example.project.feature.assignments.application.AssignmentSettingsStore
+import org.example.project.core.persistence.TransactionScope
 import java.util.UUID
 
 class SqlDelightAssignmentSettingsStore(
@@ -23,6 +24,7 @@ class SqlDelightAssignmentSettingsStore(
         }
     }
 
+    context(tx: TransactionScope)
     override suspend fun save(settings: AssignmentSettings) {
         val normalized = settings.normalized()
         val existingId = database.ministeroDatabaseQueries

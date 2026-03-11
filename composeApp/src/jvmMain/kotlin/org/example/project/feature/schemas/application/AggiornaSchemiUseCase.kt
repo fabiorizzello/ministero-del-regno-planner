@@ -51,44 +51,46 @@ class AggiornaSchemiUseCase(
                 .getOrNull() ?: raise(DomainError.DataSchemaNonValida(remoteWeek.weekStartDate))
         }
 
-        transactionRunner.runInTransaction {
-            if (eligibilityCleanupCandidates.isNotEmpty()) {
-                eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
-                schemaUpdateAnomalyStore.append(
-                    eligibilityCleanupCandidates.map { candidate ->
-                        SchemaUpdateAnomalyDraft(
-                            personId = candidate.personId,
-                            partTypeId = candidate.partTypeId,
-                            reason = "Idoneita conduzione rimossa dopo aggiornamento schemi",
-                            schemaVersion = catalog.version,
-                            createdAt = LocalDateTime.now().toString(),
-                        )
-                    },
-                )
-            }
-
-            partTypeStore.upsertAll(catalog.partTypes)
-            partTypeStore.deactivateMissingCodes(availableCodes)
-
-            val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
-                val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                    // All codes were validated against availableCodes above and upserted just above.
-                    // If findByCode returns null here it is a programming error (upsertAll did not
-                    // persist the code). error() escapes the lambda, TransactionRunner catches it
-                    // and triggers rollback before re-throwing.
-                    partTypeStore.findByCode(code)?.id
-                        ?: error("PartType con codice $code non trovato dopo upsertAll — stato impossibile")
+        Either.catch {
+            transactionRunner.runInTransaction {
+                if (eligibilityCleanupCandidates.isNotEmpty()) {
+                    eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
+                    schemaUpdateAnomalyStore.append(
+                        eligibilityCleanupCandidates.map { candidate ->
+                            SchemaUpdateAnomalyDraft(
+                                personId = candidate.personId,
+                                partTypeId = candidate.partTypeId,
+                                reason = "Idoneita conduzione rimossa dopo aggiornamento schemi",
+                                schemaVersion = catalog.version,
+                                createdAt = LocalDateTime.now().toString(),
+                            )
+                        },
+                    )
                 }
-                StoredSchemaWeekTemplate(
-                    weekStartDate = weekStartDate,
-                    partTypeIds = partTypeIds,
-                )
-            }
-            schemaTemplateStore.replaceAll(storedTemplates)
 
-            // Keep metadata update aligned with schema write transaction.
-            settings.putString("last_schema_import_at", LocalDateTime.now().toString())
-        }
+                partTypeStore.upsertAll(catalog.partTypes)
+                partTypeStore.deactivateMissingCodes(availableCodes)
+
+                val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
+                    val partTypeIds = remoteWeek.partTypeCodes.map { code ->
+                        // All codes were validated against availableCodes above and upserted just above.
+                        // If findByCode returns null here it is a programming error (upsertAll did not
+                        // persist the code). error() escapes the lambda, TransactionRunner catches it
+                        // and triggers rollback before re-throwing.
+                        partTypeStore.findByCode(code)?.id
+                            ?: error("PartType con codice $code non trovato dopo upsertAll — stato impossibile")
+                    }
+                    StoredSchemaWeekTemplate(
+                        weekStartDate = weekStartDate,
+                        partTypeIds = partTypeIds,
+                    )
+                }
+                schemaTemplateStore.replaceAll(storedTemplates)
+
+                // Keep metadata update aligned with schema write transaction.
+                settings.putString("last_schema_import_at", LocalDateTime.now().toString())
+            }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore aggiornamento schemi") }.bind()
 
         AggiornaSchemiResult(
             version = catalog.version,

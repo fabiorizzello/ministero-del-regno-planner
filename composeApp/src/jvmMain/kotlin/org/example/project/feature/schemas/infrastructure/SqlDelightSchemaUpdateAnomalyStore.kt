@@ -44,6 +44,7 @@ class SqlDelightSchemaUpdateAnomalyStore(
             }
     }
 
+    context(tx: TransactionScope)
     override suspend fun dismissAllOpen() {
         database.ministeroDatabaseQueries.dismissAllSchemaUpdateAnomalies()
     }

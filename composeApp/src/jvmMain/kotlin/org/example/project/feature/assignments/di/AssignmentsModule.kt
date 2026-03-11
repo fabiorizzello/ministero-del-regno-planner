@@ -27,7 +27,7 @@ val assignmentsModule = module {
     single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
     single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
     single { CaricaImpostazioniAssegnatoreUseCase(get()) }
-    single { SalvaImpostazioniAssegnatoreUseCase(get()) }
+    single { SalvaImpostazioniAssegnatoreUseCase(get(), get()) }
     single { CaricaAssegnazioniUseCase(get(), get()) }
     single { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
     single { RimuoviAssegnazioneUseCase(get(), get()) }

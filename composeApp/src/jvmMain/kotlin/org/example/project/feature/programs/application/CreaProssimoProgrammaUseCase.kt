@@ -34,7 +34,9 @@ class CreaProssimoProgrammaUseCase(
         )?.let { raise(it) }
 
         val program = createProgram(target)
-        transactionRunner.runInTransaction { programStore.save(program) }
+        Either.catch {
+            transactionRunner.runInTransaction { programStore.save(program) }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore creazione programma") }.bind()
         program
     }
 

@@ -24,14 +24,17 @@ class AssegnaPersonaUseCase(
         weeklyPartId: WeeklyPartId,
         personId: ProclamatoreId,
         slot: Int,
-    ): Either<DomainError, Unit> = transactionRunner.runInTransaction {
-        assignWithoutTransaction(
-            weekStartDate = weekStartDate,
-            weeklyPartId = weeklyPartId,
-            personId = personId,
-            slot = slot,
-        )
-    }
+    ): Either<DomainError, Unit> = Either.catch {
+        transactionRunner.runInTransaction {
+            assignWithoutTransaction(
+                weekStartDate = weekStartDate,
+                weeklyPartId = weeklyPartId,
+                personId = personId,
+                slot = slot,
+            )
+        }
+    }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio assegnazione") as DomainError }
+        .fold({ Either.Left(it) }, { it })
 
     context(tx: TransactionScope)
     internal suspend fun assignWithoutTransaction(

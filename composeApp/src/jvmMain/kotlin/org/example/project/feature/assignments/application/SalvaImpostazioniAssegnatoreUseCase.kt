@@ -1,9 +1,14 @@
 package org.example.project.feature.assignments.application
 
+import org.example.project.core.persistence.TransactionRunner
+
 class SalvaImpostazioniAssegnatoreUseCase(
     private val store: AssignmentSettingsStore,
+    private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(settings: AssignmentSettings) {
-        store.save(settings.normalized())
+        transactionRunner.runInTransaction {
+            store.save(settings.normalized())
+        }
     }
 }

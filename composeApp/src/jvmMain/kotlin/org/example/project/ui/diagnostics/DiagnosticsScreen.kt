@@ -64,10 +64,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.example.project.ui.components.FeedbackBanner
 import org.example.project.ui.components.FeedbackBannerKind
+import org.example.project.ui.components.shortDateFormatter
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.components.workspace.WorkspaceStateKind
 import org.example.project.ui.components.workspace.WorkspaceStatePane
@@ -355,8 +355,7 @@ fun DiagnosticsScreen() {
 }
 
 private fun formatCutoffDate(option: DiagnosticsRetentionOption): String {
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ITALIAN)
-    return option.cutoffDate().format(formatter)
+    return option.cutoffDate().format(shortDateFormatter)
 }
 
 private fun retentionMeaning(option: DiagnosticsRetentionOption): String =

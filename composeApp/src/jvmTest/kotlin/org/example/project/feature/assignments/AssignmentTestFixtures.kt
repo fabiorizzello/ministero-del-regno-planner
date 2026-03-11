@@ -127,12 +127,12 @@ internal class FixedSettingsStore(
     private val settings: AssignmentSettings,
 ) : AssignmentSettingsStore {
     override suspend fun load(): AssignmentSettings = settings
-    override suspend fun save(settings: AssignmentSettings) {}
+    context(tx: TransactionScope) override suspend fun save(settings: AssignmentSettings) {}
 }
 
 internal object StaticSettingsStore : AssignmentSettingsStore {
     override suspend fun load(): AssignmentSettings = AssignmentSettings(strictCooldown = true)
-    override suspend fun save(settings: AssignmentSettings) {}
+    context(tx: TransactionScope) override suspend fun save(settings: AssignmentSettings) {}
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,8 @@ class ImpostaIdoneitaConduzioneUseCase(
         partTypeId: PartTypeId,
         canLead: Boolean,
     ): Either<DomainError, Unit> = either {
-        transactionRunner.runInTransaction { eligibilityStore.setCanLead(personId, partTypeId, canLead) }
+        Either.catch {
+            transactionRunner.runInTransaction { eligibilityStore.setCanLead(personId, partTypeId, canLead) }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio idoneità") }.bind()
     }
 }

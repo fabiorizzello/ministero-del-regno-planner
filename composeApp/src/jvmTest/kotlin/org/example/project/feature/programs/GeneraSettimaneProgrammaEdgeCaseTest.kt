@@ -402,12 +402,9 @@ class GeneraSettimaneProgrammaEdgeCaseTest {
             transactionRunner = failingTransactionRunner,
         )
 
-        try {
-            useCase(program.id)
-            throw AssertionError("Expected RuntimeException to be thrown")
-        } catch (e: RuntimeException) {
-            assertEquals("DB connection failed", e.message)
-        }
+        val result = useCase(program.id)
+        assertIs<Either.Left<*>>(result)
+        Unit
     }
 }
 

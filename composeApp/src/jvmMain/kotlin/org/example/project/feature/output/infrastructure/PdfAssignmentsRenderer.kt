@@ -4,8 +4,6 @@ import java.awt.Color
 import java.io.IOException
 import java.nio.file.Path
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
@@ -15,10 +13,10 @@ import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.example.project.ui.components.dateFormatter
 
 class PdfAssignmentsRenderer {
     private val logger = KotlinLogging.logger {}
-    private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN)
     private val helvetica = PDType1Font(Standard14Fonts.FontName.HELVETICA)
     private val helveticaBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
 

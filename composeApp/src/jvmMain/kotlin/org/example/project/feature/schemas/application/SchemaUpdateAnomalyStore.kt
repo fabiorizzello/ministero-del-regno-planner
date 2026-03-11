@@ -25,5 +25,6 @@ interface SchemaUpdateAnomalyStore {
     context(tx: TransactionScope)
     suspend fun append(items: List<SchemaUpdateAnomalyDraft>)
     suspend fun listOpen(): List<SchemaUpdateAnomaly>
+    context(tx: TransactionScope)
     suspend fun dismissAllOpen()
 }

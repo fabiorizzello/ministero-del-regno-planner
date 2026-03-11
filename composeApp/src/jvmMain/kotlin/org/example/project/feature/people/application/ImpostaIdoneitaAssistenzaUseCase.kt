@@ -14,6 +14,8 @@ class ImpostaIdoneitaAssistenzaUseCase(
         personId: ProclamatoreId,
         canAssist: Boolean,
     ): Either<DomainError, Unit> = either {
-        transactionRunner.runInTransaction { eligibilityStore.setCanAssist(personId, canAssist) }
+        Either.catch {
+            transactionRunner.runInTransaction { eligibilityStore.setCanAssist(personId, canAssist) }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio idoneità") }.bind()
     }
 }

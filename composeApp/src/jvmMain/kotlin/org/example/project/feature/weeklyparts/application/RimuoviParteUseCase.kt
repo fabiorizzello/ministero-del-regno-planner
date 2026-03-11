@@ -23,8 +23,10 @@ class RimuoviParteUseCase(
             ifLeft = { raise(it) },
             ifRight = { it },
         )
-        transactionRunner.runInTransaction {
-            weekPlanStore.saveAggregate(updated)
-        }
+        Either.catch {
+            transactionRunner.runInTransaction {
+                weekPlanStore.saveAggregate(updated)
+            }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio settimana") }.bind()
     }
 }

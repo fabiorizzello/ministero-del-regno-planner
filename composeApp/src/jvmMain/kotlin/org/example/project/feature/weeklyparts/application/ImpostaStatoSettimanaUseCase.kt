@@ -26,8 +26,10 @@ class ImpostaStatoSettimanaUseCase(
             val currentMonday = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             if (!aggregate.weekPlan.canBeMutated(currentMonday)) raise(DomainError.SettimanaImmutabile)
         }
-        transactionRunner.runInTransaction {
-            weekPlanStore.saveAggregate(aggregate.setStatus(status))
-        }
+        Either.catch {
+            transactionRunner.runInTransaction {
+                weekPlanStore.saveAggregate(aggregate.setStatus(status))
+            }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio settimana") }.bind()
     }
 }

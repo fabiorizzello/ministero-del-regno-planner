@@ -1,7 +1,6 @@
 package org.example.project.feature.output.application
 
 import arrow.core.Either
-import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -15,11 +14,11 @@ class AnnullaConsegnaUseCase(
     suspend operator fun invoke(
         weeklyPartId: WeeklyPartId,
         weekPlanId: WeekPlanId,
-    ): Either<DomainError, Unit> = transactionRunner.runInTransaction {
-        either {
+    ): Either<DomainError, Unit> = Either.catch {
+        transactionRunner.runInTransaction {
             val active = store.findActiveDelivery(weeklyPartId, weekPlanId)
-                ?: return@either
+                ?: return@runInTransaction
             store.cancel(active.id, Instant.now())
         }
-    }
+    }.mapLeft { DomainError.Validation("Errore annullamento consegna: ${it.message}") }
 }

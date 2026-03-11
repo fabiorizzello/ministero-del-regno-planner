@@ -29,7 +29,7 @@ coerente con il programma selezionato.
 4. **Given** una parte con piu slot, **When** si stampa, **Then** slot 1 e etichettato
    `Studente` e gli slot successivi `Assistente`.
 5. **Given** una settimana marcata come saltata/disattivata, **When** si stampa il
-   programma, **Then** la sezione settimana mostra `Settimana non assegnata`.
+   programma, **Then** la sezione settimana mostra `Settimana saltata`.
 6. **Given** esistono PDF mensili precedenti in `<exports>/programmi`, **When** si
    genera il PDF del programma corrente, **Then** il sistema mantiene il file corrente e
    tenta di eliminare gli altri `programma-*.pdf`.
@@ -156,7 +156,7 @@ biglietto inviato → verificare warning e reset stato.
 - Settimana non trovata per `weekStartDate` negli export settimanali.
 - `selectedPartIds` vuoto negli export settimanali: interpretato come `tutte le parti`.
 - Parti con `peopleCount = 1`: il PDF mensile mostra comunque il ruolo `Studente`.
-- Settimane `SKIPPED`: nessuna card parte, solo testo `Settimana non assegnata`.
+- Settimane `SKIPPED`: nessuna card parte, solo testo `Settimana saltata`.
 - Proclamatore solo assistente (slot 2+ senza slot 1): escluso dalla generazione biglietti.
 - Parte con slot parzialmente compilati: nessun biglietto per nessuno della parte (neanche slot 1); solo card ghost parzialità.
 - Parte completamente vuota: solo card ghost assenza; inclusa nelle settimane attive del programma.
@@ -191,7 +191,7 @@ biglietto inviato → verificare warning e reset stato.
 - **FR-004**: Ogni card parte nel PDF mensile MUST mostrare numero parte, etichetta parte,
   ruolo e nominativo assegnato oppure `Non assegnato`.
 - **FR-005**: Le settimane `SKIPPED` MUST essere stampate come sezione senza card, con
-  il testo `Settimana non assegnata`.
+  il testo `Settimana saltata`.
 - **FR-006**: Il PDF mensile MUST essere salvato in
   `<exportsDir>/programmi/programma-YYYY-MM.pdf`.
 - **FR-007**: Prima di salvare il PDF mensile corrente, il sistema MUST tentare la
@@ -337,7 +337,7 @@ biglietto inviato → verificare warning e reset stato.
 - Q: Come viene impaginato oggi il PDF mensile? -> A: In 1 pagina A4 con sezioni
   settimana e griglia tipografica di card parte fino a 3 colonne.
 - Q: Cosa succede alle settimane disattivate? -> A: Vengono stampate come sezione con il
-  solo testo `Settimana non assegnata`.
+  solo testo `Settimana saltata`.
 - Q: Dove viene salvato il PDF mensile? -> A: In
   `<exportsDir>/programmi/programma-YYYY-MM.pdf`.
 - Q: I vecchi PDF mensili restano nella cartella export? -> A: Il sistema tenta la

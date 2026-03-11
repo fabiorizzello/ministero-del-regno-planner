@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
+import org.example.project.ui.components.dateFormatter
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
@@ -33,8 +34,6 @@ import org.example.project.ui.components.executeEitherOperationWithNotice
 import org.example.project.core.domain.toMessage
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 internal data class DeleteProgramImpact(
     val year: Int,
@@ -278,9 +277,7 @@ private fun buildProgramCreationFailureNotice(
 ): FeedbackBannerModel {
     val baseDetails = when (error) {
         is DomainError.SettimanaSenzaTemplateENessunaParteFissa -> {
-            val formattedDate = error.weekStartDate.format(
-                DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ITALIAN),
-            )
+            val formattedDate = error.weekStartDate.format(dateFormatter)
             "Schemi non aggiornati per la settimana del $formattedDate. Aggiorna schemi e riprova."
         }
         is DomainError.CatalogoSchemiIncoerente -> {

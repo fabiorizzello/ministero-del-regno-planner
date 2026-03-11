@@ -65,7 +65,8 @@ class GeneraImmaginiAssegnazioniTest {
             parts = listOf(dualSlotPart("p4", "Studio biblico")),
         )
 
-        Files.writeString(tempDir.resolve("s89-legacy.png"), "old")
+        Files.writeString(tempDir.resolve("biglietto-2026-03-old.png"), "old")
+        Files.writeString(tempDir.resolve("biglietto-2026-02-keep.png"), "other month")
         Files.writeString(tempDir.resolve("other-file.png"), "keep")
 
         coEvery { programStore.findById(programId) } returns ProgramMonth(
@@ -104,8 +105,9 @@ class GeneraImmaginiAssegnazioniTest {
         assertNull(result.tickets.first().assignments.single().roleLabel)
         assertNull(result.tickets.last().assignments.single().roleLabel)
         assertTrue(result.tickets.all { Files.exists(it.imagePath) })
-        assertTrue(result.tickets.all { it.imagePath.fileName.toString().startsWith("s89-") })
-        assertFalse(Files.exists(tempDir.resolve("s89-legacy.png")))
+        assertTrue(result.tickets.all { it.imagePath.fileName.toString().startsWith("biglietto-") })
+        assertFalse(Files.exists(tempDir.resolve("biglietto-2026-03-old.png")))
+        assertTrue(Files.exists(tempDir.resolve("biglietto-2026-02-keep.png")))
         assertTrue(Files.exists(tempDir.resolve("other-file.png")))
     }
 

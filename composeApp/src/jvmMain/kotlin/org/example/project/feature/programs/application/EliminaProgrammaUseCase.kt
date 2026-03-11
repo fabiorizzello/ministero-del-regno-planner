@@ -25,9 +25,11 @@ class EliminaProgrammaUseCase(
             .validateDeletion(referenceDate)
             ?.let { raise(it) }
 
-        transactionRunner.runInTransaction {
-            weekPlanStore.deleteByProgram(programId)
-            programStore.delete(programId)
-        }
+        Either.catch {
+            transactionRunner.runInTransaction {
+                weekPlanStore.deleteByProgram(programId)
+                programStore.delete(programId)
+            }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore eliminazione programma") }.bind()
     }
 }

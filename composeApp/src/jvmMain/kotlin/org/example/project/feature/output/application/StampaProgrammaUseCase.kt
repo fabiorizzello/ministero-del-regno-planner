@@ -4,9 +4,6 @@ import arrow.core.Either
 import arrow.core.raise.either
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,8 +22,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-
-private val monthTitleFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ITALIAN)
+import org.example.project.ui.components.formatMonthYearLabel
 
 internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
     WeekPlanStatus.ACTIVE -> "Attiva"
@@ -135,7 +131,7 @@ class StampaProgrammaUseCase(
         ).bind()
 
         renderer.renderMonthlyProgramPdf(
-            title = "Programma ${YearMonth.of(program.year, program.month).format(monthTitleFormatter)}",
+            title = "Programma ${formatMonthYearLabel(program.month, program.year)}",
             sections = sections,
             outputPath = outputPath,
         )

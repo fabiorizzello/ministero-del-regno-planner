@@ -240,5 +240,6 @@ private class NoopSchemaUpdateAnomalyStore2 : SchemaUpdateAnomalyStore {
     context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
+    context(tx: TransactionScope)
     override suspend fun dismissAllOpen() {}
 }

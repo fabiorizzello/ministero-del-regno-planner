@@ -90,9 +90,11 @@ class GeneraSettimaneProgrammaUseCase(
             )
         }
 
-        transactionRunner.runInTransaction {
-            weekPlanStore.replaceProgramAggregates(programId, aggregates)
-            programStore.updateTemplateAppliedAt(programId, LocalDateTime.now())
-        }
+        Either.catch {
+            transactionRunner.runInTransaction {
+                weekPlanStore.replaceProgramAggregates(programId, aggregates)
+                programStore.updateTemplateAppliedAt(programId, LocalDateTime.now())
+            }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore generazione settimane") }.bind()
     }
 }

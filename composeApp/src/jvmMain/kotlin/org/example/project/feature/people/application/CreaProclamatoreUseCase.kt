@@ -38,7 +38,9 @@ class CreaProclamatoreUseCase(
             sospeso = command.sospeso,
             puoAssistere = command.puoAssistere,
         ).bind().person
-        transactionRunner.runInTransaction { store.persist(nuovo) }
+        Either.catch {
+            transactionRunner.runInTransaction { store.persist(nuovo) }
+        }.mapLeft { DomainError.Validation(it.message ?: "Errore creazione proclamatore") }.bind()
         nuovo
     }
 }

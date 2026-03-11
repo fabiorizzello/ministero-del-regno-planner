@@ -2,97 +2,33 @@
 
 ## Medium
 
-**Medium 81**: `SchemaUpdateAnomalyStore.dismissAllOpen()` — mutation senza `context(TransactionScope)`.
-- Interfaccia: `SchemaUpdateAnomalyStore.kt:28` — `suspend fun dismissAllOpen()` senza context.
-- Implementazione: `SqlDelightSchemaUpdateAnomalyStore.kt:47` — chiama `dismissAllSchemaUpdateAnomalies()` senza transazione.
-- Caller: `ProclamatoriListViewModel.kt:219` — chiama via `executeAsyncOperationWithNotice` senza transaction wrapper.
-- **Inconsistente**: stessa interfaccia ha `context(tx: TransactionScope)` su `append()` ma non su `dismissAllOpen()`.
-- Severità: **Medium** | Effort: S
-
-**Medium 82**: `AssignmentSettingsStore.save()` — mutation senza `context(TransactionScope)`.
-- Interfaccia: `AssignmentSettingsStore.kt:5` — `suspend fun save(settings: AssignmentSettings)` senza context.
-- Implementazione: `SqlDelightAssignmentSettingsStore.kt:26` — chiama `upsertAssignmentSettings()` senza transazione.
-- Use case: `SalvaImpostazioniAssegnatoreUseCase.kt:7` — chiama `store.save()` senza `runInTransaction`.
-- **Sfuggito** nel sweep di Batch 10 (Medium 52 — "context(tx:) aggiunto a tutte le mutation store interfaces").
-- Severità: **Medium** | Effort: S
-
-**Medium 84**: Spec 006 FR-022 violazione — cleanup biglietti usa prefisso e pattern errato.
-- Spec: cleanup MUST usare pattern `biglietto-YYYY-MM-*.png` e preservare file di altri mesi.
-- Codice: `GeneraImmaginiAssegnazioni.kt:289` usa prefisso `s89-`, e `cleanupProgramTicketExports()` (righe 283-296) cancella **tutti** i file `s89-*.png` senza filtrare per mese — i parametri `year`/`month` sono ricevuti ma mai usati.
-- Anche il naming dei file generati (`buildProgramSlipBaseName`, righe 310-319) usa `s89-YYYYMMDD-{name}` invece di `biglietto-YYYY-MM-{details}`.
-- Severità: **Medium** | Effort: S
-- *(Rimandato — tocca file del plan slip-delivery-tracking)*
-
-**Medium 83**: `runInTransaction` dentro `either {}` senza `Either.catch` wrapper — pattern sistematico in 15 use case.
-- Se `runInTransaction` lancia eccezione DB, `either {}` non la cattura (cattura solo `raise()`). L'eccezione propaga al ViewModel senza conversione in `DomainError`.
-- **Impatto reale mitigato**: `AsyncOperationHelper` cattura tutte le eccezioni via `runCatching` — nessun crash app. L'effetto è un messaggio di errore raw (es. `"SQL error: UNIQUE constraint"`) invece di un `DomainError.toMessage()` localizzato.
-- 7 use case già usano il pattern corretto `Either.catch { runInTransaction { } }.mapLeft { }.bind()`.
-- **Use case affetti** (15):
-  - `CreaProssimoProgrammaUseCase.kt:37`
-  - `GeneraSettimaneProgrammaUseCase.kt:93`
-  - `EliminaProgrammaUseCase.kt:28`
-  - `AggiornaProclamatoreUseCase.kt:50`
-  - `CreaProclamatoreUseCase.kt:41`
-  - `ImpostaIdoneitaConduzioneUseCase.kt:19`
-  - `ImpostaIdoneitaAssistenzaUseCase.kt:17`
-  - `AggiungiParteUseCase.kt:38`
-  - `AggiornaPartiSettimanaUseCase.kt:40`
-  - `RimuoviParteUseCase.kt:26`
-  - `ImpostaStatoSettimanaUseCase.kt:29`
-  - `CreaSettimanaUseCase.kt:38`
-  - `EliminaStoricoUseCase.kt:19`
-  - `AssegnaPersonaUseCase.kt:27`
-  - `AggiornaSchemiUseCase.kt:54`
-- Pattern corretto (riferimento): `RiordinaPartiUseCase.kt:22`, `EliminaProclamatoreUseCase.kt:17`, `AggiornaProgrammaDaSchemiUseCase.kt:116`.
-- Severità: **Medium** | Effort: L
+*(Nessun finding medium aperto)*
 
 ---
 
 ## Low
 
-**Low 76**: `UpdateVersionComparator` — zero test coverage.
-- `commonMain/kotlin/.../updates/UpdateVersionComparator.kt` — 26 linee di logica comparazione versioni semantiche con edge case: prefisso `v`/`V`, componenti variabili, pre-release info persa.
-- Nessun file test sotto `commonTest` o `jvmTest`.
-- Severità: **Low** | Effort: S
-
-**Low 78**: `AnnullaConsegnaUseCase` e `SegnaComInviatoUseCase` — `either {}` dentro `runInTransaction {}`, pattern fragile.
-- `AnnullaConsegnaUseCase.kt:18-24` e `SegnaComInviatoUseCase.kt:23-39`.
-- Attualmente nessun `raise()` dopo mutazioni → nessun bug. Ma aggiungere un `raise()` dopo `store.cancel()` o `store.insert()` disabiliterebbe silenziosamente il rollback (Arrow cattura raise prima della transazione).
-- Pattern corretto: non usare `either {}` dentro `runInTransaction {}`, o usare `error()` per uscire.
-- Severità: **Low** | Effort: S
-
-**Low 79**: `DateTimeFormatter.ofPattern()` duplicato in 9+ file — `DateLabels.kt` esiste ma non usato universalmente.
-- Pattern duplicati: `"MMMM yyyy"` (3 file), `"d MMMM yyyy"` (3 file), `"dd/MM/yyyy HH:mm"` (2 file), `"dd/MM/yyyy"` (2 file).
-- `DateLabels.kt` definisce `monthYearFormatter` e `dateFormatter` ma non sono importati da `StampaProgrammaUseCase.kt:29`, `PdfAssignmentsRenderer.kt:21`, `ProgramLifecycleViewModel.kt:282`.
-- Bug minore: `ProclamatoriTableComponents.kt:758` — `DateTimeFormatter.ofPattern("dd/MM/yyyy")` senza `Locale.ITALIAN`.
-- Severità: **Low** | Effort: S
-
-**Low 81**: Spec 006 FR-005 disallineamento label — `"Settimana saltata"` vs spec `"Settimana non assegnata"`.
-- Spec (righe 32, 159, 194, 339): settimane `SKIPPED` mostrano `"Settimana non assegnata"`.
-- Codice: `StampaProgrammaUseCase.kt:61` — `emptyStateLabel = "Settimana saltata"`.
-- Severità: **Low** | Effort: S
-
-**Low 80**: `UpdateSettingsStore` e `WindowSettingsStore` — metodi mutazione config senza `context(TransactionScope)`.
-- `UpdateSettingsStore.kt:14` (`saveChannel`), `:23` (`saveLastCheck`).
-- `WindowSettingsStore.kt:52` (`save`), `:60` (`saveUiScale`).
-- Store di configurazione app, non di dominio business — impatto basso.
-- Severità: **Low** | Effort: S
-
-**Low 82**: `AutoAssegnaProgrammaUseCase` — solo 1 test (happy path), zero test error path.
-- Nessun test per: candidati tutti in cooldown, nessun candidato eligibile, settimane vuote, errore DB durante assegnazione.
-- Use case complesso (7 dipendenze iniettate) che merita coverage degli scenari di fallimento.
-- Severità: **Low** | Effort: M
-
-**Low 83**: `GeneraSettimaneProgrammaUseCase` — solo 1 test + 1 regenerate test. Coverage minima per logica di generazione settimane.
-- Severità: **Low** | Effort: M
-
-**Low 84**: N+1 query in `SqlDelightSchemaTemplateStore.listAll()`.
-- `SqlDelightSchemaTemplateStore.kt:54-69` — esegue `listSchemaWeeks()` (1 query), poi `schemaPartsByWeek(week.id)` per ogni settimana (N query). Per 52 settimane = 53 query.
-- Impatto mitigato: app single-user desktop, SQLite locale, volume dati basso.
-- Fix: una singola query JOIN `schema_week` + `schema_week_part`, poi raggruppamento in-memory.
-- Severità: **Low** | Effort: S
+*(Nessun finding low aperto)*
 
 ---
+
+## Findings risolti (Batch 17 — 2026-03-11)
+
+- **Low 76**: Aggiunti 24 test per `UpdateVersionComparator` — coprono prefisso v/V, componenti variabili, garbage input, stringhe vuote, whitespace.
+- **Low 80**: Invalidato — `UpdateSettingsStore` e `WindowSettingsStore` sono classi concrete che usano `russhwolf.settings.Settings` (preferenze JVM), non SQLDelight. `context(TransactionScope)` non applicabile.
+- **Low 82**: Aggiunti 6 error path test per `AutoAssegnaProgrammaUseCase` — programma inesistente, settimane vuote/skipped, candidati in cooldown, nessun candidato, errore assegnazione, filtro date.
+- **Low 83**: Aggiunti 12 edge case test per `GeneraSettimaneProgrammaUseCase` — programma inesistente, nessun template, fallback a parte fissa, mix template/fallback, errore DB, templateAppliedAt.
+- **Low 84**: N+1 query eliminata — nuova query `listSchemaWeeksWithParts` con LEFT JOIN + raggruppamento in-memory in `SqlDelightSchemaTemplateStore.listAll()`.
+
+## Findings risolti (Batch 16 — 2026-03-11)
+
+- **Medium 81**: `SchemaUpdateAnomalyStore.dismissAllOpen()` — aggiunto `context(TransactionScope)` su interfaccia + impl. Creato `ArchivaAnomalieSchemaUseCase` per wrappare in transazione. ViewModel aggiornato a usare use case. Fake test aggiornati.
+- **Medium 82**: `AssignmentSettingsStore.save()` — aggiunto `context(TransactionScope)` su interfaccia + impl. `SalvaImpostazioniAssegnatoreUseCase` riscritto con `TransactionRunner`. DI e fake test aggiornati.
+- **Medium 83**: `runInTransaction` senza `Either.catch` wrapper — tutti 15 use case wrappati con `Either.catch { runInTransaction { } }.mapLeft { DomainError.Validation(...) }.bind()`. Test rollback aggiornato per aspettare `Either.Left` invece di eccezione.
+- **Medium 84**: Cleanup biglietti — corretto prefisso da `s89-` a `biglietto-YYYY-MM-`, parametri `year`/`month` ora usati per filtrare. `buildProgramSlipBaseName` riallineato a spec. Test aggiornato.
+- **Low 78**: Rimosso `either {}` inutile da `AnnullaConsegnaUseCase` e `SegnaComInviatoUseCase` — wrappati con `Either.catch { runInTransaction { } }.mapLeft { }` (nessun `raise()` era usato).
+- **Low 79**: `DateTimeFormatter` consolidato — `timestampFormatter` e `shortDateFormatter` aggiunti a `DateLabels.kt`. 7 file migrati a usare i formatter condivisi. Bug `Locale.ITALIAN` mancante in `ProclamatoriTableComponents.kt` risolto.
+- **Low 81**: Spec 006 allineata — tutte le occorrenze di "Settimana non assegnata" cambiate in "Settimana saltata" (codice vince).
 
 ## Findings risolti (Batch 15 — 2026-03-11)
 

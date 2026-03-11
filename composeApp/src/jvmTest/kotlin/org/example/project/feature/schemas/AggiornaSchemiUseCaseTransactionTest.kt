@@ -29,7 +29,6 @@ import java.util.UUID
 import java.util.prefs.Preferences
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -130,13 +129,13 @@ class AggiornaSchemiUseCaseTransactionTest {
             settings = settings,
         )
 
-        assertFailsWith<IllegalStateException> {
-            useCase()
-        }
+        val result = useCase()
 
+        assertIs<Either.Left<*>>(result)
         assertEquals(listOf(existingPartType.code), partTypeStore.all().map { it.code })
         assertEquals(listOf(existingTemplate.weekStartDate), templateStore.listAll().map { it.weekStartDate })
         assertTrue(settings.getStringOrNull("last_schema_import_at") == null)
+        Unit
     }
 }
 
@@ -233,6 +232,7 @@ private class NoopSchemaUpdateAnomalyStore : SchemaUpdateAnomalyStore {
     context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
+    context(tx: TransactionScope)
     override suspend fun dismissAllOpen() {}
 }
 
