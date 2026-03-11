@@ -110,21 +110,14 @@ function Assert-JavaMajorVersionAtLeast {
         [int]$MinimumMajorVersion
     )
 
-    $versionOutput = @()
-    try {
-        $versionOutput = & $JavaExePath -version 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "Impossibile leggere la versione Java da: $JavaExePath"
-        }
-    } catch {
-        if (-not $versionOutput) {
-            throw "Impossibile leggere la versione Java da: $JavaExePath"
-        }
+    $versionOutput = & $JavaExePath --version
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossibile leggere la versione Java da: $JavaExePath"
     }
 
     $firstLine = ($versionOutput | Select-Object -First 1)
     $versionText = [string]$firstLine
-    $match = [System.Text.RegularExpressions.Regex]::Match($versionText, 'version "(\d+)(?:\.(\d+))?.*"')
+    $match = [System.Text.RegularExpressions.Regex]::Match($versionText, '^(?:openjdk|java)\s+(\d+)(?:\.(\d+))?.*$')
     if (-not $match.Success) {
         throw "Formato versione Java non riconosciuto: $versionText"
     }
