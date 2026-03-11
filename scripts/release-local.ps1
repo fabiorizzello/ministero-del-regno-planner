@@ -110,9 +110,15 @@ function Assert-JavaMajorVersionAtLeast {
         [int]$MinimumMajorVersion
     )
 
-    $versionOutput = & $JavaExePath -version 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Impossibile leggere la versione Java da: $JavaExePath"
+    try {
+        $versionOutput = & $JavaExePath -version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossibile leggere la versione Java da: $JavaExePath"
+        }
+    } catch {
+        if (-not $versionOutput) {
+            throw "Impossibile leggere la versione Java da: $JavaExePath"
+        }
     }
 
     $firstLine = ($versionOutput | Select-Object -First 1)
