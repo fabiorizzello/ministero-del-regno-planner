@@ -877,8 +877,6 @@ fun ProgramWorkspaceScreen() {
                                     state = assignmentState.assignmentSettings,
                                     skipRemoveConfirm = assignmentState.skipRemoveConfirm,
                                     onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
-                                    onLeadWeightChange = assignmentVM::setLeadWeight,
-                                    onAssistWeightChange = assignmentVM::setAssistWeight,
                                     onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
                                     onAssistCooldownChange = assignmentVM::setAssistCooldownWeeks,
                                     onSave = assignmentVM::saveAssignmentSettings,
@@ -1040,8 +1038,6 @@ private fun ProgramInlineAssignmentSettings(
     state: AssignmentSettingsUiState,
     skipRemoveConfirm: Boolean,
     onSkipRemoveConfirmChange: (Boolean) -> Unit,
-    onLeadWeightChange: (String) -> Unit,
-    onAssistWeightChange: (String) -> Unit,
     onLeadCooldownChange: (String) -> Unit,
     onAssistCooldownChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -1059,25 +1055,6 @@ private fun ProgramInlineAssignmentSettings(
                 .padding(spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-            ) {
-                DesktopNumericField(
-                    label = "Peso conduzione",
-                    value = state.leadWeight,
-                    onValueChange = onLeadWeightChange,
-                    onBlur = onSave,
-                    modifier = Modifier.weight(1f),
-                )
-                DesktopNumericField(
-                    label = "Peso assistenza",
-                    value = state.assistWeight,
-                    onValueChange = onAssistWeightChange,
-                    onBlur = onSave,
-                    modifier = Modifier.weight(1f),
-                )
-            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),

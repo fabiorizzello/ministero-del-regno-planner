@@ -36,7 +36,6 @@ class SuggerisciProclamatoriUseCase(
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
         val settings = assignmentSettingsStore.load()
-        val roleWeight = if (slot == 1) settings.leadWeight else settings.assistWeight
 
         val suggestions = assignmentStore.suggestedProclamatori(
             partTypeId = part.partType.id,
@@ -91,10 +90,10 @@ class SuggerisciProclamatoriUseCase(
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
                     sexMismatch = isSexMismatch,
                 )
-                Triple(annotated, passaSesso && passaIdoneita && p.id !in excludedIds, roleWeight)
+                Triple(annotated, passaSesso && passaIdoneita && p.id !in excludedIds, Unit)
             }
             .filter { (_, allowed, _) -> allowed }
-            .map { (suggestion, _, weight) -> suggestion to weightedScore(suggestion, weight) }
+            .map { (suggestion, _, _) -> suggestion to weightedScore(suggestion) }
             .filter { (suggestion, _) -> !settings.strictCooldown || !suggestion.inCooldown }
 
         return eligible
@@ -107,9 +106,9 @@ class SuggerisciProclamatoriUseCase(
             .map { (suggestion, _) -> suggestion }
     }
 
-    private fun weightedScore(suggestion: SuggestedProclamatore, roleWeight: Int): Long {
+    private fun weightedScore(suggestion: SuggestedProclamatore): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
         val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
-        return safeGlobalWeeks.toLong() * roleWeight.toLong() - cooldownPenalty
+        return safeGlobalWeeks.toLong() - cooldownPenalty
     }
 }

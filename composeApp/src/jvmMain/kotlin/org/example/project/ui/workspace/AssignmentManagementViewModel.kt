@@ -39,12 +39,8 @@ private const val KEY_SKIP_REMOVE_CONFIRM = "skip_assignment_removal_confirm"
 
 data class AssignmentSettingsUiState(
     val strictCooldown: Boolean = true,
-    val leadWeight: String = "2",
-    val assistWeight: String = "1",
     val leadCooldownWeeks: String = "4",
     val assistCooldownWeeks: String = "2",
-    val leadWeightError: String? = null,
-    val assistWeightError: String? = null,
     val leadCooldownError: String? = null,
     val assistCooldownError: String? = null,
 )
@@ -150,14 +146,6 @@ internal class AssignmentManagementViewModel(
         _uiState.update { it.copy(settingsSaved = false) }
     }
 
-    fun setLeadWeight(value: String) {
-        _uiState.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadWeight = value)) }
-    }
-
-    fun setAssistWeight(value: String) {
-        _uiState.update { it.copy(assignmentSettings = it.assignmentSettings.copy(assistWeight = value)) }
-    }
-
     fun setLeadCooldownWeeks(value: String) {
         _uiState.update { it.copy(assignmentSettings = it.assignmentSettings.copy(leadCooldownWeeks = value)) }
     }
@@ -173,7 +161,7 @@ internal class AssignmentManagementViewModel(
             _uiState.update {
                 it.copy(
                     notice = FeedbackBannerModel(
-                        "Impostazioni non valide: usa numeri interi >= 0 (peso >= 1)",
+                        "Impostazioni non valide: usa numeri interi >= 0",
                         FeedbackBannerKind.ERROR,
                     ),
                 )
@@ -478,8 +466,6 @@ internal class AssignmentManagementViewModel(
             it.copy(
                 assignmentSettings = AssignmentSettingsUiState(
                     strictCooldown = settings.strictCooldown,
-                    leadWeight = settings.leadWeight.toString(),
-                    assistWeight = settings.assistWeight.toString(),
                     leadCooldownWeeks = settings.leadCooldownWeeks.toString(),
                     assistCooldownWeeks = settings.assistCooldownWeeks.toString(),
                 ),
@@ -488,15 +474,11 @@ internal class AssignmentManagementViewModel(
     }
 
     private fun parseAssignmentSettings(state: AssignmentSettingsUiState): org.example.project.feature.assignments.application.AssignmentSettings? {
-        val leadWeight = state.leadWeight.trim().toIntOrNull() ?: return null
-        val assistWeight = state.assistWeight.trim().toIntOrNull() ?: return null
         val leadCooldown = state.leadCooldownWeeks.trim().toIntOrNull() ?: return null
         val assistCooldown = state.assistCooldownWeeks.trim().toIntOrNull() ?: return null
-        if (leadWeight < 1 || assistWeight < 1 || leadCooldown < 0 || assistCooldown < 0) return null
+        if (leadCooldown < 0 || assistCooldown < 0) return null
         return org.example.project.feature.assignments.application.AssignmentSettings(
             strictCooldown = state.strictCooldown,
-            leadWeight = leadWeight,
-            assistWeight = assistWeight,
             leadCooldownWeeks = leadCooldown,
             assistCooldownWeeks = assistCooldown,
         )
