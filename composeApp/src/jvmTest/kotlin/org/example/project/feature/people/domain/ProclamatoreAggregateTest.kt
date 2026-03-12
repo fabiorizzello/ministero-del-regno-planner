@@ -105,6 +105,66 @@ class ProclamatoreAggregateTest {
         assertEquals(ProclamatoreId("p42"), aggregate.person.id)
     }
 
+    // --- max-length boundary tests ---
+
+    @Test
+    fun `create succeeds when nome is exactly 100 chars after trim`() {
+        val nome100 = "A".repeat(100)
+        val result = ProclamatoreAggregate.create(
+            id = ProclamatoreId("p1"),
+            nome = "  $nome100  ",
+            cognome = "Rossi",
+            sesso = Sesso.M,
+        )
+
+        val aggregate = assertIs<Either.Right<ProclamatoreAggregate>>(result).value
+        assertEquals(100, aggregate.person.nome.length)
+    }
+
+    @Test
+    fun `create returns NomeTroppoLungo when nome exceeds 100 chars after trim`() {
+        val nome101 = "A".repeat(101)
+        val result = ProclamatoreAggregate.create(
+            id = ProclamatoreId("p1"),
+            nome = nome101,
+            cognome = "Rossi",
+            sesso = Sesso.M,
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.NomeTroppoLungo(100), left)
+    }
+
+    @Test
+    fun `create returns CognomeTroppoLungo when cognome exceeds 100 chars after trim`() {
+        val cognome101 = "B".repeat(101)
+        val result = ProclamatoreAggregate.create(
+            id = ProclamatoreId("p1"),
+            nome = "Mario",
+            cognome = cognome101,
+            sesso = Sesso.M,
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.CognomeTroppoLungo(100), left)
+    }
+
+    @Test
+    fun `Proclamatore of delegates to aggregate and rejects nome over 100 chars`() {
+        val nome101 = "A".repeat(101)
+        val result = Proclamatore.of(
+            id = ProclamatoreId("p1"),
+            nome = nome101,
+            cognome = "Rossi",
+            sesso = Sesso.M,
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.NomeTroppoLungo(100), left)
+    }
+
+    // --- suspend / reactivate ---
+
     @Test
     fun `suspend and reactivate are idempotent transitions`() {
         val aggregate = ProclamatoreAggregate(
