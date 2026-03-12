@@ -420,7 +420,7 @@ function Invoke-JPackageBuild {
         Assert-Executable -Path (Join-Path $layout.WixDir 'candle.exe') -Label 'WiX candle.exe'
     }
 
-    Clear-Directory -Path $OutputDir
+    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
     $arguments = @(
         '--type', $TargetFormat,
