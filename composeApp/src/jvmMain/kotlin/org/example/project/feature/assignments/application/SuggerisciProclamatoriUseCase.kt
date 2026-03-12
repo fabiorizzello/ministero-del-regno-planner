@@ -109,6 +109,7 @@ class SuggerisciProclamatoriUseCase(
     private fun weightedScore(suggestion: SuggestedProclamatore): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
         val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
-        return safeGlobalWeeks.toLong() - cooldownPenalty
+        val countPenalty = suggestion.totalAssignmentsInWindow * COUNT_PENALTY_WEIGHT
+        return safeGlobalWeeks.toLong() - countPenalty - cooldownPenalty
     }
 }

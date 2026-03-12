@@ -148,7 +148,9 @@ successive per slot 1.
 - **FR-003**: Il sistema MUST sostituire l'assegnazione esistente se lo slot è già
   occupato.
 - **FR-004**: Il sistema MUST suggerire proclamatori idonei ordinati per score
-  (settimane_globali − penalità_cooldown).
+  `(settimane_globali − conteggio_finestra × COUNT_PENALTY_WEIGHT − penalità_cooldown)`.
+  `COUNT_PENALTY_WEIGHT = 1`, `COUNT_WINDOW_WEEKS = 26` (finestra di conteggio: 26
+  settimane all'indietro rispetto alla data di riferimento).
 - **FR-005**: Il sistema MUST filtrare i suggerimenti per: sesso (`SexRule.UOMO`),
   idoneità (slot 1 con lead eligibility, slot >= 2 con `puoAssistere = true`),
   esclusione dei già assegnati nella stessa settimana (set `alreadyAssignedIds`),

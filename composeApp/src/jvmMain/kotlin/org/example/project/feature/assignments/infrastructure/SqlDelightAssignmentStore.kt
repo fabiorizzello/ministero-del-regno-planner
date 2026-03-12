@@ -15,6 +15,7 @@ import org.example.project.feature.people.infrastructure.mapProclamatoreAssignab
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.assignments.application.COUNT_WINDOW_WEEKS
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
@@ -98,6 +99,14 @@ class SqlDelightAssignmentStore(
                 valueTransform = { RankRow(it.week_start_date, it.part_type_id, it.slot) },
             )
 
+        // assignmentCountInWindow: count assignments per person in [referenceDate - COUNT_WINDOW_WEEKS, referenceDate)
+        val windowReferenceDate = referenceDates.min()
+        val windowStart = windowReferenceDate.minusWeeks(COUNT_WINDOW_WEEKS.toLong()).toString()
+        val windowEnd = windowReferenceDate.toString()
+        val assignmentCountInWindow: Map<String, Int> = byPerson.mapValues { (_, rows) ->
+            rows.count { it.weekDate >= windowStart && it.weekDate < windowEnd }
+        }
+
         // globalLast: MAX(week_start_date) per person
         val globalLast: Map<String, String?> = byPerson.mapValues { (_, rows) ->
             rows.maxOf { it.weekDate }
@@ -167,6 +176,7 @@ class SqlDelightAssignmentStore(
             partTypeLastByType = partTypeLastByType,
             partTypeBeforeByTypeAndDate = partTypeBeforeByTypeAndDate,
             partTypeAfterByTypeAndDate = partTypeAfterByTypeAndDate,
+            assignmentCountInWindow = assignmentCountInWindow,
         )
     }
 
@@ -182,6 +192,7 @@ class SqlDelightAssignmentStore(
         val partTypeRanking = cache.partTypeLastByType[partTypeId] ?: emptyMap()
         val partTypeBeforeRanking = cache.partTypeBeforeByTypeAndDate[partTypeId]?.get(referenceDate) ?: emptyMap()
         val partTypeAfterRanking = cache.partTypeAfterByTypeAndDate[partTypeId]?.get(referenceDate) ?: emptyMap()
+        val countInWindow = cache.assignmentCountInWindow
 
         return cache.allActive.map { p ->
             val lastGlobalDate = globalRanking[p.id.value]
@@ -222,6 +233,7 @@ class SqlDelightAssignmentStore(
                 lastGlobalAfterWeeks = globalAfterWeeks,
                 lastForPartTypeBeforeWeeks = partBeforeWeeks,
                 lastForPartTypeAfterWeeks = partAfterWeeks,
+                totalAssignmentsInWindow = countInWindow[p.id.value] ?: 0,
             )
         }
     }

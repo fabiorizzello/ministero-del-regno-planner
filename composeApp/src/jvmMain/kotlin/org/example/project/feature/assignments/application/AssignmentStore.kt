@@ -37,6 +37,7 @@ data class SuggestionRankingCache(
     val partTypeLastByType: Map<PartTypeId, Map<String, String?>>,
     val partTypeBeforeByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
     val partTypeAfterByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
+    val assignmentCountInWindow: Map<String, Int> = emptyMap(),
 )
 
 interface AssignmentRanking {

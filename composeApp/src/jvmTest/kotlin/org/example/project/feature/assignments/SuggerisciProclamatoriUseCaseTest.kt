@@ -255,6 +255,51 @@ class SuggerisciProclamatoriUseCaseTest {
     }
 
     // -----------------------------------------------------------------------
+    // Test 6 — candidato con più assegnazioni nella finestra ottiene score peggiore
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `candidato con piu' assegnazioni nella finestra ottiene score peggiore`() = runTest {
+        val personManyAssignments = person(id = "p-many", nome = "Mario", cognome = "Rossi", sesso = Sesso.M)
+        val personFewAssignments = person(id = "p-few", nome = "Luigi", cognome = "Verdi", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personManyAssignments,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                totalAssignmentsInWindow = 8,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personFewAssignments,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                totalAssignmentsInWindow = 2,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(personFewAssignments.id, result.first().proclamatore.id)
+        assertEquals(personManyAssignments.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
     // Test 5 — slot=1 (studente): solo chi ha idoneità conduzione appare
     // -----------------------------------------------------------------------
 
