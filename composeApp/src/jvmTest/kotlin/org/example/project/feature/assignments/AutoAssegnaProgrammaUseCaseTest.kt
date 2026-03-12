@@ -251,6 +251,78 @@ class AutoAssegnaProgrammaUseCaseTest {
     }
 
     @Test
+    fun `partial failure persists successful slot and records unresolved for failed slot`() = runTest {
+        // Part type with 2 slots (studente + assistente)
+        val twoSlotPartType = partType.copy(peopleCount = 2)
+        val twoSlotPart = WeeklyPart(
+            id = WeeklyPartId("part-1"),
+            partType = twoSlotPartType,
+            sortOrder = 0,
+        )
+        val twoSlotWeek = WeekPlan(
+            id = WeekPlanId("week-1"),
+            weekStartDate = weekStart,
+            parts = listOf(twoSlotPart),
+            programId = programId,
+        )
+
+        // Candidate B: puoAssistere but NOT known by the person store → will trigger NotFound
+        val candidateB = Proclamatore(
+            id = ProclamatoreId("p-2"),
+            nome = "Luigi",
+            cognome = "Verdi",
+            sesso = Sesso.M,
+            puoAssistere = true,
+        )
+        val candidateBSuggestion = SuggestedProclamatore(
+            proclamatore = candidateB,
+            lastGlobalWeeks = 5,
+            lastForPartTypeWeeks = 3,
+            lastConductorWeeks = 5,
+        )
+
+        val weekStore = InMemoryWeekPlanStore(
+            WeekPlanAggregate(weekPlan = twoSlotWeek, assignments = emptyList()),
+        )
+        val ranking = StaticAssignmentRanking(listOf(candidateSuggestion, candidateBSuggestion))
+        val eligibility = SingleCandidateEligibilityStore(candidate.id, twoSlotPartType.id)
+        val suggestUseCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekStore,
+            assignmentStore = ranking,
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = eligibility,
+            assignmentSettingsStore = StaticSettingsStore,
+        )
+        // Person store only knows candidate A — slot 2 will fail with NotFound for candidate B
+        val assignUseCase = AssegnaPersonaUseCase(
+            weekPlanStore = weekStore,
+            transactionRunner = PassthroughTransactionRunner,
+            personStore = TransactionTestPersonStore(candidate),
+        )
+        val useCase = buildUseCase(
+            weekStore = weekStore,
+            suggestUseCase = suggestUseCase,
+            assignUseCase = assignUseCase,
+            ranking = ranking,
+            assignmentRepository = EmptyAssignmentsRepository,
+        )
+
+        val result = useCase(programId = programId, referenceDate = weekStart)
+        val saved = weekStore.loadAggregateByDate(weekStart)
+
+        // Slot 1 succeeded, slot 2 failed
+        assertEquals(1, result.assignedCount)
+        assertEquals(1, result.unresolved.size)
+        assertEquals(2, result.unresolved[0].slot)
+        assertEquals(weekStart, result.unresolved[0].weekStartDate)
+        assertTrue(result.unresolved[0].reason.contains("non trovato"))
+
+        // Slot 1 assignment was persisted
+        assertEquals(1, saved?.assignments?.size ?: 0)
+        assertEquals(candidate.id, saved?.assignments?.single()?.personId)
+    }
+
+    @Test
     fun `weeks before referenceDate are excluded from auto-assignment`() = runTest {
         val weekStore = InMemoryWeekPlanStore(
             WeekPlanAggregate(weekPlan = week, assignments = emptyList()),
