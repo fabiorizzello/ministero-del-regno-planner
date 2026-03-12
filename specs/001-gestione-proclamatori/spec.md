@@ -196,8 +196,8 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
   `sospeso`, che governa l'assegnabilità nei flussi di candidatura. Non esiste un flag
   `eliminato` — l'eliminazione è un hard delete che rimuove il record e lo storico
   assegnazioni.
-  Invariante (enforced in `Proclamatore.init`): nome e cognome non vuoti (isNotBlank)
-  e lunghezza massima 100 caratteri ciascuno.
+  Invariante (enforced in `ProclamatoreAggregate.create()` e `updateProfile()`): nome e cognome
+  non vuoti (isNotBlank) e lunghezza massima 100 caratteri ciascuno (su input trimmed).
   `sospeso = true` esclude dalle candidature per le assegnazioni.
 - **AggiornamentoOutcome** (`AggiornaProclamatoreUseCase.AggiornamentoOutcome`):
   `proclamatore: Proclamatore`, `futureWeeksWhereAssigned: List<LocalDate>` — lista
@@ -237,8 +237,9 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 ### Session 2026-03-05
 
 - Q: La validazione max-length 100 è solo nei use case o anche nel domain model? → A:
-  Ora è nel domain model: `Proclamatore.init` esegue sia `isNotBlank()` che
-  `length <= 100` per nome e cognome. Questo garantisce che nessun path di creazione
+  Ora è nel domain model: `ProclamatoreAggregate.create()` e `updateProfile()` eseguono
+  sia `isNotBlank()` che `length <= 100` su input trimmed. `Proclamatore.of()` delega a
+  `ProclamatoreAggregate.create()`. Questo garantisce che nessun path di creazione
   (incluso `ImportaProclamatoriDaJsonUseCase`) possa produrre un `Proclamatore` invalido
   indipendentemente da quale use case lo costruisce (parse-don't-validate).
 
