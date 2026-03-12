@@ -9,6 +9,10 @@ schemas, print+assignments), 2026-03-12.
 
 (nessuno)
 
+### Debito accettato
+
+- MEDIUM-020 — DiagnosticsViewModel I/O diretto: utility screen senza logica di dominio, debito accettato
+
 ---
 
 ## Findings risolti
@@ -42,6 +46,11 @@ schemas, print+assignments), 2026-03-12.
 - MEDIUM-016 — Test ArchivaAnomalieSchema → `b9150c4`
 - MEDIUM-017 — Test domain replaceParts() → `b9150c4`
 
+### Codebase review (round 3, 2026-03-12)
+
+- MEDIUM-018 — Settings.putString fuori tx → `c254e17`
+- MEDIUM-019 — SchemaCatalogRemoteSource returns Either → `b2e1d15`
+
 ---
 
 ## Findings invalidati
@@ -49,6 +58,14 @@ schemas, print+assignments), 2026-03-12.
 - INV-001 — Fairness doc formula: changelog intenzionale
 - INV-002 — abs() asimmetria: design corretto
 - INV-003 — Count window exclusive end: by design
+- INV-004 — VACUUM dual connection: non esiste nel codebase
+- INV-005 — Dead ImpostaIdoneitaAssistenzaUseCase: attivamente usato
+- INV-006 — Orphan ranking queries: tutte referenziate da SqlDelightAssignmentStore
+- INV-007 — Missing index slip_delivery.week_plan_id: indice composito presente
+- INV-008 — Private DTOs schemas: design corretto
+- INV-009 — TOCTOU gap AggiornaSchemiUseCase: nessun gap
+- INV-010 — AppBootstrap race: synchronized corretto
+- INV-011 — ViewModel error handling: pattern diversi ma tutti corretti nel contesto
 
 ---
 
@@ -59,3 +76,4 @@ schemas, print+assignments), 2026-03-12.
 | 2026-03-12 | `./gradlew :composeApp:jvmTest` | full suite | 0 |
 | 2026-03-12 | post-merge batch 1 | full suite | 0 |
 | 2026-03-12 | post-merge batch 2 | full suite | 0 |
+| 2026-03-12 | post-merge round 3 (MEDIUM-018/019) | full suite | 0 |
