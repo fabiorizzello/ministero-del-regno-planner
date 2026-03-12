@@ -94,8 +94,9 @@ che l'ultimo ruolo era slot 1.
 slotRepeatPenalty = if (targetSlot matches lastSlot) SLOT_REPEAT_PENALTY else 0
 ```
 
-Con `SLOT_REPEAT_PENALTY` = 3-5 settimane equivalenti. Non blocca l'assegnazione,
-ma crea una rotazione naturale tra ruoli.
+Con `SLOT_REPEAT_PENALTY` = 4 settimane equivalenti (costante nel codice, non esposta
+nelle impostazioni utente). Non blocca l'assegnazione, ma crea una rotazione naturale
+tra ruoli.
 
 ### C. Tiebreaker deterministico non-alfabetico
 
@@ -112,6 +113,9 @@ Ogni settimana l'ordine a parità cambia, nessuno è sistematicamente favorito.
 Aggiungere un fattore basato sul conteggio totale di assegnazioni in una finestra
 temporale (es. ultimi 6 mesi). Chi ha fatto più assegnazioni viene penalizzato
 rispetto a chi ne ha fatte meno.
+
+Costanti nel codice (`COUNT_PENALTY_WEIGHT`, `COUNT_WINDOW_WEEKS`), non esposte
+nelle impostazioni utente.
 
 ```
 countPenalty = totalAssignmentsInWindow × COUNT_PENALTY_WEIGHT

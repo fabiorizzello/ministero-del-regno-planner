@@ -55,23 +55,17 @@ La componente per-parte esce dalla formula. I dati restano nel domain model per 
 
 ### B. Slot repeat penalty
 
-Nuova penalità se l'ultimo slot assegnato coincide con il target slot.
+Nuova penalità se l'ultimo slot assegnato coincide con il target slot. Costante nel codice, non esposta nelle impostazioni utente.
 
 | File | Modifica | Effort |
 |---|---|---|
 | `SuggestedProclamatore.kt` | Nessuna — `lastConductorWeeks` già presente, sufficiente per derivare "ultimo slot era 1" | Nessuno |
-| `AssignmentSettings.kt` | Aggiungere `val slotRepeatPenalty: Int = 4` + aggiornare `normalized()` | Triviale |
-| `SuggerisciProclamatoriUseCase.kt` | In `weightedScore()`: calcolare `lastWasConductor` (già fatto nel cooldown), sottrarre `slotRepeatPenalty` se `targetSlot matches lastSlot` | Basso |
-| `SqlDelightAssignmentSettingsStore.kt` | Aggiungere mapping per nuovo campo | Basso |
-| `MinisteroDatabase.sq` | Aggiungere colonna `slot_repeat_penalty` a `assignment_settings` + migration `.sqm` | Basso |
-| `AssignmentManagementViewModel.kt` | Aggiungere campo UI per `slotRepeatPenalty` | Basso |
-| `AssignmentsComponents.kt` | Aggiungere input nel form settings | Basso |
+| `AssignmentSettings.kt` | Aggiungere `const val SLOT_REPEAT_PENALTY = 4` (costante, come `COOLDOWN_PENALTY`) | Triviale |
+| `SuggerisciProclamatoriUseCase.kt` | In `weightedScore()`: calcolare `lastWasConductor` (già fatto nel cooldown), sottrarre `SLOT_REPEAT_PENALTY` se `targetSlot matches lastSlot` | Basso |
 | `SuggerisciProclamatoriUseCaseTest.kt` | Nuovi test per slot repeat penalty | Medio |
-| `AssignmentTestFixtures.kt` | Aggiornare `StaticAssignmentSettingsStore` | Triviale |
-| `AssignmentManagementViewModelTest.kt` | Test parsing/validazione nuovo campo | Basso |
 | `specs/005-assegnazioni/spec.md` | Documentare slot repeat penalty | Basso |
 
-**Effort totale: medio** — nuovo campo DB con migration, logica, UI settings, test.
+**Effort totale: basso** — costante + 3-4 righe in `weightedScore()`, nessun cambio DB/UI.
 
 ---
 
@@ -117,44 +111,40 @@ Rimuovere la distinzione tra pesi per ruolo.
 
 ### E. Fairness cumulativa (conteggio totale)
 
-Nuovo fattore: penalità basata sul numero di assegnazioni in una finestra temporale.
+Nuovo fattore: penalità basata sul numero di assegnazioni in una finestra temporale. Costanti nel codice (`COUNT_PENALTY_WEIGHT`, `COUNT_WINDOW_WEEKS`), non esposte nelle impostazioni utente.
 
 | File | Modifica | Effort |
 |---|---|---|
 | `SuggestedProclamatore.kt` | Aggiungere `val totalAssignmentsInWindow: Int = 0` | Triviale |
-| `AssignmentSettings.kt` | Aggiungere `val countPenaltyWeight: Int = 1` e `val countWindowWeeks: Int = 26` + `normalized()` | Basso |
+| `AssignmentSettings.kt` | Aggiungere `const val COUNT_PENALTY_WEIGHT = 1` e `const val COUNT_WINDOW_WEEKS = 26` | Triviale |
 | `SuggestionRankingCache` | Aggiungere `val assignmentCountInWindow: Map<String, Int>` (personId → count) | Basso |
 | `SqlDelightAssignmentStore.kt` | In `fetchRankingFromDb()`: calcolare count per persona filtrando `allAssignmentRankingData` per finestra temporale. In `buildSuggestions()`: popolare `totalAssignmentsInWindow` | Medio |
-| `SuggerisciProclamatoriUseCase.kt` | In `weightedScore()`: sottrarre `totalAssignmentsInWindow * countPenaltyWeight` | Basso |
-| `SqlDelightAssignmentSettingsStore.kt` | Mapping nuovi campi | Basso |
-| `MinisteroDatabase.sq` | Migration: aggiungere `count_penalty_weight`, `count_window_weeks` a `assignment_settings` | Basso |
-| `AssignmentManagementViewModel.kt` | Campi UI per i nuovi settings | Medio |
-| `AssignmentsComponents.kt` | Input nel form settings + (opzionale) mostrare count nella suggestion row | Medio |
+| `SuggerisciProclamatoriUseCase.kt` | In `weightedScore()`: sottrarre `totalAssignmentsInWindow * COUNT_PENALTY_WEIGHT` | Basso |
 | `SuggerisciProclamatoriUseCaseTest.kt` | Nuovi test per count penalty | Medio |
 | `SqlDelightAssignmentStoreTest.kt` | Test che il count viene calcolato correttamente dalla cache | Medio |
 | `AssignmentTestFixtures.kt` | Aggiornare fixtures con nuovo campo | Basso |
 | `specs/005-assegnazioni/spec.md` | Documentare count penalty | Basso |
 
-**Effort totale: medio-alto** — nuovo dato nella cache, nuova query aggregation, UI, test.
+**Effort totale: medio** — nuovo dato nella cache e aggregation in-memory, ma nessun cambio DB/UI.
 
 ---
 
 ## Riepilogo effort
 
-| Proposta | Effort | File toccati | Migration DB |
-|---|---|---|---|
-| A. Rimuovere `lastForPartTypeWeeks` da scoring | Basso | 3 + test/docs | No |
-| B. Slot repeat penalty | Medio | 8 + test/docs | Si (1 colonna) |
-| C. Tiebreaker hash | Basso | 2 + test/docs | No |
-| D. Unificare pesi | Medio | 8 + test/docs | Si (drop 2 colonne) |
-| E. Fairness cumulativa | Medio-alto | 9 + test/docs | Si (2 colonne) |
+| Proposta | Effort | File toccati | Migration DB | Cambio UI settings |
+|---|---|---|---|---|
+| A. Rimuovere `lastForPartTypeWeeks` da scoring | Basso | 3 + test/docs | No | No |
+| B. Slot repeat penalty (costante) | Basso | 3 + test/docs | No | No |
+| C. Tiebreaker hash | Basso | 2 + test/docs | No | No |
+| D. Unificare pesi | Medio | 8 + test/docs | Si (drop 2 colonne) | Si (rimuove 2 campi) |
+| E. Fairness cumulativa (costanti) | Medio | 6 + test/docs | No | No |
 
 ### Ordine di implementazione consigliato
 
-1. **A + C + D** insieme — sono rimozioni/semplificazioni, riducono la complessità. Nessuna nuova feature, solo pulizia. A e C non toccano il DB. D richiede una migration ma rimuove complessità.
-2. **B** — aggiunge la slot rotation, unica nuova feature a effort contenuto.
-3. **E** — la più complessa, aggiunge infrastruttura nuova (count in cache, finestra temporale). Da fare per ultima quando il resto è stabile.
+1. **A + B + C** insieme — modifiche solo in `SuggerisciProclamatoriUseCase.kt` e `AssignmentSettings.kt`. Nessun cambio DB o UI. Puro refactoring dell'algoritmo.
+2. **D** — unica modifica che tocca DB (migration), UI (rimuove 2 campi dal form settings), e ViewModel.
+3. **E** — aggiunge infrastruttura nuova (count in cache, aggregation in-memory), ma nessun cambio DB o UI.
 
 ### Rischio
 
-Il rischio principale è nella **UI del form settings** (`AssignmentManagementViewModel` + `AssignmentsComponents`): D rimuove campi, B e E ne aggiungono. Se fatti insieme, il form va ridisegnato una volta sola. L'algoritmo in sé è ben isolato in `weightedScore()` (5 righe di codice).
+Rischio basso. Rendendo B e E costanti, l'unica modifica che tocca DB e UI è D (rimozione di `leadWeight`/`assistWeight`). L'algoritmo è ben isolato in `weightedScore()` (5 righe di codice). Il grosso del lavoro è nei test (~20 test da riadattare alla nuova formula).
