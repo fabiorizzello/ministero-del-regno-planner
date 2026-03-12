@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.DpSize
 import efficaci_nel_ministero.composeapp.generated.resources.Res
 import efficaci_nel_ministero.composeapp.generated.resources.icon
 import org.example.project.core.bootstrap.AppBootstrap
+import org.example.project.core.config.SingleInstanceGuard
 import org.example.project.core.config.WindowSettings
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.config.toSettingsSnapshot
@@ -54,117 +55,127 @@ fun main() {
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
         uncaughtExceptionLogger.error(throwable) { "Eccezione non gestita nel thread ${thread.name}" }
     }
+    val startupLogger = KotlinLogging.logger("Startup")
 
-    AppBootstrap.initialize()
-    if (GlobalContext.getOrNull() == null) {
-        startKoin {
-            modules(
-                coreModule,
-                peopleModule,
-                programsModule,
-                schemasModule,
-                weeklyPartsModule,
-                assignmentsModule,
-                diagnosticsModule,
-                outputModule,
-                updatesModule,
-                viewModelsModule,
-            )
-        }
+    if (!SingleInstanceGuard.acquire()) {
+        startupLogger.info { "Richiesta seconda istanza ignorata: applicazione già in esecuzione." }
+        return
     }
 
-    application {
-        val settingsStore = remember { GlobalContext.get().get<WindowSettingsStore>() }
-        val initialWindowSettings = remember { settingsStore.load() }
-        val initialUiScale = remember { settingsStore.loadUiScale() }
-        val initialPosition = if (
-            initialWindowSettings.positionXDp != WindowSettings.POSITION_UNSET &&
-            initialWindowSettings.positionYDp != WindowSettings.POSITION_UNSET
-        ) {
-            WindowPosition.Absolute(
-                x = initialWindowSettings.positionXDp.dp,
-                y = initialWindowSettings.positionYDp.dp,
-            )
-        } else {
-            WindowPosition.PlatformDefault
-        }
-        val windowState = rememberWindowState(
-            width = initialWindowSettings.widthDp.dp,
-            height = initialWindowSettings.heightDp.dp,
-            placement = initialWindowSettings.placement,
-            position = initialPosition,
-        )
-        val jewelThemeDefinition = remember {
-            JewelTheme.lightThemeDefinition()
-        }
-        val workspaceSketch = remember { WorkspaceSketchPalette() }
-        val jewelWindowStyle = remember(workspaceSketch) {
-            DecoratedWindowStyle.light(
-                colors = DecoratedWindowColors.light(
-                    borderColor = workspaceSketch.windowBorder,
-                    inactiveBorderColor = workspaceSketch.toolbarBorder,
-                ),
-            )
-        }
-        val jewelTitleBarStyle = TitleBarStyle.light(
-            colors = TitleBarColors.light(
-                backgroundColor = workspaceSketch.toolbarBackground,
-                inactiveBackground = workspaceSketch.surfaceMuted,
-                contentColor = workspaceSketch.toolbarInk,
-                borderColor = workspaceSketch.toolbarBorder,
-                titlePaneButtonHoveredBackground = workspaceSketch.toolbarSurface,
-                titlePaneButtonPressedBackground = workspaceSketch.lineSoft,
-                titlePaneCloseButtonHoveredBackground = workspaceSketch.bad,
-                titlePaneCloseButtonPressedBackground = workspaceSketch.bad.copy(alpha = 0.82f),
-                iconButtonHoveredBackground = workspaceSketch.toolbarSurface,
-                iconButtonPressedBackground = workspaceSketch.lineSoft,
-                dropdownHoveredBackground = workspaceSketch.toolbarSurface,
-                dropdownPressedBackground = workspaceSketch.lineSoft,
-            ),
-            metrics = TitleBarMetrics.defaults(
-                height = 48.dp,
-                titlePaneButtonSize = DpSize(48.dp, 48.dp),
-            ),
-        )
-
-        LaunchedEffect(windowState) {
-            snapshotFlow { windowState.toSettingsSnapshot() }
-                .distinctUntilChanged()
-                .collect(settingsStore::save)
-        }
-
-        IntUiTheme(
-            theme = jewelThemeDefinition,
-            styling = ComponentStyling.default().decoratedWindow(
-                windowStyle = jewelWindowStyle,
-                titleBarStyle = jewelTitleBarStyle,
-            ),
-        ) {
-            DecoratedWindow(
-                state = windowState,
-                style = jewelWindowStyle,
-                onCloseRequest = {
-                    settingsStore.save(windowState.toSettingsSnapshot())
-                    exitApplication()
-                },
-                title = "Scuola di ministero",
-                icon = painterResource(Res.drawable.icon),
-            ) {
-                LaunchedEffect(Unit) {
-                    window.minimumSize = Dimension(
-                        WindowSettings.MIN_WIDTH_DP,
-                        WindowSettings.MIN_HEIGHT_DP,
-                    )
-                }
-                AppScreen(
-                    initialUiScale = initialUiScale,
-                    onUiScaleChange = settingsStore::saveUiScale,
-                    onRestartRequested = {
-                        settingsStore.save(windowState.toSettingsSnapshot())
-                        exitApplication()
-                    },
+    try {
+        AppBootstrap.initialize()
+        if (GlobalContext.getOrNull() == null) {
+            startKoin {
+                modules(
+                    coreModule,
+                    peopleModule,
+                    programsModule,
+                    schemasModule,
+                    weeklyPartsModule,
+                    assignmentsModule,
+                    diagnosticsModule,
+                    outputModule,
+                    updatesModule,
+                    viewModelsModule,
                 )
             }
         }
+
+        application {
+            val settingsStore = remember { GlobalContext.get().get<WindowSettingsStore>() }
+            val initialWindowSettings = remember { settingsStore.load() }
+            val initialUiScale = remember { settingsStore.loadUiScale() }
+            val initialPosition = if (
+                initialWindowSettings.positionXDp != WindowSettings.POSITION_UNSET &&
+                initialWindowSettings.positionYDp != WindowSettings.POSITION_UNSET
+            ) {
+                WindowPosition.Absolute(
+                    x = initialWindowSettings.positionXDp.dp,
+                    y = initialWindowSettings.positionYDp.dp,
+                )
+            } else {
+                WindowPosition.PlatformDefault
+            }
+            val windowState = rememberWindowState(
+                width = initialWindowSettings.widthDp.dp,
+                height = initialWindowSettings.heightDp.dp,
+                placement = initialWindowSettings.placement,
+                position = initialPosition,
+            )
+            val jewelThemeDefinition = remember {
+                JewelTheme.lightThemeDefinition()
+            }
+            val workspaceSketch = remember { WorkspaceSketchPalette() }
+            val jewelWindowStyle = remember(workspaceSketch) {
+                DecoratedWindowStyle.light(
+                    colors = DecoratedWindowColors.light(
+                        borderColor = workspaceSketch.windowBorder,
+                        inactiveBorderColor = workspaceSketch.toolbarBorder,
+                    ),
+                )
+            }
+            val jewelTitleBarStyle = TitleBarStyle.light(
+                colors = TitleBarColors.light(
+                    backgroundColor = workspaceSketch.toolbarBackground,
+                    inactiveBackground = workspaceSketch.surfaceMuted,
+                    contentColor = workspaceSketch.toolbarInk,
+                    borderColor = workspaceSketch.toolbarBorder,
+                    titlePaneButtonHoveredBackground = workspaceSketch.toolbarSurface,
+                    titlePaneButtonPressedBackground = workspaceSketch.lineSoft,
+                    titlePaneCloseButtonHoveredBackground = workspaceSketch.bad,
+                    titlePaneCloseButtonPressedBackground = workspaceSketch.bad.copy(alpha = 0.82f),
+                    iconButtonHoveredBackground = workspaceSketch.toolbarSurface,
+                    iconButtonPressedBackground = workspaceSketch.lineSoft,
+                    dropdownHoveredBackground = workspaceSketch.toolbarSurface,
+                    dropdownPressedBackground = workspaceSketch.lineSoft,
+                ),
+                metrics = TitleBarMetrics.defaults(
+                    height = 48.dp,
+                    titlePaneButtonSize = DpSize(48.dp, 48.dp),
+                ),
+            )
+
+            LaunchedEffect(windowState) {
+                snapshotFlow { windowState.toSettingsSnapshot() }
+                    .distinctUntilChanged()
+                    .collect(settingsStore::save)
+            }
+
+            IntUiTheme(
+                theme = jewelThemeDefinition,
+                styling = ComponentStyling.default().decoratedWindow(
+                    windowStyle = jewelWindowStyle,
+                    titleBarStyle = jewelTitleBarStyle,
+                ),
+            ) {
+                DecoratedWindow(
+                    state = windowState,
+                    style = jewelWindowStyle,
+                    onCloseRequest = {
+                        settingsStore.save(windowState.toSettingsSnapshot())
+                        exitApplication()
+                    },
+                    title = "Scuola di ministero",
+                    icon = painterResource(Res.drawable.icon),
+                ) {
+                    LaunchedEffect(Unit) {
+                        window.minimumSize = Dimension(
+                            WindowSettings.MIN_WIDTH_DP,
+                            WindowSettings.MIN_HEIGHT_DP,
+                        )
+                    }
+                    AppScreen(
+                        initialUiScale = initialUiScale,
+                        onUiScaleChange = settingsStore::saveUiScale,
+                        onRestartRequested = {
+                            settingsStore.save(windowState.toSettingsSnapshot())
+                            exitApplication()
+                        },
+                    )
+                }
+            }
+        }
+    } finally {
+        SingleInstanceGuard.release()
     }
 }
