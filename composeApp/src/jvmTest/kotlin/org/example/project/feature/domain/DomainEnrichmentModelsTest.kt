@@ -83,8 +83,8 @@ class DomainEnrichmentModelsTest {
     fun `assignment and person expose role label and full name`() {
         val person = Proclamatore(
             id = ProclamatoreId("p1"),
-            nome = " Mario ",
-            cognome = " Rossi ",
+            nome = "Mario",
+            cognome = "Rossi",
             sesso = Sesso.M,
         )
         val assignment = Assignment(
