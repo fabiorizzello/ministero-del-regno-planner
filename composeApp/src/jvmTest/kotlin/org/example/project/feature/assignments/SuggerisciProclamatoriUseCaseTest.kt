@@ -351,6 +351,159 @@ class SuggerisciProclamatoriUseCaseTest {
     }
 
     // -----------------------------------------------------------------------
+    // Test 8 — candidato mai assegnato (lastGlobalWeeks=null) ottiene score massimo
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `candidato mai assegnato ottiene score massimo e appare primo`() = runTest {
+        val personNeverAssigned = person(id = "p-never", nome = "Luca", cognome = "Alpi", sesso = Sesso.M)
+        val personAssigned = person(id = "p-assigned", nome = "Marco", cognome = "Zeta", sesso = Sesso.M)
+
+        // personNeverAssigned: lastGlobalWeeks=null → safeGlobalWeeks=Int.MAX_VALUE
+        //   lastWasConductor=false, slot=2 → sameSlotType=false (lastGlobalWeeks is null) → slotRepeatPenalty=0
+        //   score = Int.MAX_VALUE = 2147483647
+        // personAssigned: lastGlobalWeeks=10
+        //   lastWasConductor=false, slot=2 → sameSlotType=true → slotRepeatPenalty=4
+        //   score = 10 - 4 = 6
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personAssigned,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personNeverAssigned,
+                lastGlobalWeeks = null,
+                lastForPartTypeWeeks = null,
+                lastConductorWeeks = null,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(personNeverAssigned.id, result.first().proclamatore.id)
+        assertEquals(personAssigned.id, result.last().proclamatore.id)
+        assertFalse(result.first().inCooldown)
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 9 — count penalty e cooldown si sommano correttamente
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `count penalty e cooldown si sommano nello score`() = runTest {
+        // personBoth: in cooldown (lastGlobalWeeks=1 < assistCooldown=2) + 5 assegnazioni in finestra
+        //   lastWasConductor=false, slot=2 → sameSlotType=true → slotRepeatPenalty=4
+        //   score = 1 - 5 - 4 - 10000 = -10008
+        // personClean: fuori cooldown (lastGlobalWeeks=5), 0 assegnazioni
+        //   sameSlotType=true → slotRepeatPenalty=4
+        //   score = 5 - 0 - 4 - 0 = 1
+        val personBoth = person(id = "p-both", nome = "Carlo", cognome = "Bianchi", sesso = Sesso.M)
+        val personClean = person(id = "p-clean", nome = "Mario", cognome = "Rossi", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personBoth,
+                lastGlobalWeeks = 1,
+                lastForPartTypeWeeks = 1,
+                lastConductorWeeks = null,
+                totalAssignmentsInWindow = 5,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personClean,
+                lastGlobalWeeks = 5,
+                lastForPartTypeWeeks = 3,
+                lastConductorWeeks = null,
+                totalAssignmentsInWindow = 0,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(personClean.id, result.first().proclamatore.id)
+        assertEquals(personBoth.id, result.last().proclamatore.id)
+        assertTrue(result.last().inCooldown)
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 10 — assistente che ripete assistente ottiene slot repeat penalty
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `assistente che ripete assistente ottiene slot repeat penalty`() = runTest {
+        // personRepeatAssist: lastConductorWeeks=null → lastWasConductor=false, target slot=2
+        //   sameSlotType = (!false && !false && 10!=null) = true → slotRepeatPenalty=4
+        //   score = 10 - 4 = 6
+        // personSwitchRole: lastConductorWeeks=10 == lastGlobalWeeks → lastWasConductor=true, target slot=2
+        //   sameSlotType = (true && false) = false → slotRepeatPenalty=0
+        //   score = 10 - 0 = 10
+        val personRepeatAssist = person(id = "p-repeat-a", nome = "Luigi", cognome = "Verdi", sesso = Sesso.M)
+        val personSwitchRole = person(id = "p-switch", nome = "Anna", cognome = "Blu", sesso = Sesso.F)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personRepeatAssist,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personSwitchRole,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = 10,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(2, result.size)
+        // personSwitchRole primo: conduttore→assistente = nessuna penalita' repeat (score 10)
+        assertEquals(personSwitchRole.id, result.first().proclamatore.id)
+        // personRepeatAssist secondo: assistente→assistente = penalita' repeat (score 6)
+        assertEquals(personRepeatAssist.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
     // Test 5 — slot=1 (studente): solo chi ha idoneità conduzione appare
     // -----------------------------------------------------------------------
 
