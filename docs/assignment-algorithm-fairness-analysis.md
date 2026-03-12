@@ -66,6 +66,15 @@ incentivi distorti che favoriscono chi ha fatto il conduttore più di recente.
 
 **Impatto**: medio — altera l'ordine dei candidati in modo non intuitivo.
 
+### 5. Solo recenza, nessuna fairness cumulativa
+
+L'algoritmo guarda solo `lastGlobalWeeks` (settimane dall'ultima assegnazione).
+Non traccia il conteggio totale. Se Mario ha 15 assegnazioni quest'anno e Luigi ne ha 5,
+ma Mario ha un gap più lungo in questo momento, l'algoritmo mette Mario davanti a Luigi.
+Su un pool di 80 persone con ~20-30 slot/mese, questo squilibrio si accumula nel tempo.
+
+**Impatto**: alto — la distribuzione cumulativa diverge progressivamente.
+
 ---
 
 ## Proposte di miglioramento
@@ -98,10 +107,24 @@ Ogni settimana l'ordine a parità cambia, nessuno è sistematicamente favorito.
 `leadWeight = assistWeight = 1`. La differenza tra ruoli va gestita dal cooldown
 (che già ha soglie separate per lead e assist), non dal peso nel ranking.
 
+### E. Fairness cumulativa
+
+Aggiungere un fattore basato sul conteggio totale di assegnazioni in una finestra
+temporale (es. ultimi 6 mesi). Chi ha fatto più assegnazioni viene penalizzato
+rispetto a chi ne ha fatte meno.
+
+```
+countPenalty = totalAssignmentsInWindow × COUNT_PENALTY_WEIGHT
+```
+
+Con `COUNT_PENALTY_WEIGHT` calibrato per bilanciare recenza e conteggio.
+La recenza (`lastGlobalWeeks`) resta il fattore primario, ma il conteggio
+impedisce che le stesse persone accumulino troppe assegnazioni nel tempo.
+
 ### Formula risultante
 
 ```
-score = lastGlobalWeeks - slotRepeatPenalty - cooldownPenalty
+score = lastGlobalWeeks - slotRepeatPenalty - countPenalty - cooldownPenalty
 ```
 
 Semplice, trasparente, fair.
