@@ -93,7 +93,7 @@ class SuggerisciProclamatoriUseCase(
                 Triple(annotated, passaSesso && passaIdoneita && p.id !in excludedIds, Unit)
             }
             .filter { (_, allowed, _) -> allowed }
-            .map { (suggestion, _, _) -> suggestion to weightedScore(suggestion) }
+            .map { (suggestion, _, _) -> suggestion to weightedScore(suggestion, slot) }
             .filter { (suggestion, _) -> !settings.strictCooldown || !suggestion.inCooldown }
 
         return eligible
@@ -106,10 +106,19 @@ class SuggerisciProclamatoriUseCase(
             .map { (suggestion, _) -> suggestion }
     }
 
-    private fun weightedScore(suggestion: SuggestedProclamatore): Long {
+    private fun weightedScore(suggestion: SuggestedProclamatore, targetSlot: Int): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
         val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
         val countPenalty = suggestion.totalAssignmentsInWindow * COUNT_PENALTY_WEIGHT
-        return safeGlobalWeeks.toLong() - countPenalty - cooldownPenalty
+
+        val lastWasConductor = suggestion.lastConductorWeeks != null &&
+            suggestion.lastGlobalWeeks != null &&
+            suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
+        val targetIsConductor = targetSlot == 1
+        val sameSlotType = (lastWasConductor && targetIsConductor) ||
+            (!lastWasConductor && !targetIsConductor && suggestion.lastGlobalWeeks != null)
+        val slotRepeatPenalty = if (sameSlotType) SLOT_REPEAT_PENALTY else 0
+
+        return safeGlobalWeeks.toLong() - countPenalty - slotRepeatPenalty - cooldownPenalty
     }
 }

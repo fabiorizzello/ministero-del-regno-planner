@@ -300,6 +300,57 @@ class SuggerisciProclamatoriUseCaseTest {
     }
 
     // -----------------------------------------------------------------------
+    // Test 7 — candidato che ripete lo stesso slot ottiene penalità slot repeat
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `candidato che ripete lo stesso slot ottiene penalita' slot repeat`() = runTest {
+        val personRepeat = person(id = "p-repeat", nome = "Carlo", cognome = "Bianchi", sesso = Sesso.M)
+        val personNoRepeat = person(id = "p-norepeat", nome = "Marco", cognome = "Verdi", sesso = Sesso.M)
+
+        // personRepeat: lastConductorWeeks == lastGlobalWeeks → last was conductor, target is slot=1 → penalty
+        // personNoRepeat: lastConductorWeeks = null → last was assistant → no penalty for slot=1
+        // Score: personRepeat = 10 - 4 = 6, personNoRepeat = 10
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personRepeat,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = 10,  // == lastGlobalWeeks → last was conductor
+            ),
+            SuggestedProclamatore(
+                proclamatore = personNoRepeat,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,  // last was assistant (or never assigned as conductor)
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(
+                eligible = setOf(
+                    EligibilityCleanupCandidate(personRepeat.id, partTypeId),
+                    EligibilityCleanupCandidate(personNoRepeat.id, partTypeId),
+                ),
+            ),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 1,  // target = conductor
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(personNoRepeat.id, result.first().proclamatore.id)
+        assertEquals(personRepeat.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
     // Test 5 — slot=1 (studente): solo chi ha idoneità conduzione appare
     // -----------------------------------------------------------------------
 

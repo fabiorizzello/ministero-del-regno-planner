@@ -9,6 +9,9 @@ const val COUNT_PENALTY_WEIGHT = 1
 /** Finestra temporale (settimane all'indietro) per il conteggio assegnazioni. */
 const val COUNT_WINDOW_WEEKS = 26
 
+/** Penalità (settimane equivalenti) quando l'ultimo slot coincide con il target slot. */
+const val SLOT_REPEAT_PENALTY = 4
+
 data class AssignmentSettings(
     val strictCooldown: Boolean = true,
     val leadCooldownWeeks: Int = 4,
