@@ -14,14 +14,6 @@ class SqlDelightEligibilityStore(
     private val database: MinisteroDatabase,
 ) : EligibilityStore {
     context(tx: TransactionScope)
-    override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {
-        database.ministeroDatabaseQueries.updatePersonSuspended(
-            suspended = if (suspended) 1L else 0L,
-            id = personId.value,
-        )
-    }
-
-    context(tx: TransactionScope)
     override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {
         database.ministeroDatabaseQueries.updatePersonCanAssist(
             can_assist = if (canAssist) 1L else 0L,

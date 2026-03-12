@@ -713,11 +713,6 @@ deleteLeadEligibilityByPartTypes:
 DELETE FROM person_part_type_eligibility
 WHERE part_type_id IN ?;
 
-updatePersonSuspended:
-UPDATE person
-SET suspended = ?
-WHERE id = ?;
-
 updatePersonCanAssist:
 UPDATE person
 SET can_assist = ?
