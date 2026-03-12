@@ -3,8 +3,8 @@ package org.example.project.feature.assignments.application
 import arrow.core.Either
 import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
-import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
@@ -24,17 +24,14 @@ class AssegnaPersonaUseCase(
         weeklyPartId: WeeklyPartId,
         personId: ProclamatoreId,
         slot: Int,
-    ): Either<DomainError, Unit> = Either.catch {
-        transactionRunner.runInTransaction {
-            assignWithoutTransaction(
-                weekStartDate = weekStartDate,
-                weeklyPartId = weeklyPartId,
-                personId = personId,
-                slot = slot,
-            )
-        }
-    }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio assegnazione") as DomainError }
-        .fold({ Either.Left(it) }, { it })
+    ): Either<DomainError, Unit> = transactionRunner.runInTransactionEither {
+        assignWithoutTransaction(
+            weekStartDate = weekStartDate,
+            weeklyPartId = weeklyPartId,
+            personId = personId,
+            slot = slot,
+        )
+    }
 
     context(tx: TransactionScope)
     internal suspend fun assignWithoutTransaction(
