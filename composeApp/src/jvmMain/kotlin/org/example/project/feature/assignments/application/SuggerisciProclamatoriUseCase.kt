@@ -78,10 +78,7 @@ class SuggerisciProclamatoriUseCase(
                     p.puoAssistere
                 }
                 val globalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE
-                val lastWasConductor = suggestion.lastConductorWeeks != null &&
-                    suggestion.lastGlobalWeeks != null &&
-                    suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
-                val cooldownWeeks = if (lastWasConductor && slot == 1) settings.leadCooldownWeeks
+                val cooldownWeeks = if (suggestion.lastWasConductor && slot == 1) settings.leadCooldownWeeks
                                     else settings.assistCooldownWeeks
                 val isInCooldown = cooldownWeeks > 0 && globalWeeks < cooldownWeeks
                 val remaining = if (isInCooldown) cooldownWeeks - globalWeeks else 0
@@ -90,10 +87,10 @@ class SuggerisciProclamatoriUseCase(
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
                     sexMismatch = isSexMismatch,
                 )
-                Triple(annotated, passaSesso && passaIdoneita && p.id !in excludedIds, Unit)
+                annotated to (passaSesso && passaIdoneita && p.id !in excludedIds)
             }
-            .filter { (_, allowed, _) -> allowed }
-            .map { (suggestion, _, _) -> suggestion to weightedScore(suggestion, slot) }
+            .filter { (_, allowed) -> allowed }
+            .map { (suggestion, _) -> suggestion to weightedScore(suggestion, slot) }
             .filter { (suggestion, _) -> !settings.strictCooldown || !suggestion.inCooldown }
 
         return eligible
@@ -107,18 +104,21 @@ class SuggerisciProclamatoriUseCase(
     }
 
     private fun weightedScore(suggestion: SuggestedProclamatore, targetSlot: Int): Long {
-        val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: 999
+        val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE
         val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
         val countPenalty = suggestion.totalAssignmentsInWindow * COUNT_PENALTY_WEIGHT
 
-        val lastWasConductor = suggestion.lastConductorWeeks != null &&
-            suggestion.lastGlobalWeeks != null &&
-            suggestion.lastConductorWeeks == suggestion.lastGlobalWeeks
         val targetIsConductor = targetSlot == 1
-        val sameSlotType = (lastWasConductor && targetIsConductor) ||
-            (!lastWasConductor && !targetIsConductor && suggestion.lastGlobalWeeks != null)
+        val sameSlotType = (suggestion.lastWasConductor && targetIsConductor) ||
+            (!suggestion.lastWasConductor && !targetIsConductor && suggestion.lastGlobalWeeks != null)
         val slotRepeatPenalty = if (sameSlotType) SLOT_REPEAT_PENALTY else 0
 
         return safeGlobalWeeks.toLong() - countPenalty - slotRepeatPenalty - cooldownPenalty
     }
 }
+
+/** True when the most recent assignment (any part type) was in slot 1 (conductor). */
+private val SuggestedProclamatore.lastWasConductor: Boolean
+    get() = lastConductorWeeks != null &&
+        lastGlobalWeeks != null &&
+        lastConductorWeeks == lastGlobalWeeks
