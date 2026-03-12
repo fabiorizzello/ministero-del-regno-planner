@@ -1,6 +1,6 @@
 # Analisi Fairness — Algoritmo di Assegnazione Automatica
 
-Data: 2026-03-11
+Data: 2026-03-12
 
 ## Stato attuale
 
@@ -42,23 +42,7 @@ invece di essere distribuite equamente a livello globale.
 
 **Impatto**: medio — distorce la distribuzione su N assegnazioni.
 
-### 2. Nessuna rotazione slot
-
-L'auto-assign riempie sempre slot 1 prima di slot 2 per ogni parte. Chi ha il cooldown
-più lungo vince sistematicamente slot 1. Risultato: le stesse persone fanno sempre
-"Studente" (slot 1), altre sempre "Assistente" (slot 2+).
-
-**Impatto**: alto — ruoli cristallizzati.
-
-### 3. Tiebreaker alfabetico
-
-A parità di score e lastGlobalWeeks, vince sempre il cognome che viene prima
-nell'ordinamento alfabetico. Questo è un bias sistematico: "Alberti" vince
-sempre su "Zanetti" a parità di condizioni.
-
-**Impatto**: basso-medio — rilevante solo a parità, ma su tante assegnazioni si accumula.
-
-### 4. `leadWeight` vs `assistWeight` distorce la distribuzione
+### 2. `leadWeight` vs `assistWeight` distorce la distribuzione
 
 Con `leadWeight=2` e `assistWeight=1`, un'assegnazione come conduttore "vale" il doppio
 nel ranking. Ma l'obiettivo è che tutti facciano entrambi i ruoli — pesi diversi creano
@@ -66,7 +50,7 @@ incentivi distorti che favoriscono chi ha fatto il conduttore più di recente.
 
 **Impatto**: medio — altera l'ordine dei candidati in modo non intuitivo.
 
-### 5. Solo recenza, nessuna fairness cumulativa
+### 3. Solo recenza, nessuna fairness cumulativa
 
 L'algoritmo guarda solo `lastGlobalWeeks` (settimane dall'ultima assegnazione).
 Non traccia il conteggio totale. Se Mario ha 15 assegnazioni quest'anno e Luigi ne ha 5,
@@ -75,14 +59,46 @@ Su un pool di 80 persone con ~20-30 slot/mese, questo squilibrio si accumula nel
 
 **Impatto**: alto — la distribuzione cumulativa diverge progressivamente.
 
+### 4. Nessuna rotazione slot
+
+L'auto-assign riempie sempre slot 1 prima di slot 2 per ogni parte. Chi ha il cooldown
+più lungo vince sistematicamente slot 1. Risultato: le stesse persone fanno sempre
+"Studente" (slot 1), altre sempre "Assistente" (slot 2+).
+
+**Impatto**: basso con 80 persone (rotazione naturale con assegnazione ogni 3-4 mesi),
+ma presente.
+
 ---
 
-## Proposte di miglioramento
+## Piano di miglioramento
+
+Ordine di implementazione: A → D → E → B.
 
 ### A. Rimuovere `lastForPartTypeWeeks` dallo scoring
 
 Ranking puramente globale. La componente per-parte viene rimossa dalla formula.
 Il dato può restare disponibile nell'UI come informazione, ma non influenza il ranking.
+
+### D. Unificare i pesi
+
+`leadWeight = assistWeight = 1`. La differenza tra ruoli va gestita dal cooldown
+(che già ha soglie separate per lead e assist), non dal peso nel ranking.
+
+### E. Fairness cumulativa
+
+Aggiungere un fattore basato sul conteggio totale di assegnazioni in una finestra
+temporale (es. ultimi 6 mesi, solo all'indietro). Chi ha fatto più assegnazioni viene
+penalizzato rispetto a chi ne ha fatte meno.
+
+Costanti nel codice (`COUNT_PENALTY_WEIGHT`, `COUNT_WINDOW_WEEKS`), non esposte
+nelle impostazioni utente.
+
+```
+countPenalty = totalAssignmentsInWindow × COUNT_PENALTY_WEIGHT
+```
+
+La recenza (`lastGlobalWeeks`) resta il fattore primario, ma il conteggio impedisce
+che le stesse persone accumulino troppe assegnazioni nel tempo.
 
 ### B. Slot repeat penalty
 
@@ -98,37 +114,10 @@ Con `SLOT_REPEAT_PENALTY` = 4 settimane equivalenti (costante nel codice, non es
 nelle impostazioni utente). Non blocca l'assegnazione, ma crea una rotazione naturale
 tra ruoli.
 
-### C. Tiebreaker deterministico non-alfabetico
-
-Sostituire il tiebreaker cognome/nome con `hash(personId + weekStartDate)`.
-Ogni settimana l'ordine a parità cambia, nessuno è sistematicamente favorito.
-
-### D. Unificare i pesi
-
-`leadWeight = assistWeight = 1`. La differenza tra ruoli va gestita dal cooldown
-(che già ha soglie separate per lead e assist), non dal peso nel ranking.
-
-### E. Fairness cumulativa
-
-Aggiungere un fattore basato sul conteggio totale di assegnazioni in una finestra
-temporale (es. ultimi 6 mesi). Chi ha fatto più assegnazioni viene penalizzato
-rispetto a chi ne ha fatte meno.
-
-Costanti nel codice (`COUNT_PENALTY_WEIGHT`, `COUNT_WINDOW_WEEKS`), non esposte
-nelle impostazioni utente.
-
-```
-countPenalty = totalAssignmentsInWindow × COUNT_PENALTY_WEIGHT
-```
-
-Con `COUNT_PENALTY_WEIGHT` calibrato per bilanciare recenza e conteggio.
-La recenza (`lastGlobalWeeks`) resta il fattore primario, ma il conteggio
-impedisce che le stesse persone accumulino troppe assegnazioni nel tempo.
-
 ### Formula risultante
 
 ```
-score = lastGlobalWeeks - slotRepeatPenalty - countPenalty - cooldownPenalty
+score = lastGlobalWeeks - countPenalty - slotRepeatPenalty - cooldownPenalty
 ```
 
 Semplice, trasparente, fair.

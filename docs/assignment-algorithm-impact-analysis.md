@@ -139,12 +139,17 @@ Nuovo fattore: penalità basata sul numero di assegnazioni in una finestra tempo
 | D. Unificare pesi | Medio | 8 + test/docs | Si (drop 2 colonne) | Si (rimuove 2 campi) |
 | E. Fairness cumulativa (costanti) | Medio | 6 + test/docs | No | No |
 
-### Ordine di implementazione consigliato
+### Proposte escluse
 
-1. **A + B + C** insieme — modifiche solo in `SuggerisciProclamatoriUseCase.kt` e `AssignmentSettings.kt`. Nessun cambio DB o UI. Puro refactoring dell'algoritmo.
-2. **D** — unica modifica che tocca DB (migration), UI (rimuove 2 campi dal form settings), e ViewModel.
-3. **E** — aggiunge infrastruttura nuova (count in cache, aggregation in-memory), ma nessun cambio DB o UI.
+- **C. Tiebreaker hash** — con 80 persone il bias alfabetico è marginale, non giustifica la complessità aggiunta.
+
+### Ordine di implementazione
+
+1. **A** — rimuovere `lastForPartTypeWeeks` dallo scoring. Solo `weightedScore()`. Nessun cambio DB o UI.
+2. **D** — unificare pesi. Unica modifica che tocca DB (migration drop 2 colonne), UI (rimuove 2 campi dal form settings), e ViewModel.
+3. **E** — fairness cumulativa. Aggiunge count in cache e aggregation in-memory. Nessun cambio DB o UI.
+4. **B** — slot repeat penalty. Costante + poche righe in `weightedScore()`. Nessun cambio DB o UI.
 
 ### Rischio
 
-Rischio basso. Rendendo B e E costanti, l'unica modifica che tocca DB e UI è D (rimozione di `leadWeight`/`assistWeight`). L'algoritmo è ben isolato in `weightedScore()` (5 righe di codice). Il grosso del lavoro è nei test (~20 test da riadattare alla nuova formula).
+Rischio basso. L'unica modifica che tocca DB e UI è D (rimozione di `leadWeight`/`assistWeight`). L'algoritmo è ben isolato in `weightedScore()` (5 righe di codice). Il grosso del lavoro è nei test (~20 test da riadattare alla nuova formula).
