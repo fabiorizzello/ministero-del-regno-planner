@@ -51,6 +51,11 @@ schemas, print+assignments), 2026-03-12.
 - MEDIUM-018 — Settings.putString fuori tx → `c254e17`
 - MEDIUM-019 — SchemaCatalogRemoteSource returns Either → `b2e1d15`
 
+### Codebase review (round 4, 2026-03-12)
+
+- MEDIUM-021 — 4 query SQL orfane → `143bf69`
+- MEDIUM-022 — Test gap partial failure AutoAssegna → `5030fc8`
+
 ---
 
 ## Findings invalidati
@@ -66,6 +71,8 @@ schemas, print+assignments), 2026-03-12.
 - INV-009 — TOCTOU gap AggiornaSchemiUseCase: nessun gap
 - INV-010 — AppBootstrap race: synchronized corretto
 - INV-011 — ViewModel error handling: pattern diversi ma tutti corretti nel contesto
+- INV-012 — getOrElse{error()} in SqlDelightWeekPlanStore: pattern corretto per stato impossibile (dati DB già validati in write)
+- INV-013 — N+1 listByWeek in SuggerisciProclamatori loop: re-query necessario per correttezza (requiredSex da assignment appena scritti)
 
 ---
 
@@ -77,3 +84,4 @@ schemas, print+assignments), 2026-03-12.
 | 2026-03-12 | post-merge batch 1 | full suite | 0 |
 | 2026-03-12 | post-merge batch 2 | full suite | 0 |
 | 2026-03-12 | post-merge round 3 (MEDIUM-018/019) | full suite | 0 |
+| 2026-03-12 | post-merge round 4 (MEDIUM-021/022) | full suite | 0 |
