@@ -15,7 +15,7 @@ class SqlDelightSchemaUpdateAnomalyStore(
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {
         if (items.isEmpty()) return
         items.forEach { item ->
-            val deterministicId = "${item.personId.value}|${item.partTypeId.value}|${item.reason}".hashCode().toString()
+            val deterministicId = "${item.personId.value}|${item.partTypeId.value}|${item.reason}"
             database.ministeroDatabaseQueries.insertSchemaUpdateAnomaly(
                 id = deterministicId,
                 person_id = item.personId.value,
