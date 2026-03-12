@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
 class AggiornaSchemiUseCaseTransactionTest {
 
     @Test
-    fun `stores last schema import timestamp inside transaction`() = runTest {
+    fun `stores last schema import timestamp after transaction succeeds`() = runTest {
         val txRunner = TrackingTransactionRunner()
         val settings = TrackingSettings(txRunner)
         val partType = PartType(
@@ -73,7 +73,8 @@ class AggiornaSchemiUseCaseTransactionTest {
 
         assertIs<Either.Right<AggiornaSchemiResult>>(result)
         assertEquals(1, txRunner.invocationCount)
-        assertTrue(settings.putTimestampInsideTransaction)
+        assertTrue(settings.getStringOrNull("last_schema_import_at") != null)
+        assertTrue(!settings.putTimestampInsideTransaction)
     }
 
     @Test
