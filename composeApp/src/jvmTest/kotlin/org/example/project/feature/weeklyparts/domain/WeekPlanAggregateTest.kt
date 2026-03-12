@@ -168,6 +168,96 @@ class WeekPlanAggregateTest {
         assertEquals(1, updated.weekPlan.parts.last().sortOrder)
     }
 
+    // --- replaceParts tests ---
+
+    @Test
+    fun `replaceParts on immutable week returns SettimanaImmutabile`() {
+        val pastMonday = LocalDate.of(2026, 2, 23) // a past Monday
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = pastMonday,
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("old"), partType = partType(), sortOrder = 0),
+                ),
+            ),
+            assignments = emptyList(),
+        )
+
+        val result = aggregate.replaceParts(
+            orderedPartTypes = listOf(partType() to null),
+            referenceDate = LocalDate.of(2026, 3, 9), // well after the week
+            partIdFactory = { WeeklyPartId("new-id") },
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.SettimanaImmutabile, left)
+    }
+
+    @Test
+    fun `replaceParts happy path replaces parts with new IDs and clears assignments`() {
+        val futureMonday = LocalDate.of(2026, 3, 9)
+        val existingAssignment = Assignment(
+            id = AssignmentId("a1"),
+            weeklyPartId = WeeklyPartId("old-part"),
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = futureMonday,
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("old-part"), partType = partType(id = "a"), sortOrder = 0),
+                ),
+            ),
+            assignments = listOf(existingAssignment),
+        )
+
+        var counter = 0
+        val newPartTypeA = partType(id = "x")
+        val newPartTypeB = partType(id = "y")
+        val result = aggregate.replaceParts(
+            orderedPartTypes = listOf(newPartTypeA to "rev-1", newPartTypeB to null),
+            referenceDate = futureMonday,
+            partIdFactory = { WeeklyPartId("gen-${counter++}") },
+        )
+
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(result).value
+        assertEquals(2, updated.weekPlan.parts.size)
+        assertEquals(WeeklyPartId("gen-0"), updated.weekPlan.parts[0].id)
+        assertEquals(WeeklyPartId("gen-1"), updated.weekPlan.parts[1].id)
+        assertEquals(0, updated.weekPlan.parts[0].sortOrder)
+        assertEquals(1, updated.weekPlan.parts[1].sortOrder)
+        assertEquals("rev-1", updated.weekPlan.parts[0].partTypeRevisionId)
+        assertEquals(null, updated.weekPlan.parts[1].partTypeRevisionId)
+        assertEquals(emptyList(), updated.assignments)
+    }
+
+    @Test
+    fun `replaceParts with empty list returns OrdinePartiNonValido`() {
+        val futureMonday = LocalDate.of(2026, 3, 9)
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = futureMonday,
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("old"), partType = partType(), sortOrder = 0),
+                ),
+            ),
+            assignments = emptyList(),
+        )
+
+        val result = aggregate.replaceParts(
+            orderedPartTypes = emptyList(),
+            referenceDate = futureMonday,
+            partIdFactory = { WeeklyPartId("unused") },
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.OrdinePartiNonValido, left)
+    }
+
     // --- WeekPlan.of() smart constructor error path tests ---
 
     @Test
