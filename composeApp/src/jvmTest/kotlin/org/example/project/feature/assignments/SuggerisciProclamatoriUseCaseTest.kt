@@ -170,9 +170,9 @@ class SuggerisciProclamatoriUseCaseTest {
     fun `score del candidato in cooldown e' peggiore di quello senza cooldown anche con meno settimane`() = runTest {
         // personInCooldown: lastGlobalWeeks=1 (in cooldown), lastForPartTypeWeeks=1
         // personNoCooldown: lastGlobalWeeks=3 (fuori cooldown, assistCooldownWeeks=2)
-        // Score:
-        //   personInCooldown: 1 - COOLDOWN_PENALTY = -9999
-        //   personNoCooldown: 3
+        // Score (slot=2, lastConductorWeeks=null → slotRepeatPenalty=4 per entrambi):
+        //   personInCooldown: 1 - 4 - COOLDOWN_PENALTY = -10003
+        //   personNoCooldown: 3 - 4 = -1
         val personInCooldown = person(id = "p-cool", nome = "Luca", cognome = "Bianchi", sesso = Sesso.M)
         val personNoCooldown = person(id = "p-free", nome = "Anna", cognome = "Rossi", sesso = Sesso.F)
 
