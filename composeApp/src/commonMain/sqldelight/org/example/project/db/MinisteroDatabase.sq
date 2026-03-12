@@ -86,8 +86,6 @@ CREATE TABLE person_part_type_eligibility (
 CREATE TABLE assignment_settings (
     id TEXT NOT NULL PRIMARY KEY,
     strict_cooldown INTEGER NOT NULL DEFAULT 1,
-    lead_weight INTEGER NOT NULL DEFAULT 2,
-    assist_weight INTEGER NOT NULL DEFAULT 1,
     lead_cooldown_weeks INTEGER NOT NULL DEFAULT 4,
     assist_cooldown_weeks INTEGER NOT NULL DEFAULT 2,
     CHECK(strict_cooldown IN (0, 1))
@@ -736,7 +734,7 @@ ORDER BY wpl.week_start_date;
 
 -- Assignment settings (new)
 findAssignmentSettings:
-SELECT id, strict_cooldown, lead_weight, assist_weight, lead_cooldown_weeks, assist_cooldown_weeks
+SELECT id, strict_cooldown, lead_cooldown_weeks, assist_cooldown_weeks
 FROM assignment_settings
 LIMIT 1;
 
@@ -744,16 +742,12 @@ upsertAssignmentSettings:
 INSERT INTO assignment_settings(
     id,
     strict_cooldown,
-    lead_weight,
-    assist_weight,
     lead_cooldown_weeks,
     assist_cooldown_weeks
 )
-VALUES (?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     strict_cooldown = excluded.strict_cooldown,
-    lead_weight = excluded.lead_weight,
-    assist_weight = excluded.assist_weight,
     lead_cooldown_weeks = excluded.lead_cooldown_weeks,
     assist_cooldown_weeks = excluded.assist_cooldown_weeks;
 

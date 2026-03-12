@@ -116,6 +116,7 @@ internal class StaticAssignmentRanking(
         partTypeLastByType = emptyMap(),
         partTypeBeforeByTypeAndDate = emptyMap(),
         partTypeAfterByTypeAndDate = emptyMap(),
+        assignmentCountInWindow = emptyMap(),
     )
 }
 

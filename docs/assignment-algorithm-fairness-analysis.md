@@ -114,10 +114,16 @@ Con `SLOT_REPEAT_PENALTY` = 4 settimane equivalenti (costante nel codice, non es
 nelle impostazioni utente). Non blocca l'assegnazione, ma crea una rotazione naturale
 tra ruoli.
 
-### Formula risultante
+### Formula risultante (implementata)
 
 ```
 score = lastGlobalWeeks - countPenalty - slotRepeatPenalty - cooldownPenalty
 ```
 
-Semplice, trasparente, fair.
+Dove:
+- `lastGlobalWeeks`: settimane dall'ultima assegnazione (qualsiasi ruolo), 999 se mai assegnato
+- `countPenalty`: `totalAssignmentsInWindow × COUNT_PENALTY_WEIGHT` (1 punto per assegnazione nelle ultime 26 settimane)
+- `slotRepeatPenalty`: `SLOT_REPEAT_PENALTY` (4) se l'ultimo ruolo coincide col target, 0 altrimenti
+- `cooldownPenalty`: `COOLDOWN_PENALTY` (10.000) se in cooldown, 0 altrimenti
+
+Tutte e quattro le proposte (A, D, E, B) sono implementate. Formula semplice, trasparente, fair.

@@ -53,7 +53,7 @@ dall'ultima assegnazione decrescenti.
 1. **Given** proclamatori con storie di assegnazione diverse, **When** si richiedono
    suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso quando
    applicabile, idoneità, non sospesi) ordinati per score
-   (globale × peso + tipo-parte − penalità cooldown).
+   (globale × peso − penalità cooldown).
 2. **Given** un proclamatore in cooldown e `strictCooldown = true`, **When** si
    richiedono suggerimenti, **Then** il proclamatore in cooldown non appare.
 3. **Given** un proclamatore in cooldown e `strictCooldown = false`, **When** si
@@ -148,7 +148,12 @@ successive per slot 1.
 - **FR-003**: Il sistema MUST sostituire l'assegnazione esistente se lo slot è già
   occupato.
 - **FR-004**: Il sistema MUST suggerire proclamatori idonei ordinati per score
-  (settimane_globali × peso_ruolo + settimane_tipo_parte − penalità_cooldown).
+  `(settimane_globali − conteggio_finestra × COUNT_PENALTY_WEIGHT − slotRepeatPenalty − penalità_cooldown)`.
+  `COUNT_PENALTY_WEIGHT = 1`, `COUNT_WINDOW_WEEKS = 26` (finestra di conteggio: 26
+  settimane all'indietro rispetto alla data di riferimento).
+  `SLOT_REPEAT_PENALTY = 4`: penalità applicata quando l'ultimo ruolo svolto (conduttore
+  o assistente) coincide con il ruolo target dello slot. Crea rotazione naturale tra ruoli
+  senza bloccare l'assegnazione.
 - **FR-005**: Il sistema MUST filtrare i suggerimenti per: sesso (`SexRule.UOMO`),
   idoneità (slot 1 con lead eligibility, slot >= 2 con `puoAssistere = true`),
   esclusione dei già assegnati nella stessa settimana (set `alreadyAssignedIds`),
@@ -164,7 +169,7 @@ successive per slot 1.
   partire da una data (`SvuotaAssegnazioniProgramma(programId, fromDate)`). Il metodo
   `count(programId, fromDate)` MUST essere disponibile per preview prima di `execute`.
 - **FR-011**: Il sistema MUST persistere le impostazioni assegnatore (cooldownWeeks,
-  weights, strictCooldown) e applicarle ad ogni esecuzione del suggeritore.
+  strictCooldown) e applicarle ad ogni esecuzione del suggeritore.
 - **FR-012**: Nel workspace UI, la rimozione di una singola assegnazione MUST richiedere
   conferma esplicita dell'utente prima dell'esecuzione.
 - **FR-013**: Nel workspace UI, l'azione `Rimuovi assegnazioni` a livello settimana MUST
@@ -188,10 +193,10 @@ successive per slot 1.
   `sexMismatch` = true se il sesso del candidato differisce da chi è già assegnato nella
   parte (rilevante solo con SexRule.STESSO_SESSO). Annotazione soft nel suggerimento
   manuale; hard filter in auto-assign.
-- **AssignmentSettings**: `strictCooldown: Boolean = true`, `leadWeight: Int = 2`,
-  `assistWeight: Int = 1`, `leadCooldownWeeks: Int = 4`, `assistCooldownWeeks: Int = 2`.
-  Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown) e 1
-  (pesi). Le impostazioni di default sono applicate se non ancora configurate.
+- **AssignmentSettings**: `strictCooldown: Boolean = true`,
+  `leadCooldownWeeks: Int = 4`, `assistCooldownWeeks: Int = 2`.
+  Metodo `normalized()` che coerces i valori negativi a 0 (settimane cooldown).
+  Le impostazioni di default sono applicate se non ancora configurate.
 - **SexRule** (da feature weeklyparts): `UOMO` = filtro hard su soli proclamatori maschi;
   `STESSO_SESSO` = non filtrante nel suggerimento manuale (`passaSesso = true`), ma
   hard filter in `AutoAssegnaProgrammaUseCase` (`!it.sexMismatch`). Il campo
@@ -215,8 +220,8 @@ successive per slot 1.
 
 - Q: Le spec sono state reverse-engineered dal codice esistente → A: Confermato.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
-  → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
-  dove cooldownPenalty = 10.000 se in cooldown.
+  → A: Il termine `settimane_tipo_parte` è stato rimosso dalla formula. La formula attuale è:
+  `safeGlobalWeeks - cooldownPenalty` dove cooldownPenalty = 10.000 se in cooldown.
 - Q: SexRule.STESSO_SESSO significato reale? → A: Nello stato attuale del codice è non
   filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
   applicato solo su `SexRule.UOMO`.
@@ -228,7 +233,7 @@ successive per slot 1.
   LocalDate` e cancella solo le assegnazioni da quella data in poi. Espone `count()` e
   `execute()` separati per permettere preview prima dell'operazione.
 - Q: AssignmentSettings default confermati dal codice? → A: strictCooldown=true,
-  leadWeight=2, assistWeight=1, leadCooldownWeeks=4, assistCooldownWeeks=2.
+  leadCooldownWeeks=4, assistCooldownWeeks=2.
   Metodo `normalized()` coerces valori negativi.
 
 ### Session 2026-03-03

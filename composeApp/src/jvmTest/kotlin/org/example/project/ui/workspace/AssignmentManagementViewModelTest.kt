@@ -70,7 +70,7 @@ class AssignmentManagementViewModelTest {
         val salva = mockk<SalvaImpostazioniAssegnatoreUseCase>(relaxed = true)
         val vm = makeViewModel(scope = this, salva = salva)
 
-        vm.setLeadWeight("-1")
+        vm.setLeadCooldownWeeks("-1")
         vm.saveAssignmentSettings()
 
         assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)

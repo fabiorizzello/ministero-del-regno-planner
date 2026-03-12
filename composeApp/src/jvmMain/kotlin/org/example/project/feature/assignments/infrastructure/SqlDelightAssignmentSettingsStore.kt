@@ -16,8 +16,6 @@ class SqlDelightAssignmentSettingsStore(
         } else {
             AssignmentSettings(
                 strictCooldown = row.strict_cooldown == 1L,
-                leadWeight = row.lead_weight.toInt(),
-                assistWeight = row.assist_weight.toInt(),
                 leadCooldownWeeks = row.lead_cooldown_weeks.toInt(),
                 assistCooldownWeeks = row.assist_cooldown_weeks.toInt(),
             ).normalized()
@@ -35,8 +33,6 @@ class SqlDelightAssignmentSettingsStore(
         database.ministeroDatabaseQueries.upsertAssignmentSettings(
             id = existingId ?: UUID.randomUUID().toString(),
             strict_cooldown = if (normalized.strictCooldown) 1L else 0L,
-            lead_weight = normalized.leadWeight.toLong(),
-            assist_weight = normalized.assistWeight.toLong(),
             lead_cooldown_weeks = normalized.leadCooldownWeeks.toLong(),
             assist_cooldown_weeks = normalized.assistCooldownWeeks.toLong(),
         )
