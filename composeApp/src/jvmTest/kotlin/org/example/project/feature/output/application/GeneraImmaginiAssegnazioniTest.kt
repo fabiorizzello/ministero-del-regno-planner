@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlinx.coroutines.test.runTest
+import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
@@ -46,6 +47,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         val weekPlanQueries = mockk<WeekPlanQueries>()
         val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val assignmentRepository = mockk<AssignmentRepository>()
         val weekOne = weekPlan(
             id = "week-1",
             monday = LocalDate.of(2026, 3, 2),
@@ -79,19 +81,21 @@ class GeneraImmaginiAssegnazioniTest {
             createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
         )
         coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(skippedWeek, weekThree, weekOne)
-        coEvery { caricaAssegnazioni(weekOne.weekStartDate) } returns listOf(
-            assignment("a1", weekOne.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
-        )
-        coEvery { caricaAssegnazioni(skippedWeek.weekStartDate) } returns emptyList()
-        coEvery { caricaAssegnazioni(weekThree.weekStartDate) } returns listOf(
-            assignment("a2", weekThree.parts[0].id, "p-a", "Anna", "Bianchi", slot = 1),
-            assignment("a3", weekThree.parts[0].id, "p-m", "Mario", "Rossi", slot = 2),
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(weekOne.id, weekThree.id)) } returns mapOf(
+            weekOne.id to listOf(
+                assignment("a1", weekOne.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+            ),
+            weekThree.id to listOf(
+                assignment("a2", weekThree.parts[0].id, "p-a", "Anna", "Bianchi", slot = 1),
+                assignment("a3", weekThree.parts[0].id, "p-m", "Mario", "Rossi", slot = 2),
+            ),
         )
 
         val useCase = GeneraImmaginiAssegnazioni(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
+            assignmentRepository = assignmentRepository,
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { tempDir },
             pdfToPngRenderer = { _, pngPath ->
@@ -118,6 +122,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         val weekPlanQueries = mockk<WeekPlanQueries>()
         val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val assignmentRepository = mockk<AssignmentRepository>()
         val week = weekPlan(
             id = "week-1",
             monday = LocalDate.of(2026, 3, 2),
@@ -134,15 +139,18 @@ class GeneraImmaginiAssegnazioniTest {
             templateAppliedAt = null, createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
         )
         coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(week)
-        coEvery { caricaAssegnazioni(week.weekStartDate) } returns listOf(
-            assignment("a1", week.parts[1].id, "p-a", "Anna", "Bianchi", slot = 1), // Visita slot 1
-            assignment("a2", week.parts[2].id, "p-m", "Mario", "Rossi", slot = 1),  // Studio slot 1
-            assignment("a3", week.parts[2].id, "p-z", "Zeno", "Verdi", slot = 2),   // Studio slot 2
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(week.id)) } returns mapOf(
+            week.id to listOf(
+                assignment("a1", week.parts[1].id, "p-a", "Anna", "Bianchi", slot = 1), // Visita slot 1
+                assignment("a2", week.parts[2].id, "p-m", "Mario", "Rossi", slot = 1),  // Studio slot 1
+                assignment("a3", week.parts[2].id, "p-z", "Zeno", "Verdi", slot = 2),   // Studio slot 2
+            ),
         )
         val useCase = GeneraImmaginiAssegnazioni(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
+            assignmentRepository = assignmentRepository,
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { tempDir },
             pdfToPngRenderer = { _, pngPath ->
@@ -175,6 +183,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         val weekPlanQueries = mockk<WeekPlanQueries>()
         val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val assignmentRepository = mockk<AssignmentRepository>()
         val week = weekPlan(
             id = "week-1",
             monday = LocalDate.of(2026, 3, 2),
@@ -192,15 +201,18 @@ class GeneraImmaginiAssegnazioniTest {
             createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
         )
         coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(week)
-        coEvery { caricaAssegnazioni(week.weekStartDate) } returns listOf(
-            assignment("a1", week.parts[0].id, "p-a", "Anna", "Bianchi", slot = 1),
-            assignment("a2", week.parts[0].id, "p-m", "Mario", "Rossi", slot = 2),
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(week.id)) } returns mapOf(
+            week.id to listOf(
+                assignment("a1", week.parts[0].id, "p-a", "Anna", "Bianchi", slot = 1),
+                assignment("a2", week.parts[0].id, "p-m", "Mario", "Rossi", slot = 2),
+            ),
         )
 
         val useCase = GeneraImmaginiAssegnazioni(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
+            assignmentRepository = assignmentRepository,
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { tempDir },
             pdfToPngRenderer = { _, pngPath ->
@@ -223,6 +235,7 @@ class GeneraImmaginiAssegnazioniTest {
             programStore = programStore,
             weekPlanQueries = mockk(),
             caricaAssegnazioni = mockk(),
+            assignmentRepository = mockk(),
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { Files.createTempDirectory("ticket-exports-notfound") },
         )
@@ -242,6 +255,7 @@ class GeneraImmaginiAssegnazioniTest {
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
+            assignmentRepository = mockk(),
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { Files.createTempDirectory("ticket-exports-invoke-notfound") },
         )
@@ -273,6 +287,7 @@ class GeneraImmaginiAssegnazioniTest {
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
+            assignmentRepository = mockk(),
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { impossibleDir },
         )
@@ -301,6 +316,7 @@ class GeneraImmaginiAssegnazioniTest {
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
+            assignmentRepository = mockk(),
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { impossibleDir },
         )
@@ -318,6 +334,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         val weekPlanQueries = mockk<WeekPlanQueries>()
         val caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>()
+        val assignmentRepository = mockk<AssignmentRepository>()
         val week = weekPlan(
             id = "week-1",
             monday = LocalDate.of(2026, 3, 2),
@@ -330,14 +347,17 @@ class GeneraImmaginiAssegnazioniTest {
             templateAppliedAt = null, createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
         )
         coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(week)
-        coEvery { caricaAssegnazioni(week.weekStartDate) } returns listOf(
-            assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(week.id)) } returns mapOf(
+            week.id to listOf(
+                assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+            ),
         )
 
         val useCase = GeneraImmaginiAssegnazioni(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
+            assignmentRepository = assignmentRepository,
             renderer = PdfAssignmentsRenderer(),
             outputDirProvider = { tempDir },
             pdfToPngRenderer = { _, _ -> throw RuntimeException("PDF rendering fallito") },
