@@ -30,6 +30,7 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class AggiornaSchemiUseCaseTest {
 
@@ -174,6 +175,65 @@ class AggiornaSchemiUseCaseTest {
         assertEquals("schema-2026-01", right.version)
         Unit
     }
+
+    // 6. Removed part types trigger eligibility cleanup and anomaly recording
+    @Test
+    fun `removed part types trigger eligibility cleanup and anomaly recording`() = runTest {
+        val ptKeep = makePartType("pt-keep", "LETTURA")
+        val ptOld = makePartType("pt-old", "VECCHIO")
+
+        val person1 = ProclamatoreId("person-1")
+        val person2 = ProclamatoreId("person-2")
+
+        // PartTypeStore pre-populated with the old part type so it appears as "missing"
+        val partTypeStore = PrePopulatedPartTypeStore(listOf(ptOld))
+
+        // EligibilityStore returns cleanup candidates for the old part type
+        val eligibilityStore = RecordingEligibilityStore(
+            candidatesByPartType = mapOf(
+                ptOld.id to listOf(
+                    EligibilityCleanupCandidate(personId = person1, partTypeId = ptOld.id),
+                    EligibilityCleanupCandidate(personId = person2, partTypeId = ptOld.id),
+                ),
+            ),
+        )
+
+        // Recording anomaly store to verify append calls
+        val anomalyStore = RecordingSchemaUpdateAnomalyStore()
+
+        val useCase = buildUseCase(
+            catalog = RemoteSchemaCatalog(
+                version = "v3",
+                partTypes = listOf(ptKeep), // ptOld is NOT in catalog → removed
+                weeks = listOf(
+                    RemoteWeekSchemaTemplate("2026-03-02", listOf(ptKeep.code)),
+                ),
+            ),
+            partTypeStore = partTypeStore,
+            eligibilityStore = eligibilityStore,
+            schemaUpdateAnomalyStore = anomalyStore,
+        )
+
+        val result = useCase()
+
+        val right = assertIs<Either.Right<AggiornaSchemiResult>>(result).value
+
+        // a. deleteLeadEligibilityForPartTypes was called with the removed part type IDs
+        assertEquals(1, eligibilityStore.deleteCallArgs.size)
+        assertEquals(setOf(ptOld.id), eligibilityStore.deleteCallArgs.single())
+
+        // b. schemaUpdateAnomalyStore.append was called with correct number of drafts
+        assertEquals(1, anomalyStore.appendedBatches.size)
+        val drafts = anomalyStore.appendedBatches.single()
+        assertEquals(2, drafts.size)
+        assertTrue(drafts.any { it.personId == person1 && it.partTypeId == ptOld.id })
+        assertTrue(drafts.any { it.personId == person2 && it.partTypeId == ptOld.id })
+        assertEquals("v3", drafts.first().schemaVersion)
+
+        // c. Result eligibilityAnomalies count matches candidates count
+        assertEquals(2, right.eligibilityAnomalies)
+        Unit
+    }
 }
 
 // ---- helpers ----
@@ -192,14 +252,16 @@ private fun buildUseCase(
     catalog: RemoteSchemaCatalog,
     partTypeStore: PartTypeStore = InMemoryPartTypeStore2(),
     templateStore: SchemaTemplateStore = InMemorySchemaTemplateStore2(),
+    eligibilityStore: EligibilityStore = NoopEligibilityStore2(),
+    schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore2(),
 ): AggiornaSchemiUseCase = AggiornaSchemiUseCase(
     remoteSource = object : SchemaCatalogRemoteSource {
         override suspend fun fetchCatalog(): RemoteSchemaCatalog = catalog
     },
     partTypeStore = partTypeStore,
-    eligibilityStore = NoopEligibilityStore2(),
+    eligibilityStore = eligibilityStore,
     schemaTemplateStore = templateStore,
-    schemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore2(),
+    schemaUpdateAnomalyStore = schemaUpdateAnomalyStore,
     transactionRunner = PassthroughTransactionRunner,
     settings = PreferencesSettings(Preferences.userRoot().node("aggiorna-schemi-uc-test-${UUID.randomUUID()}")),
 )
@@ -239,6 +301,59 @@ private class NoopEligibilityStore2 : EligibilityStore {
 private class NoopSchemaUpdateAnomalyStore2 : SchemaUpdateAnomalyStore {
     context(tx: TransactionScope)
     override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
+    override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
+    context(tx: TransactionScope)
+    override suspend fun dismissAllOpen() {}
+}
+
+/** PartTypeStore pre-populated with initial part types (returned by [all]). */
+private class PrePopulatedPartTypeStore(initial: List<PartType>) : PartTypeStore {
+    private val byCode = linkedMapOf<String, PartType>().apply {
+        initial.forEach { put(it.code, it) }
+    }
+    override suspend fun all(): List<PartType> = byCode.values.toList()
+    override suspend fun findByCode(code: String): PartType? = byCode[code]
+    override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
+    context(tx: TransactionScope)
+    override suspend fun upsertAll(partTypes: List<PartType>) { partTypes.forEach { byCode[it.code] = it } }
+    context(tx: TransactionScope)
+    override suspend fun deactivateMissingCodes(codes: Set<String>) {}
+}
+
+/** EligibilityStore that returns pre-configured candidates and records delete calls. */
+private class RecordingEligibilityStore(
+    private val candidatesByPartType: Map<PartTypeId, List<EligibilityCleanupCandidate>> = emptyMap(),
+) : EligibilityStore {
+    val deleteCallArgs = mutableListOf<Set<PartTypeId>>()
+
+    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
+    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
+    override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
+
+    override suspend fun listLeadEligibilityCandidatesForPartTypes(
+        partTypeIds: Set<PartTypeId>,
+    ): List<EligibilityCleanupCandidate> =
+        partTypeIds.flatMap { candidatesByPartType[it].orEmpty() }
+
+    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> = emptyMap()
+
+    context(tx: TransactionScope)
+    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {
+        deleteCallArgs.add(partTypeIds)
+    }
+
+    override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
+}
+
+/** SchemaUpdateAnomalyStore that records all append calls. */
+private class RecordingSchemaUpdateAnomalyStore : SchemaUpdateAnomalyStore {
+    val appendedBatches = mutableListOf<List<SchemaUpdateAnomalyDraft>>()
+
+    context(tx: TransactionScope)
+    override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {
+        appendedBatches.add(items)
+    }
     override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
     context(tx: TransactionScope)
     override suspend fun dismissAllOpen() {}
