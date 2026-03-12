@@ -111,34 +111,35 @@ class StampaProgrammaUseCase(
     private val logger = KotlinLogging.logger {}
 
     suspend operator fun invoke(programId: ProgramMonthId): Either<DomainError, Path> = withContext(dispatcher) {
-        either {
-        val program = programStore.findById(programId)
-            ?: raise(DomainError.NotFound("Programma"))
+        val result = either {
+            val program = programStore.findById(programId)
+                ?: raise(DomainError.NotFound("Programma"))
 
-        val weeks = weekPlanStore.listByProgram(programId).sortedBy { it.weekStartDate }
-        val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
-        val sections = weeks.map { week ->
-            buildProgramWeekPrintSection(
-                week = week,
-                assignments = assignmentsByWeek[week.id] ?: emptyList(),
+            val weeks = weekPlanStore.listByProgram(programId).sortedBy { it.weekStartDate }
+            val assignmentsByWeek = assignmentRepository.listByWeekPlanIds(weeks.map { it.id }.toSet())
+            val sections = weeks.map { week ->
+                buildProgramWeekPrintSection(
+                    week = week,
+                    assignments = assignmentsByWeek[week.id] ?: emptyList(),
+                )
+            }
+
+            val outputFileName = buildMonthlyProgramFileName(program.year, program.month)
+            val outputPath = prepareMonthlyProgramOutputPath(
+                outputDir = programExportDirProvider(),
+                outputFileName = outputFileName,
+            ).bind()
+
+            renderer.renderMonthlyProgramPdf(
+                title = "Programma ${formatMonthYearLabel(program.month, program.year)}",
+                sections = sections,
+                outputPath = outputPath,
             )
+
+            outputPath
         }
-
-        val outputFileName = buildMonthlyProgramFileName(program.year, program.month)
-        val outputPath = prepareMonthlyProgramOutputPath(
-            outputDir = programExportDirProvider(),
-            outputFileName = outputFileName,
-        ).bind()
-
-        renderer.renderMonthlyProgramPdf(
-            title = "Programma ${formatMonthYearLabel(program.month, program.year)}",
-            sections = sections,
-            outputPath = outputPath,
-        )
-
-        fileOpener.open(outputPath)
-        outputPath
-        }
+        result.onRight { path -> fileOpener.open(path) }
+        result
     }
 
     private fun prepareMonthlyProgramOutputPath(
