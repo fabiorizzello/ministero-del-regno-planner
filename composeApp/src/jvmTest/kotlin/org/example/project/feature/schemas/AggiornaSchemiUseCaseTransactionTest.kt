@@ -4,6 +4,7 @@ import arrow.core.Either
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.test.runTest
+import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
@@ -35,7 +36,7 @@ import kotlin.test.assertTrue
 class AggiornaSchemiUseCaseTransactionTest {
 
     @Test
-    fun `stores last schema import timestamp inside transaction`() = runTest {
+    fun `stores last schema import timestamp after transaction succeeds`() = runTest {
         val txRunner = TrackingTransactionRunner()
         val settings = TrackingSettings(txRunner)
         val partType = PartType(
@@ -73,7 +74,8 @@ class AggiornaSchemiUseCaseTransactionTest {
 
         assertIs<Either.Right<AggiornaSchemiResult>>(result)
         assertEquals(1, txRunner.invocationCount)
-        assertTrue(settings.putTimestampInsideTransaction)
+        assertTrue(settings.getStringOrNull("last_schema_import_at") != null)
+        assertTrue(!settings.putTimestampInsideTransaction)
     }
 
     @Test
@@ -176,7 +178,7 @@ private class TrackingSettings(
 private class FakeSchemaCatalogRemoteSource(
     private val catalog: RemoteSchemaCatalog,
 ) : SchemaCatalogRemoteSource {
-    override suspend fun fetchCatalog(): RemoteSchemaCatalog = catalog
+    override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = Either.Right(catalog)
 }
 
 private class InMemoryPartTypeStore : PartTypeStore {

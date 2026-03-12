@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.infrastructure
 
+import arrow.core.Either
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -7,6 +8,7 @@ import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.schemas.application.RemoteSchemaCatalog
 import org.example.project.feature.schemas.application.RemoteWeekSchemaTemplate
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
@@ -38,7 +40,7 @@ class GitHubSchemaCatalogDataSource(
 ) : SchemaCatalogRemoteSource {
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun fetchCatalog(): RemoteSchemaCatalog {
+    override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = Either.catch {
         val response = httpClient.get(schemasCatalogUrl)
         if (!response.status.isSuccess()) {
             throw IOException("HTTP ${response.status.value} fetching $schemasCatalogUrl")
@@ -58,10 +60,10 @@ class GitHubSchemaCatalogDataSource(
             )
         }
 
-        return RemoteSchemaCatalog(
+        RemoteSchemaCatalog(
             version = dto.version,
             partTypes = partTypes,
             weeks = weeks,
         )
-    }
+    }.mapLeft { DomainError.Network("Errore nel download schemi: ${it.message}") }
 }

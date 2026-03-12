@@ -27,9 +27,7 @@ class AggiornaSchemiUseCase(
     private val settings: Settings,
 ) {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
-        val catalog = Either.catch { remoteSource.fetchCatalog() }
-            .mapLeft { DomainError.Network("Errore nel download schemi: ${it.message}") }
-            .bind()
+        val catalog = remoteSource.fetchCatalog().bind()
 
         val availableCodes = catalog.partTypes.map { it.code }.toSet()
         val invalidWeek = catalog.weeks.firstOrNull { week ->
@@ -86,11 +84,10 @@ class AggiornaSchemiUseCase(
                     )
                 }
                 schemaTemplateStore.replaceAll(storedTemplates)
-
-                // Keep metadata update aligned with schema write transaction.
-                settings.putString("last_schema_import_at", LocalDateTime.now().toString())
             }
         }.mapLeft { DomainError.Validation(it.message ?: "Errore aggiornamento schemi") }.bind()
+
+        settings.putString("last_schema_import_at", LocalDateTime.now().toString())
 
         AggiornaSchemiResult(
             version = catalog.version,

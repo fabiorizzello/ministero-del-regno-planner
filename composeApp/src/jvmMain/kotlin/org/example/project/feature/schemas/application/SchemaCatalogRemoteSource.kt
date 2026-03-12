@@ -1,5 +1,7 @@
 package org.example.project.feature.schemas.application
 
+import arrow.core.Either
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.weeklyparts.domain.PartType
 
 data class RemoteWeekSchemaTemplate(
@@ -14,5 +16,5 @@ data class RemoteSchemaCatalog(
 )
 
 interface SchemaCatalogRemoteSource {
-    suspend fun fetchCatalog(): RemoteSchemaCatalog
+    suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog>
 }
