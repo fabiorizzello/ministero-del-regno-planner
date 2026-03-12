@@ -20,7 +20,7 @@ val outputModule = module {
     single { PdfAssignmentsRenderer() }
     single { PdfProgramRenderer() }
     single<FileOpener> { DesktopFileOpener() }
-    single { GeneraImmaginiAssegnazioni(get(), get(), get(), get()) }
+    single { GeneraImmaginiAssegnazioni(get(), get(), get(), get(), get()) }
     single { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
 
     // Slip delivery

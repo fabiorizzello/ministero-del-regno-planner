@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
+import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
@@ -78,6 +79,7 @@ class GeneraImmaginiAssegnazioni(
     private val programStore: ProgramStore,
     private val weekPlanQueries: WeekPlanQueries,
     private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
+    private val assignmentRepository: AssignmentRepository,
     private val renderer: PdfAssignmentsRenderer,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val outputDirProvider: () -> Path = { AppRuntime.paths().exportsDir.resolve("assegnazioni") },
@@ -132,8 +134,11 @@ class GeneraImmaginiAssegnazioni(
             }
 
             val activeWeeks = weeks.filter { it.status == WeekPlanStatus.ACTIVE }
+            val assignmentsByWeekPlan = assignmentRepository.listByWeekPlanIds(
+                activeWeeks.map { it.id }.toSet()
+            )
             val weekAssignmentsByWeek = activeWeeks.map { week ->
-                week to caricaAssegnazioni(week.weekStartDate)
+                week to (assignmentsByWeekPlan[week.id] ?: emptyList())
             }
 
             val tickets = weekAssignmentsByWeek
