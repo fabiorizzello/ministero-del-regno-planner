@@ -54,8 +54,6 @@ Questa feature non introduce nuove entita di dominio persistente. Definisce un m
 | Field | Type | Description | Validation |
 |-------|------|-------------|------------|
 | strictCooldown | Boolean | Applica cooldown rigido | Default conforme settings correnti |
-| leadWeight | Int | Peso conduzione | Intero `>= 1` |
-| assistWeight | Int | Peso assistenza | Intero `>= 1` |
 | leadCooldownWeeks | Int | Cooldown conduzione in settimane | Intero `>= 0` |
 | assistCooldownWeeks | Int | Cooldown assistenza in settimane | Intero `>= 0` |
 | isSaving | Boolean | Stato salvataggio | Se `true`, comandi mutazione disabilitati |
