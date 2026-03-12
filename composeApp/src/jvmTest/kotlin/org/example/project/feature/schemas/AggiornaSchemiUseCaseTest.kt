@@ -325,7 +325,6 @@ private class RecordingEligibilityStore(
 ) : EligibilityStore {
     val deleteCallArgs = mutableListOf<Set<PartTypeId>>()
 
-    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
     context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
     context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
     override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
