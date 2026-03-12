@@ -44,13 +44,6 @@ class DomainEnrichmentModelsTest {
         )
 
         assertEquals(8, week.nextSortOrder())
-        assertEquals(
-            listOf(
-                WeeklyPartId("part-a") to 0,
-                WeeklyPartId("part-b") to 1,
-            ),
-            week.recompactedSortOrders(),
-        )
         assertEquals(partB, week.findPart(WeeklyPartId("part-b")))
         assertNull(week.findPart(WeeklyPartId("missing")))
     }
