@@ -6,17 +6,11 @@ import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.people.infrastructure.parseSessoOrDefault
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("AssignmentRowMapper")
-
-private fun parseSessoOrDefault(sex: String): Sesso =
-    Sesso.entries.find { it.name == sex }
-        ?: run {
-            logger.warn("Sesso sconosciuto '{}' -> fallback a M", sex)
-            Sesso.M
-        }
 
 private fun mapAssignmentWithPersonRow(
     id: String,

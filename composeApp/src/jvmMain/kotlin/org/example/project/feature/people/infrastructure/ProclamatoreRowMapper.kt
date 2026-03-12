@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("ProclamatoreRowMapper")
 
-private fun parseSessoOrDefault(sex: String): Sesso =
+internal fun parseSessoOrDefault(sex: String): Sesso =
     Sesso.entries.find { it.name == sex }
         ?: run {
             logger.warn("Sesso sconosciuto '{}' -> fallback a M", sex)

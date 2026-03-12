@@ -39,7 +39,6 @@ internal data class SchemaUpdateAnomalyUi(
 internal data class ProclamatoriListUiState(
     val searchTerm: String = "",
     val allItems: List<Proclamatore> = emptyList(),
-    val sortedItems: List<Proclamatore> = emptyList(),
     val isLoading: Boolean = true,
     val notice: FeedbackBannerModel? = null,
     val sort: ProclamatoriSort = ProclamatoriSort(),
@@ -54,7 +53,9 @@ internal data class ProclamatoriListUiState(
     val isBatchInProgress: Boolean = false,
     val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
     val isDismissingSchemaAnomalies: Boolean = false,
-)
+) {
+    val sortedItems: List<Proclamatore> get() = allItems.applySort(sort)
+}
 
 internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
@@ -104,7 +105,7 @@ internal class ProclamatoriListViewModel(
     }
 
     fun setSort(nextSort: ProclamatoriSort) {
-        _uiState.update { it.copy(sort = nextSort, sortedItems = it.allItems.applySort(nextSort)) }
+        _uiState.update { it.copy(sort = nextSort) }
     }
 
     fun goToPreviousPage() {
@@ -314,7 +315,6 @@ internal class ProclamatoriListViewModel(
         _uiState.update {
             it.copy(
                 allItems = allItems,
-                sortedItems = allItems.applySort(it.sort),
                 selectedIds = selected,
                 pageIndex = nextPageIndex,
                 isLoading = false,

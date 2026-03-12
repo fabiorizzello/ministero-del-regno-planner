@@ -31,6 +31,14 @@ class SqlDelightPartTypeStore(
             }
     }
 
+    override suspend fun findById(id: PartTypeId): PartType? {
+        return database.ministeroDatabaseQueries
+            .findPartTypeById(id.value) { rowId, code, label, people_count, sex_rule, fixed, _, sort_order, _ ->
+                mapPartTypeRow(rowId, code, label, people_count, sex_rule, fixed, sort_order)
+            }
+            .executeAsOneOrNull()
+    }
+
     override suspend fun findByCode(code: String): PartType? {
         return database.ministeroDatabaseQueries
             .findPartTypeByCode(code, ::mapPartTypeRow)
