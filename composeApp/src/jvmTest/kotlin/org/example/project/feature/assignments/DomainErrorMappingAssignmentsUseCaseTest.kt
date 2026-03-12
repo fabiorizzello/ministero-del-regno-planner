@@ -136,6 +136,25 @@ class DomainErrorMappingAssignmentsUseCaseTest {
     }
 
     @Test
+    fun `rimuovi assegnazione happy path delegates to store remove`() = runTest {
+        val removedIds = mutableListOf<AssignmentId>()
+        val useCase = RimuoviAssegnazioneUseCase(
+            assignmentStore = object : AssignmentRepository by FakeAssignmentRepository() {
+                context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {
+                    removedIds += assignmentId
+                }
+            },
+            transactionRunner = PassthroughTransactionRunner,
+        )
+
+        val result = useCase(AssignmentId("a1"))
+
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(listOf(AssignmentId("a1")), removedIds)
+        Unit
+    }
+
+    @Test
     fun `rimuovi assegnazione maps repository exceptions to typed domain error`() {
         runTest {
             val useCase = RimuoviAssegnazioneUseCase(
