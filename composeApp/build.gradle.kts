@@ -1,7 +1,10 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.Sync
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
+import java.io.File
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -73,6 +76,11 @@ val jetbrainsRuntimeLauncher = javaToolchains.launcherFor {
     languageVersion.set(JavaLanguageVersion.of(21))
     vendor.set(JvmVendorSpec.JETBRAINS)
 }
+
+val packagingJavaHome = providers.gradleProperty("packaging.java.home")
+    .orElse(providers.environmentVariable("JAVA_HOME"))
+    .map(::File)
+    .filter(File::isDirectory)
 
 tasks.withType<JavaExec>().configureEach {
     javaLauncher.set(jetbrainsRuntimeLauncher)
@@ -147,6 +155,7 @@ tasks.register<JavaExec>("generateWolEfficaciCatalog") {
 compose.desktop {
     application {
         mainClass = "org.example.project.MainKt"
+        packagingJavaHome.orNull?.let { javaHome = it.absolutePath }
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
@@ -162,5 +171,44 @@ compose.desktop {
                 menuGroup = "Scuola di ministero"
             }
         }
+    }
+}
+
+val releasePackageInputDir = layout.buildDirectory.dir("release-jpackage/input")
+val jvmRuntimeClasspath = configurations.named("jvmRuntimeClasspath")
+val mainJarFile = tasks.named("jvmJar")
+val skikoRuntimeJar = jvmRuntimeClasspath.map { configuration ->
+    configuration.files.firstOrNull { file ->
+        file.name.startsWith("skiko-awt-runtime-windows-") && file.extension == "jar"
+    }
+}
+
+tasks.register<Sync>("prepareReleasePackageInput") {
+    description = "Prepara l'input jpackage per il bundling release con JBR completa"
+    group = "distribution"
+    notCompatibleWithConfigurationCache("Estrae i native Skiko con un'azione ad-hoc di release packaging")
+    dependsOn(mainJarFile)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(mainJarFile)
+    from(jvmRuntimeClasspath)
+    into(releasePackageInputDir)
+
+    doLast {
+        val inputDir = releasePackageInputDir.get().asFile
+        val resolvedSkikoRuntimeJar = skikoRuntimeJar.orNull
+
+        if (resolvedSkikoRuntimeJar != null) {
+            copy {
+                from(zipTree(resolvedSkikoRuntimeJar)) {
+                    include("**/skiko-windows-*.dll", "**/icudtl.dat")
+                    eachFile { path = name }
+                    includeEmptyDirs = false
+                }
+                into(inputDir)
+            }
+        }
+
+        inputDir.resolve("resources").mkdirs()
     }
 }

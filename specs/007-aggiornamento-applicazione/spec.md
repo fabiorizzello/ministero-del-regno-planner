@@ -125,17 +125,20 @@ Per fare apparire il file MSI su GitHub Releases (necessario affinché `GitHubRe
 ### Prerequisiti
 
 - **Windows** (JPackage/WiX è Windows-only per la generazione MSI)
-- **JDK 21** — passare `-JavaHome` o impostare `JAVA_HOME`
+- **JetBrains Runtime (JBR) 21** — opzionale: passare `-JavaHome` o impostare `JAVA_HOME`; se assente, lo script prova a scaricare automaticamente una JBR 21 ufficiale in `~/.jdks`
 - **GitHub CLI (`gh`)** — autenticato con `gh auth login` (`winget install GitHub.cli`)
 
 ### Uso rapido
 
 ```powershell
+# Build locale con scelta guidata della versione proposta dallo script
+.\scripts\release-local.ps1
+
 # Solo build locale (verifica MSI senza pubblicare)
-.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1"
+.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\jbr-21"
 
 # Release completa: version bump + test + build + tag + push + release
-.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\corretto-20.0.2.1" -RunTests -PublishRemote
+.\scripts\release-local.ps1 -Version 1.3.0 -JavaHome "C:\Users\fabio\.jdks\jbr-21" -RunTests -PublishRemote
 ```
 
 ### Flusso `-PublishRemote`
@@ -154,8 +157,8 @@ Il flusso è **completamente automatico e idempotente** — ogni step verifica s
 
 | Flag | Descrizione |
 |---|---|
-| `-Version` (obbligatorio) | Versione nel formato `MAJOR.MINOR.PATCH` (es. `1.3.0`) |
-| `-JavaHome` | Path al JDK; default: `$env:JAVA_HOME` |
+| `-Version` | Versione nel formato `MAJOR.MINOR.PATCH` (es. `1.3.0`). Se omessa in una sessione interattiva, lo script propone patch/minor/major a partire da `app.version`. |
+| `-JavaHome` | Path a JetBrains Runtime 21; se omesso lo script usa `$env:JAVA_HOME`, una JBR 21 sotto `~/.jdks`, oppure la scarica automaticamente |
 | `-RunTests` | Esegue i test JVM prima del packaging |
 | `-PublishRemote` | Flusso completo automatico (version bump → release) |
 | `-IncludeExe` | Pubblica anche l'EXE oltre all'MSI |
@@ -167,9 +170,12 @@ Il flusso è **completamente automatico e idempotente** — ogni step verifica s
 ### Note
 
 - Il `packageVersion` in Gradle (`numericVersion`) deve essere in formato `MAJOR.MINOR.PATCH` senza suffisso — JPackage rifiuta versioni con trattino (es. `1.3.0-dev`). Il campo `appVersion` può contenere il suffisso per uso interno, ma `numericVersion = appVersion.substringBefore("-")` già lo gestisce.
+- Il packaging MSI deve essere eseguito con **JetBrains Runtime 21**. Usare Temurin/OpenJDK produce un installer che include una JVM valida ma non compatibile con `Jewel DecoratedWindow`, causando il crash all'avvio con messaggio finale `Failed to launch JVM`.
+- Se non trova una JBR 21 locale e `-WhatIf` non è attivo, lo script scarica automaticamente l'ultima `jbrsdk` 21 Windows x64 dalle release ufficiali di `JetBrains/JetBrainsRuntime` e la riusa nelle esecuzioni successive.
 - L'upgrade code MSI viene derivato automaticamente da JPackage in base a `packageName`. Non modificare `packageName` tra release oppure Windows tratterà le versioni come prodotti diversi (doppia installazione).
 - `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Lo script deve uploadare il file `.msi`.
 - Lo script supporta `-WhatIf` per verificare il flusso senza effetti collaterali.
+- Se `-Version` manca in un contesto non interattivo, lo script non si ferma con un errore generico: mostra la versione corrente e suggerisce i prossimi bump patch/minor/major da passare esplicitamente.
 - `gh` rileva il repository automaticamente dal remote git — non serve configurazione aggiuntiva.
 
 ---
