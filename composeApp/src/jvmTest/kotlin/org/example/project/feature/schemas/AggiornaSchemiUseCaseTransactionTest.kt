@@ -4,6 +4,7 @@ import arrow.core.Either
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.test.runTest
+import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
@@ -177,7 +178,7 @@ private class TrackingSettings(
 private class FakeSchemaCatalogRemoteSource(
     private val catalog: RemoteSchemaCatalog,
 ) : SchemaCatalogRemoteSource {
-    override suspend fun fetchCatalog(): RemoteSchemaCatalog = catalog
+    override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = Either.Right(catalog)
 }
 
 private class InMemoryPartTypeStore : PartTypeStore {

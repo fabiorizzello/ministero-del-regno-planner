@@ -194,7 +194,7 @@ private fun buildUseCase(
     templateStore: SchemaTemplateStore = InMemorySchemaTemplateStore2(),
 ): AggiornaSchemiUseCase = AggiornaSchemiUseCase(
     remoteSource = object : SchemaCatalogRemoteSource {
-        override suspend fun fetchCatalog(): RemoteSchemaCatalog = catalog
+        override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = Either.Right(catalog)
     },
     partTypeStore = partTypeStore,
     eligibilityStore = NoopEligibilityStore2(),
