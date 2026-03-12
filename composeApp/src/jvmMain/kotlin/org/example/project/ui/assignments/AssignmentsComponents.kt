@@ -362,14 +362,13 @@ fun PersonPickerDialog(
     partLabel: String,
     slotLabel: String?,
     weekLabel: String,
+    currentAssigneeName: String?,
     searchTerm: String,
-    sortGlobal: Boolean,
     strictCooldown: Boolean,
     suggestions: List<SuggestedProclamatore>,
     isLoading: Boolean,
     isAssigning: Boolean,
     onSearchChange: (String) -> Unit,
-    onToggleSort: () -> Unit,
     onStrictCooldownChange: (Boolean) -> Unit,
     onAssign: (ProclamatoreId) -> Unit,
     onDismiss: () -> Unit,
@@ -383,9 +382,9 @@ fun PersonPickerDialog(
     val searchFr = remember { FocusRequester() }
     LaunchedEffect(Unit) { searchFr.requestFocus() }
 
-    // Client-side filtering and sorting, memoized to avoid recomputation on every recomposition.
-    // sexMismatch candidates are sorted to the end for clarity.
-    val (normalSorted, mismatchSorted) = remember(suggestions, searchTerm, sortGlobal) {
+    // Client-side filtering, memoized. Suggestions arrive pre-sorted by rank from the use case.
+    // sexMismatch candidates are partitioned to the end for clarity.
+    val (normalSorted, mismatchSorted) = remember(suggestions, searchTerm) {
         val filtered = if (searchTerm.isBlank()) {
             suggestions
         } else {
@@ -395,13 +394,7 @@ fun PersonPickerDialog(
                     s.proclamatore.cognome.lowercase().contains(lowerTerm)
             }
         }
-        // Sorting: null (mai assegnato) first, then descending by weeks (longest ago first)
-        val sorted = if (sortGlobal) {
-            filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastGlobalWeeks })
-        } else {
-            filtered.sortedWith(compareByDescending<SuggestedProclamatore, Int?>(nullsLast()) { it.lastForPartTypeWeeks })
-        }
-        sorted.partition { !it.sexMismatch }
+        filtered.partition { !it.sexMismatch }
     }
 
     Dialog(
@@ -486,32 +479,39 @@ fun PersonPickerDialog(
                     ),
                 )
 
-                // Sort toggle + strict cooldown
+                // Current assignee + strict cooldown toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                    ) {
-                        Text(
-                            text = "Ordina per:",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                            SortModeButton(
-                                label = "Globale",
-                                selected = sortGlobal,
-                                onClick = { if (!sortGlobal) onToggleSort() },
-                            )
-                            SortModeButton(
-                                label = "Per parte",
-                                selected = !sortGlobal,
-                                onClick = { if (sortGlobal) onToggleSort() },
-                            )
+                    // Current assignee chip (or empty spacer)
+                    if (currentAssigneeName != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = sketch.ok.copy(alpha = 0.10f),
+                            border = BorderStroke(1.dp, sketch.ok.copy(alpha = 0.4f)),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = sketch.ok,
+                                )
+                                Text(
+                                    text = "Attuale: $currentAssigneeName",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = sketch.ink,
+                                )
+                            }
                         }
+                    } else {
+                        Spacer(Modifier)
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -830,38 +830,3 @@ private fun SuggestionRow(
     }
 }
 
-@Composable
-private fun SortModeButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
-    }
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.handCursorOnHover().clickable(onClick = onClick),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = contentColor,
-        )
-    }
-}

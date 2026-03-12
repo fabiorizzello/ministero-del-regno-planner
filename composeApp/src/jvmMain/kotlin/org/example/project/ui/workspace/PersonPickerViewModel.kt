@@ -36,7 +36,6 @@ internal data class PersonPickerUiState(
     val pickerSlot: Int? = null,
     val pickerWeekPlanId: WeekPlanId? = null,
     val pickerSearchTerm: String = "",
-    val pickerSortGlobal: Boolean = true,
     val pickerSuggestions: List<SuggestedProclamatore> = emptyList(),
     val isPickerLoading: Boolean = false,
     val isAssigning: Boolean = false,
@@ -78,7 +77,6 @@ internal class PersonPickerViewModel(
                 pickerSlot = slot,
                 pickerWeekPlanId = weekPlanId,
                 pickerSearchTerm = "",
-                pickerSortGlobal = true,
                 pickerSuggestions = emptyList(),
                 isPickerLoading = true,
             )
@@ -107,10 +105,6 @@ internal class PersonPickerViewModel(
 
     fun setPickerSearchTerm(term: String) {
         _state.update { it.copy(pickerSearchTerm = term) }
-    }
-
-    fun togglePickerSort() {
-        _state.update { it.copy(pickerSortGlobal = !it.pickerSortGlobal) }
     }
 
     fun confirmAssignment(personId: ProclamatoreId, onSuccess: () -> Unit) {

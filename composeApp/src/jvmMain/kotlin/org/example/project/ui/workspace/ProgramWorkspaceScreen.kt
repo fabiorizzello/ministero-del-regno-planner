@@ -166,18 +166,22 @@ fun ProgramWorkspaceScreen() {
             val pickerWeekLabel = personPickerState.pickerWeekStartDate?.let {
                 formatWeekRangeLabel(it, it.plusDays(6))
             } ?: ""
+            val currentAssigneeName = personPickerState.pickerWeekPlanId?.let { weekPlanId ->
+                lifecycleState.selectedProgramAssignments[weekPlanId.value]
+                    ?.find { it.weeklyPartId == personPickerState.pickerWeeklyPartId && it.slot == personPickerState.pickerSlot }
+                    ?.fullName
+            }
             PersonPickerDialog(
                 partLabel = pickedPart.partType.label,
                 slotLabel = slotLabel,
                 weekLabel = pickerWeekLabel,
+                currentAssigneeName = currentAssigneeName,
                 searchTerm = personPickerState.pickerSearchTerm,
-                sortGlobal = personPickerState.pickerSortGlobal,
                 strictCooldown = assignmentState.assignmentSettings.strictCooldown,
                 suggestions = personPickerState.pickerSuggestions,
                 isLoading = personPickerState.isPickerLoading,
                 isAssigning = personPickerState.isAssigning,
                 onSearchChange = { personPickerVM.setPickerSearchTerm(it) },
-                onToggleSort = { personPickerVM.togglePickerSort() },
                 onStrictCooldownChange = {
                     assignmentVM.setStrictCooldown(it)
                     personPickerVM.reloadSuggestions()
