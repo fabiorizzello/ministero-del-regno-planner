@@ -136,8 +136,8 @@ data class WeekPlanAggregate(
             fixedPartRevisionId: String? = null,
             programId: ProgramMonthId? = null,
             status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
-        ): WeekPlanAggregate {
-            val week = WeekPlan(
+        ): Either<DomainError, WeekPlanAggregate> =
+            WeekPlan.of(
                 id = weekPlanId,
                 weekStartDate = weekStartDate,
                 parts = listOf(
@@ -150,11 +150,11 @@ data class WeekPlanAggregate(
                 ),
                 programId = programId,
                 status = status,
-            )
-            return WeekPlanAggregate(
-                weekPlan = week,
-                assignments = emptyList(),
-            )
-        }
+            ).map { week ->
+                WeekPlanAggregate(
+                    weekPlan = week,
+                    assignments = emptyList(),
+                )
+            }
     }
 }
