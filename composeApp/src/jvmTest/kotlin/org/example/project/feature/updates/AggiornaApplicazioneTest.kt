@@ -3,7 +3,10 @@ package org.example.project.feature.updates
 import arrow.core.Either
 import com.sun.net.httpserver.HttpServer
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.java.Java
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
@@ -13,14 +16,18 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
+import org.example.project.feature.updates.application.UpdateInstallResult
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
+import kotlin.io.path.readText
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class AggiornaApplicazioneTest {
 
@@ -63,6 +70,105 @@ class AggiornaApplicazioneTest {
         } finally {
             client.close()
             server.stop(0)
+        }
+    }
+
+    @Test
+    fun `reuses cached installer when file already matches expected size`() = runTest {
+        initializeRuntime()
+        val cachedInstaller = runtimeUpdatesDir().createDirectories().resolve("planner.msi")
+        Files.writeString(cachedInstaller, "cached-msi")
+        var requestCount = 0
+        val client = HttpClient(MockEngine {
+            requestCount += 1
+            respond("unexpected", HttpStatusCode.OK)
+        })
+        try {
+            val useCase = AggiornaApplicazione(client)
+
+            val result = useCase.downloadInstaller(
+                UpdateAsset(
+                    name = "planner.msi",
+                    downloadUrl = "https://example.test/planner.msi",
+                    sizeBytes = Files.size(cachedInstaller),
+                ),
+            )
+
+            val installerPath = assertIs<Either.Right<Path>>(result).value
+            assertEquals(cachedInstaller, installerPath)
+            assertEquals(0, requestCount)
+            assertEquals("cached-msi", Files.readString(cachedInstaller))
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun `stages external updater and returns restart required`() = runTest {
+        initializeRuntime()
+        val installedResources = requireNotNull(tempRoot).resolve("installed").resolve("resources").createDirectories()
+        val installerPath = runtimeUpdatesDir().createDirectories().resolve("planner.msi")
+        val appExecutable = requireNotNull(tempRoot).resolve("installed").resolve("scuola-di-ministero.exe")
+        Files.writeString(installerPath, "fake-msi")
+        Files.writeString(appExecutable, "fake-exe")
+        Files.writeString(installedResources.resolve("external-updater.ps1"), "Write-Output 'installed updater'")
+        var launchedCommand: List<String>? = null
+        val client = HttpClient(MockEngine {
+            error("HTTP client should not be used in installaSilenzioso test")
+        })
+        try {
+            val useCase = AggiornaApplicazione(
+                httpClient = client,
+                externalUpdaterLauncher = { command -> launchedCommand = command },
+                currentProcessIdProvider = { 4242L },
+                bundledResourcesDirProvider = { installedResources },
+                appExecutableProvider = { appExecutable },
+                updaterScriptBytesProvider = { "Write-Output 'fallback updater'".toByteArray() },
+            )
+
+            val result = useCase.installaSilenzioso(installerPath)
+
+            val installResult = assertIs<Either.Right<UpdateInstallResult>>(result).value
+            assertTrue(installResult.restartRequired)
+            assertEquals(installerPath, installResult.installerPath)
+            val command = assertNotNull(launchedCommand)
+            assertEquals("powershell.exe", command.first())
+            assertTrue(command.contains("-InstallerPath"))
+            assertTrue(command.contains(installerPath.toAbsolutePath().toString()))
+            assertTrue(command.contains(appExecutable.toAbsolutePath().toString()))
+            assertTrue(command.contains("4242"))
+            val stagedScript = runtimeUpdatesDir().resolve("external-updater.ps1")
+            assertTrue(stagedScript.exists())
+            assertEquals("Write-Output 'installed updater'", stagedScript.readText())
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun `copies installer from local file url without network download`() = runTest {
+        initializeRuntime()
+        val sourceInstaller = requireNotNull(tempRoot).resolve("source").createDirectories().resolve("planner-local.msi")
+        Files.writeString(sourceInstaller, "local-msi")
+        val client = HttpClient(MockEngine {
+            error("HTTP client should not be used for local file asset")
+        })
+        try {
+            val useCase = AggiornaApplicazione(client)
+
+            val result = useCase.downloadInstaller(
+                UpdateAsset(
+                    name = "planner-local.msi",
+                    downloadUrl = sourceInstaller.toUri().toString(),
+                    sizeBytes = Files.size(sourceInstaller),
+                ),
+            )
+
+            val installerPath = assertIs<Either.Right<Path>>(result).value
+            assertEquals(runtimeUpdatesDir().resolve("planner-local.msi"), installerPath)
+            assertEquals("local-msi", Files.readString(installerPath))
+        } finally {
+            client.close()
         }
     }
 

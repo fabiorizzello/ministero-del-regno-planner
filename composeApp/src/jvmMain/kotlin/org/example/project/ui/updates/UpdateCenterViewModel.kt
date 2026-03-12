@@ -16,6 +16,7 @@ import org.example.project.core.domain.toMessage
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.feature.updates.application.UpdateCheckResult
+import org.example.project.feature.updates.application.UpdateSource
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
 
@@ -27,6 +28,7 @@ internal data class UpdateCenterUiState(
     val releaseTitle: String? = null,
     val releaseNotes: String? = null,
     val updateAsset: UpdateAsset? = null,
+    val updateSource: UpdateSource? = null,
     val statusText: String = "Nessun controllo eseguito",
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
@@ -98,7 +100,7 @@ internal class UpdateCenterViewModel(
                         it.copy(
                             isDownloading = false,
                             isInstalling = true,
-                            statusText = "Installazione aggiornamento in corso...",
+                            statusText = "Preparazione aggiornamento in corso...",
                         )
                     }
                     aggiornaApplicazione.installaSilenzioso(installerPath).fold(
@@ -120,7 +122,7 @@ internal class UpdateCenterViewModel(
                                     restartRequired = installResult.restartRequired,
                                     installedVersion = targetVersion,
                                     hasError = false,
-                                    statusText = "Aggiornamento installato. Riavvia l'app per applicare.",
+                                    statusText = "Aggiornamento pronto. Riavvia l'app per chiuderla, installare la nuova versione e riaprirla.",
                                 )
                             }
                         },
@@ -139,6 +141,7 @@ internal class UpdateCenterViewModel(
                     releaseTitle = null,
                     releaseNotes = null,
                     updateAsset = null,
+                    updateSource = null,
                     hasError = true,
                     statusText = "Errore verifica: ${result.value.toMessage()}",
                 )
@@ -151,12 +154,13 @@ internal class UpdateCenterViewModel(
                         releaseTitle = value.releaseTitle,
                         releaseNotes = value.releaseNotes,
                         updateAsset = value.asset,
+                        updateSource = value.source,
                         lastCheck = value.checkedAt,
                         hasError = false,
                         statusText = when {
                             value.latestVersion.isNullOrBlank() -> "Nessuna release trovata"
-                            value.updateAvailable -> "Aggiornamento disponibile: ${value.latestVersion}"
-                            else -> "App aggiornata (v${value.currentVersion})"
+                            value.updateAvailable -> "Aggiornamento disponibile: ${displayVersion(value.latestVersion)}. Un clic scarica e prepara l'installazione."
+                            else -> "App aggiornata (${displayVersion(value.currentVersion)})"
                         },
                     )
                 }
@@ -164,3 +168,12 @@ internal class UpdateCenterViewModel(
         }
     }
 }
+
+private fun displayVersion(version: String?): String =
+    normalizeVersion(version)?.let { "v$it" } ?: "versione sconosciuta"
+
+private fun normalizeVersion(version: String?): String? =
+    version
+        ?.trim()
+        ?.removePrefix("v")
+        ?.takeIf(String::isNotBlank)

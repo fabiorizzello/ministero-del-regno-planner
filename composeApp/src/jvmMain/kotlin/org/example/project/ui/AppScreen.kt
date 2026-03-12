@@ -90,6 +90,7 @@ import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
+import org.example.project.feature.updates.application.UpdateSource
 import org.example.project.ui.updates.UpdateCenterUiState
 import org.example.project.ui.updates.UpdateCenterViewModel
 import org.example.project.ui.workspace.ProgramWorkspaceScreen
@@ -248,9 +249,11 @@ fun DecoratedWindowScope.AppScreen(
                                 }
 
                                 Row(
-                                    modifier = Modifier.align(Alignment.End),
+                                    modifier = Modifier
+                                        .align(Alignment.End)
+                                        .padding(end = spacing.sm),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                 ) {
                                     ToolbarIconAction(
                                         onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
@@ -679,11 +682,11 @@ private fun UpdateToolbarAction(
         else -> sketch.toolbarInkMuted
     }
     val tooltipText = when {
-        state.restartRequired -> "Aggiornamento installato. Riavvia per applicare"
-        state.isInstalling -> "Installazione aggiornamento in corso"
+        state.restartRequired -> "Aggiornamento pronto. Riavvia per installare"
+        state.isInstalling -> "Preparazione aggiornamento in corso"
         state.isDownloading -> "Download aggiornamento in corso"
         state.isChecking -> "Verifica aggiornamenti in corso"
-        state.updateAvailable -> "Aggiornamento disponibile"
+        state.updateAvailable -> "Aggiornamento disponibile. Un clic scarica e prepara l'installazione"
         state.hasError -> state.statusText
         else -> "Aggiornamenti applicazione"
     }
@@ -741,7 +744,7 @@ private fun UpdateCenterMenu(
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
-    val showFlowRow = state.isBusy || state.restartRequired
+    val showJourneyCard = state.lastCheck != null || state.updateAvailable || state.isBusy || state.restartRequired || state.hasError
     Column(
         modifier = Modifier
             .width(392.dp)
@@ -750,11 +753,11 @@ private fun UpdateCenterMenu(
     ) {
         UpdateHeroCard(state = state)
         AnimatedVisibility(
-            visible = showFlowRow,
+            visible = showJourneyCard,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
         ) {
-            UpdateFlowRow(state = state)
+            UpdateJourneyCard(state = state)
         }
         Surface(
             shape = RoundedCornerShape(14.dp),
@@ -771,8 +774,11 @@ private fun UpdateCenterMenu(
                     label = "Ultimo controllo",
                     value = state.lastCheck?.let(::formatUpdateTimestamp) ?: "mai",
                 )
-                if (!state.latestVersion.isNullOrBlank() && state.latestVersion != state.currentVersion) {
-                    UpdateCenterInfoRow(label = "Ultima release", value = state.latestVersion)
+                state.updateSource?.let { source ->
+                    UpdateCenterInfoRow(label = "Sorgente update", value = updateSourceLabel(source))
+                }
+                if (!state.latestVersion.isNullOrBlank() && !sameVersion(state.latestVersion, state.currentVersion)) {
+                    UpdateCenterInfoRow(label = "Ultima release", value = formatVersion(state.latestVersion))
                 }
             }
         }
@@ -784,16 +790,16 @@ private fun UpdateCenterMenu(
         }
         when {
             state.restartRequired -> UpdateMenuAction(
-                label = "Riavvia per completare",
+                label = "Riavvia per installare",
                 icon = Icons.Filled.RestartAlt,
                 onClick = onRestart,
                 modifier = Modifier.fillMaxWidth(),
                 emphasized = true,
-                tooltip = "Chiude e riapre l'app per completare l'aggiornamento",
+                tooltip = "Chiude l'app, esegue l'aggiornamento e la riapre automaticamente",
             )
             state.isBusy -> UpdateMenuAction(
                 label = when {
-                    state.isInstalling -> "Installazione in corso..."
+                    state.isInstalling -> "Preparazione in corso..."
                     state.isDownloading -> "Download in corso..."
                     else -> "Verifica in corso..."
                 },
@@ -804,20 +810,17 @@ private fun UpdateCenterMenu(
             )
             state.updateAvailable && state.updateAsset != null -> {
                 UpdateMenuAction(
-                    label = "Aggiorna a v${state.latestVersion}",
+                    label = "Scarica e prepara ${formatVersion(state.latestVersion)}",
                     icon = Icons.Filled.ArrowCircleUp,
                     onClick = onStartUpdate,
                     modifier = Modifier.fillMaxWidth(),
                     emphasized = true,
-                    tooltip = "Scarica e installa in modo silenzioso la release disponibile",
+                    tooltip = "Scarica la release e prepara l'installazione al riavvio dell'app",
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                UpdateMenuAction(
-                    label = "Controlla aggiornamenti",
-                    icon = Icons.Filled.Refresh,
-                    onClick = onCheckUpdates,
-                    modifier = Modifier.fillMaxWidth(),
-                    tooltip = "Controlla se esiste una release più recente",
+                Text(
+                    text = "Un solo clic scarica il pacchetto e prepara l'installazione al prossimo riavvio.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
                 )
             }
             else -> UpdateMenuAction(
@@ -836,11 +839,11 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
     val tone = when {
-        state.restartRequired -> UpdateHeroTone("Aggiornamento installato", sketch.ok, Icons.Filled.RestartAlt)
-        state.isInstalling -> UpdateHeroTone("Installazione in corso", sketch.warn, Icons.Filled.FileOpen)
+        state.restartRequired -> UpdateHeroTone("Aggiornamento pronto", sketch.ok, Icons.Filled.RestartAlt)
+        state.isInstalling -> UpdateHeroTone("Preparazione in corso", sketch.warn, Icons.Filled.FileOpen)
         state.isDownloading -> UpdateHeroTone("Download in corso", sketch.warn, Icons.Filled.FileOpen)
         state.isChecking -> UpdateHeroTone("Verifica release", sketch.accent, Icons.Filled.Refresh)
-        state.updateAvailable -> UpdateHeroTone("Release disponibile", sketch.warn, Icons.Filled.ArrowCircleUp)
+        state.updateAvailable -> UpdateHeroTone("Pronto ad aggiornare", sketch.warn, Icons.Filled.ArrowCircleUp)
         state.hasError -> UpdateHeroTone("Attenzione richiesta", sketch.bad, Icons.Filled.ErrorOutline)
         state.lastCheck != null -> UpdateHeroTone("App aggiornata", sketch.ok, Icons.Filled.CheckCircle)
         else -> UpdateHeroTone("Aggiornamenti", sketch.inkSoft, Icons.Filled.SystemUpdateAlt)
@@ -904,7 +907,7 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
                         border = BorderStroke(1.dp, sketch.lineSoft),
                     ) {
                         Text(
-                            text = updateVersionSummary(state),
+                            text = normalizedUpdateVersionSummary(state),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = sketch.inkSoft,
@@ -917,91 +920,225 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
 }
 
 @Composable
-private fun UpdateFlowRow(state: UpdateCenterUiState) {
-    val spacing = MaterialTheme.spacing
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-    ) {
-        UpdateFlowStep(
-            label = "Verifica",
-            completed = state.lastCheck != null && !state.isChecking,
-            active = state.isChecking,
-            modifier = Modifier.weight(1f),
-        )
-        UpdateFlowStep(
-            label = "Download",
-            completed = state.isInstalling || state.restartRequired,
-            active = state.isDownloading,
-            modifier = Modifier.weight(1f),
-        )
-        UpdateFlowStep(
-            label = "Installa",
-            completed = state.restartRequired,
-            active = state.isInstalling,
-            modifier = Modifier.weight(1f),
-        )
-        UpdateFlowStep(
-            label = "Riavvia",
-            completed = false,
-            active = state.restartRequired,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun UpdateFlowStep(
-    label: String,
-    completed: Boolean,
-    active: Boolean,
-    modifier: Modifier = Modifier,
-) {
+private fun UpdateJourneyCard(state: UpdateCenterUiState) {
     val sketch = MaterialTheme.workspaceSketch
-    val (background, border, content) = when {
-        active -> Triple(sketch.surface, sketch.accent.copy(alpha = 0.32f), sketch.accent)
-        completed -> Triple(sketch.surface, sketch.ok.copy(alpha = 0.22f), sketch.ok)
-        else -> Triple(sketch.surfaceMuted, sketch.lineSoft, sketch.inkMuted)
+    val spacing = MaterialTheme.spacing
+    val summary = when {
+        state.isChecking -> "Sto verificando se esiste una release pubblicata piu recente."
+        state.isDownloading -> "Aggiornamento in corso: scarico il pacchetto MSI."
+        state.isInstalling -> "Aggiornamento in corso: preparo l'updater esterno e la chiusura sicura dell'app."
+        state.restartRequired -> "Ultimo passo: chiudi o riavvia l'app. L'updater esterno installera la nuova versione e la riaprira."
+        state.updateAvailable -> "Percorso a singolo clic: la verifica e gia fatta, ora puoi scaricare e preparare l'installazione."
+        state.hasError -> "Il flusso si e fermato. Controlla il messaggio sopra prima di riprovare."
+        else -> "Controlla la release disponibile e aggiorna solo quando serve."
     }
+
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(999.dp),
-        color = background,
-        border = BorderStroke(1.dp, border),
+        shape = RoundedCornerShape(14.dp),
+        color = sketch.surfaceMuted,
+        border = BorderStroke(1.dp, sketch.lineSoft),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(spacing.md),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            if (active) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(10.dp),
-                    strokeWidth = 1.4.dp,
-                    color = content,
-                )
-            } else if (completed) {
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = null,
-                    tint = content,
-                    modifier = Modifier.size(10.dp),
-                )
-            }
             Text(
-                text = label,
-                modifier = Modifier.padding(start = if (active || completed) 6.dp else 0.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = content,
+                text = "Percorso aggiornamento",
+                style = MaterialTheme.typography.labelMedium,
+                color = sketch.inkMuted,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = sketch.inkSoft,
+            )
+            UpdateJourneyStep(
+                index = 1,
+                label = "Verifica release",
+                description = when {
+                    state.isChecking -> "Controllo la release pubblicata su GitHub"
+                    state.lastCheck != null -> "Controllo completato ${formatUpdateTimestamp(state.lastCheck)}"
+                    else -> "Controllo manuale della release disponibile"
+                },
+                status = when {
+                    state.isChecking -> UpdateJourneyStatus.Active
+                    state.lastCheck != null -> UpdateJourneyStatus.Completed
+                    else -> UpdateJourneyStatus.Pending
+                },
+            )
+            UpdateJourneyStep(
+                index = 2,
+                label = "Scarica e installa",
+                description = when {
+                    state.isDownloading -> "Download del pacchetto MSI in corso"
+                    state.isInstalling -> "Preparazione dell'updater esterno in corso"
+                    state.restartRequired -> "Pacchetto pronto: partira appena chiudi l'app"
+                    state.updateAvailable -> "Un clic scarica e prepara ${formatVersion(state.latestVersion)}"
+                    else -> "Disponibile quando trovi una release piu recente"
+                },
+                status = when {
+                    state.isDownloading || state.isInstalling -> UpdateJourneyStatus.Active
+                    state.restartRequired -> UpdateJourneyStatus.Ready
+                    state.updateAvailable -> UpdateJourneyStatus.Ready
+                    else -> UpdateJourneyStatus.Pending
+                },
+            )
+            UpdateJourneyStep(
+                index = 3,
+                label = "Riavvia",
+                description = when {
+                    state.restartRequired -> "Chiude l'app e installa ${formatVersion(state.installedVersion ?: state.latestVersion)}"
+                    state.isDownloading || state.isInstalling || state.updateAvailable -> "Diventa disponibile dopo l'installazione"
+                    else -> "Non necessario finche non installi un aggiornamento"
+                },
+                status = when {
+                    state.restartRequired -> UpdateJourneyStatus.Active
+                    else -> UpdateJourneyStatus.Pending
+                },
             )
         }
     }
 }
 
-private fun updateVersionSummary(state: UpdateCenterUiState): String {
-    val current = "v${state.currentVersion}"
+@Composable
+private fun UpdateJourneyStep(
+    index: Int,
+    label: String,
+    description: String,
+    status: UpdateJourneyStatus,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    val palette = when (status) {
+        UpdateJourneyStatus.Active -> UpdateJourneyPalette(
+            background = sketch.surface,
+            border = sketch.accent.copy(alpha = 0.32f),
+            content = sketch.accent,
+            badgeBackground = sketch.accent.copy(alpha = 0.16f),
+            badgeContent = sketch.accent,
+        )
+        UpdateJourneyStatus.Completed -> UpdateJourneyPalette(
+            background = sketch.surface,
+            border = sketch.ok.copy(alpha = 0.22f),
+            content = sketch.ok,
+            badgeBackground = sketch.ok.copy(alpha = 0.16f),
+            badgeContent = sketch.ok,
+        )
+        UpdateJourneyStatus.Ready -> UpdateJourneyPalette(
+            background = sketch.surface,
+            border = sketch.warn.copy(alpha = 0.28f),
+            content = sketch.warn,
+            badgeBackground = sketch.warn.copy(alpha = 0.16f),
+            badgeContent = sketch.warn,
+        )
+        UpdateJourneyStatus.Pending -> UpdateJourneyPalette(
+            background = sketch.surfaceMuted,
+            border = sketch.lineSoft,
+            content = sketch.inkMuted,
+            badgeBackground = sketch.surface,
+            badgeContent = sketch.inkMuted,
+        )
+    }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = palette.background,
+        border = BorderStroke(1.dp, palette.border),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = palette.badgeBackground,
+                border = BorderStroke(1.dp, palette.border.copy(alpha = 0.75f)),
+            ) {
+                Box(
+                    modifier = Modifier.size(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (status) {
+                        UpdateJourneyStatus.Active -> CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.6.dp,
+                            color = palette.badgeContent,
+                        )
+                        UpdateJourneyStatus.Completed -> Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = palette.badgeContent,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        else -> Text(
+                            text = index.toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = palette.badgeContent,
+                        )
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.content,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkSoft,
+                )
+            }
+            Text(
+                text = when (status) {
+                    UpdateJourneyStatus.Active -> "In corso"
+                    UpdateJourneyStatus.Completed -> "Fatto"
+                    UpdateJourneyStatus.Ready -> "Pronto"
+                    UpdateJourneyStatus.Pending -> "In attesa"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.content,
+            )
+        }
+    }
+}
+
+private fun normalizedUpdateVersionSummary(state: UpdateCenterUiState): String {
+    val current = formatVersion(state.currentVersion)
+    val latest = state.latestVersion
+    return if (latest.isNullOrBlank() || sameVersion(latest, state.currentVersion)) current else "$current -> ${formatVersion(latest)}"
+}
+
+private fun formatVersion(version: String?): String =
+    normalizeVersion(version)?.let { "v$it" } ?: "versione sconosciuta"
+
+private fun normalizeVersion(version: String?): String? =
+    version
+        ?.trim()
+        ?.removePrefix("v")
+        ?.takeIf(String::isNotBlank)
+
+private fun sameVersion(left: String?, right: String?): Boolean =
+    normalizeVersion(left) == normalizeVersion(right)
+
+private fun updateSourceLabel(source: UpdateSource): String = when (source) {
+    UpdateSource.GITHUB -> "GitHub"
+    UpdateSource.LOCAL -> "Locale"
+}
+
+@Suppress("unused")
+private fun legacyUpdateVersionSummary(state: UpdateCenterUiState): String {
+    val current = formatVersion(state.currentVersion)
     val latest = state.latestVersion
     return if (latest.isNullOrBlank() || latest == state.currentVersion) current else "$current → v$latest"
 }
@@ -1010,6 +1147,21 @@ private data class UpdateHeroTone(
     val title: String,
     val accent: Color,
     val icon: ImageVector,
+)
+
+private enum class UpdateJourneyStatus {
+    Pending,
+    Ready,
+    Active,
+    Completed,
+}
+
+private data class UpdateJourneyPalette(
+    val background: Color,
+    val border: Color,
+    val content: Color,
+    val badgeBackground: Color,
+    val badgeContent: Color,
 )
 
 @Composable

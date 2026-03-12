@@ -40,6 +40,7 @@ class VerificaAggiornamenti(
                 asset = release?.asset,
                 releaseTitle = release?.title,
                 releaseNotes = release?.notes,
+                source = release?.source,
                 checkedAt = now,
             )
         }

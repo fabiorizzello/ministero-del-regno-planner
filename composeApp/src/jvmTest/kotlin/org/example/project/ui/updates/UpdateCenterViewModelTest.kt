@@ -23,6 +23,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.feature.updates.application.UpdateCheckResult
+import org.example.project.feature.updates.application.UpdateSource
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
 import kotlin.io.path.createDirectories
@@ -68,6 +69,7 @@ class UpdateCenterViewModelTest {
                         asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 100),
                         releaseTitle = "Nuova release",
                         releaseNotes = "Note",
+                        source = UpdateSource.GITHUB,
                         checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
                     ),
                 ),
@@ -113,7 +115,16 @@ class UpdateCenterViewModelTest {
             val aggiornaApplicazione = AggiornaApplicazione(
                 httpClient = client,
                 dispatcher = StandardTestDispatcher(testScheduler),
-                installCommandRunner = { 0 },
+                externalUpdaterLauncher = {},
+                currentProcessIdProvider = { 4242L },
+                bundledResourcesDirProvider = { root.resolve("installed").resolve("resources").createDirectories() },
+                appExecutableProvider = {
+                    root.resolve("installed").resolve("scuola-di-ministero.exe").also {
+                        Files.createDirectories(it.parent)
+                        Files.writeString(it, "fake-exe")
+                    }
+                },
+                updaterScriptBytesProvider = { "Write-Output 'test updater'".toByteArray() },
             )
 
             val vm = UpdateCenterViewModel(
@@ -134,6 +145,7 @@ class UpdateCenterViewModelTest {
                         asset = asset,
                         releaseTitle = "v1.1.0",
                         releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
                         checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
                     ),
                 ),
@@ -146,7 +158,10 @@ class UpdateCenterViewModelTest {
             assertFalse(state.updateAvailable)
             assertNull(state.updateAsset)
             assertEquals("v1.1.0", state.installedVersion)
-            assertEquals("Aggiornamento installato. Riavvia l'app per applicare.", state.statusText)
+            assertEquals(
+                "Aggiornamento pronto. Riavvia l'app per chiuderla, installare la nuova versione e riaprirla.",
+                state.statusText,
+            )
         } finally {
             vmScope.cancel()
             client.close()

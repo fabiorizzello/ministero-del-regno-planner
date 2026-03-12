@@ -431,6 +431,7 @@ function Invoke-JPackageBuild {
         '--main-jar', 'composeApp-jvm.jar',
         '--main-class', 'org.example.project.MainKt',
         '--icon', $layout.IconPath,
+        '--win-per-user-install',
         '--win-dir-chooser',
         '--win-shortcut',
         '--win-menu',

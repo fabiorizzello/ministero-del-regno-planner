@@ -178,6 +178,7 @@ compose.desktop {
 val releasePackageInputDir = layout.buildDirectory.dir("release-jpackage/input")
 val jvmRuntimeClasspath = configurations.named("jvmRuntimeClasspath")
 val mainJarFile = tasks.named("jvmJar")
+val externalUpdaterScript = layout.projectDirectory.file("src/jvmMain/resources/updater/external-updater.ps1")
 val skikoRuntimeJar = jvmRuntimeClasspath.map { configuration ->
     configuration.files.firstOrNull { file ->
         file.name.startsWith("skiko-awt-runtime-windows-") && file.extension == "jar"
@@ -193,6 +194,9 @@ tasks.register<Sync>("prepareReleasePackageInput") {
 
     from(mainJarFile)
     from(jvmRuntimeClasspath)
+    from(externalUpdaterScript) {
+        into("resources")
+    }
     into(releasePackageInputDir)
 
     doLast {

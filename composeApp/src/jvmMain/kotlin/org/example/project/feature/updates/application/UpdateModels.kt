@@ -10,11 +10,17 @@ data class UpdateAsset(
     val sizeBytes: Long,
 )
 
+enum class UpdateSource {
+    GITHUB,
+    LOCAL,
+}
+
 data class UpdateRelease(
     val version: String,
     val title: String?,
     val notes: String?,
     val asset: UpdateAsset?,
+    val source: UpdateSource = UpdateSource.GITHUB,
 )
 
 data class UpdateCheckResult(
@@ -24,6 +30,7 @@ data class UpdateCheckResult(
     val asset: UpdateAsset?,
     val releaseTitle: String?,
     val releaseNotes: String?,
+    val source: UpdateSource?,
     val checkedAt: Instant,
 )
 
