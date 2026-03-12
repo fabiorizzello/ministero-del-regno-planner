@@ -72,7 +72,6 @@ private class RecordingEligibilityStore : EligibilityStore {
     var lastCanLead: Triple<ProclamatoreId, PartTypeId, Boolean>? = null
     var lastCanAssist: Pair<ProclamatoreId, Boolean>? = null
 
-    context(tx: TransactionScope) override suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean) {}
     context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {
         lastCanAssist = Pair(personId, canAssist)
     }

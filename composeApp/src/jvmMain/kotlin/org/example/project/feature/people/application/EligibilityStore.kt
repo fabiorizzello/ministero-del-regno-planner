@@ -16,7 +16,6 @@ data class EligibilityCleanupCandidate(
 )
 
 interface EligibilityStore {
-    context(tx: TransactionScope) suspend fun setSuspended(personId: ProclamatoreId, suspended: Boolean)
     context(tx: TransactionScope) suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean)
     context(tx: TransactionScope) suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean)
     suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility>
