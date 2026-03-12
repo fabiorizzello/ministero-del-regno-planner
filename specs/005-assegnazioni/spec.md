@@ -215,7 +215,7 @@ successive per slot 1.
 
 - Q: Le spec sono state reverse-engineered dal codice esistente → A: Confermato.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
-  → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
+  → A: Formula aggiornata: `safeGlobalWeeks - countPenalty - slotRepeatPenalty - cooldownPenalty`
   dove cooldownPenalty = 10.000 se in cooldown.
 - Q: SexRule.STESSO_SESSO significato reale? → A: Nello stato attuale del codice è non
   filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
