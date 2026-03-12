@@ -1,76 +1,108 @@
-# Review Notes — Assignment Fairness Refactoring
+# Review Notes — Ministero del Regno Planner
 
-Prompt sorgente: 5x review-codebase post-refactoring fairness (A→D→E→B), 2026-03-12.
+Prompt sorgente: 5x review-codebase su 5 feature slice (people, weeklyparts, programs,
+schemas, print+assignments), 2026-03-12.
 
 ---
 
 ## Findings aperti
 
-(nessuno)
+### MEDIUM-011 — createWeekWithFixedPart bypassa WeekPlan.of()
+
+**Severita'**: Medium | **Effort**: Low
+
+Factory method chiama `WeekPlan(...)` direttamente, bypassando la validazione Monday.
+
+**Evidenze**: `WeekPlanAggregate.kt:140`
+
+---
+
+### MEDIUM-012 — AssegnaPersonaUseCase double-wraps Either
+
+**Severita'**: Medium | **Effort**: Low
+
+`Either.catch` attorno a `runInTransaction` che ritorna `Either`. Dovrebbe usare
+`runInTransactionEither`.
+
+**Evidenze**: `AssegnaPersonaUseCase.kt:27-37`
+
+---
+
+### MEDIUM-013 — Anomaly ID usa hashCode() con rischio collisione
+
+**Severita'**: Medium | **Effort**: Low
+
+`INSERT OR IGNORE` con ID da `hashCode()`. Collisione = anomalia silenziosamente persa.
+
+**Evidenze**: `SqlDelightSchemaUpdateAnomalyStore.kt:18`
+
+---
+
+### MEDIUM-014 — fileOpener.open() dentro either block
+
+**Severita'**: Medium | **Effort**: Low
+
+Side effect fire-and-forget dentro `either {}`. Fragile se `DesktopFileOpener` cambia.
+
+**Evidenze**: `StampaProgrammaUseCase.kt:139`
+
+---
+
+### MEDIUM-015 — No happy-path test per RimuoviAssegnazioneUseCase
+
+**Severita'**: Medium | **Effort**: Low
+
+---
+
+### MEDIUM-016 — ArchivaAnomalieSchemaUseCase senza test
+
+**Severita'**: Medium | **Effort**: Low
+
+---
+
+### MEDIUM-017 — replaceParts() senza test domain-level
+
+**Severita'**: Medium | **Effort**: Low
 
 ---
 
 ## Findings risolti
 
-### HIGH-001 — Doc drift: data-model.md riferisce leadWeight/assistWeight rimossi
+### Fairness refactoring (round 1, 2026-03-12)
 
-Risolto in `a129c0a`. Rimosse righe `leadWeight`/`assistWeight` da `AssignmentSettingsBlock`
-in `specs/001-align-sketch-ui/data-model.md`.
+- HIGH-001 — Doc drift data-model.md → `a129c0a`
+- HIGH-002 — Doc drift spec Q&A formula → `a129c0a`
+- MEDIUM-001 — DRY lastWasConductor → `885f966`
+- MEDIUM-002 — Triple→Pair → `885f966`
+- MEDIUM-003 — 999→Int.MAX_VALUE → `885f966`
+- MEDIUM-004 — Test gap: mai assegnato → `a13ed09`
+- MEDIUM-005 — Test gap: count+cooldown → `a13ed09`
+- MEDIUM-006 — Test gap: assistant-repeat → `a13ed09`
 
-### HIGH-002 — Doc drift: spec Q&A mostra formula obsoleta
+### Full codebase review (round 2, 2026-03-12)
 
-Risolto in `a129c0a`. Aggiornata risposta Q&A in `specs/005-assegnazioni/spec.md:222-224`
-con formula attuale `safeGlobalWeeks - countPenalty - slotRepeatPenalty - cooldownPenalty`.
-
-### MEDIUM-001 — DRY: lastWasConductor duplicato in invoke() e weightedScore()
-
-Risolto in `885f966`. Estratto come extension property
-`private val SuggestedProclamatore.lastWasConductor: Boolean`.
-
-### MEDIUM-002 — Vestigio: Triple(..., Unit) dopo rimozione roleWeight
-
-Risolto in `885f966`. `Triple(annotated, allowed, Unit)` → `annotated to allowed` (Pair).
-
-### MEDIUM-003 — Inconsistenza: safeGlobalWeeks=999 vs Int.MAX_VALUE
-
-Risolto in `885f966`. `safeGlobalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE`,
-coerente con il tiebreaker.
-
-### MEDIUM-004 — Test gap: candidato mai assegnato (lastGlobalWeeks=null)
-
-Risolto in `a13ed09`. Test 8: verifica che candidato con `lastGlobalWeeks=null` ottenga
-score massimo (Int.MAX_VALUE) e appaia primo.
-
-### MEDIUM-005 — Test gap: interazione count penalty + cooldown
-
-Risolto in `a13ed09`. Test 9: verifica che countPenalty (5) e cooldownPenalty (10000)
-si sommino correttamente nello score (-10008).
-
-### MEDIUM-006 — Test gap: assistant-repeating-assistant slot repeat penalty
-
-Risolto in `a13ed09`. Test 10: verifica che assistente→assistente riceva slotRepeatPenalty=4,
-mentre conduttore→assistente no.
+- HIGH-003 — Dual validation Proclamatore.of() vs Aggregate → `f558cbc`
+  Proclamatore.of() delega a ProclamatoreAggregate.create(). Rimosso Konform validator.
+- HIGH-004 — Dead code setSuspended() → `b45c2b8`
+  Rimosso da interfaccia, implementazione, SQL, 6 test fakes.
+- HIGH-005 — Zero test eligibility cleanup → `dd559fb`
+  Aggiunto test con RecordingEligibilityStore e RecordingSchemaUpdateAnomalyStore.
+- HIGH-006 — N+1 queries generateProgramTickets → `8961736`
+  Batch load via assignmentRepository.listByWeekPlanIds(). Aggiornato DI e test.
+- MEDIUM-007 — Spec drift Proclamatore.init → `b0dc797`
+  Spec aggiornata: validazione in ProclamatoreAggregate, non init block.
+- MEDIUM-008 — Missing test max-length → `bf7c96f`
+  4 test boundary per nome/cognome 100/101 chars.
+- MEDIUM-009 — Dead code recompactedSortOrders() → `9d4d1ca`
+- MEDIUM-010 — Commento OutputConstants errato → `62ae9e1`
 
 ---
 
 ## Findings invalidati
 
-### INV-001 — Fairness doc formula contraddittoria
-
-Il documento `docs/assignment-algorithm-fairness-analysis.md` mostra la vecchia formula in
-"Stato attuale" e la nuova in "Formula risultante (implementata)". Non e' una contraddizione —
-e' un changelog intenzionale prima/dopo.
-
-### INV-002 — abs() su lastGlobalWeeks crea asimmetria con count window
-
-`abs()` trasforma `lastGlobalWeeks` in "distanza dalla referenceDate" (past + future simmetrici).
-Il count window backward-only e' intenzionale: penalizza il carico recente, non quello futuro.
-L'asimmetria e' un design corretto, non un bug.
-
-### INV-003 — Count window exclusive end (< windowEnd)
-
-La finestra `[windowStart, windowEnd)` esclude referenceDate. Corretto: l'assegnazione in
-corso non e' ancora persistita e non deve influenzare lo scoring.
+- INV-001 — Fairness doc formula: changelog intenzionale
+- INV-002 — abs() asimmetria: design corretto
+- INV-003 — Count window exclusive end: by design
 
 ---
 
@@ -78,4 +110,5 @@ corso non e' ancora persistita e non deve influenzare lo scoring.
 
 | Data | Comando | Test totali | Fallimenti |
 |------|---------|-------------|------------|
-| 2026-03-12 | `./gradlew :composeApp:jvmTest` | 10 SuggerisciProclamatoriUseCaseTest + full suite | 0 |
+| 2026-03-12 | `./gradlew :composeApp:jvmTest` | full suite | 0 |
+| 2026-03-12 | `./gradlew :composeApp:jvmTest` (post-merge batch 1) | full suite | 0 |
