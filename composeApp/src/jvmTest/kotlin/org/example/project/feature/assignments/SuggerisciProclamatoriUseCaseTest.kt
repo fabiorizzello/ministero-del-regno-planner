@@ -171,8 +171,8 @@ class SuggerisciProclamatoriUseCaseTest {
         // personInCooldown: lastGlobalWeeks=1 (in cooldown), lastForPartTypeWeeks=1
         // personNoCooldown: lastGlobalWeeks=3 (fuori cooldown, assistCooldownWeeks=2)
         // Score slot=2 (assistWeight=1):
-        //   personInCooldown: 1*1 + 1 - COOLDOWN_PENALTY = 2 - 10000 = -9998
-        //   personNoCooldown: 3*1 + 2 = 5
+        //   personInCooldown: 1 - COOLDOWN_PENALTY = -9999
+        //   personNoCooldown: 3
         val personInCooldown = person(id = "p-cool", nome = "Luca", cognome = "Bianchi", sesso = Sesso.M)
         val personNoCooldown = person(id = "p-free", nome = "Anna", cognome = "Rossi", sesso = Sesso.F)
 

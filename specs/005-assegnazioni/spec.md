@@ -53,7 +53,7 @@ dall'ultima assegnazione decrescenti.
 1. **Given** proclamatori con storie di assegnazione diverse, **When** si richiedono
    suggerimenti per uno slot, **Then** appaiono solo proclamatori idonei (sesso quando
    applicabile, idoneità, non sospesi) ordinati per score
-   (globale × peso + tipo-parte − penalità cooldown).
+   (globale × peso − penalità cooldown).
 2. **Given** un proclamatore in cooldown e `strictCooldown = true`, **When** si
    richiedono suggerimenti, **Then** il proclamatore in cooldown non appare.
 3. **Given** un proclamatore in cooldown e `strictCooldown = false`, **When** si
@@ -148,7 +148,7 @@ successive per slot 1.
 - **FR-003**: Il sistema MUST sostituire l'assegnazione esistente se lo slot è già
   occupato.
 - **FR-004**: Il sistema MUST suggerire proclamatori idonei ordinati per score
-  (settimane_globali × peso_ruolo + settimane_tipo_parte − penalità_cooldown).
+  (settimane_globali × peso_ruolo − penalità_cooldown).
 - **FR-005**: Il sistema MUST filtrare i suggerimenti per: sesso (`SexRule.UOMO`),
   idoneità (slot 1 con lead eligibility, slot >= 2 con `puoAssistere = true`),
   esclusione dei già assegnati nella stessa settimana (set `alreadyAssignedIds`),
@@ -215,8 +215,8 @@ successive per slot 1.
 
 - Q: Le spec sono state reverse-engineered dal codice esistente → A: Confermato.
 - Q: Lo score è: `settimane_globali × leadWeight + settimane_tipo_parte − cooldown_penalty`?
-  → A: Sì, dal codice: `safeGlobalWeeks * roleWeight + safePartWeeks - cooldownPenalty`
-  dove cooldownPenalty = 10.000 se in cooldown.
+  → A: Il termine `settimane_tipo_parte` è stato rimosso dalla formula. La formula attuale è:
+  `safeGlobalWeeks * roleWeight - cooldownPenalty` dove cooldownPenalty = 10.000 se in cooldown.
 - Q: SexRule.STESSO_SESSO significato reale? → A: Nello stato attuale del codice è non
   filtrante nella logica di suggerimento (`passaSesso = true`); il filtro sesso è
   applicato solo su `SexRule.UOMO`.
