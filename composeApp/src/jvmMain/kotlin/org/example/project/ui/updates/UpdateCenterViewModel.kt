@@ -238,15 +238,20 @@ private fun progressStatusText(progress: UpdateDownloadProgress): String {
 
 private fun updateFailureMessage(error: DomainError, phase: UpdatePhase): String = when (phase) {
     UpdatePhase.CHECK -> "Non riesco a controllare gli aggiornamenti in questo momento."
-    UpdatePhase.DOWNLOAD -> when {
-        error.toMessage().contains("timeout", ignoreCase = true) ||
-            error.toMessage().contains("timed out", ignoreCase = true) ->
-            "Il download sta impiegando troppo tempo. Controlla la connessione e riprova."
-        else -> "Non riesco a scaricare l'aggiornamento. Controlla la connessione e riprova."
-    }
+    UpdatePhase.DOWNLOAD -> downloadFailureMessage(error)
     UpdatePhase.PREPARE -> "Non riesco a preparare l'installazione automatica su questo computer."
     UpdatePhase.LAUNCH -> "Non riesco ad avviare l'installazione automatica. Riprova."
 }
+
+private fun downloadFailureMessage(error: DomainError): String = when {
+    isTimeoutError(error) -> "Il download sta impiegando troppo tempo. Controlla la connessione e riprova."
+    error is DomainError.Network -> "Non riesco a scaricare l'aggiornamento. Controlla la connessione e riprova."
+    else -> "Non riesco a salvare l'aggiornamento su questo computer. Controlla spazio disponibile e permessi, poi riprova."
+}
+
+private fun isTimeoutError(error: DomainError): Boolean =
+    error.toMessage().contains("timeout", ignoreCase = true) ||
+        error.toMessage().contains("timed out", ignoreCase = true)
 
 private fun humanReadableBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
