@@ -58,6 +58,13 @@ schemas, print+assignments), 2026-03-12.
 
 ---
 
+### Update review (round 5, 2026-03-13)
+
+- UPD-M01 â€” Timeout update limitato al solo download installer â†’ `20269ab`
+- UPD-M02 â€” Messaggi errore update orientati all'azione utente â†’ `a920675`
+
+---
+
 ## Findings invalidati
 
 - INV-001 — Fairness doc formula: changelog intenzionale
@@ -85,3 +92,4 @@ schemas, print+assignments), 2026-03-12.
 | 2026-03-12 | post-merge batch 2 | full suite | 0 |
 | 2026-03-12 | post-merge round 3 (MEDIUM-018/019) | full suite | 0 |
 | 2026-03-12 | post-merge round 4 (MEDIUM-021/022) | full suite | 0 |
+| 2026-03-13 | post-merge round 5 (UPD-M01/UPD-M02) | full suite | 0 |
