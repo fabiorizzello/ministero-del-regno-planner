@@ -133,6 +133,7 @@ class AggiornaApplicazioneTest {
             assertEquals(installerPath, installResult.installerPath)
             val command = assertNotNull(launchedCommand)
             assertEquals("powershell.exe", command.first())
+            assertTrue(command.contains("-STA"))
             assertTrue(command.contains("-InstallerPath"))
             assertTrue(command.contains(installerPath.toAbsolutePath().toString()))
             assertTrue(command.contains(appExecutable.toAbsolutePath().toString()))

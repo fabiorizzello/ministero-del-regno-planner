@@ -162,6 +162,7 @@ class AggiornaApplicazione(
         val command = listOf(
             "powershell.exe",
             "-NoProfile",
+            "-STA",
             "-ExecutionPolicy",
             "Bypass",
             "-WindowStyle",

@@ -159,7 +159,7 @@ class UpdateCenterViewModelTest {
             assertNull(state.updateAsset)
             assertEquals("v1.1.0", state.installedVersion)
             assertEquals(
-                "Aggiornamento pronto. Riavvia l'app per chiuderla, installare la nuova versione e riaprirla.",
+                "Aggiornamento pronto. Riavvia l'app: comparira una finestra separata che mostra installazione e riapertura.",
                 state.statusText,
             )
         } finally {

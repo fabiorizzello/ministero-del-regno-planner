@@ -122,7 +122,7 @@ internal class UpdateCenterViewModel(
                                     restartRequired = installResult.restartRequired,
                                     installedVersion = targetVersion,
                                     hasError = false,
-                                    statusText = "Aggiornamento pronto. Riavvia l'app per chiuderla, installare la nuova versione e riaprirla.",
+                                    statusText = "Aggiornamento pronto. Riavvia l'app: comparira una finestra separata che mostra installazione e riapertura.",
                                 )
                             }
                         },
