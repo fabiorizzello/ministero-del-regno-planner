@@ -231,6 +231,57 @@ class UpdateCenterViewModelTest {
         }
     }
 
+    @Test
+    fun `download validation error shows local actionable message`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+        )
+
+        try {
+            val asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 100)
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = asset,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            coEvery { aggiornaApplicazione.downloadInstaller(asset, any()) } returns
+                Either.Left(DomainError.Validation("Errore salvataggio aggiornamento: Access is denied"))
+
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            val state = vm.state.value
+            assertEquals(
+                "Non riesco a salvare l'aggiornamento su questo computer. Controlla spazio disponibile e permessi, poi riprova.",
+                state.statusText,
+            )
+            assertNull(state.downloadProgress)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
     private fun applyUpdateResult(vm: UpdateCenterViewModel, result: Either<DomainError, UpdateCheckResult>) {
         val method = UpdateCenterViewModel::class.java.getDeclaredMethod("applyUpdateResult", Either::class.java)
         method.isAccessible = true
