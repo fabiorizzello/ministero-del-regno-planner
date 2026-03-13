@@ -40,6 +40,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Slider
@@ -680,7 +681,7 @@ private fun UpdateToolbarAction(
     val tooltipText = when {
         state.restartRequired -> "Aggiornamento pronto. Riavvia per installare"
         state.isInstalling -> "Preparazione aggiornamento in corso"
-        state.isDownloading -> "Download aggiornamento in corso"
+        state.isDownloading -> state.statusText
         state.isChecking -> "Verifica aggiornamenti in corso"
         state.updateAvailable -> "Aggiornamento disponibile. Un clic scarica e prepara l'installazione"
         state.hasError -> state.statusText
@@ -765,7 +766,9 @@ private fun UpdateCenterMenu(
             state.isBusy -> UpdateMenuAction(
                 label = when {
                     state.isInstalling -> "Preparazione in corso..."
-                    state.isDownloading -> "Download in corso..."
+                    state.isDownloading -> state.downloadProgress
+                        ?.let { "Download ${(it * 100).toInt()}%" }
+                        ?: "Download in corso..."
                     else -> "Verifica in corso..."
                 },
                 icon = Icons.Filled.Refresh,
@@ -893,6 +896,17 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
                         color = sketch.inkMuted,
                     )
                 }
+                if (state.isDownloading) {
+                    val progress = state.downloadProgress
+                    if (progress != null) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
             }
         }
     }
@@ -930,7 +944,7 @@ private fun updatePrimaryMessage(state: UpdateCenterUiState): String = when {
 private fun updateSecondaryMessage(state: UpdateCenterUiState): String? = when {
     state.restartRequired -> "Dopo il click compare una finestra separata di installazione e l'app si riapre automaticamente."
     state.isInstalling -> "Tra poco ti chiedero il riavvio per installare la nuova versione."
-    state.isDownloading -> "Al termine preparo l'installazione e poi ti chiedo il riavvio."
+    state.isDownloading -> state.statusText
     state.hasError -> state.statusText
     state.updateAvailable -> "Versione corrente ${formatVersion(state.currentVersion)}."
     state.lastCheck != null -> state.lastCheck.let { "Ultimo controllo ${formatUpdateTimestamp(it)}." }

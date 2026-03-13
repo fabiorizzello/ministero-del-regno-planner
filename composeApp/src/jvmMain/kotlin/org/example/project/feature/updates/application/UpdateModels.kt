@@ -39,3 +39,14 @@ data class UpdateInstallResult(
     val restartRequired: Boolean,
     val updaterCommand: List<String>,
 )
+
+data class UpdateDownloadProgress(
+    val downloadedBytes: Long,
+    val totalBytes: Long?,
+) {
+    val fraction: Float?
+        get() = totalBytes
+            ?.takeIf { it > 0L }
+            ?.let { downloadedBytes.toFloat() / it.toFloat() }
+            ?.coerceIn(0f, 1f)
+}

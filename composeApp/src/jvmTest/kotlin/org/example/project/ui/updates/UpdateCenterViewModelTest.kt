@@ -84,7 +84,7 @@ class UpdateCenterViewModelTest {
             assertFalse(state.updateAvailable)
             assertNull(state.latestVersion)
             assertNull(state.updateAsset)
-            assertEquals("Errore verifica: timeout GitHub", state.statusText)
+            assertEquals("Non riesco a controllare gli aggiornamenti in questo momento.", state.statusText)
         } finally {
             vmScope.cancel()
         }
@@ -177,6 +177,57 @@ class UpdateCenterViewModelTest {
             server.stop(0)
             resetAppRuntime()
             deleteRecursively(root)
+        }
+    }
+
+    @Test
+    fun `download progress updates status with percentage`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+        )
+
+        try {
+            val asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 100)
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = asset,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            coEvery { aggiornaApplicazione.downloadInstaller(asset, any()) } coAnswers {
+                val onProgress = arg<(org.example.project.feature.updates.application.UpdateDownloadProgress) -> Unit>(1)
+                onProgress(org.example.project.feature.updates.application.UpdateDownloadProgress(50, 100))
+                Either.Left(DomainError.Network("timed out"))
+            }
+
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            val state = vm.state.value
+            assertEquals("Il download sta impiegando troppo tempo. Controlla la connessione e riprova.", state.statusText)
+            assertNull(state.downloadProgress)
+        } finally {
+            vmScope.cancel()
         }
     }
 

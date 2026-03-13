@@ -5,8 +5,9 @@ import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,6 +17,7 @@ import java.nio.file.StandardOpenOption
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
 
@@ -53,8 +55,11 @@ class AggiornaApplicazione(
         }
     }
 
-    suspend fun downloadInstaller(asset: UpdateAsset): Either<DomainError, Path> = withContext(dispatcher) {
-        either { downloadInstallerInternal(asset).bind() }
+    suspend fun downloadInstaller(
+        asset: UpdateAsset,
+        onProgress: (UpdateDownloadProgress) -> Unit = {},
+    ): Either<DomainError, Path> = withContext(dispatcher) {
+        either { downloadInstallerInternal(asset, onProgress).bind() }
     }
 
     suspend fun preparaInstallazione(installerPath: Path): Either<DomainError, UpdateInstallResult> = withContext(dispatcher) {
@@ -70,7 +75,10 @@ class AggiornaApplicazione(
             .bind()
     }
 
-    private suspend fun downloadInstallerInternal(asset: UpdateAsset): Either<DomainError, Path> = either {
+    private suspend fun downloadInstallerInternal(
+        asset: UpdateAsset,
+        onProgress: (UpdateDownloadProgress) -> Unit = {},
+    ): Either<DomainError, Path> = either {
         val updatesDir = prepareUpdatesDir().bind()
         cleanupStalePartialDownloads(updatesDir)
         val outputPath = updatesDir.resolve(asset.name)
@@ -78,11 +86,20 @@ class AggiornaApplicazione(
 
         if (isInstallerAlreadyCached(outputPath, asset)) {
             logger.info { "Riutilizzo installer gia scaricato: ${outputPath.toAbsolutePath()}" }
+            val cachedSize = runCatching { Files.size(outputPath) }.getOrDefault(asset.sizeBytes)
+            onProgress(
+                UpdateDownloadProgress(
+                    downloadedBytes = cachedSize,
+                    totalBytes = asset.sizeBytes.takeIf { it > 0L } ?: cachedSize,
+                ),
+            )
             outputPath
         } else {
             val localAssetPath = resolveLocalAssetPath(asset.downloadUrl)
             if (localAssetPath != null) {
                 logger.info { "Copia aggiornamento da sorgente locale: ${localAssetPath.toAbsolutePath()}" }
+                val localSize = runCatching { Files.size(localAssetPath) }.getOrDefault(asset.sizeBytes)
+                onProgress(UpdateDownloadProgress(0L, localSize.takeIf { it > 0L }))
                 Either.catch {
                     if (!Files.isRegularFile(localAssetPath)) {
                         error("File locale non trovato: $localAssetPath")
@@ -106,6 +123,7 @@ class AggiornaApplicazione(
                             StandardCopyOption.REPLACE_EXISTING,
                         )
                     }
+                    onProgress(UpdateDownloadProgress(localSize, localSize.takeIf { it > 0L }))
                 }.mapLeft { error ->
                     runCatching { Files.deleteIfExists(partialPath) }
                     DomainError.Validation("Errore copia aggiornamento locale: ${error.message ?: "errore sconosciuto"}")
@@ -120,20 +138,28 @@ class AggiornaApplicazione(
                 if (!response.status.isSuccess()) {
                     raise(DomainError.Network("Download aggiornamento fallito: HTTP ${response.status.value}"))
                 }
-                val body = Either.catch { response.bodyAsBytes() }
-                    .mapLeft { error ->
-                        DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}")
-                    }
-                    .bind()
+                val declaredSize = response.headers["Content-Length"]?.toLongOrNull()
+                    ?: asset.sizeBytes.takeIf { it > 0L }
+                onProgress(UpdateDownloadProgress(0L, declaredSize))
 
                 Either.catch {
-                    Files.write(
+                    val channel = response.bodyAsChannel()
+                    val buffer = ByteArray(max(DEFAULT_BUFFER_SIZE, 16 * 1024))
+                    var downloadedBytes = 0L
+                    Files.newOutputStream(
                         partialPath,
-                        body,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.TRUNCATE_EXISTING,
                         StandardOpenOption.WRITE,
-                    )
+                    ).use { output ->
+                        while (true) {
+                            val read = channel.readAvailable(buffer, 0, buffer.size)
+                            if (read <= 0) break
+                            output.write(buffer, 0, read)
+                            downloadedBytes += read
+                            onProgress(UpdateDownloadProgress(downloadedBytes, declaredSize))
+                        }
+                    }
                     try {
                         Files.move(
                             partialPath,
@@ -148,6 +174,8 @@ class AggiornaApplicazione(
                             StandardCopyOption.REPLACE_EXISTING,
                         )
                     }
+                    val finalSize = runCatching { Files.size(outputPath) }.getOrDefault(declaredSize ?: 0L)
+                    onProgress(UpdateDownloadProgress(finalSize, declaredSize ?: finalSize))
                 }.mapLeft { error ->
                     runCatching { Files.deleteIfExists(partialPath) }
                     DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}")

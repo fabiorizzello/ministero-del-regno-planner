@@ -16,6 +16,7 @@ import org.example.project.core.domain.toMessage
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.feature.updates.application.UpdateCheckResult
+import org.example.project.feature.updates.application.UpdateDownloadProgress
 import org.example.project.feature.updates.application.UpdateInstallResult
 import org.example.project.feature.updates.application.UpdateSource
 import org.example.project.feature.updates.application.UpdateStatusStore
@@ -34,6 +35,9 @@ internal data class UpdateCenterUiState(
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
     val isInstalling: Boolean = false,
+    val downloadProgress: Float? = null,
+    val downloadedBytes: Long = 0L,
+    val downloadTotalBytes: Long? = null,
     val restartRequired: Boolean = false,
     val installedVersion: String? = null,
     val hasError: Boolean = false,
@@ -85,16 +89,22 @@ internal class UpdateCenterViewModel(
                 it.copy(
                     isDownloading = true,
                     hasError = false,
+                    downloadProgress = 0f,
+                    downloadedBytes = 0L,
+                    downloadTotalBytes = asset.sizeBytes.takeIf { it > 0L },
                     statusText = "Download aggiornamento in corso...",
                 )
             }
-            aggiornaApplicazione.downloadInstaller(asset).fold(
+            aggiornaApplicazione.downloadInstaller(asset) { progress ->
+                applyDownloadProgress(progress)
+            }.fold(
                 ifLeft = { error ->
                     _state.update {
                         it.copy(
                             isDownloading = false,
                             hasError = true,
-                            statusText = "Aggiornamento non riuscito: ${error.toMessage()}",
+                            downloadProgress = null,
+                            statusText = updateFailureMessage(error, UpdatePhase.DOWNLOAD),
                         )
                     }
                 },
@@ -103,6 +113,7 @@ internal class UpdateCenterViewModel(
                         it.copy(
                             isDownloading = false,
                             isInstalling = true,
+                            downloadProgress = 1f,
                             statusText = "Preparazione installazione in corso...",
                         )
                     }
@@ -113,7 +124,8 @@ internal class UpdateCenterViewModel(
                                 it.copy(
                                     isInstalling = false,
                                     hasError = true,
-                                    statusText = "Aggiornamento non riuscito: ${error.toMessage()}",
+                                    downloadProgress = null,
+                                    statusText = updateFailureMessage(error, UpdatePhase.PREPARE),
                                 )
                             }
                         },
@@ -127,6 +139,7 @@ internal class UpdateCenterViewModel(
                                     restartRequired = installResult.restartRequired,
                                     installedVersion = targetVersion,
                                     hasError = false,
+                                    downloadProgress = null,
                                     statusText = "Aggiornamento pronto. Premi \"Riavvia per installare\" per continuare.",
                                 )
                             }
@@ -144,7 +157,7 @@ internal class UpdateCenterViewModel(
                 _state.update {
                     it.copy(
                         hasError = true,
-                        statusText = "Impossibile avviare l'installazione: ${error.toMessage()}",
+                        statusText = updateFailureMessage(error, UpdatePhase.LAUNCH),
                     )
                 }
             },
@@ -165,7 +178,7 @@ internal class UpdateCenterViewModel(
                     updateAsset = null,
                     updateSource = null,
                     hasError = true,
-                    statusText = "Errore verifica: ${result.value.toMessage()}",
+                    statusText = updateFailureMessage(result.value, UpdatePhase.CHECK),
                 )
 
                 is Either.Right -> {
@@ -188,6 +201,66 @@ internal class UpdateCenterViewModel(
                 }
             }
         }
+    }
+
+    private fun applyDownloadProgress(progress: UpdateDownloadProgress) {
+        _state.update { state ->
+            if (!state.isDownloading) state else {
+                val status = progressStatusText(progress)
+                state.copy(
+                    downloadProgress = progress.fraction,
+                    downloadedBytes = progress.downloadedBytes,
+                    downloadTotalBytes = progress.totalBytes,
+                    statusText = status,
+                )
+            }
+        }
+    }
+}
+
+private enum class UpdatePhase {
+    CHECK,
+    DOWNLOAD,
+    PREPARE,
+    LAUNCH,
+}
+
+private fun progressStatusText(progress: UpdateDownloadProgress): String {
+    val downloaded = humanReadableBytes(progress.downloadedBytes)
+    val total = progress.totalBytes?.let(::humanReadableBytes)
+    val percent = progress.fraction?.let { "${(it * 100).toInt()}%" }
+    return when {
+        percent != null && total != null -> "Download aggiornamento in corso: $percent ($downloaded di $total)"
+        total != null -> "Download aggiornamento in corso: $downloaded di $total"
+        else -> "Download aggiornamento in corso: $downloaded scaricati"
+    }
+}
+
+private fun updateFailureMessage(error: DomainError, phase: UpdatePhase): String = when (phase) {
+    UpdatePhase.CHECK -> "Non riesco a controllare gli aggiornamenti in questo momento."
+    UpdatePhase.DOWNLOAD -> when {
+        error.toMessage().contains("timeout", ignoreCase = true) ||
+            error.toMessage().contains("timed out", ignoreCase = true) ->
+            "Il download sta impiegando troppo tempo. Controlla la connessione e riprova."
+        else -> "Non riesco a scaricare l'aggiornamento. Controlla la connessione e riprova."
+    }
+    UpdatePhase.PREPARE -> "Non riesco a preparare l'installazione automatica su questo computer."
+    UpdatePhase.LAUNCH -> "Non riesco ad avviare l'installazione automatica. Riprova."
+}
+
+private fun humanReadableBytes(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val units = listOf("KB", "MB", "GB")
+    var value = bytes.toDouble()
+    var unitIndex = -1
+    while (value >= 1024 && unitIndex < units.lastIndex) {
+        value /= 1024
+        unitIndex += 1
+    }
+    return if (value >= 10 || unitIndex == 0) {
+        "${value.toInt()} ${units[unitIndex]}"
+    } else {
+        "%.1f %s".format(java.util.Locale.US, value, units[unitIndex])
     }
 }
 

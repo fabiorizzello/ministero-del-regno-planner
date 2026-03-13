@@ -155,6 +155,7 @@ class AggiornaApplicazioneTest {
         initializeRuntime()
         val sourceInstaller = requireNotNull(tempRoot).resolve("source").createDirectories().resolve("planner-local.msi")
         Files.writeString(sourceInstaller, "local-msi")
+        val progressEvents = mutableListOf<org.example.project.feature.updates.application.UpdateDownloadProgress>()
         val client = HttpClient(MockEngine {
             error("HTTP client should not be used for local file asset")
         })
@@ -167,11 +168,14 @@ class AggiornaApplicazioneTest {
                     downloadUrl = sourceInstaller.toUri().toString(),
                     sizeBytes = Files.size(sourceInstaller),
                 ),
+                onProgress = { progressEvents += it },
             )
 
             val installerPath = assertIs<Either.Right<Path>>(result).value
             assertEquals(runtimeUpdatesDir().resolve("planner-local.msi"), installerPath)
             assertEquals("local-msi", Files.readString(installerPath))
+            assertTrue(progressEvents.isNotEmpty())
+            assertEquals(Files.size(sourceInstaller), progressEvents.last().downloadedBytes)
         } finally {
             client.close()
         }
