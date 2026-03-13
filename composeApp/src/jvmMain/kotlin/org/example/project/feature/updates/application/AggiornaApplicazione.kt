@@ -49,7 +49,7 @@ class AggiornaApplicazione(
     suspend operator fun invoke(asset: UpdateAsset): Either<DomainError, UpdateInstallResult> = withContext(dispatcher) {
         either {
             val installerPath = downloadInstallerInternal(asset).bind()
-            installSilenziosoInternal(installerPath).bind()
+            prepareInstallInternal(installerPath).bind()
         }
     }
 
@@ -57,8 +57,17 @@ class AggiornaApplicazione(
         either { downloadInstallerInternal(asset).bind() }
     }
 
-    suspend fun installaSilenzioso(installerPath: Path): Either<DomainError, UpdateInstallResult> = withContext(dispatcher) {
-        either { installSilenziosoInternal(installerPath).bind() }
+    suspend fun preparaInstallazione(installerPath: Path): Either<DomainError, UpdateInstallResult> = withContext(dispatcher) {
+        either { prepareInstallInternal(installerPath).bind() }
+    }
+
+    fun avviaInstallazionePreparata(installResult: UpdateInstallResult): Either<DomainError, Unit> = either {
+        logger.info { "Avvio updater esterno: ${installResult.installerPath.toAbsolutePath()}" }
+        Either.catch { externalUpdaterLauncher(installResult.updaterCommand) }
+            .mapLeft { error ->
+                DomainError.Validation("Avvio updater non riuscito: ${error.message ?: "errore sconosciuto"}")
+            }
+            .bind()
     }
 
     private suspend fun downloadInstallerInternal(asset: UpdateAsset): Either<DomainError, Path> = either {
@@ -150,7 +159,7 @@ class AggiornaApplicazione(
         }
     }
 
-    private fun installSilenziosoInternal(installerPath: Path): Either<DomainError, UpdateInstallResult> = either {
+    private fun prepareInstallInternal(installerPath: Path): Either<DomainError, UpdateInstallResult> = either {
         val updatesDir = installerPath.parent ?: prepareUpdatesDir().bind()
         val updaterScriptPath = prepareExternalUpdaterScript(updatesDir).bind()
         val appExecutable = Either.catch { appExecutableProvider() }
@@ -181,15 +190,11 @@ class AggiornaApplicazione(
 
         logger.info { "Updater esterno preparato: ${updaterScriptPath.toAbsolutePath()}" }
         logger.info { "Riavvio richiesto per completare l'aggiornamento: ${installerPath.toAbsolutePath()}" }
-        Either.catch { externalUpdaterLauncher(command) }
-            .mapLeft { error ->
-                DomainError.Validation("Avvio updater non riuscito: ${error.message ?: "errore sconosciuto"}")
-            }
-            .bind()
 
         UpdateInstallResult(
             installerPath = installerPath,
             restartRequired = true,
+            updaterCommand = command,
         )
     }
 

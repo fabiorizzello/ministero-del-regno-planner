@@ -16,6 +16,7 @@ import org.example.project.core.domain.toMessage
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
 import org.example.project.feature.updates.application.UpdateCheckResult
+import org.example.project.feature.updates.application.UpdateInstallResult
 import org.example.project.feature.updates.application.UpdateSource
 import org.example.project.feature.updates.application.UpdateStatusStore
 import org.example.project.feature.updates.application.VerificaAggiornamenti
@@ -47,6 +48,7 @@ internal class UpdateCenterViewModel(
     private val updateStatusStore: UpdateStatusStore,
     private val updateSettingsStore: UpdateSettingsStore,
 ) {
+    private var pendingInstall: UpdateInstallResult? = null
     private val _state = MutableStateFlow(
         UpdateCenterUiState(
             lastCheck = updateSettingsStore.loadLastCheck(),
@@ -76,6 +78,7 @@ internal class UpdateCenterViewModel(
         val asset = _state.value.updateAsset ?: return
         val targetVersion = _state.value.latestVersion
         if (_state.value.isBusy || _state.value.restartRequired) return
+        pendingInstall = null
 
         scope.launch {
             _state.update {
@@ -100,11 +103,12 @@ internal class UpdateCenterViewModel(
                         it.copy(
                             isDownloading = false,
                             isInstalling = true,
-                            statusText = "Preparazione aggiornamento in corso...",
+                            statusText = "Preparazione installazione in corso...",
                         )
                     }
-                    aggiornaApplicazione.installaSilenzioso(installerPath).fold(
+                    aggiornaApplicazione.preparaInstallazione(installerPath).fold(
                         ifLeft = { error ->
+                            pendingInstall = null
                             _state.update {
                                 it.copy(
                                     isInstalling = false,
@@ -114,6 +118,7 @@ internal class UpdateCenterViewModel(
                             }
                         },
                         ifRight = { installResult ->
+                            pendingInstall = installResult
                             _state.update { current ->
                                 current.copy(
                                     isInstalling = false,
@@ -122,7 +127,7 @@ internal class UpdateCenterViewModel(
                                     restartRequired = installResult.restartRequired,
                                     installedVersion = targetVersion,
                                     hasError = false,
-                                    statusText = "Aggiornamento pronto. Riavvia l'app: comparira una finestra separata che mostra installazione e riapertura.",
+                                    statusText = "Aggiornamento pronto. Premi \"Riavvia per installare\" per continuare.",
                                 )
                             }
                         },
@@ -130,6 +135,23 @@ internal class UpdateCenterViewModel(
                 },
             )
         }
+    }
+
+    fun restartToInstall(onExit: () -> Unit) {
+        val installResult = pendingInstall ?: return
+        aggiornaApplicazione.avviaInstallazionePreparata(installResult).fold(
+            ifLeft = { error ->
+                _state.update {
+                    it.copy(
+                        hasError = true,
+                        statusText = "Impossibile avviare l'installazione: ${error.toMessage()}",
+                    )
+                }
+            },
+            ifRight = {
+                onExit()
+            },
+        )
     }
 
     private fun applyUpdateResult(result: Either<DomainError, UpdateCheckResult>) {

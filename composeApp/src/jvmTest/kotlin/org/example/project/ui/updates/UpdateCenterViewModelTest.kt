@@ -31,6 +31,7 @@ import kotlin.io.path.deleteIfExists
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -103,6 +104,8 @@ class UpdateCenterViewModelTest {
             start()
         }
         val client = HttpClient(Java)
+        var launchedCommand: List<String>? = null
+        var restartTriggered = false
         try {
             val asset = UpdateAsset(
                 name = "planner.msi",
@@ -115,7 +118,7 @@ class UpdateCenterViewModelTest {
             val aggiornaApplicazione = AggiornaApplicazione(
                 httpClient = client,
                 dispatcher = StandardTestDispatcher(testScheduler),
-                externalUpdaterLauncher = {},
+                externalUpdaterLauncher = { command -> launchedCommand = command },
                 currentProcessIdProvider = { 4242L },
                 bundledResourcesDirProvider = { root.resolve("installed").resolve("resources").createDirectories() },
                 appExecutableProvider = {
@@ -158,10 +161,16 @@ class UpdateCenterViewModelTest {
             assertFalse(state.updateAvailable)
             assertNull(state.updateAsset)
             assertEquals("v1.1.0", state.installedVersion)
+            assertNull(launchedCommand)
             assertEquals(
-                "Aggiornamento pronto. Riavvia l'app: comparira una finestra separata che mostra installazione e riapertura.",
+                "Aggiornamento pronto. Premi \"Riavvia per installare\" per continuare.",
                 state.statusText,
             )
+
+            vm.restartToInstall { restartTriggered = true }
+
+            assertTrue(restartTriggered)
+            assertNotNull(launchedCommand)
         } finally {
             vmScope.cancel()
             client.close()

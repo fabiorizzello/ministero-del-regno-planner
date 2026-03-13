@@ -37,4 +37,5 @@ data class UpdateCheckResult(
 data class UpdateInstallResult(
     val installerPath: Path,
     val restartRequired: Boolean,
+    val updaterCommand: List<String>,
 )

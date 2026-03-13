@@ -104,7 +104,7 @@ class AggiornaApplicazioneTest {
     }
 
     @Test
-    fun `stages external updater and returns restart required`() = runTest {
+    fun `prepares external updater and launches only on explicit restart`() = runTest {
         initializeRuntime()
         val installedResources = requireNotNull(tempRoot).resolve("installed").resolve("resources").createDirectories()
         val installerPath = runtimeUpdatesDir().createDirectories().resolve("planner.msi")
@@ -114,7 +114,7 @@ class AggiornaApplicazioneTest {
         Files.writeString(installedResources.resolve("external-updater.ps1"), "Write-Output 'installed updater'")
         var launchedCommand: List<String>? = null
         val client = HttpClient(MockEngine {
-            error("HTTP client should not be used in installaSilenzioso test")
+            error("HTTP client should not be used in preparaInstallazione test")
         })
         try {
             val useCase = AggiornaApplicazione(
@@ -126,18 +126,22 @@ class AggiornaApplicazioneTest {
                 updaterScriptBytesProvider = { "Write-Output 'fallback updater'".toByteArray() },
             )
 
-            val result = useCase.installaSilenzioso(installerPath)
+            val result = useCase.preparaInstallazione(installerPath)
 
             val installResult = assertIs<Either.Right<UpdateInstallResult>>(result).value
             assertTrue(installResult.restartRequired)
             assertEquals(installerPath, installResult.installerPath)
-            val command = assertNotNull(launchedCommand)
+            assertEquals(null, launchedCommand)
+            val command = installResult.updaterCommand
             assertEquals("powershell.exe", command.first())
             assertTrue(command.contains("-STA"))
             assertTrue(command.contains("-InstallerPath"))
             assertTrue(command.contains(installerPath.toAbsolutePath().toString()))
             assertTrue(command.contains(appExecutable.toAbsolutePath().toString()))
             assertTrue(command.contains("4242"))
+            val launchResult = useCase.avviaInstallazionePreparata(installResult)
+            assertIs<Either.Right<Unit>>(launchResult)
+            assertEquals(command, assertNotNull(launchedCommand))
             val stagedScript = runtimeUpdatesDir().resolve("external-updater.ps1")
             assertTrue(stagedScript.exists())
             assertEquals("Write-Output 'installed updater'", stagedScript.readText())

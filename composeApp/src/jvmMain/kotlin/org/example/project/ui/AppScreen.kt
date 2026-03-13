@@ -272,15 +272,17 @@ fun DecoratedWindowScope.AppScreen(
                                             border = BorderStroke(1.dp, sketch.lineSoft),
                                             shadowElevation = 8.dp,
                                         ) {
-                                            UpdateCenterMenu(
-                                                state = updateState,
-                                                onCheckUpdates = updateViewModel::checkUpdates,
-                                                onStartUpdate = updateViewModel::startUpdate,
-                                                onRestart = {
-                                                    isUpdateMenuExpanded = false
-                                                    onRestartRequested()
-                                                },
-                                            )
+                                                UpdateCenterMenu(
+                                                    state = updateState,
+                                                    onCheckUpdates = updateViewModel::checkUpdates,
+                                                    onStartUpdate = updateViewModel::startUpdate,
+                                                    onRestart = {
+                                                        updateViewModel.restartToInstall {
+                                                            isUpdateMenuExpanded = false
+                                                            onRestartRequested()
+                                                        }
+                                                    },
+                                                )
                                         }
                                     }
                                     Box {
