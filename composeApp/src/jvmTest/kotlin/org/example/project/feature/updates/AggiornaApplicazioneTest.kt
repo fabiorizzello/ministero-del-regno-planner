@@ -154,7 +154,8 @@ class AggiornaApplicazioneTest {
     fun `copies installer from local file url without network download`() = runTest {
         initializeRuntime()
         val sourceInstaller = requireNotNull(tempRoot).resolve("source").createDirectories().resolve("planner-local.msi")
-        Files.writeString(sourceInstaller, "local-msi")
+        val sourceBytes = ByteArray(256 * 1024) { index -> (index % 251).toByte() }
+        Files.write(sourceInstaller, sourceBytes)
         val progressEvents = mutableListOf<org.example.project.feature.updates.application.UpdateDownloadProgress>()
         val client = HttpClient(MockEngine {
             error("HTTP client should not be used for local file asset")
@@ -173,11 +174,57 @@ class AggiornaApplicazioneTest {
 
             val installerPath = assertIs<Either.Right<Path>>(result).value
             assertEquals(runtimeUpdatesDir().resolve("planner-local.msi"), installerPath)
-            assertEquals("local-msi", Files.readString(installerPath))
+            assertTrue(Files.size(installerPath) == sourceBytes.size.toLong())
             assertTrue(progressEvents.isNotEmpty())
+            assertTrue(progressEvents.any { it.downloadedBytes in 1 until sourceBytes.size.toLong() })
             assertEquals(Files.size(sourceInstaller), progressEvents.last().downloadedBytes)
         } finally {
             client.close()
+        }
+    }
+
+    @Test
+    fun `downloads remote installer with incremental progress updates`() = runTest {
+        initializeRuntime()
+        val installerBytes = ByteArray(256 * 1024) { index -> (index % 239).toByte() }
+        val progressEvents = mutableListOf<org.example.project.feature.updates.application.UpdateDownloadProgress>()
+        val server = HttpServer.create(InetSocketAddress(0), 0).apply {
+            createContext("/planner.msi") { exchange ->
+                exchange.sendResponseHeaders(200, installerBytes.size.toLong())
+                exchange.responseBody.use { output ->
+                    var offset = 0
+                    while (offset < installerBytes.size) {
+                        val chunkSize = minOf(32 * 1024, installerBytes.size - offset)
+                        output.write(installerBytes, offset, chunkSize)
+                        output.flush()
+                        Thread.sleep(5)
+                        offset += chunkSize
+                    }
+                }
+            }
+            start()
+        }
+        val client = HttpClient(Java)
+        try {
+            val useCase = AggiornaApplicazione(client)
+
+            val result = useCase.downloadInstaller(
+                UpdateAsset(
+                    name = "planner-remote.msi",
+                    downloadUrl = "http://127.0.0.1:${server.address.port}/planner.msi",
+                    sizeBytes = installerBytes.size.toLong(),
+                ),
+                onProgress = { progressEvents += it },
+            )
+
+            val installerPath = assertIs<Either.Right<Path>>(result).value
+            assertEquals(runtimeUpdatesDir().resolve("planner-remote.msi"), installerPath)
+            assertEquals(installerBytes.size.toLong(), Files.size(installerPath))
+            assertTrue(progressEvents.any { it.downloadedBytes in 1 until installerBytes.size.toLong() })
+            assertEquals(installerBytes.size.toLong(), progressEvents.last().downloadedBytes)
+        } finally {
+            client.close()
+            server.stop(0)
         }
     }
 

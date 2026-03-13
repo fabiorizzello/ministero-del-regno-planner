@@ -88,6 +88,7 @@ import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
 import org.example.project.ui.updates.UpdateCenterUiState
 import org.example.project.ui.updates.UpdateCenterViewModel
+import org.example.project.ui.updates.formatProgressPercent
 import org.example.project.ui.workspace.ProgramWorkspaceScreen
 import org.jetbrains.jewel.window.DecoratedWindowScope
 import org.jetbrains.jewel.window.TitleBar
@@ -767,7 +768,7 @@ private fun UpdateCenterMenu(
                 label = when {
                     state.isInstalling -> "Preparazione in corso..."
                     state.isDownloading -> state.downloadProgress
-                        ?.let { "Download ${(it * 100).toInt()}%" }
+                        ?.let { "Download ${formatProgressPercent(it)}" }
                         ?: "Download in corso..."
                     else -> "Verifica in corso..."
                 },
@@ -942,7 +943,7 @@ private fun updatePrimaryMessage(state: UpdateCenterUiState): String = when {
 }
 
 private fun updateSecondaryMessage(state: UpdateCenterUiState): String? = when {
-    state.restartRequired -> "Dopo il click compare una finestra separata di installazione e l'app si riapre automaticamente."
+    state.restartRequired -> "Dopo il click compare una piccola finestra con le fasi reali di installazione e l'app si riapre automaticamente."
     state.isInstalling -> "Tra poco ti chiedero il riavvio per installare la nuova versione."
     state.isDownloading -> state.statusText
     state.hasError -> state.statusText

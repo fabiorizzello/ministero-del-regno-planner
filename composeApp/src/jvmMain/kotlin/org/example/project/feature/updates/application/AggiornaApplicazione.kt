@@ -15,10 +15,10 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.io.InputStream
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.max
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
 
@@ -105,25 +105,15 @@ class AggiornaApplicazione(
                     if (!Files.isRegularFile(localAssetPath)) {
                         error("File locale non trovato: $localAssetPath")
                     }
-                    Files.copy(
-                        localAssetPath,
-                        partialPath,
-                        StandardCopyOption.REPLACE_EXISTING,
-                    )
-                    try {
-                        Files.move(
-                            partialPath,
-                            outputPath,
-                            StandardCopyOption.REPLACE_EXISTING,
-                            StandardCopyOption.ATOMIC_MOVE,
-                        )
-                    } catch (_: AtomicMoveNotSupportedException) {
-                        Files.move(
-                            partialPath,
-                            outputPath,
-                            StandardCopyOption.REPLACE_EXISTING,
+                    Files.newInputStream(localAssetPath).use { input ->
+                        writeInstallerFile(
+                            input = input,
+                            partialPath = partialPath,
+                            totalBytes = localSize.takeIf { it > 0L },
+                            onProgress = onProgress,
                         )
                     }
+                    moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
                     onProgress(UpdateDownloadProgress(localSize, localSize.takeIf { it > 0L }))
                 }.mapLeft { error ->
                     runCatching { Files.deleteIfExists(partialPath) }
@@ -151,7 +141,7 @@ class AggiornaApplicazione(
 
                 Either.catch {
                     val channel = response.bodyAsChannel()
-                    val buffer = ByteArray(max(DEFAULT_BUFFER_SIZE, 16 * 1024))
+                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE_BYTES)
                     var downloadedBytes = 0L
                     Files.newOutputStream(
                         partialPath,
@@ -161,26 +151,14 @@ class AggiornaApplicazione(
                     ).use { output ->
                         while (true) {
                             val read = channel.readAvailable(buffer, 0, buffer.size)
-                            if (read <= 0) break
+                            if (read < 0) break
+                            if (read == 0) continue
                             output.write(buffer, 0, read)
                             downloadedBytes += read
                             onProgress(UpdateDownloadProgress(downloadedBytes, declaredSize))
                         }
                     }
-                    try {
-                        Files.move(
-                            partialPath,
-                            outputPath,
-                            StandardCopyOption.REPLACE_EXISTING,
-                            StandardCopyOption.ATOMIC_MOVE,
-                        )
-                    } catch (_: AtomicMoveNotSupportedException) {
-                        Files.move(
-                            partialPath,
-                            outputPath,
-                            StandardCopyOption.REPLACE_EXISTING,
-                        )
-                    }
+                    moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
                     val finalSize = runCatching { Files.size(outputPath) }.getOrDefault(declaredSize ?: 0L)
                     onProgress(UpdateDownloadProgress(finalSize, declaredSize ?: finalSize))
                 }.mapLeft { error ->
@@ -289,8 +267,51 @@ class AggiornaApplicazione(
         }
     }
 
+    private fun writeInstallerFile(
+        input: InputStream,
+        partialPath: Path,
+        totalBytes: Long?,
+        onProgress: (UpdateDownloadProgress) -> Unit,
+    ) {
+        val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE_BYTES)
+        var downloadedBytes = 0L
+        Files.newOutputStream(
+            partialPath,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.TRUNCATE_EXISTING,
+            StandardOpenOption.WRITE,
+        ).use { output ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (read == 0) continue
+                output.write(buffer, 0, read)
+                downloadedBytes += read
+                onProgress(UpdateDownloadProgress(downloadedBytes, totalBytes))
+            }
+        }
+    }
+
+    private fun moveInstallerIntoPlace(partialPath: Path, outputPath: Path) {
+        try {
+            Files.move(
+                partialPath,
+                outputPath,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(
+                partialPath,
+                outputPath,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        }
+    }
+
     private companion object {
         private const val APP_EXECUTABLE_NAME = "scuola-di-ministero.exe"
+        private const val DOWNLOAD_BUFFER_SIZE_BYTES = 64 * 1024
         private const val DOWNLOAD_REQUEST_TIMEOUT_MILLIS = 30 * 60 * 1_000L
         private const val UPDATER_LOG_FILE_NAME = "external-updater.log"
         private const val UPDATER_SCRIPT_FILE_NAME = "external-updater.ps1"

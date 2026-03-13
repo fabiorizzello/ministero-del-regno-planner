@@ -39,6 +39,13 @@ import kotlin.test.assertTrue
 class UpdateCenterViewModelTest {
 
     @Test
+    fun `format progress percent keeps decimals for early download`() {
+        assertEquals("0.5%", formatProgressPercent(0.005f))
+        assertEquals("12%", formatProgressPercent(0.12f))
+        assertEquals("2.0 MB/s", formatTransferRate(2L * 1024L * 1024L))
+    }
+
+    @Test
     fun `failed update recheck clears stale asset and availability`() = runTest {
         val aggiornaApplicazione = mockk<AggiornaApplicazione>(relaxed = true)
         val updateSettingsStore = mockk<UpdateSettingsStore>()
@@ -226,6 +233,63 @@ class UpdateCenterViewModelTest {
             val state = vm.state.value
             assertEquals("Il download sta impiegando troppo tempo. Controlla la connessione e riprova.", state.statusText)
             assertNull(state.downloadProgress)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun `download progress status includes transfer rate when timing is available`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        var now = 0L
+        var observedStatus: String? = null
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+            nanoTimeProvider = { now },
+        )
+
+        try {
+            val asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 8L * 1024L * 1024L)
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = asset,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            coEvery { aggiornaApplicazione.downloadInstaller(asset, any()) } coAnswers {
+                val onProgress = arg<(org.example.project.feature.updates.application.UpdateDownloadProgress) -> Unit>(1)
+                now = 2_000_000_000L
+                onProgress(org.example.project.feature.updates.application.UpdateDownloadProgress(4L * 1024L * 1024L, 8L * 1024L * 1024L))
+                observedStatus = vm.state.value.statusText
+                Either.Left(DomainError.Network("timed out"))
+            }
+
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            assertEquals(
+                "Download aggiornamento in corso: 50% (4.0 MB di 8.0 MB) - 2.0 MB/s",
+                observedStatus,
+            )
         } finally {
             vmScope.cancel()
         }

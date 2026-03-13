@@ -38,6 +38,7 @@ internal data class UpdateCenterUiState(
     val downloadProgress: Float? = null,
     val downloadedBytes: Long = 0L,
     val downloadTotalBytes: Long? = null,
+    val downloadSpeedBytesPerSecond: Long? = null,
     val restartRequired: Boolean = false,
     val installedVersion: String? = null,
     val hasError: Boolean = false,
@@ -51,8 +52,10 @@ internal class UpdateCenterViewModel(
     private val aggiornaApplicazione: AggiornaApplicazione,
     private val updateStatusStore: UpdateStatusStore,
     private val updateSettingsStore: UpdateSettingsStore,
+    private val nanoTimeProvider: () -> Long = System::nanoTime,
 ) {
     private var pendingInstall: UpdateInstallResult? = null
+    private var downloadStartedAtNanos: Long? = null
     private val _state = MutableStateFlow(
         UpdateCenterUiState(
             lastCheck = updateSettingsStore.loadLastCheck(),
@@ -85,6 +88,7 @@ internal class UpdateCenterViewModel(
         pendingInstall = null
 
         scope.launch {
+            downloadStartedAtNanos = nanoTimeProvider()
             _state.update {
                 it.copy(
                     isDownloading = true,
@@ -92,6 +96,7 @@ internal class UpdateCenterViewModel(
                     downloadProgress = 0f,
                     downloadedBytes = 0L,
                     downloadTotalBytes = asset.sizeBytes.takeIf { it > 0L },
+                    downloadSpeedBytesPerSecond = null,
                     statusText = "Download aggiornamento in corso...",
                 )
             }
@@ -104,6 +109,7 @@ internal class UpdateCenterViewModel(
                             isDownloading = false,
                             hasError = true,
                             downloadProgress = null,
+                            downloadSpeedBytesPerSecond = null,
                             statusText = updateFailureMessage(error, UpdatePhase.DOWNLOAD),
                         )
                     }
@@ -114,6 +120,7 @@ internal class UpdateCenterViewModel(
                             isDownloading = false,
                             isInstalling = true,
                             downloadProgress = 1f,
+                            downloadSpeedBytesPerSecond = null,
                             statusText = "Preparazione installazione in corso...",
                         )
                     }
@@ -125,6 +132,7 @@ internal class UpdateCenterViewModel(
                                     isInstalling = false,
                                     hasError = true,
                                     downloadProgress = null,
+                                    downloadSpeedBytesPerSecond = null,
                                     statusText = updateFailureMessage(error, UpdatePhase.PREPARE),
                                 )
                             }
@@ -140,6 +148,7 @@ internal class UpdateCenterViewModel(
                                     installedVersion = targetVersion,
                                     hasError = false,
                                     downloadProgress = null,
+                                    downloadSpeedBytesPerSecond = null,
                                     statusText = "Aggiornamento pronto. Premi \"Riavvia per installare\" per continuare.",
                                 )
                             }
@@ -206,15 +215,25 @@ internal class UpdateCenterViewModel(
     private fun applyDownloadProgress(progress: UpdateDownloadProgress) {
         _state.update { state ->
             if (!state.isDownloading) state else {
-                val status = progressStatusText(progress)
+                val speed = computeDownloadSpeed(progress.downloadedBytes)
+                val status = progressStatusText(progress, speed)
                 state.copy(
                     downloadProgress = progress.fraction,
                     downloadedBytes = progress.downloadedBytes,
                     downloadTotalBytes = progress.totalBytes,
+                    downloadSpeedBytesPerSecond = speed,
                     statusText = status,
                 )
             }
         }
+    }
+
+    private fun computeDownloadSpeed(downloadedBytes: Long): Long? {
+        if (downloadedBytes <= 0L) return null
+        val startedAt = downloadStartedAtNanos ?: return null
+        val elapsedNanos = (nanoTimeProvider() - startedAt).coerceAtLeast(1L)
+        val bytesPerSecond = downloadedBytes * 1_000_000_000L / elapsedNanos
+        return bytesPerSecond.takeIf { it > 0L }
     }
 }
 
@@ -225,13 +244,17 @@ private enum class UpdatePhase {
     LAUNCH,
 }
 
-private fun progressStatusText(progress: UpdateDownloadProgress): String {
+private fun progressStatusText(progress: UpdateDownloadProgress, speedBytesPerSecond: Long?): String {
     val downloaded = humanReadableBytes(progress.downloadedBytes)
     val total = progress.totalBytes?.let(::humanReadableBytes)
-    val percent = progress.fraction?.let { "${(it * 100).toInt()}%" }
+    val percent = progress.fraction?.let(::formatProgressPercent)
+    val speed = speedBytesPerSecond?.let(::formatTransferRate)
     return when {
+        percent != null && total != null && speed != null -> "Download aggiornamento in corso: $percent ($downloaded di $total) - $speed"
         percent != null && total != null -> "Download aggiornamento in corso: $percent ($downloaded di $total)"
+        total != null && speed != null -> "Download aggiornamento in corso: $downloaded di $total - $speed"
         total != null -> "Download aggiornamento in corso: $downloaded di $total"
+        speed != null -> "Download aggiornamento in corso: $downloaded scaricati - $speed"
         else -> "Download aggiornamento in corso: $downloaded scaricati"
     }
 }
@@ -252,6 +275,15 @@ private fun downloadFailureMessage(error: DomainError): String = when {
 private fun isTimeoutError(error: DomainError): Boolean =
     error.toMessage().contains("timeout", ignoreCase = true) ||
         error.toMessage().contains("timed out", ignoreCase = true)
+
+internal fun formatProgressPercent(progress: Float): String =
+    when {
+        progress <= 0f -> "0%"
+        progress < 0.1f -> "%.1f%%".format(java.util.Locale.US, progress * 100f)
+        else -> "${(progress * 100).toInt()}%"
+    }
+
+internal fun formatTransferRate(bytesPerSecond: Long): String = "${humanReadableBytes(bytesPerSecond)}/s"
 
 private fun humanReadableBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
