@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
@@ -130,7 +131,13 @@ class AggiornaApplicazione(
                 }.bind()
             } else {
                 logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
-                val response = Either.catch { httpClient.get(asset.downloadUrl) }
+                val response = Either.catch {
+                    httpClient.get(asset.downloadUrl) {
+                        timeout {
+                            requestTimeoutMillis = DOWNLOAD_REQUEST_TIMEOUT_MILLIS
+                        }
+                    }
+                }
                     .mapLeft { error ->
                         DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}")
                     }
@@ -284,6 +291,7 @@ class AggiornaApplicazione(
 
     private companion object {
         private const val APP_EXECUTABLE_NAME = "scuola-di-ministero.exe"
+        private const val DOWNLOAD_REQUEST_TIMEOUT_MILLIS = 30 * 60 * 1_000L
         private const val UPDATER_LOG_FILE_NAME = "external-updater.log"
         private const val UPDATER_SCRIPT_FILE_NAME = "external-updater.ps1"
         private const val UPDATER_SCRIPT_RESOURCE_PATH = "/updater/external-updater.ps1"

@@ -14,7 +14,6 @@ private val httpLog = KotlinLogging.logger("AppHttpClient")
 fun createAppHttpClient(): HttpClient = HttpClient(Java) {
     install(HttpTimeout) {
         connectTimeoutMillis = 15_000
-        requestTimeoutMillis = 30 * 60 * 1_000
     }
     install(Logging) {
         level = LogLevel.INFO
