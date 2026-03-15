@@ -18,8 +18,10 @@ import java.nio.file.StandardOpenOption
 import java.io.InputStream
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.example.project.core.config.AppRuntime
+import org.example.project.core.config.RemoteConfig
 import org.example.project.core.domain.DomainError
 
 class AggiornaApplicazione(
@@ -46,8 +48,24 @@ class AggiornaApplicazione(
             "Risorsa updater non trovata: $UPDATER_SCRIPT_RESOURCE_PATH"
         }.use { input -> input.readBytes() }
     },
+    private val systemPropertyReader: (String) -> String? = System::getProperty,
+    private val environmentReader: (String) -> String? = System::getenv,
+    private val sleepProvider: suspend (Long) -> Unit = { delay(it) },
 ) {
     private val logger = KotlinLogging.logger {}
+    private val devDownloadConfig by lazy {
+        UpdateDownloadDebugConfig.load(
+            systemPropertyReader = systemPropertyReader,
+            environmentReader = environmentReader,
+        ).also { config ->
+            if (config.isEnabled) {
+                logger.info {
+                    "Modalita update dev attiva: chunkSize=${config.chunkSizeBytes}B, " +
+                        "chunkDelay=${config.chunkDelayMillis}ms, disableCache=${config.disableInstallerCache}"
+                }
+            }
+        }
+    }
 
     suspend operator fun invoke(asset: UpdateAsset): Either<DomainError, UpdateInstallResult> = withContext(dispatcher) {
         either {
@@ -85,7 +103,7 @@ class AggiornaApplicazione(
         val outputPath = updatesDir.resolve(asset.name)
         val partialPath = updatesDir.resolve("${asset.name}.part")
 
-        if (isInstallerAlreadyCached(outputPath, asset)) {
+        if (!devDownloadConfig.disableInstallerCache && isInstallerAlreadyCached(outputPath, asset)) {
             logger.info { "Riutilizzo installer gia scaricato: ${outputPath.toAbsolutePath()}" }
             val cachedSize = runCatching { Files.size(outputPath) }.getOrDefault(asset.sizeBytes)
             onProgress(
@@ -101,7 +119,7 @@ class AggiornaApplicazione(
                 logger.info { "Copia aggiornamento da sorgente locale: ${localAssetPath.toAbsolutePath()}" }
                 val localSize = runCatching { Files.size(localAssetPath) }.getOrDefault(asset.sizeBytes)
                 onProgress(UpdateDownloadProgress(0L, localSize.takeIf { it > 0L }))
-                Either.catch {
+                try {
                     if (!Files.isRegularFile(localAssetPath)) {
                         error("File locale non trovato: $localAssetPath")
                     }
@@ -111,14 +129,15 @@ class AggiornaApplicazione(
                             partialPath = partialPath,
                             totalBytes = localSize.takeIf { it > 0L },
                             onProgress = onProgress,
+                            debugConfig = devDownloadConfig,
                         )
                     }
                     moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
                     onProgress(UpdateDownloadProgress(localSize, localSize.takeIf { it > 0L }))
-                }.mapLeft { error ->
+                } catch (error: Throwable) {
                     runCatching { Files.deleteIfExists(partialPath) }
-                    DomainError.Validation("Errore copia aggiornamento locale: ${error.message ?: "errore sconosciuto"}")
-                }.bind()
+                    raise(DomainError.Validation("Errore copia aggiornamento locale: ${error.message ?: "errore sconosciuto"}"))
+                }
             } else {
                 logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
                 val response = Either.catch {
@@ -139,9 +158,9 @@ class AggiornaApplicazione(
                     ?: asset.sizeBytes.takeIf { it > 0L }
                 onProgress(UpdateDownloadProgress(0L, declaredSize))
 
-                Either.catch {
+                try {
                     val channel = response.bodyAsChannel()
-                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE_BYTES)
+                    val buffer = ByteArray(devDownloadConfig.chunkSizeBytes)
                     var downloadedBytes = 0L
                     Files.newOutputStream(
                         partialPath,
@@ -156,15 +175,16 @@ class AggiornaApplicazione(
                             output.write(buffer, 0, read)
                             downloadedBytes += read
                             onProgress(UpdateDownloadProgress(downloadedBytes, declaredSize))
+                            maybeDelayForDevDownload()
                         }
                     }
                     moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
                     val finalSize = runCatching { Files.size(outputPath) }.getOrDefault(declaredSize ?: 0L)
                     onProgress(UpdateDownloadProgress(finalSize, declaredSize ?: finalSize))
-                }.mapLeft { error ->
+                } catch (error: Throwable) {
                     runCatching { Files.deleteIfExists(partialPath) }
-                    DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}")
-                }.bind()
+                    raise(DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}"))
+                }
             }
 
             logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
@@ -267,13 +287,14 @@ class AggiornaApplicazione(
         }
     }
 
-    private fun writeInstallerFile(
+    private suspend fun writeInstallerFile(
         input: InputStream,
         partialPath: Path,
         totalBytes: Long?,
         onProgress: (UpdateDownloadProgress) -> Unit,
+        debugConfig: UpdateDownloadDebugConfig,
     ) {
-        val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE_BYTES)
+        val buffer = ByteArray(debugConfig.chunkSizeBytes)
         var downloadedBytes = 0L
         Files.newOutputStream(
             partialPath,
@@ -288,7 +309,15 @@ class AggiornaApplicazione(
                 output.write(buffer, 0, read)
                 downloadedBytes += read
                 onProgress(UpdateDownloadProgress(downloadedBytes, totalBytes))
+                maybeDelayForDevDownload()
             }
+        }
+    }
+
+    private suspend fun maybeDelayForDevDownload() {
+        val delayMillis = devDownloadConfig.chunkDelayMillis
+        if (delayMillis > 0L) {
+            sleepProvider(delayMillis)
         }
     }
 
@@ -311,7 +340,6 @@ class AggiornaApplicazione(
 
     private companion object {
         private const val APP_EXECUTABLE_NAME = "scuola-di-ministero.exe"
-        private const val DOWNLOAD_BUFFER_SIZE_BYTES = 64 * 1024
         private const val DOWNLOAD_REQUEST_TIMEOUT_MILLIS = 30 * 60 * 1_000L
         private const val UPDATER_LOG_FILE_NAME = "external-updater.log"
         private const val UPDATER_SCRIPT_FILE_NAME = "external-updater.ps1"
@@ -329,5 +357,89 @@ class AggiornaApplicazione(
             val installRoot = appDir.parent ?: error("Root installazione non determinabile.")
             return installRoot.resolve(APP_EXECUTABLE_NAME)
         }
+    }
+}
+
+private data class UpdateDownloadDebugConfig(
+    val chunkDelayMillis: Long,
+    val chunkSizeBytes: Int,
+    val disableInstallerCache: Boolean,
+) {
+    val isEnabled: Boolean
+        get() = chunkDelayMillis > 0L || chunkSizeBytes != DEFAULT_CHUNK_SIZE_BYTES || disableInstallerCache
+
+    companion object {
+        private const val DEFAULT_CHUNK_SIZE_BYTES = 64 * 1024
+        private const val MIN_CHUNK_SIZE_BYTES = 4 * 1024
+        private const val MAX_CHUNK_SIZE_BYTES = 256 * 1024
+
+        fun load(
+            systemPropertyReader: (String) -> String?,
+            environmentReader: (String) -> String?,
+        ): UpdateDownloadDebugConfig {
+            val chunkDelayMillis = readLongOverride(
+                propertyName = RemoteConfig.UPDATE_DEV_CHUNK_DELAY_MS_PROPERTY,
+                envName = RemoteConfig.UPDATE_DEV_CHUNK_DELAY_MS_ENV,
+                systemPropertyReader = systemPropertyReader,
+                environmentReader = environmentReader,
+            )?.coerceAtLeast(0L) ?: 0L
+
+            val chunkSizeBytes = readIntOverride(
+                propertyName = RemoteConfig.UPDATE_DEV_CHUNK_SIZE_BYTES_PROPERTY,
+                envName = RemoteConfig.UPDATE_DEV_CHUNK_SIZE_BYTES_ENV,
+                systemPropertyReader = systemPropertyReader,
+                environmentReader = environmentReader,
+            )?.coerceIn(MIN_CHUNK_SIZE_BYTES, MAX_CHUNK_SIZE_BYTES)
+                ?: DEFAULT_CHUNK_SIZE_BYTES
+
+            val disableInstallerCache = readBooleanOverride(
+                propertyName = RemoteConfig.UPDATE_DEV_DISABLE_INSTALLER_CACHE_PROPERTY,
+                envName = RemoteConfig.UPDATE_DEV_DISABLE_INSTALLER_CACHE_ENV,
+                systemPropertyReader = systemPropertyReader,
+                environmentReader = environmentReader,
+            )
+
+            return UpdateDownloadDebugConfig(
+                chunkDelayMillis = chunkDelayMillis,
+                chunkSizeBytes = chunkSizeBytes,
+                disableInstallerCache = disableInstallerCache,
+            )
+        }
+
+        private fun readLongOverride(
+            propertyName: String,
+            envName: String,
+            systemPropertyReader: (String) -> String?,
+            environmentReader: (String) -> String?,
+        ): Long? = readOverride(propertyName, envName, systemPropertyReader, environmentReader)?.toLongOrNull()
+
+        private fun readIntOverride(
+            propertyName: String,
+            envName: String,
+            systemPropertyReader: (String) -> String?,
+            environmentReader: (String) -> String?,
+        ): Int? = readOverride(propertyName, envName, systemPropertyReader, environmentReader)?.toIntOrNull()
+
+        private fun readBooleanOverride(
+            propertyName: String,
+            envName: String,
+            systemPropertyReader: (String) -> String?,
+            environmentReader: (String) -> String?,
+        ): Boolean =
+            readOverride(propertyName, envName, systemPropertyReader, environmentReader)
+                ?.trim()
+                ?.lowercase()
+                ?.let { value -> value == "1" || value == "true" || value == "yes" || value == "on" }
+                ?: false
+
+        private fun readOverride(
+            propertyName: String,
+            envName: String,
+            systemPropertyReader: (String) -> String?,
+            environmentReader: (String) -> String?,
+        ): String? =
+            systemPropertyReader(propertyName)
+                ?.takeIf(String::isNotBlank)
+                ?: environmentReader(envName)?.takeIf(String::isNotBlank)
     }
 }

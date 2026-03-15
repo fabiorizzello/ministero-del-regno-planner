@@ -13,6 +13,7 @@ import java.nio.file.Path
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.config.AppPaths
 import org.example.project.core.config.AppRuntime
+import org.example.project.core.config.RemoteConfig
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.updates.application.AggiornaApplicazione
 import org.example.project.feature.updates.application.UpdateAsset
@@ -178,6 +179,54 @@ class AggiornaApplicazioneTest {
             assertTrue(progressEvents.isNotEmpty())
             assertTrue(progressEvents.any { it.downloadedBytes in 1 until sourceBytes.size.toLong() })
             assertEquals(Files.size(sourceInstaller), progressEvents.last().downloadedBytes)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun `dev download mode bypasses installer cache and throttles local copy`() = runTest {
+        initializeRuntime()
+        val sourceInstaller = requireNotNull(tempRoot).resolve("source").createDirectories().resolve("planner-local.msi")
+        val sourceBytes = ByteArray(128 * 1024) { index -> (index % 211).toByte() }
+        Files.write(sourceInstaller, sourceBytes)
+        val cachedInstaller = runtimeUpdatesDir().createDirectories().resolve("planner-local.msi")
+        Files.write(cachedInstaller, ByteArray(sourceBytes.size) { 7 })
+        val progressEvents = mutableListOf<org.example.project.feature.updates.application.UpdateDownloadProgress>()
+        val appliedSleeps = mutableListOf<Long>()
+        val client = HttpClient(MockEngine {
+            error("HTTP client should not be used for local file asset")
+        })
+        try {
+            val useCase = AggiornaApplicazione(
+                httpClient = client,
+                systemPropertyReader = { key ->
+                    when (key) {
+                        RemoteConfig.UPDATE_DEV_DISABLE_INSTALLER_CACHE_PROPERTY -> "true"
+                        RemoteConfig.UPDATE_DEV_CHUNK_DELAY_MS_PROPERTY -> "5"
+                        RemoteConfig.UPDATE_DEV_CHUNK_SIZE_BYTES_PROPERTY -> "8192"
+                        else -> null
+                    }
+                },
+                environmentReader = { null },
+                sleepProvider = { appliedSleeps += it },
+            )
+
+            val result = useCase.downloadInstaller(
+                UpdateAsset(
+                    name = "planner-local.msi",
+                    downloadUrl = sourceInstaller.toUri().toString(),
+                    sizeBytes = Files.size(sourceInstaller),
+                ),
+                onProgress = { progressEvents += it },
+            )
+
+            val installerPath = assertIs<Either.Right<Path>>(result).value
+            assertEquals(cachedInstaller, installerPath)
+            assertTrue(Files.readAllBytes(installerPath).contentEquals(sourceBytes))
+            assertTrue(progressEvents.any { it.downloadedBytes in 1 until sourceBytes.size.toLong() })
+            assertTrue(appliedSleeps.isNotEmpty())
+            assertTrue(appliedSleeps.all { it == 5L })
         } finally {
             client.close()
         }

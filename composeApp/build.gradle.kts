@@ -153,6 +153,34 @@ tasks.register<JavaExec>("generateWolEfficaciCatalog") {
     workingDir = rootProject.projectDir
 }
 
+tasks.register<JavaExec>("runUpdateDev") {
+    description = "Avvia l'app con update locale rallentato per testare progresso download e velocita"
+    group = "application"
+    mainClass.set("org.example.project.MainKt")
+    classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
+        kotlin.jvm().compilations["main"].output.allOutputs
+    workingDir = rootProject.projectDir
+
+    val useLocalBuild = providers.gradleProperty("updateDev.useLocalBuild").orElse("true")
+    val localMsiPath = providers.gradleProperty("updateDev.localMsiPath").orNull
+    val localVersion = providers.gradleProperty("updateDev.localVersion").orNull
+    val chunkDelayMs = providers.gradleProperty("updateDev.chunkDelayMs").orElse("35")
+    val chunkSizeBytes = providers.gradleProperty("updateDev.chunkSizeBytes").orElse("65536")
+    val disableInstallerCache = providers.gradleProperty("updateDev.disableInstallerCache").orElse("true")
+
+    systemProperty("ministero.update.useLocalBuild", useLocalBuild.get())
+    systemProperty("ministero.update.devChunkDelayMs", chunkDelayMs.get())
+    systemProperty("ministero.update.devChunkSizeBytes", chunkSizeBytes.get())
+    systemProperty("ministero.update.devDisableInstallerCache", disableInstallerCache.get())
+
+    if (!localMsiPath.isNullOrBlank()) {
+        systemProperty("ministero.update.localMsiPath", localMsiPath)
+    }
+    if (!localVersion.isNullOrBlank()) {
+        systemProperty("ministero.update.localVersion", localVersion)
+    }
+}
+
 compose.desktop {
     application {
         mainClass = "org.example.project.MainKt"
