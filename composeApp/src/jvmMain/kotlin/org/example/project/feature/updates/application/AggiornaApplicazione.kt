@@ -4,8 +4,11 @@ import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.onDownload
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
@@ -141,9 +144,19 @@ class AggiornaApplicazione(
             } else {
                 logger.info { "Download aggiornamento: ${asset.downloadUrl}" }
                 val response = Either.catch {
-                    httpClient.get(asset.downloadUrl) {
+                    httpClient.prepareGet(asset.downloadUrl) {
                         timeout {
                             requestTimeoutMillis = DOWNLOAD_REQUEST_TIMEOUT_MILLIS
+                        }
+                        onDownload { bytesReceivedTotal, contentLength ->
+                            val resolvedTotal = contentLength?.takeIf { it > 0L }
+                                ?: asset.sizeBytes.takeIf { it > 0L }
+                            onProgress(
+                                UpdateDownloadProgress(
+                                    downloadedBytes = bytesReceivedTotal,
+                                    totalBytes = resolvedTotal,
+                                ),
+                            )
                         }
                     }
                 }
@@ -151,40 +164,55 @@ class AggiornaApplicazione(
                         DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}")
                     }
                     .bind()
-                if (!response.status.isSuccess()) {
-                    raise(DomainError.Network("Download aggiornamento fallito: HTTP ${response.status.value}"))
-                }
-                val declaredSize = response.headers["Content-Length"]?.toLongOrNull()
-                    ?: asset.sizeBytes.takeIf { it > 0L }
-                onProgress(UpdateDownloadProgress(0L, declaredSize))
 
+                var startedWritingInstaller = false
+                var networkFailure: DomainError.Network? = null
                 try {
-                    val channel = response.bodyAsChannel()
-                    val buffer = ByteArray(devDownloadConfig.chunkSizeBytes)
-                    var downloadedBytes = 0L
-                    Files.newOutputStream(
-                        partialPath,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING,
-                        StandardOpenOption.WRITE,
-                    ).use { output ->
-                        while (true) {
-                            val read = channel.readAvailable(buffer, 0, buffer.size)
-                            if (read < 0) break
-                            if (read == 0) continue
-                            output.write(buffer, 0, read)
-                            downloadedBytes += read
-                            onProgress(UpdateDownloadProgress(downloadedBytes, declaredSize))
-                            maybeDelayForDevDownload()
+                    response.execute { httpResponse ->
+                        if (!httpResponse.status.isSuccess()) {
+                            networkFailure = DomainError.Network("Download aggiornamento fallito: HTTP ${httpResponse.status.value}")
+                            return@execute
                         }
+
+                        val declaredSize = httpResponse.headers["Content-Length"]?.toLongOrNull()
+                            ?: asset.sizeBytes.takeIf { it > 0L }
+                        onProgress(UpdateDownloadProgress(0L, declaredSize))
+
+                        val channel = httpResponse.bodyAsChannel()
+                        val buffer = ByteArray(devDownloadConfig.chunkSizeBytes)
+                        var downloadedBytes = 0L
+                        startedWritingInstaller = true
+                        Files.newOutputStream(
+                            partialPath,
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.TRUNCATE_EXISTING,
+                            StandardOpenOption.WRITE,
+                        ).use { output ->
+                            while (true) {
+                                val read = channel.readAvailable(buffer, 0, buffer.size)
+                                if (read < 0) break
+                                if (read == 0) continue
+                                output.write(buffer, 0, read)
+                                downloadedBytes += read
+                                maybeDelayForDevDownload()
+                            }
+                        }
+                        moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
+                        val finalSize = runCatching { Files.size(outputPath) }.getOrDefault(declaredSize ?: 0L)
+                        onProgress(UpdateDownloadProgress(finalSize, declaredSize ?: finalSize))
                     }
-                    moveInstallerIntoPlace(partialPath = partialPath, outputPath = outputPath)
-                    val finalSize = runCatching { Files.size(outputPath) }.getOrDefault(declaredSize ?: 0L)
-                    onProgress(UpdateDownloadProgress(finalSize, declaredSize ?: finalSize))
                 } catch (error: Throwable) {
                     runCatching { Files.deleteIfExists(partialPath) }
-                    raise(DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}"))
+                    when {
+                        error is ResponseException ->
+                            raise(DomainError.Network("Download aggiornamento fallito: HTTP ${error.response.status.value}"))
+                        !startedWritingInstaller ->
+                            raise(DomainError.Network("Download aggiornamento fallito: ${error.message ?: "Connessione fallita"}"))
+                        else ->
+                            raise(DomainError.Validation("Errore salvataggio aggiornamento: ${error.message ?: "errore sconosciuto"}"))
+                    }
                 }
+                networkFailure?.let(::raise)
             }
 
             logger.info { "Aggiornamento scaricato in ${outputPath.toAbsolutePath()}" }
