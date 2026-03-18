@@ -10,6 +10,6 @@ import org.koin.dsl.module
 val updatesModule = module {
     single { UpdateStatusStore() }
     single<UpdateReleaseSource> { GitHubReleasesClient(get()) }
-    single { VerificaAggiornamenti(get(), get(), get()) }
-    single { AggiornaApplicazione(get()) }
+    factory { VerificaAggiornamenti(get(), get(), get()) }
+    factory { AggiornaApplicazione(get()) }
 }

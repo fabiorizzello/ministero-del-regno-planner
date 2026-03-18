@@ -22,14 +22,14 @@ val outputModule = module {
     single<AssignmentsRenderer> { PdfAssignmentsRenderer() }
     single<ProgramRenderer> { PdfProgramRenderer() }
     single<FileOpener> { DesktopFileOpener() }
-    single { GeneraImmaginiAssegnazioniUseCase(get(), get(), get(), get(), get()) }
-    single { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
+    factory { GeneraImmaginiAssegnazioniUseCase(get(), get(), get(), get(), get()) }
+    factory { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
 
     // Slip delivery
     single<SlipDeliveryStore> { SqlDelightSlipDeliveryStore(get()) }
-    single { SegnaComInviatoUseCase(get(), get()) }
-    single { AnnullaConsegnaUseCase(get(), get()) }
-    single { CaricaStatoConsegneUseCase(get()) }
-    single { VerificaConsegnaPreAssegnazioneUseCase(get()) }
-    single { CaricaRiepilogoConsegneProgrammaUseCase(get(), get(), get()) }
+    factory { SegnaComInviatoUseCase(get(), get()) }
+    factory { AnnullaConsegnaUseCase(get(), get()) }
+    factory { CaricaStatoConsegneUseCase(get()) }
+    factory { VerificaConsegnaPreAssegnazioneUseCase(get()) }
+    factory { CaricaRiepilogoConsegneProgrammaUseCase(get(), get(), get()) }
 }

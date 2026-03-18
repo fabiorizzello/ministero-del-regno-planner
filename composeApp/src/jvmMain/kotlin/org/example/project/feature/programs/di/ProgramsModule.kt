@@ -12,9 +12,9 @@ import org.koin.dsl.module
 val programsModule = module {
     // Programs (monthly)
     single<ProgramStore> { SqlDelightProgramStore(get()) }
-    single { CreaProssimoProgrammaUseCase(get(), get()) }
-    single { CaricaProgrammiAttiviUseCase(get()) }
-    single { EliminaProgrammaUseCase(get(), get(), get()) }
-    single { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }
-    single { AggiornaProgrammaDaSchemiUseCase(get(), get(), get(), get(), get()) }
+    factory { CreaProssimoProgrammaUseCase(get(), get()) }
+    factory { CaricaProgrammiAttiviUseCase(get()) }
+    factory { EliminaProgrammaUseCase(get(), get(), get()) }
+    factory { GeneraSettimaneProgrammaUseCase(get(), get(), get(), get(), get()) }
+    factory { AggiornaProgrammaDaSchemiUseCase(get(), get(), get(), get(), get()) }
 }

@@ -12,8 +12,8 @@ import org.koin.dsl.module
 
 val diagnosticsModule = module {
     single<DiagnosticsStore> { SqlDelightDiagnosticsStore(get()) }
-    single { ContaStoricoUseCase(get()) }
-    single {
+    factory { ContaStoricoUseCase(get()) }
+    factory {
         EliminaStoricoUseCase(
             store = get(),
             transactionRunner = get(),
