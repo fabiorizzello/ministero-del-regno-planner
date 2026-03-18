@@ -7,7 +7,13 @@ schemas, print+assignments), 2026-03-12.
 
 ## Findings aperti
 
-(nessuno)
+### Update review (round 6, 2026-03-18)
+
+- **UPD-H01** — Launch failure invisibile: quando `avviaInstallazionePreparata` fallisce, `restartRequired` resta `true` e la UI prioritizza il pulsante "Riavvia" sopra lo stato errore, nascondendo il messaggio all'utente. File: `UpdateCenterViewModel.kt:162-176`, `AppScreen.kt:810,759,946`
+- **UPD-M05** — Dead code in AppScreen.kt: `legacyUpdateVersionSummary()` (riga 957, `@Suppress("unused")`), `UpdateJourneyStatus` enum (riga 969), `UpdateJourneyPalette` data class (riga 976). Zero reference.
+- **UPD-M06** — Accenti mancanti nei testi UI italiani: "e" → "è", "piu" → "più", "gia" → "già" in 6 punti di `AppScreen.kt` (righe 790, 935, 938, 940, 941, 942)
+- **UPD-L01** — Cache validation accetta qualsiasi file quando `sizeBytes=0`: `AggiornaApplicazione.kt:286` usa `asset.sizeBytes <= 0L || currentSize == asset.sizeBytes`, un file corrotto verrebbe riusato se la size non è nota
+- **UPD-L02** — Test gap: scenari non coperti — download ok + prep fallisce, `restartToInstall` senza `pendingInstall`, `startUpdate` durante download, release senza asset
 
 ### Debito accettato
 
@@ -56,12 +62,15 @@ schemas, print+assignments), 2026-03-12.
 - MEDIUM-021 — 4 query SQL orfane → `143bf69`
 - MEDIUM-022 — Test gap partial failure AutoAssegna → `5030fc8`
 
----
-
 ### Update review (round 5, 2026-03-13)
 
-- UPD-M01 â€” Timeout update limitato al solo download installer â†’ `20269ab`
-- UPD-M02 â€” Messaggi errore update orientati all'azione utente â†’ `a920675`
+- UPD-M01 — Timeout update limitato al solo download installer → `20269ab`
+- UPD-M02 — Messaggi errore update orientati all’azione utente → `a920675`
+
+### Update review fix (round 6, 2026-03-18)
+
+- UPD-M03 — Rimosso BETA channel dal codice, allineato a spec → `356434b`
+- UPD-M04 — Allineata spec User Story 2 all’implementazione reale (external updater) → `30e99d6`
 
 ---
 
@@ -93,3 +102,5 @@ schemas, print+assignments), 2026-03-12.
 | 2026-03-12 | post-merge round 3 (MEDIUM-018/019) | full suite | 0 |
 | 2026-03-12 | post-merge round 4 (MEDIUM-021/022) | full suite | 0 |
 | 2026-03-13 | post-merge round 5 (UPD-M01/UPD-M02) | full suite | 0 |
+| 2026-03-18 | review round 6 (update feature) | update tests | 0 |
+| 2026-03-18 | post-fix UPD-M03 (worktree) | full suite | 0 |
