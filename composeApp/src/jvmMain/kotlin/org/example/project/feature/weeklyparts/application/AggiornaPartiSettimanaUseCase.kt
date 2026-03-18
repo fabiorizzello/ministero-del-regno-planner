@@ -37,10 +37,8 @@ class AggiornaPartiSettimanaUseCase(
             ifLeft = { raise(it) },
             ifRight = { it },
         )
-        Either.catch {
-            transactionRunner.runInTransaction {
-                weekPlanStore.saveAggregate(updated)
-            }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio settimana") }.bind()
+        transactionRunner.runInTransactionEither {
+            Either.Right(weekPlanStore.saveAggregate(updated))
+        }.bind()
     }
 }
