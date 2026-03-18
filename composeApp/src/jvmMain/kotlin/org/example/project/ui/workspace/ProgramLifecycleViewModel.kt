@@ -29,6 +29,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.executeEitherOperationWithNotice
 import org.example.project.core.domain.toMessage
@@ -103,8 +104,16 @@ internal class ProgramLifecycleViewModel(
 
     private fun loadPartTypes() {
         scope.launch {
-            val partTypes = cercaTipiParte()
-            _state.update { it.copy(partTypes = partTypes) }
+            _state.executeAsyncOperation(
+                loadingUpdate = { it },
+                successUpdate = { state, types -> state.copy(partTypes = types) },
+                errorUpdate = { state, error ->
+                    state.copy(
+                        notice = errorNotice("Errore caricamento tipi parte: ${error.message}"),
+                    )
+                },
+                operation = { cercaTipiParte() },
+            )
         }
     }
 
