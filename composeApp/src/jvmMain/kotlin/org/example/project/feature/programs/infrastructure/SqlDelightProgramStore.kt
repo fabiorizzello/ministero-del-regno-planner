@@ -17,7 +17,6 @@ class SqlDelightProgramStore(
             .listProgramsCurrentAndFuture(referenceDate.toString(), ::mapProgramRow)
             .executeAsList()
             .distinctBy { it.yearMonth }
-            .sortedBy { it.yearMonth }
     }
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? {
