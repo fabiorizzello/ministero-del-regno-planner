@@ -23,9 +23,8 @@ class VerificaAggiornamenti(
 
     suspend operator fun invoke(): Either<DomainError, UpdateCheckResult> = withContext(dispatcher) {
         val now = Instant.now()
-        val channel = settingsStore.loadChannel()
         val result = either<DomainError, UpdateCheckResult> {
-            val release = releaseSource.fetchLatestRelease(channel).bind()
+            val release = releaseSource.fetchLatestRelease().bind()
             val currentVersion = AppVersion.current
             val latestVersion = release?.version
             val updateAvailable = if (latestVersion.isNullOrBlank() || currentVersion == "unknown") {
