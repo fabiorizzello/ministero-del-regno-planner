@@ -66,7 +66,8 @@ CREATE TABLE schema_week_part (
     part_type_id TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (schema_week_id) REFERENCES schema_week(id) ON DELETE CASCADE,
-    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT,
+    UNIQUE(schema_week_id, sort_order)
 );
 
 CREATE INDEX IF NOT EXISTS schema_week_part_week_id_idx
