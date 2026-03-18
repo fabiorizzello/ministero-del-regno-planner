@@ -85,7 +85,7 @@ class AssignmentManagementViewModelTest {
         val autoAssegna = mockk<AutoAssegnaProgrammaUseCase>()
         coEvery { autoAssegna(any(), any()) } coAnswers {
             blocker.await()
-            AutoAssignProgramResult(assignedCount = 1, unresolved = emptyList())
+            Either.Right(AutoAssignProgramResult(assignedCount = 1, unresolved = emptyList()))
         }
 
         val vm = makeViewModel(scope = this, autoAssegna = autoAssegna)
@@ -106,7 +106,7 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `autoAssignSelectedProgram chiama onSuccess solo quando ha successo`() = runTest {
         val autoAssegna = mockk<AutoAssegnaProgrammaUseCase>()
-        coEvery { autoAssegna(any(), any()) } returns AutoAssignProgramResult(2, emptyList())
+        coEvery { autoAssegna(any(), any()) } returns Either.Right(AutoAssignProgramResult(2, emptyList()))
 
         val vm = makeViewModel(scope = this, autoAssegna = autoAssegna)
 
@@ -121,7 +121,7 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `autoAssignSelectedProgram non chiama onSuccess in caso di errore`() = runTest {
         val autoAssegna = mockk<AutoAssegnaProgrammaUseCase>()
-        coEvery { autoAssegna(any(), any()) } throws RuntimeException("db error")
+        coEvery { autoAssegna(any(), any()) } returns Either.Left(DomainError.Validation("db error"))
 
         val vm = makeViewModel(scope = this, autoAssegna = autoAssegna)
 
@@ -144,10 +144,10 @@ class AssignmentManagementViewModelTest {
             ),
         )
         val autoAssegna = mockk<AutoAssegnaProgrammaUseCase>()
-        coEvery { autoAssegna(any(), any()) } returns AutoAssignProgramResult(
+        coEvery { autoAssegna(any(), any()) } returns Either.Right(AutoAssignProgramResult(
             assignedCount = 3,
             unresolved = unresolved,
-        )
+        ))
 
         val vm = makeViewModel(scope = this, autoAssegna = autoAssegna)
         vm.autoAssignSelectedProgram(programId, referenceDate, onSuccess = {})

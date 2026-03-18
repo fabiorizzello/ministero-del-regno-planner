@@ -188,7 +188,7 @@ internal class AssignmentManagementViewModel(
         if (_uiState.value.isAutoAssigning) return
         scope.launch {
             var shouldReload = false
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isAutoAssigning = true) },
                 successUpdate = { state, result ->
                     shouldReload = true
@@ -207,7 +207,7 @@ internal class AssignmentManagementViewModel(
                 errorUpdate = { state, error ->
                     state.copy(
                         isAutoAssigning = false,
-                        notice = errorNotice("Errore autoassegnazione: ${error.message}"),
+                        notice = errorNotice(error.toMessage()),
                     )
                 },
                 operation = {
