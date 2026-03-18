@@ -59,7 +59,7 @@ class RiordinaPartiUseCaseTest {
             )
 
             val left = assertIs<Either.Left<DomainError>>(result).value
-            assertIs<DomainError.RiordinoPartiFallito>(left)
+            assertIs<DomainError.Validation>(left)
         }
     }
 }

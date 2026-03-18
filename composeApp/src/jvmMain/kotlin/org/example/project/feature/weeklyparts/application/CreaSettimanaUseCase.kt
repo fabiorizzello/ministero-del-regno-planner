@@ -31,11 +31,9 @@ class CreaSettimanaUseCase(
             fixedPartId = WeeklyPartId(UUID.randomUUID().toString()),
             fixedPartRevisionId = revisionId,
         ).bind()
-        Either.catch {
-            transactionRunner.runInTransaction {
-                weekPlanStore.saveAggregate(aggregate)
-            }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio settimana") }.bind()
+        transactionRunner.runInTransactionEither {
+            Either.Right(weekPlanStore.saveAggregate(aggregate))
+        }.bind()
 
         weekPlanStore.loadAggregateByDate(weekStartDate)?.weekPlan
             ?: raise(DomainError.SalvataggioSettimanaFallito)
