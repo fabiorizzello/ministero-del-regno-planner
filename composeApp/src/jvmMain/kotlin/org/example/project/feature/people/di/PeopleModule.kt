@@ -25,14 +25,14 @@ val peopleModule = module {
     single<EligibilityStore> { SqlDelightEligibilityStore(get()) }
 
     // Use Cases
-    single { CercaProclamatoriUseCase(get()) }
-    single { CaricaProclamatoreUseCase(get()) }
-    single { CreaProclamatoreUseCase(get(), get(), get()) }
-    single { ImportaProclamatoriDaJsonUseCase(get(), get(), get()) }
-    single { AggiornaProclamatoreUseCase(get(), get(), get(), get()) }
-    single { ImpostaIdoneitaAssistenzaUseCase(get(), get()) }
-    single { ImpostaIdoneitaConduzioneUseCase(get(), get()) }
-    single { CaricaIdoneitaProclamatoreUseCase(get()) }
-    single { EliminaProclamatoreUseCase(get(), get(), get()) }
-    single { VerificaDuplicatoProclamatoreUseCase(get()) }
+    factory { CercaProclamatoriUseCase(get()) }
+    factory { CaricaProclamatoreUseCase(get()) }
+    factory { CreaProclamatoreUseCase(get(), get(), get()) }
+    factory { ImportaProclamatoriDaJsonUseCase(get(), get(), get()) }
+    factory { AggiornaProclamatoreUseCase(get(), get(), get(), get()) }
+    factory { ImpostaIdoneitaAssistenzaUseCase(get(), get()) }
+    factory { ImpostaIdoneitaConduzioneUseCase(get(), get()) }
+    factory { CaricaIdoneitaProclamatoreUseCase(get()) }
+    factory { EliminaProclamatoreUseCase(get(), get(), get()) }
+    factory { VerificaDuplicatoProclamatoreUseCase(get()) }
 }

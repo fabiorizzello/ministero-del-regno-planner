@@ -21,6 +21,6 @@ val schemasModule = module {
             schemasCatalogUrl = RemoteConfig.SCHEMAS_CATALOG_URL,
         )
     }
-    single { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get(), get()) }
-    single { ArchivaAnomalieSchemaUseCase(get(), get()) }
+    factory { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get(), get()) }
+    factory { ArchivaAnomalieSchemaUseCase(get(), get()) }
 }

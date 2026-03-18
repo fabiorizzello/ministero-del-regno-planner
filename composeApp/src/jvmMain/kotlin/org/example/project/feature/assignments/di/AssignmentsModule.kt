@@ -26,14 +26,15 @@ val assignmentsModule = module {
     single<AssignmentRepository> { get<SqlDelightAssignmentStore>() }
     single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
     single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
-    single { CaricaImpostazioniAssegnatoreUseCase(get()) }
-    single { SalvaImpostazioniAssegnatoreUseCase(get(), get()) }
-    single { CaricaAssegnazioniUseCase(get(), get()) }
-    single { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
-    single { RimuoviAssegnazioneUseCase(get(), get()) }
-    single { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
-    single { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
+    factory { CaricaImpostazioniAssegnatoreUseCase(get()) }
+    factory { SalvaImpostazioniAssegnatoreUseCase(get(), get()) }
+    factory { CaricaAssegnazioniUseCase(get(), get()) }
+    factory { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
+    factory { RimuoviAssegnazioneUseCase(get(), get()) }
+    factory { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
+    factory { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
+    // single: class-level Mutex must be shared across all callers
     single { AutoAssegnaProgrammaUseCase(get(), get(), get(), get(), get(), get(), get()) }
-    single { ContaAssegnazioniPersonaUseCase(get()) }
-    single { SvuotaAssegnazioniProgrammaUseCase(get(), get()) }
+    factory { ContaAssegnazioniPersonaUseCase(get()) }
+    factory { SvuotaAssegnazioniProgrammaUseCase(get(), get()) }
 }

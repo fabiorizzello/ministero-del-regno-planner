@@ -22,12 +22,12 @@ val weeklyPartsModule = module {
     single<WeekPlanQueries> { get<WeekPlanStore>() }
 
     // Use cases
-    single { CaricaSettimanaUseCase(get()) }
-    single { CreaSettimanaUseCase(get(), get(), get()) }
-    single { AggiungiParteUseCase(get(), get(), get()) }
-    single { RimuoviParteUseCase(get(), get()) }
-    single { RiordinaPartiUseCase(get(), get()) }
-    single { AggiornaPartiSettimanaUseCase(get(), get(), get()) }
-    single { ImpostaStatoSettimanaUseCase(get(), get()) }
-    single { CercaTipiParteUseCase(get()) }
+    factory { CaricaSettimanaUseCase(get()) }
+    factory { CreaSettimanaUseCase(get(), get(), get()) }
+    factory { AggiungiParteUseCase(get(), get(), get()) }
+    factory { RimuoviParteUseCase(get(), get()) }
+    factory { RiordinaPartiUseCase(get(), get()) }
+    factory { AggiornaPartiSettimanaUseCase(get(), get(), get()) }
+    factory { ImpostaStatoSettimanaUseCase(get(), get()) }
+    factory { CercaTipiParteUseCase(get()) }
 }
