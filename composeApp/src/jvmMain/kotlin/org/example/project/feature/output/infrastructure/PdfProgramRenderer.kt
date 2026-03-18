@@ -14,34 +14,9 @@ import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
-
-data class ProgramWeekPrintSlot(
-    val roleLabel: String?,
-    val assignedTo: String,
-    val isAssigned: Boolean,
-)
-
-enum class ProgramWeekPrintCardStatus {
-    EMPTY,
-    PARTIAL,
-    ASSIGNED,
-}
-
-data class ProgramWeekPrintCard(
-    val displayNumber: Int,
-    val partLabel: String,
-    val status: ProgramWeekPrintCardStatus,
-    val statusLabel: String,
-    val slots: List<ProgramWeekPrintSlot>,
-)
-
-data class ProgramWeekPrintSection(
-    val weekStartDate: LocalDate,
-    val weekEndDate: LocalDate,
-    val statusLabel: String,
-    val cards: List<ProgramWeekPrintCard>,
-    val emptyStateLabel: String? = null,
-)
+import org.example.project.feature.output.application.ProgramWeekPrintCard
+import org.example.project.feature.output.application.ProgramWeekPrintSection
+import org.example.project.feature.output.application.ProgramWeekPrintSlot
 
 class PdfProgramRenderer {
     private val columnCount = 3

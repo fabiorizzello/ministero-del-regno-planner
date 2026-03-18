@@ -4,6 +4,10 @@ import java.nio.file.Files
 import java.time.LocalDate
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.text.PDFTextStripper
+import org.example.project.feature.output.application.ProgramWeekPrintCard
+import org.example.project.feature.output.application.ProgramWeekPrintCardStatus
+import org.example.project.feature.output.application.ProgramWeekPrintSection
+import org.example.project.feature.output.application.ProgramWeekPrintSlot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
