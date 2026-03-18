@@ -170,13 +170,13 @@ internal class AssignmentManagementViewModel(
         }
 
         scope.launch {
-            _uiState.executeAsyncOperation(
+            _uiState.executeEitherOperation(
                 loadingUpdate = { it.copy(isSavingAssignmentSettings = true) },
                 successUpdate = { state, _ -> state.copy(isSavingAssignmentSettings = false, settingsSaved = true) },
                 errorUpdate = { state, error ->
                     state.copy(
                         isSavingAssignmentSettings = false,
-                        notice = errorNotice("Errore salvataggio impostazioni: ${error.message}"),
+                        notice = errorNotice(error.toMessage()),
                     )
                 },
                 operation = { salvaImpostazioniAssegnatore(parsed) },
