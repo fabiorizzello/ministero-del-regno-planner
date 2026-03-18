@@ -1,7 +1,6 @@
 package org.example.project.feature.people.application
 
 import arrow.core.Either
-import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -20,11 +19,10 @@ class ImpostaIdoneitaConduzioneUseCase(
         personId: ProclamatoreId,
         partTypeId: PartTypeId,
         canLead: Boolean,
-    ): Either<DomainError, Unit> = either {
-        Either.catch {
-            transactionRunner.runInTransaction { eligibilityStore.setCanLead(personId, partTypeId, canLead) }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio idoneità") }.bind()
-    }
+    ): Either<DomainError, Unit> =
+        transactionRunner.runInTransactionEither {
+            Either.Right(eligibilityStore.setCanLead(personId, partTypeId, canLead))
+        }
 
     /**
      * Persists all [changes] for [personId] atomically in a single transaction.
@@ -33,11 +31,10 @@ class ImpostaIdoneitaConduzioneUseCase(
     suspend fun batch(
         personId: ProclamatoreId,
         changes: List<EligibilityChange>,
-    ): Either<DomainError, Unit> = Either.catch {
-        transactionRunner.runInTransaction {
-            changes.forEach { change ->
+    ): Either<DomainError, Unit> =
+        transactionRunner.runInTransactionEither {
+            Either.Right(changes.forEach { change ->
                 eligibilityStore.setCanLead(personId, change.partTypeId, change.canLead)
-            }
+            })
         }
-    }.mapLeft { DomainError.Validation(it.message ?: "Errore salvataggio idoneità") }
 }

@@ -47,9 +47,9 @@ class AggiornaProclamatoreUseCase(
             sospeso = command.sospeso,
             puoAssistere = command.puoAssistere,
         ).bind().person
-        Either.catch {
-            transactionRunner.runInTransaction { store.persist(aggiornato) }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore aggiornamento proclamatore") }.bind()
+        transactionRunner.runInTransactionEither {
+            Either.Right(store.persist(aggiornato))
+        }.bind()
 
         val futureWeeks = if (!corrente.sospeso && command.sospeso) {
             eligibilityStore.listFutureAssignmentWeeks(command.id, LocalDate.now())
