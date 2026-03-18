@@ -436,7 +436,8 @@ SELECT
     a.slot
 FROM assignment a
 JOIN weekly_part wp ON a.weekly_part_id = wp.id
-JOIN week_plan wpl ON wp.week_plan_id = wpl.id;
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE wpl.week_start_date >= ?;
 
 -- Diagnostics queries
 countWeekPlansBeforeDate:

@@ -16,6 +16,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.assignments.application.COUNT_WINDOW_WEEKS
+import org.example.project.feature.assignments.application.RANKING_HISTORY_WEEKS
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
@@ -79,9 +80,12 @@ class SqlDelightAssignmentStore(
         referenceDates: Set<LocalDate>,
         partTypeIds: Set<PartTypeId>,
     ): SuggestionRankingCache {
-        // Two queries: one bulk fetch of all assignment data, one for active proclaimers
+        // Limit the ranking query to a generous time window: the earliest reference date
+        // minus RANKING_HISTORY_WEEKS. This covers COUNT_WINDOW_WEEKS for counting plus
+        // ample margin for ranking differentiation, while avoiding unbounded full-table scans.
+        val sinceDate = referenceDates.min().minusWeeks(RANKING_HISTORY_WEEKS)
         val rawRows = database.ministeroDatabaseQueries
-            .allAssignmentRankingData()
+            .allAssignmentRankingData(sinceDate.toString())
             .executeAsList()
 
         val allActive = database.ministeroDatabaseQueries
