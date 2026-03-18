@@ -1,5 +1,6 @@
 package org.example.project.feature.assignments
 
+import arrow.core.getOrElse
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -66,7 +67,7 @@ class SexMismatchPolicyTest {
         val result = autoAssign(
             programId = fixture.programId,
             referenceDate = fixture.week.weekStartDate,
-        )
+        ).getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(1, result.unresolved.size)

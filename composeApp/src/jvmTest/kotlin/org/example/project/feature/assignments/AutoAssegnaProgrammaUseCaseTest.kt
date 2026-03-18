@@ -1,5 +1,6 @@
 package org.example.project.feature.assignments
 
+import arrow.core.getOrElse
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -117,6 +118,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         val useCase = buildUseCase(weekStore = weekStore)
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
         val saved = weekStore.loadAggregateByDate(weekStart)
 
         assertEquals(1, result.assignedCount)
@@ -136,6 +138,7 @@ class AutoAssegnaProgrammaUseCaseTest {
 
         // Use a different programId so listByProgram returns empty
         val result = useCase(programId = ProgramMonthId("nonexistent"), referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(0, result.unresolved.size)
@@ -162,6 +165,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         val useCase = buildUseCase(weekStore = weekStore)
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(0, result.unresolved.size)
@@ -191,6 +195,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(1, result.unresolved.size)
@@ -220,6 +225,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(1, result.unresolved.size)
@@ -246,6 +252,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(1, result.unresolved.size)
@@ -313,6 +320,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         )
 
         val result = useCase(programId = programId, referenceDate = weekStart)
+            .getOrElse { error("Unexpected Left: $it") }
         val saved = weekStore.loadAggregateByDate(weekStart)
 
         // Slot 1 succeeded, slot 2 failed
@@ -385,6 +393,7 @@ class AutoAssegnaProgrammaUseCaseTest {
         // referenceDate is after the week start, so the week is excluded
         val futureDate = weekStart.plusWeeks(1)
         val result = useCase(programId = programId, referenceDate = futureDate)
+            .getOrElse { error("Unexpected Left: $it") }
 
         assertEquals(0, result.assignedCount)
         assertEquals(0, result.unresolved.size)

@@ -1,7 +1,10 @@
 package org.example.project.feature.assignments.application
 
+import arrow.core.Either
+import arrow.core.raise.either
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
@@ -40,9 +43,9 @@ class AutoAssegnaProgrammaUseCase(
     suspend operator fun invoke(
         programId: ProgramMonthId,
         referenceDate: LocalDate,
-    ): AutoAssignProgramResult = mutex.withLock {
-        transactionRunner.runInTransaction {
-            doAssign(programId, referenceDate)
+    ): Either<DomainError, AutoAssignProgramResult> = mutex.withLock {
+        transactionRunner.runInTransactionEither {
+            either { doAssign(programId, referenceDate) }
         }
     }
 
