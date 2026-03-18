@@ -56,7 +56,7 @@ class ArchivaAnomalieSchemaUseCaseTest {
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         val validation = assertIs<DomainError.Validation>(left)
-        assertEquals("Errore archiviazione anomalie: connection lost", validation.message)
+        assertEquals("connection lost", validation.message)
         Unit
     }
 }

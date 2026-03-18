@@ -9,9 +9,7 @@ class ArchivaAnomalieSchemaUseCase(
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(): Either<DomainError, Unit> =
-        Either.catch {
-            transactionRunner.runInTransaction {
-                store.dismissAllOpen()
-            }
-        }.mapLeft { DomainError.Validation("Errore archiviazione anomalie: ${it.message}") }
+        transactionRunner.runInTransactionEither {
+            Either.Right(store.dismissAllOpen())
+        }
 }
