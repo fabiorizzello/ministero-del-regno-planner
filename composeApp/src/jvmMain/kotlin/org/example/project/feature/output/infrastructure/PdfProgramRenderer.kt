@@ -14,36 +14,12 @@ import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
+import org.example.project.feature.output.application.ProgramRenderer
+import org.example.project.feature.output.application.ProgramWeekPrintCard
+import org.example.project.feature.output.application.ProgramWeekPrintSection
+import org.example.project.feature.output.application.ProgramWeekPrintSlot
 
-data class ProgramWeekPrintSlot(
-    val roleLabel: String?,
-    val assignedTo: String,
-    val isAssigned: Boolean,
-)
-
-enum class ProgramWeekPrintCardStatus {
-    EMPTY,
-    PARTIAL,
-    ASSIGNED,
-}
-
-data class ProgramWeekPrintCard(
-    val displayNumber: Int,
-    val partLabel: String,
-    val status: ProgramWeekPrintCardStatus,
-    val statusLabel: String,
-    val slots: List<ProgramWeekPrintSlot>,
-)
-
-data class ProgramWeekPrintSection(
-    val weekStartDate: LocalDate,
-    val weekEndDate: LocalDate,
-    val statusLabel: String,
-    val cards: List<ProgramWeekPrintCard>,
-    val emptyStateLabel: String? = null,
-)
-
-class PdfProgramRenderer {
+class PdfProgramRenderer : ProgramRenderer {
     private val columnCount = 3
     private val weekDateFormatter = DateTimeFormatter.ofPattern("d MMMM", Locale.ITALIAN)
     private val fallbackRegular = PDType1Font(Standard14Fonts.FontName.HELVETICA)
@@ -52,7 +28,7 @@ class PdfProgramRenderer {
     private val primaryInk = Color(20, 20, 20)
     private val mutedInk = Color(85, 85, 85)
 
-    fun renderMonthlyProgramPdf(
+    override fun renderMonthlyProgramPdf(
         title: String,
         sections: List<ProgramWeekPrintSection>,
         outputPath: Path,

@@ -13,6 +13,8 @@ import org.example.project.feature.assignments.application.CaricaAssegnazioniUse
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
+import org.example.project.feature.output.application.AssignmentsRenderer
+import org.example.project.feature.output.application.AssignmentSlipData
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -38,7 +40,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 
-class GeneraImmaginiAssegnazioniTest {
+class GeneraImmaginiAssegnazioniUseCaseTest {
 
     @Test
     fun `generateProgramTickets crea png del mese, pulisce i vecchi e mantiene i metadati ordinati`() = runTest {
@@ -91,16 +93,15 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -146,16 +147,15 @@ class GeneraImmaginiAssegnazioniTest {
                 assignment("a3", week.parts[2].id, "p-z", "Zeno", "Verdi", slot = 2),   // Studio slot 2
             ),
         )
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -208,16 +208,15 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -231,7 +230,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         coEvery { programStore.findById(programId) } returns null
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = mockk(),
             caricaAssegnazioni = mockk(),
@@ -251,7 +250,7 @@ class GeneraImmaginiAssegnazioniTest {
         val weekPlanQueries = mockk<WeekPlanQueries>()
         coEvery { weekPlanQueries.findByDate(weekDate) } returns null
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
@@ -283,7 +282,7 @@ class GeneraImmaginiAssegnazioniTest {
             assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
@@ -312,7 +311,7 @@ class GeneraImmaginiAssegnazioniTest {
         val weekPlanQueries = mockk<WeekPlanQueries>()
         coEvery { weekPlanQueries.listByProgram(programId) } returns emptyList()
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
@@ -353,14 +352,13 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
+            renderer = TestAssignmentsRenderer { _, _ -> throw RuntimeException("PDF rendering fallito") },
             outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, _ -> throw RuntimeException("PDF rendering fallito") },
         )
 
         val result = useCase.generateProgramTickets(programId)
@@ -434,4 +432,18 @@ class GeneraImmaginiAssegnazioniTest {
             sesso = Sesso.M,
         ),
     )
+
+    /**
+     * Wraps the real [PdfAssignmentsRenderer] but substitutes [renderPdfToImage]
+     * with a test-controlled function.
+     */
+    private class TestAssignmentsRenderer(
+        private val delegate: PdfAssignmentsRenderer = PdfAssignmentsRenderer(),
+        private val pdfToImage: (java.nio.file.Path, java.nio.file.Path) -> Unit,
+    ) : AssignmentsRenderer {
+        override fun renderAssignmentSlipPdf(slip: AssignmentSlipData, outputPath: java.nio.file.Path) =
+            delegate.renderAssignmentSlipPdf(slip, outputPath)
+        override fun renderPdfToImage(pdfPath: java.nio.file.Path, pngPath: java.nio.file.Path) =
+            pdfToImage(pdfPath, pngPath)
+    }
 }

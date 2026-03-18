@@ -12,17 +12,12 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.output.infrastructure.PdfProgramRenderer
-import org.example.project.feature.output.infrastructure.ProgramWeekPrintCard
-import org.example.project.feature.output.infrastructure.ProgramWeekPrintCardStatus
-import org.example.project.feature.output.infrastructure.ProgramWeekPrintSection
-import org.example.project.feature.output.infrastructure.ProgramWeekPrintSlot
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.ui.components.formatMonthYearLabel
+import org.example.project.core.formatting.formatMonthYearLabel
 
 internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
     WeekPlanStatus.ACTIVE -> "Attiva"
@@ -103,7 +98,7 @@ class StampaProgrammaUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
-    private val renderer: PdfProgramRenderer,
+    private val renderer: ProgramRenderer,
     private val fileOpener: FileOpener,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val programExportDirProvider: () -> Path = { AppRuntime.paths().exportsDir.resolve("programmi") },

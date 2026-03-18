@@ -17,7 +17,7 @@ import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
-import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioniUseCase
 import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.StampaProgrammaUseCase
@@ -78,7 +78,7 @@ internal class AssignmentManagementViewModel(
     private val svuotaAssegnazioni: SvuotaAssegnazioniProgrammaUseCase,
     private val rimuoviAssegnazioniSettimana: RimuoviAssegnazioniSettimanaUseCase,
     private val stampaProgramma: StampaProgrammaUseCase,
-    private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioni,
+    private val generaImmaginiAssegnazioni: GeneraImmaginiAssegnazioniUseCase,
     private val settings: Settings,
     private val segnaComInviato: SegnaComInviatoUseCase,
     private val annullaConsegna: AnnullaConsegnaUseCase,
