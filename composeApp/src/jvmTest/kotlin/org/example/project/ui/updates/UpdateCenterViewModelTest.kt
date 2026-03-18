@@ -3,12 +3,14 @@ package org.example.project.ui.updates
 import arrow.core.Either
 import com.sun.net.httpserver.HttpServer
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -341,6 +343,218 @@ class UpdateCenterViewModelTest {
                 state.statusText,
             )
             assertNull(state.downloadProgress)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun `download succeeds but preparation fails leaves error state without restart`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+        )
+
+        try {
+            val asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 100)
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = asset,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            val fakePath = Path.of("/tmp/fake-installer.msi")
+            coEvery { aggiornaApplicazione.downloadInstaller(asset, any()) } returns Either.Right(fakePath)
+            coEvery { aggiornaApplicazione.preparaInstallazione(fakePath) } returns
+                Either.Left(DomainError.Validation("Impossibile preparare installazione"))
+
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            val state = vm.state.value
+            assertTrue(state.hasError)
+            assertFalse(state.restartRequired)
+            assertFalse(state.isInstalling)
+            assertEquals(
+                "Non riesco a preparare l'installazione automatica su questo computer.",
+                state.statusText,
+            )
+            // pendingInstall should be null — verify indirectly: restartToInstall should be a no-op
+            var exitCalled = false
+            vm.restartToInstall { exitCalled = true }
+            assertFalse(exitCalled, "onExit should not be called when pendingInstall is null after prep failure")
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun `restartToInstall without pendingInstall is a no-op`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>(relaxed = true)
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = try {
+            UpdateCenterViewModel(
+                scope = vmScope,
+                verificaAggiornamenti = verificaAggiornamenti,
+                aggiornaApplicazione = aggiornaApplicazione,
+                updateStatusStore = UpdateStatusStore(),
+                updateSettingsStore = updateSettingsStore,
+            )
+        } catch (error: Throwable) {
+            vmScope.cancel()
+            throw error
+        }
+
+        try {
+            val stateBefore = vm.state.value
+
+            var exitCalled = false
+            vm.restartToInstall { exitCalled = true }
+
+            assertFalse(exitCalled, "onExit should not be called when pendingInstall is null")
+            val stateAfter = vm.state.value
+            assertFalse(stateAfter.hasError, "State should remain unchanged — no error")
+            assertEquals(stateBefore, stateAfter, "State should be completely unchanged")
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun `second startUpdate during active download is rejected by isBusy guard`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+        )
+
+        try {
+            val asset = UpdateAsset("planner.msi", "https://example.test/planner.msi", 100)
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = asset,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            // First download stays in progress via CompletableDeferred
+            val downloadGate = CompletableDeferred<Either<DomainError, Path>>()
+            coEvery { aggiornaApplicazione.downloadInstaller(asset, any()) } coAnswers {
+                downloadGate.await()
+            }
+
+            // Start first download
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            // Verify download is in progress
+            assertTrue(vm.state.value.isDownloading, "First download should be in progress")
+
+            // Attempt second download — should be rejected
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            // Only one download call should have been made
+            coVerify(exactly = 1) { aggiornaApplicazione.downloadInstaller(asset, any()) }
+
+            // Complete the first download so the coroutine can finish
+            downloadGate.complete(Either.Left(DomainError.Network("cancelled")))
+            advanceUntilIdle()
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun `startUpdate with release but no asset is a no-op`() = runTest {
+        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
+        val updateSettingsStore = mockk<UpdateSettingsStore>()
+        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
+        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
+        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+
+        val vm = UpdateCenterViewModel(
+            scope = vmScope,
+            verificaAggiornamenti = verificaAggiornamenti,
+            aggiornaApplicazione = aggiornaApplicazione,
+            updateStatusStore = UpdateStatusStore(),
+            updateSettingsStore = updateSettingsStore,
+        )
+
+        try {
+            // Set up state where updateAvailable=true but asset=null
+            applyUpdateResult(
+                vm,
+                Either.Right(
+                    UpdateCheckResult(
+                        currentVersion = "1.0.0",
+                        latestVersion = "v1.1.0",
+                        updateAvailable = true,
+                        asset = null,
+                        releaseTitle = "v1.1.0",
+                        releaseNotes = "Migliorie",
+                        source = UpdateSource.GITHUB,
+                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
+                    ),
+                ),
+            )
+
+            assertTrue(vm.state.value.updateAvailable)
+            assertNull(vm.state.value.updateAsset)
+
+            val stateBefore = vm.state.value
+
+            vm.startUpdate()
+            advanceUntilIdle()
+
+            // State should be unchanged — startUpdate returned early
+            val stateAfter = vm.state.value
+            assertFalse(stateAfter.isDownloading, "No download should have started")
+            assertFalse(stateAfter.hasError, "No error should be set")
+            assertEquals(stateBefore, stateAfter, "State should be completely unchanged")
+
+            // Verify no download was triggered
+            coVerify(exactly = 0) { aggiornaApplicazione.downloadInstaller(any(), any()) }
         } finally {
             vmScope.cancel()
         }
