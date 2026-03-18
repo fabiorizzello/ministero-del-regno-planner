@@ -3,16 +3,10 @@ package org.example.project.feature.people.infrastructure
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
-import org.slf4j.LoggerFactory
-
-private val logger = LoggerFactory.getLogger("ProclamatoreRowMapper")
 
 internal fun parseSessoOrDefault(sex: String): Sesso =
     Sesso.entries.find { it.name == sex }
-        ?: run {
-            logger.warn("Sesso sconosciuto '{}' -> fallback a M", sex)
-            Sesso.M
-        }
+        ?: error("Sesso sconosciuto: '$sex'")
 
 internal fun mapProclamatoreAssignableRow(
     id: String,
