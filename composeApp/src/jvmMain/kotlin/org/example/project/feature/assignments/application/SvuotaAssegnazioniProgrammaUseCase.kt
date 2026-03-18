@@ -14,9 +14,7 @@ class SvuotaAssegnazioniProgrammaUseCase(
         assignmentRepository.countByProgramFromDate(programId, fromDate)
 
     suspend fun execute(programId: ProgramMonthId, fromDate: LocalDate): Either<DomainError, Int> =
-        Either.catch {
-            transactionRunner.runInTransaction {
-                assignmentRepository.deleteByProgramFromDate(programId, fromDate)
-            }
-        }.mapLeft { DomainError.RimozioneAssegnazioniFallita(reason = it.message) }
+        transactionRunner.runInTransactionEither {
+            Either.Right(assignmentRepository.deleteByProgramFromDate(programId, fromDate))
+        }
 }

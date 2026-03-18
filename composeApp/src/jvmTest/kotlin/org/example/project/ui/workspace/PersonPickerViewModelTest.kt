@@ -496,7 +496,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `removeAssignment shows error on failure`() = runTest {
         val rimuovi = mockk<RimuoviAssegnazioneUseCase>()
-        coEvery { rimuovi(any()) } returns Either.Left(DomainError.RimozioneAssegnazioniFallita("db error"))
+        coEvery { rimuovi(any()) } returns Either.Left(DomainError.Validation("db error"))
 
         val vm = makeViewModel(scope = this, rimuovi = rimuovi)
 

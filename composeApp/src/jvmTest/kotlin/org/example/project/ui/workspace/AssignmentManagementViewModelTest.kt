@@ -195,7 +195,7 @@ class AssignmentManagementViewModelTest {
     fun `confirmClearAssignments non chiama onSuccess in caso di errore`() = runTest {
         val svuota = mockk<SvuotaAssegnazioniProgrammaUseCase>()
         coEvery { svuota.count(any(), any()) } returns 3
-        coEvery { svuota.execute(any(), any()) } returns Either.Left(DomainError.RimozioneAssegnazioniFallita("db error"))
+        coEvery { svuota.execute(any(), any()) } returns Either.Left(DomainError.Validation("db error"))
 
         val vm = makeViewModel(scope = this, svuota = svuota)
         vm.requestClearAssignments(programId, referenceDate)

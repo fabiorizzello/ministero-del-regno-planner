@@ -10,9 +10,7 @@ class RimuoviAssegnazioneUseCase(
     private val transactionRunner: TransactionRunner,
 ) {
     suspend operator fun invoke(assignmentId: AssignmentId): Either<DomainError, Unit> =
-        Either.catch {
-            transactionRunner.runInTransaction {
-                assignmentStore.remove(assignmentId)
-            }
-        }.mapLeft { DomainError.RimozioneAssegnazioniFallita(it.message) }
+        transactionRunner.runInTransactionEither {
+            Either.Right(assignmentStore.remove(assignmentId))
+        }
 }
