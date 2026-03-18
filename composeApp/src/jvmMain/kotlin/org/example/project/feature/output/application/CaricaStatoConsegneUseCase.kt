@@ -1,5 +1,6 @@
 package org.example.project.feature.output.application
 
+import java.time.Instant
 import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -19,7 +20,7 @@ class CaricaStatoConsegneUseCase(
         val activeByKey = active.associateBy { it.weeklyPartId to it.weekPlanId }
         val cancelledByKey = cancelled
             .groupBy { it.weeklyPartId to it.weekPlanId }
-            .mapValues { (_, list) -> list.maxByOrNull { requireNotNull(it.cancelledAt) { "cancelled delivery must have cancelledAt" } } }
+            .mapValues { (_, list) -> list.maxByOrNull { it.cancelledAt ?: Instant.MIN } }
 
         val allKeys = activeByKey.keys + cancelledByKey.keys
         return allKeys.associateWith { key ->

@@ -419,37 +419,6 @@ WHERE weekly_part_id IN (
 );
 
 -- Ranking queries (M4)
-lastGlobalAssignmentPerPerson:
-SELECT
-    p.id AS person_id,
-    MAX(wpl.week_start_date) AS last_week_date
-FROM person p
-LEFT JOIN assignment a ON a.person_id = p.id
-LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
-LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-GROUP BY p.id;
-
-lastPartTypeAssignmentPerPerson:
-SELECT
-    p.id AS person_id,
-    MAX(wpl.week_start_date) AS last_week_date
-FROM person p
-LEFT JOIN assignment a ON a.person_id = p.id
-LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
-    AND wp.part_type_id = ?
-LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-GROUP BY p.id;
-
-lastSlot1GlobalAssignmentPerPerson:
-SELECT
-    p.id AS person_id,
-    MAX(wpl.week_start_date) AS last_week_date
-FROM person p
-LEFT JOIN assignment a ON a.person_id = p.id AND a.slot = 1
-LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
-LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
-GROUP BY p.id;
-
 allAssignmentRankingData:
 SELECT
     a.person_id,
@@ -533,11 +502,6 @@ SELECT id, week_start_date, program_id, status
 FROM week_plan
 WHERE week_start_date = ? AND program_id = ?;
 
-updateWeekPlanStatus:
-UPDATE week_plan
-SET status = ?
-WHERE id = ?;
-
 -- Schema templates (new)
 deleteAllSchemaWeekParts:
 DELETE FROM schema_week_part;
@@ -557,11 +521,6 @@ findSchemaWeekByDate:
 SELECT id, week_start_date
 FROM schema_week
 WHERE week_start_date = ?;
-
-listSchemaWeeks:
-SELECT id, week_start_date
-FROM schema_week
-ORDER BY week_start_date;
 
 countSchemaWeeks:
 SELECT COUNT(*)

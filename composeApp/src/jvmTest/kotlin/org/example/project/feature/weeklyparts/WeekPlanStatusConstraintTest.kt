@@ -46,9 +46,11 @@ class WeekPlanStatusConstraintTest {
         )
 
         val error = assertFailsWith<Exception> {
-            database.ministeroDatabaseQueries.updateWeekPlanStatus(
-                status = "BROKEN",
+            database.ministeroDatabaseQueries.upsertWeekPlan(
                 id = "week-valid",
+                week_start_date = "2026-03-09",
+                program_id = null,
+                status = "BROKEN",
             )
         }
 

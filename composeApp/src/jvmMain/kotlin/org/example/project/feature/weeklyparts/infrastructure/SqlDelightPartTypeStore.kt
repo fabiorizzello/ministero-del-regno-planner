@@ -65,7 +65,7 @@ class SqlDelightPartTypeStore(
             )
             val ptRow = database.ministeroDatabaseQueries
                 .findPartTypeByCode(code = pt.code, mapper = { id, _, _, _, _, _, _ -> id })
-                .executeAsOneOrNull() ?: return@forEach
+                .executeAsOneOrNull() ?: error("Part type not found after upsert for code: ${pt.code}")
             val latestNumber = database.ministeroDatabaseQueries
                 .latestPartTypeRevisionByPartType(ptRow) { _, _, _, _, _, _, revision_number, _ -> revision_number }
                 .executeAsOneOrNull() ?: 0L
