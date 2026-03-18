@@ -440,19 +440,13 @@ internal class ProclamatoreFormViewModel(
         person: Proclamatore,
         options: List<LeadEligibilityOptionUi>,
     ): Either<DomainError, Unit> {
-        options.forEach { option ->
-            val canLead = option.checked && option.canSelect
-            val saveResult = impostaIdoneitaConduzione(
-                personId = person.id,
+        val changes = options.map { option ->
+            ImpostaIdoneitaConduzioneUseCase.EligibilityChange(
                 partTypeId = option.partTypeId,
-                canLead = canLead,
-            )
-            saveResult.fold(
-                ifLeft = { error -> return Either.Left(error) },
-                ifRight = {},
+                canLead = option.checked && option.canSelect,
             )
         }
-        return Either.Right(Unit)
+        return impostaIdoneitaConduzione.batch(person.id, changes)
     }
 
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean {

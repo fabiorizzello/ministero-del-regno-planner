@@ -16,6 +16,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.assignments.application.COUNT_WINDOW_WEEKS
+import org.example.project.feature.assignments.application.RANKING_HISTORY_WEEKS
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
@@ -26,19 +27,17 @@ class SqlDelightAssignmentStore(
 
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> {
         return database.ministeroDatabaseQueries
-            .assignmentsForWeek(weekPlanId.value, ::mapAssignmentRawRow)
+            .assignmentsForWeek(weekPlanId.value, ::mapAssignmentWithPersonRow)
             .executeAsList()
-            .mapNotNull { it.toAssignmentWithPersonOrNull() }
     }
 
     override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> {
         if (weekPlanIds.isEmpty()) return emptyMap()
         return database.ministeroDatabaseQueries
             .assignmentsForWeekPlanIds(weekPlanIds.map { it.value }) { id, weekly_part_id, person_id, slot, first_name, last_name, sex, week_plan_id ->
-                week_plan_id to mapAssignmentRawRow(id, weekly_part_id, person_id, slot, first_name, last_name, sex)
+                week_plan_id to mapAssignmentWithPersonRow(id, weekly_part_id, person_id, slot, first_name, last_name, sex)
             }
             .executeAsList()
-            .mapNotNull { (weekPlanId, raw) -> raw.toAssignmentWithPersonOrNull()?.let { weekPlanId to it } }
             .groupBy({ WeekPlanId(it.first) }, { it.second })
     }
 
@@ -81,9 +80,12 @@ class SqlDelightAssignmentStore(
         referenceDates: Set<LocalDate>,
         partTypeIds: Set<PartTypeId>,
     ): SuggestionRankingCache {
-        // Two queries: one bulk fetch of all assignment data, one for active proclaimers
+        // Limit the ranking query to a generous time window: the earliest reference date
+        // minus RANKING_HISTORY_WEEKS. This covers COUNT_WINDOW_WEEKS for counting plus
+        // ample margin for ranking differentiation, while avoiding unbounded full-table scans.
+        val sinceDate = referenceDates.min().minusWeeks(RANKING_HISTORY_WEEKS)
         val rawRows = database.ministeroDatabaseQueries
-            .allAssignmentRankingData()
+            .allAssignmentRankingData(sinceDate.toString())
             .executeAsList()
 
         val allActive = database.ministeroDatabaseQueries
