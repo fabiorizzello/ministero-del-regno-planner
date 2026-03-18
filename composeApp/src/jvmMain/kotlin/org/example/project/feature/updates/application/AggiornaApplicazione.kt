@@ -281,9 +281,9 @@ class AggiornaApplicazione(
 
     private fun isInstallerAlreadyCached(outputPath: Path, asset: UpdateAsset): Boolean {
         if (!Files.isRegularFile(outputPath)) return false
+        if (asset.sizeBytes <= 0L) return false
         return runCatching {
-            val currentSize = Files.size(outputPath)
-            asset.sizeBytes <= 0L || currentSize == asset.sizeBytes
+            Files.size(outputPath) == asset.sizeBytes
         }.getOrDefault(false)
     }
 
