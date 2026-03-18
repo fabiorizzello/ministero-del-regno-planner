@@ -63,7 +63,6 @@ val viewModelsModule = module {
             assegnaPersona = get(),
             rimuoviAssegnazione = get(),
             suggerisciProclamatori = get(),
-            caricaAssegnazioni = get(),
             verificaConsegna = get(),
             annullaConsegna = get(),
         )
