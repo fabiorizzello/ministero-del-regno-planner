@@ -140,8 +140,10 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   a valori contigui 0..n-1.
 - **FR-005**: Il sistema MUST consentire il riordinamento delle parti (aggiornamento
   sortOrder).
-- **FR-006**: Il sistema MUST consentire la ricerca dei tipi di parte disponibili per
-  nome/codice.
+- **FR-006**: Il sistema MUST caricare tutti i tipi di parte disponibili
+  (`CercaTipiParteUseCase` restituisce l'elenco completo). Il catalogo è
+  sufficientemente piccolo da non richiedere filtro server-side; l'eventuale
+  ricerca per nome/codice avviene lato UI.
 - **FR-007**: Il sistema MUST aggiornare il catalogo dei tipi di parte e gli schemi
   settimanali da sorgente remoto su richiesta. L'aggiornamento avviene in una **singola
   transazione atomica**: validazione date upfront, poi upsert part types e sovrascrittura
