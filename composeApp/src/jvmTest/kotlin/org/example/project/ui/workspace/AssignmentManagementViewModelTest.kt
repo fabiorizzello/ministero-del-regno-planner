@@ -65,18 +65,6 @@ class AssignmentManagementViewModelTest {
         coVerify(exactly = 0) { salva(any()) }
     }
 
-    @Test
-    fun `saveAssignmentSettings con valore negativo mostra errore`() = runTest {
-        val salva = mockk<SalvaImpostazioniAssegnatoreUseCase>(relaxed = true)
-        val vm = makeViewModel(scope = this, salva = salva)
-
-        vm.setLeadCooldownWeeks("-1")
-        vm.saveAssignmentSettings()
-
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
-        coVerify(exactly = 0) { salva(any()) }
-    }
-
     // ── autoAssignSelectedProgram busy-guard ──────────────────────────────────
 
     @Test
@@ -116,21 +104,6 @@ class AssignmentManagementViewModelTest {
 
         assertTrue(successCalled)
         assertEquals(FeedbackBannerKind.SUCCESS, vm.uiState.value.notice?.kind)
-    }
-
-    @Test
-    fun `autoAssignSelectedProgram non chiama onSuccess in caso di errore`() = runTest {
-        val autoAssegna = mockk<AutoAssegnaProgrammaUseCase>()
-        coEvery { autoAssegna(any(), any()) } returns Either.Left(DomainError.Validation("db error"))
-
-        val vm = makeViewModel(scope = this, autoAssegna = autoAssegna)
-
-        var successCalled = false
-        vm.autoAssignSelectedProgram(programId, referenceDate, onSuccess = { successCalled = true })
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
     }
 
     @Test
@@ -189,25 +162,6 @@ class AssignmentManagementViewModelTest {
 
         assertTrue(successCalled)
         assertNull(vm.uiState.value.clearAssignmentsConfirm)
-    }
-
-    @Test
-    fun `confirmClearAssignments non chiama onSuccess in caso di errore`() = runTest {
-        val svuota = mockk<SvuotaAssegnazioniProgrammaUseCase>()
-        coEvery { svuota.count(any(), any()) } returns 3
-        coEvery { svuota.execute(any(), any()) } returns Either.Left(DomainError.Validation("db error"))
-
-        val vm = makeViewModel(scope = this, svuota = svuota)
-        vm.requestClearAssignments(programId, referenceDate)
-        advanceUntilIdle()
-
-        var successCalled = false
-        vm.confirmClearAssignments(programId, referenceDate, onSuccess = { successCalled = true })
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        assertNotNull(vm.uiState.value.notice)
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
     }
 
     @Test

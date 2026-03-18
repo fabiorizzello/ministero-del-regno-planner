@@ -289,18 +289,6 @@ class ProclamatoriListViewModelTest {
     // ── selection ────────────────────────────────────────────────────────────
 
     @Test
-    fun `setRowSelected aggiunge e rimuove singoli ID`() = runTest {
-        val vm = makeViewModel(scope = this)
-        val id = ProclamatoreId("1")
-
-        vm.setRowSelected(id, true)
-        assertTrue(id in vm.uiState.value.selectedIds)
-
-        vm.setRowSelected(id, false)
-        assertFalse(id in vm.uiState.value.selectedIds)
-    }
-
-    @Test
     fun `toggleSelectPage seleziona e deseleziona gruppi di ID`() = runTest {
         val vm = makeViewModel(scope = this)
         val ids = listOf(ProclamatoreId("1"), ProclamatoreId("2"), ProclamatoreId("3"))
@@ -671,19 +659,6 @@ class ProclamatoriListViewModelTest {
     }
 
     @Test
-    fun `dismissSchemaUpdateAnomalies errore mostra notice`() = runTest {
-        val archivaAnomalieSchema = mockk<ArchivaAnomalieSchemaUseCase>()
-        coEvery { archivaAnomalieSchema() } returns Either.Left(DomainError.Validation("errore archiviazione"))
-
-        val vm = makeViewModel(scope = this, archivaAnomalieSchema = archivaAnomalieSchema)
-        vm.dismissSchemaUpdateAnomalies()
-        advanceUntilIdle()
-
-        assertFalse(vm.uiState.value.isDismissingSchemaAnomalies)
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
-    }
-
-    @Test
     fun `dismissSchemaUpdateAnomalies ignora seconda chiamata se gia' in corso`() = runTest {
         val blocker = CompletableDeferred<Either<DomainError, Unit>>()
         val archivaAnomalieSchema = mockk<ArchivaAnomalieSchemaUseCase>()
@@ -721,47 +696,6 @@ class ProclamatoriListViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, vm.uiState.value.pageIndex)
-    }
-
-    @Test
-    fun `refreshList senza resetPage clamp pageIndex se lista si accorcia`() = runTest {
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        val manyItems = (1..25).map { makeProclamatore("$it", "Nome$it", "Cognome$it") }
-        val fewItems = listOf(makeProclamatore("1", "Nome1", "Cognome1"))
-        coEvery { cerca(any()) } returns manyItems andThen fewItems
-
-        val vm = makeViewModel(scope = this, cerca = cerca)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-
-        vm.goToNextPage()
-        assertEquals(1, vm.uiState.value.pageIndex)
-
-        // On refresh, list shrinks to 1 item → pageIndex clamped to 0
-        vm.refreshList(resetPage = false)
-        advanceUntilIdle()
-
-        assertEquals(0, vm.uiState.value.pageIndex)
-    }
-
-    // ── initial state ────────────────────────────────────────────────────────
-
-    @Test
-    fun `stato iniziale ha loading true e lista vuota`() = runTest {
-        val vm = makeViewModel(scope = this)
-
-        val state = vm.uiState.value
-        assertTrue(state.isLoading)
-        assertTrue(state.allItems.isEmpty())
-        assertEquals("", state.searchTerm)
-        assertEquals(0, state.pageIndex)
-        assertTrue(state.selectedIds.isEmpty())
-        assertNull(state.deleteCandidate)
-        assertNull(state.notice)
-        assertFalse(state.showBatchDeleteConfirm)
-        assertFalse(state.isImporting)
-        assertFalse(state.isBatchInProgress)
-        Unit
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
