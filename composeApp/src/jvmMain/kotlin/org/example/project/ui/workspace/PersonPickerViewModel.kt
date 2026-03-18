@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
-import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.application.SuggerisciProclamatoriUseCase
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -51,7 +50,6 @@ internal class PersonPickerViewModel(
     private val assegnaPersona: AssegnaPersonaUseCase,
     private val rimuoviAssegnazione: RimuoviAssegnazioneUseCase,
     private val suggerisciProclamatori: SuggerisciProclamatoriUseCase,
-    private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
     private val verificaConsegna: VerificaConsegnaPreAssegnazioneUseCase,
     private val annullaConsegna: AnnullaConsegnaUseCase,
 ) {

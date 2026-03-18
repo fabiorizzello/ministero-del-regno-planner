@@ -353,9 +353,11 @@ internal class ProclamatoreFormViewModel(
                             ).bind()
                             futureWeeks = emptyList()
                         } else {
+                            val editId = currentEditId
+                                ?: raise(DomainError.Validation("ID proclamatore mancante per modifica"))
                             val outcome = aggiorna(
                                 AggiornaProclamatoreUseCase.Command(
-                                    id = requireNotNull(currentEditId),
+                                    id = editId,
                                     nome = capturedNome,
                                     cognome = capturedCognome,
                                     sesso = state.sesso,
