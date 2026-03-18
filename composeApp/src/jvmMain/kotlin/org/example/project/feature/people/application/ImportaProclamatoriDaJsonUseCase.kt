@@ -43,11 +43,9 @@ class ImportaProclamatoriDaJsonUseCase(
         }
 
         val proclamatori = parseAndValidate(jsonContent).bind()
-        Either.catch {
-            transactionRunner.runInTransaction {
-                store.persistAll(proclamatori)
-            }
-        }.mapLeft { DomainError.ImportSalvataggioFallito(it.message) }.bind()
+        transactionRunner.runInTransactionEither {
+            Either.Right(store.persistAll(proclamatori))
+        }.bind()
         Result(importati = proclamatori.size, errori = 0)
     }
 
