@@ -2,7 +2,6 @@ package org.example.project.feature.updates.application
 
 import java.time.Instant
 import java.nio.file.Path
-import org.example.project.core.config.UpdateChannel
 
 data class UpdateAsset(
     val name: String,

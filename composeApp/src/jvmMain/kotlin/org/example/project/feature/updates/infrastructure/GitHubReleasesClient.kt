@@ -18,7 +18,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.core.config.RemoteConfig
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.updates.application.UpdateAsset
-import org.example.project.core.config.UpdateChannel
 import org.example.project.feature.updates.application.UpdateRelease
 import org.example.project.feature.updates.application.UpdateReleaseSource
 import org.example.project.feature.updates.application.UpdateSource
@@ -46,22 +45,12 @@ class GitHubReleasesClient(
     private val logger = KotlinLogging.logger {}
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun fetchLatestRelease(channel: UpdateChannel): Either<DomainError, UpdateRelease?> = either {
+    override suspend fun fetchLatestRelease(): Either<DomainError, UpdateRelease?> = either {
         localOverrideReleaseOrNull()?.let { return@either it }
 
-        val repo = RemoteConfig.UPDATE_REPO
-        val endpoint = if (channel == UpdateChannel.STABLE) {
-            "https://api.github.com/repos/$repo/releases/latest"
-        } else {
-            "https://api.github.com/repos/$repo/releases"
-        }
-
+        val endpoint = "https://api.github.com/repos/${RemoteConfig.UPDATE_REPO}/releases/latest"
         val body = executeGet(endpoint).bind()
-        if (channel == UpdateChannel.STABLE) {
-            parseRelease(body).bind()
-        } else {
-            parseReleaseList(body).bind().firstOrNull()
-        }
+        parseRelease(body).bind()
     }
 
     private suspend fun executeGet(url: String): Either<DomainError, String> = either {
@@ -89,15 +78,6 @@ class GitHubReleasesClient(
             json.decodeFromString<GitHubReleaseDto>(payload).toUpdateRelease()
         }.mapLeft { error ->
             logger.warn(error) { "Parsing release GitHub fallito: ${error.message}" }
-            DomainError.Network("Risposta GitHub non valida: ${error.message ?: "payload malformato"}")
-        }
-
-    private fun parseReleaseList(payload: String): Either<DomainError, List<UpdateRelease>> =
-        Either.catch {
-            json.decodeFromString<List<GitHubReleaseDto>>(payload)
-                .mapNotNull { it.toUpdateRelease() }
-        }.mapLeft { error ->
-            logger.warn(error) { "Parsing lista release GitHub fallito: ${error.message}" }
             DomainError.Network("Risposta GitHub non valida: ${error.message ?: "payload malformato"}")
         }
 

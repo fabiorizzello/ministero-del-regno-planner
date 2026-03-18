@@ -56,7 +56,7 @@ L'utente apre la schermata Diagnostica e clicca "Verifica aggiornamenti". Il sis
 - `GitHubReleasesClient` — infrastruttura HTTP (Ktor + kotlinx.serialization)
 - `UpdateVersionComparator` — confronto versioni semantico (normalizza prefisso `v`, confronto componente per componente)
 - `UpdateStatusStore` — `StateFlow<Either<DomainError, UpdateCheckResult>?>` in-memory
-- `UpdateSettingsStore` — persistente, salva `lastCheck: Instant` e `channel: UpdateChannel`
+- `UpdateSettingsStore` — persistente, salva `lastCheck: Instant`
 
 ---
 

@@ -13,7 +13,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Comparator
 import org.example.project.core.config.RemoteConfig
-import org.example.project.core.config.UpdateChannel
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.updates.infrastructure.GitHubReleasesClient
 import kotlin.test.Test
@@ -25,7 +24,7 @@ import kotlin.test.assertTrue
 class GitHubReleasesClientTest {
 
     @Test
-    fun `stable channel fetches latest release from configured repository`() = runTest {
+    fun `fetches latest release from configured repository`() = runTest {
         var requestedUrl: String? = null
         val httpClient = HttpClient(MockEngine { request ->
             requestedUrl = request.url.toString()
@@ -49,7 +48,7 @@ class GitHubReleasesClientTest {
             )
         })
 
-        val result = GitHubReleasesClient(httpClient).fetchLatestRelease(UpdateChannel.STABLE)
+        val result = GitHubReleasesClient(httpClient).fetchLatestRelease()
 
         val release = assertIs<Either.Right<*>>(result).value
         val typedRelease = assertNotNull(release as? org.example.project.feature.updates.application.UpdateRelease)
@@ -71,7 +70,7 @@ class GitHubReleasesClientTest {
             )
         })
 
-        val result = GitHubReleasesClient(httpClient).fetchLatestRelease(UpdateChannel.STABLE)
+        val result = GitHubReleasesClient(httpClient).fetchLatestRelease()
 
         val error = assertIs<Either.Left<DomainError>>(result).value
         val networkError = assertIs<DomainError.Network>(error)
@@ -98,7 +97,7 @@ class GitHubReleasesClientTest {
                 environmentReader = { null },
             )
 
-            val result = client.fetchLatestRelease(UpdateChannel.STABLE)
+            val result = client.fetchLatestRelease()
 
             val release = assertIs<Either.Right<*>>(result).value
             val typedRelease = assertNotNull(release as? org.example.project.feature.updates.application.UpdateRelease)
@@ -140,7 +139,7 @@ class GitHubReleasesClientTest {
                 environmentReader = { null },
             )
 
-            val result = client.fetchLatestRelease(UpdateChannel.STABLE)
+            val result = client.fetchLatestRelease()
 
             val release = assertIs<Either.Right<*>>(result).value
             val typedRelease = assertNotNull(release as? org.example.project.feature.updates.application.UpdateRelease)
