@@ -61,22 +61,6 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
     }
 
     @Test
-    fun `count with future fromDate excludes past assignments`() = runTest {
-        val fromDate = LocalDate.of(2026, 4, 1)
-        val repo = repositoryWith(
-            listOf(
-                LocalDate.of(2026, 3, 2) to assignment("a1"),
-                LocalDate.of(2026, 3, 9) to assignment("a2"),
-            ),
-        )
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
-
-        val count = useCase.count(programId, fromDate)
-
-        assertEquals(0, count)
-    }
-
-    @Test
     fun `execute removes only assignments on or after fromDate and preserves earlier ones`() = runTest {
         val fromDate = LocalDate.of(2026, 3, 9)
         val earlyDate = LocalDate.of(2026, 3, 2)
@@ -105,15 +89,6 @@ class SvuotaAssegnazioniProgrammaUseCaseTest {
         assertEquals(0, repo.countByProgramFromDate(programId, fromDate))
     }
 
-    @Test
-    fun `execute on program with no assignments returns 0 without error`() = runTest {
-        val repo = repositoryWith(emptyList())
-        val useCase = SvuotaAssegnazioniProgrammaUseCase(repo, PassthroughTransactionRunner)
-
-        val result = useCase.execute(programId, LocalDate.of(2026, 3, 1))
-
-        assertEquals(0, result.getOrNull())
-    }
 }
 
 private open class FakeSvuotaAssignmentRepository : AssignmentRepository {

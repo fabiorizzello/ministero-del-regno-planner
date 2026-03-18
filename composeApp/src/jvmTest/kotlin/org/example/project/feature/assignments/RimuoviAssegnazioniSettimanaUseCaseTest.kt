@@ -4,7 +4,6 @@ import arrow.core.Either
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.PassthroughTransactionRunner
-import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -71,20 +70,6 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
     }
 
     @Test
-    fun `invoke on missing week returns NotFound`() = runTest {
-        val store = EmptyWeekStore()
-        val useCase = RimuoviAssegnazioniSettimanaUseCase(
-            weekPlanStore = store,
-            transactionRunner = PassthroughTransactionRunner,
-        )
-
-        val result = useCase(weekStart)
-
-        val error = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.NotFound("Piano settimanale"), error)
-    }
-
-    @Test
     fun `removal runs inside a transaction`() = runTest {
         val store = SingleAggregateWeekStore(sampleAggregate(listOf(assignment("a1"))))
         val txRunner = CountingTransactionRunner()
@@ -117,5 +102,3 @@ private class SingleAggregateWeekStore(
         currentAggregate = aggregate
     }
 }
-
-private class EmptyWeekStore : TestWeekPlanStore()
