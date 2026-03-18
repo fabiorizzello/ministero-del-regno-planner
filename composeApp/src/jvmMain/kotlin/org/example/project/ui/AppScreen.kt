@@ -953,32 +953,10 @@ private fun updateSecondaryMessage(state: UpdateCenterUiState): String? = when {
 }
 
 
-@Suppress("unused")
-private fun legacyUpdateVersionSummary(state: UpdateCenterUiState): String {
-    val current = formatVersion(state.currentVersion)
-    val latest = state.latestVersion
-    return if (latest.isNullOrBlank() || latest == state.currentVersion) current else "$current → v$latest"
-}
-
 private data class UpdateHeroTone(
     val title: String,
     val accent: Color,
     val icon: ImageVector,
-)
-
-private enum class UpdateJourneyStatus {
-    Pending,
-    Ready,
-    Active,
-    Completed,
-}
-
-private data class UpdateJourneyPalette(
-    val background: Color,
-    val border: Color,
-    val content: Color,
-    val badgeBackground: Color,
-    val badgeContent: Color,
 )
 
 @Composable
