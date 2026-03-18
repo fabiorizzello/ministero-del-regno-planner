@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-aggiornamento-applicazione`
 **Created**: 2026-03-10
-**Status**: Parzialmente implementato — check manuale e release locale funzionanti, installazione silenziosa da completare
+**Status**: Implementato — check manuale, download con progresso, installazione via external updater, release locale
 
 ---
 
@@ -60,40 +60,60 @@ L'utente apre la schermata Diagnostica e clicca "Verifica aggiornamenti". Il sis
 
 ---
 
-## User Story 2 — Installazione silenziosa (P1)
+## User Story 2 — Download e installazione aggiornamento (P1)
 
-**Stato**: Da implementare
+**Stato**: Implementato
 
-Quando è disponibile un aggiornamento, l'utente clicca "Installa aggiornamento". Il sistema scarica il file MSI in background, lo installa silenziosamente e mostra un banner di riavvio. L'utente non interagisce con wizard o UAC (eccetto l'elevation Windows, se necessaria).
+Quando è disponibile un aggiornamento, l'utente clicca "Scarica e prepara". Il sistema scarica il file MSI in background con indicatore di progresso, prepara uno script di installazione esterno (`external-updater.ps1`) e mostra il pulsante "Riavvia per installare". Al click, l'app si chiude, lo script esegue `msiexec /qn` e riapre l'app automaticamente.
+
+**Design: External Updater Pattern**
+
+L'installazione MSI richiede che l'app sia chiusa (il vecchio eseguibile è in uso). Invece di un `ProcessBuilder.waitFor()` in-process, il sistema usa un processo PowerShell esterno che sopravvive alla chiusura dell'app:
+
+1. **Download** — `AggiornaApplicazione.downloadInstaller()` scarica l'MSI in `exports/updates/` con streaming Ktor e progress callback. Supporta cache (riusa installer già scaricato se la size corrisponde), download locale (`file://` URL), e modalità dev con throttling configurabile.
+2. **Preparazione** — `AggiornaApplicazione.preparaInstallazione()` copia `external-updater.ps1` nella cartella updates e costruisce il comando PowerShell con parametri: `-InstallerPath`, `-AppExecutable`, `-AppPid`, `-LogPath`.
+3. **Lancio e riavvio** — `AggiornaApplicazione.avviaInstallazionePreparata()` lancia lo script PowerShell come processo esterno, poi l'app chiama `exitApplication()`.
+4. **External updater** — Lo script PowerShell:
+   - Attende la chiusura dell'app (polling sul PID, timeout 2 ore)
+   - Mostra una finestra WinForms con 3 fasi di progresso
+   - Esegue `msiexec.exe /i installer.msi /qn /norestart /log external-updater.msi.log`
+   - Elimina l'installer dopo successo
+   - Riapre l'app automaticamente
+   - In caso di errore, tenta comunque di rilanciare l'app (versione corrente)
 
 **Acceptance Scenarios**:
 
 1. **Given** è disponibile un aggiornamento con asset MSI,
-   **When** l'utente clicca "Installa aggiornamento",
-   **Then** il sistema mostra un indicatore di progresso "Download in corso…", scarica il file MSI in `exports/updates/`, e al termine avvia l'installazione silenziosa.
+   **When** l'utente clicca "Scarica e prepara",
+   **Then** il sistema mostra un indicatore di progresso con percentuale, dimensione scaricata e velocità di trasferimento.
 
-2. **Given** l'installazione silenziosa è completata (exit code `msiexec` = 0),
-   **Then** compare un banner persistente "Aggiornamento installato — riavvia l'app per applicare".
+2. **Given** il download è completato,
+   **Then** il sistema prepara lo script di installazione e mostra "Aggiornamento pronto. Premi Riavvia per installare".
 
-3. **Given** il download fallisce (HTTP error, connessione interrotta),
-   **Then** il sistema mostra un errore specifico e non avvia l'installazione.
+3. **Given** il download fallisce (HTTP error, connessione interrotta, timeout),
+   **Then** il sistema mostra un errore orientato all'azione ("Controlla la connessione e riprova" / "Controlla spazio disponibile e permessi") e il file `.part` viene eliminato.
 
-4. **Given** `msiexec` restituisce un exit code diverso da 0,
-   **Then** il sistema mostra "Installazione non riuscita (codice X)" e preserva il file MSI scaricato per debug.
+4. **Given** il pulsante "Riavvia per installare" è visibile e l'utente clicca,
+   **Then** lo script PowerShell viene lanciato, l'app si chiude, l'installer viene eseguito silenziosamente, e l'app riaperta.
 
-5. **Given** il banner di riavvio è visibile e l'utente clicca "Riavvia",
-   **Then** l'app termina e la nuova versione è già installata (si apre al prossimo avvio manuale).
+5. **Given** l'installer è già stato scaricato in una sessione precedente e la dimensione corrisponde,
+   **When** l'utente verifica e scarica nuovamente,
+   **Then** l'installer nella cache viene riutilizzato senza download.
 
 **Note implementative**:
 - Il download avviene su `Dispatchers.IO`, non blocca la UI.
-- `msiexec` viene avviato con `ProcessBuilder("msiexec", "/i", path, "/qn", "/norestart").start()` e si attende la terminazione con `waitFor()` su un thread IO separato.
-- L'MSI scaricato viene eliminato dopo installazione riuscita.
-- Se l'utente chiude l'app prima del completamento del download, il file parziale viene eliminato al prossimo avvio.
+- File parziali usano estensione `.part` e vengono eliminati al prossimo avvio o in caso di errore.
+- Move atomico (con fallback non-atomico) da `.part` al file finale.
+- L'MSI scaricato viene eliminato dallo script PowerShell dopo installazione riuscita.
+- Modalità dev: variabili `MINISTERO_UPDATE_DEV_*` per throttling download, dimensione chunk, e disabilitazione cache.
+- Override locale: `MINISTERO_UPDATE_LOCAL_MSI_PATH` + `MINISTERO_UPDATE_LOCAL_VERSION` per testare con MSI specifico.
+- Auto-discovery build locale: `MINISTERO_UPDATE_USE_LOCAL_BUILD` trova l'ultimo MSI in `composeApp/build/compose/binaries/main/msi`.
 
-**Componenti da creare/modificare**:
-- `AggiornaApplicazione` — aggiungere fase install (`installaSilenzioso(path): Either<DomainError, Unit>`) separata dalla fase download
-- `DiagnosticsViewModel` — gestire stati `isDownloading`, `isInstalling`, `updateReadyToApply`
-- `DiagnosticsUiState` — aggiungere i nuovi flag di stato
+**Componenti**:
+- `AggiornaApplicazione` — download (`downloadInstaller`), preparazione (`preparaInstallazione`), lancio (`avviaInstallazionePreparata`)
+- `UpdateCenterViewModel` — orchestrazione stati UI: `isDownloading`, `isInstalling`, `restartRequired`, progress tracking
+- `UpdateCenterMenu` / `UpdateHeroCard` — UI nel pannello aggiornamenti con hero card, progress bar, pulsanti azione
+- `external-updater.ps1` — script PowerShell bundled in risorse, copiato in `exports/updates/` al momento della preparazione
 
 ---
 
@@ -189,8 +209,8 @@ Il flusso è **completamente automatico e idempotente** — ogni step verifica s
 | `UpdateVersionComparator` | ✅ Implementato |
 | `UpdateStatusStore` | ✅ Implementato |
 | Rimozione check automatico schedulato | ✅ Implementato (UpdateScheduler rimosso) |
-| `AggiornaApplicazione` — download | ✅ Implementato |
-| `AggiornaApplicazione` — install silenziosa | ❌ Da implementare |
-| Banner riavvio in `DiagnosticsViewModel` | ❌ Da implementare |
+| `AggiornaApplicazione` — download + install | ✅ Implementato (external updater pattern) |
+| `UpdateCenterViewModel` + UI aggiornamenti | ✅ Implementato |
+| `external-updater.ps1` | ✅ Implementato (bundled in risorse) |
 | Script release locale (`release-local.ps1`) | ✅ Implementato |
 | Documentazione migration SQLDelight | ❌ Da formalizzare |
