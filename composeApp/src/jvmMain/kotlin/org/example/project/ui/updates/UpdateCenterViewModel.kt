@@ -163,8 +163,10 @@ internal class UpdateCenterViewModel(
         val installResult = pendingInstall ?: return
         aggiornaApplicazione.avviaInstallazionePreparata(installResult).fold(
             ifLeft = { error ->
+                pendingInstall = null
                 _state.update {
                     it.copy(
+                        restartRequired = false,
                         hasError = true,
                         statusText = updateFailureMessage(error, UpdatePhase.LAUNCH),
                     )
