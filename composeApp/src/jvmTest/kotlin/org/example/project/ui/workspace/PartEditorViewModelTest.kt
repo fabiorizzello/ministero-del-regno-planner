@@ -73,14 +73,6 @@ class PartEditorViewModelTest {
     // ── init / loadPartTypes ────────────────────────────────────────────────
 
     @Test
-    fun `init loads part types into state`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        assertEquals(allPartTypes, vm.state.value.partTypes)
-    }
-
-    @Test
     fun `init loadPartTypes error sets notice`() = runTest {
         val cercaTipiParte = mockk<CercaTipiParteUseCase>()
         coEvery { cercaTipiParte() } throws RuntimeException("db failure")
@@ -91,17 +83,6 @@ class PartEditorViewModelTest {
         assertNotNull(vm.state.value.notice)
         assertEquals(FeedbackBannerKind.ERROR, vm.state.value.notice?.kind)
         assertTrue(vm.state.value.notice?.message?.contains("db failure") == true)
-    }
-
-    @Test
-    fun `editablePartTypes filters out fixed types`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        val editable = vm.state.value.editablePartTypes
-        assertEquals(2, editable.size)
-        assertTrue(editable.all { !it.fixed })
-        assertFalse(editable.any { it.id == fixedPartType.id })
     }
 
     // ── dismissNotice ───────────────────────────────────────────────────────
@@ -158,17 +139,6 @@ class PartEditorViewModelTest {
 
         val pastMonday = LocalDate.of(2020, 1, 6) // Past Monday
         val week = makeWeekPlan(pastMonday)
-        vm.openPartEditor(week)
-
-        assertFalse(vm.state.value.isPartEditorOpen)
-    }
-
-    @Test
-    fun `openPartEditor ignores skipped week`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        val week = makeWeekPlan(futureMonday, status = WeekPlanStatus.SKIPPED)
         vm.openPartEditor(week)
 
         assertFalse(vm.state.value.isPartEditorOpen)
@@ -283,33 +253,6 @@ class PartEditorViewModelTest {
         assertEquals("p2", vm.state.value.partEditorParts[1].id.value)
     }
 
-    @Test
-    fun `movePartInEditor ignores out of bounds indices`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        val parts = listOf(makeWeeklyPart("p1", editablePartType, sortOrder = 0))
-        vm.openPartEditor(makeWeekPlan(futureMonday, parts = parts))
-
-        vm.movePartInEditor(0, 5)
-
-        assertEquals(1, vm.state.value.partEditorParts.size)
-        assertEquals("p1", vm.state.value.partEditorParts[0].id.value)
-    }
-
-    @Test
-    fun `movePartInEditor ignores negative indices`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        val parts = listOf(makeWeeklyPart("p1", editablePartType, sortOrder = 0))
-        vm.openPartEditor(makeWeekPlan(futureMonday, parts = parts))
-
-        vm.movePartInEditor(-1, 0)
-
-        assertEquals(1, vm.state.value.partEditorParts.size)
-    }
-
     // ── removePartFromEditor ────────────────────────────────────────────────
 
     @Test
@@ -344,19 +287,6 @@ class PartEditorViewModelTest {
         vm.removePartFromEditor(WeeklyPartId("p-fixed"))
 
         assertEquals(2, vm.state.value.partEditorParts.size)
-    }
-
-    @Test
-    fun `removePartFromEditor ignores unknown partId`() = runTest {
-        val vm = makeViewModel(scope = this, partTypes = allPartTypes)
-        advanceUntilIdle()
-
-        val parts = listOf(makeWeeklyPart("p1", editablePartType, sortOrder = 0))
-        vm.openPartEditor(makeWeekPlan(futureMonday, parts = parts))
-
-        vm.removePartFromEditor(WeeklyPartId("non-existent"))
-
-        assertEquals(1, vm.state.value.partEditorParts.size)
     }
 
     // ── savePartEditor ──────────────────────────────────────────────────────

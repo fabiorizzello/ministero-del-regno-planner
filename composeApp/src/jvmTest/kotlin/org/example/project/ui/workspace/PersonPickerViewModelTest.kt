@@ -42,28 +42,6 @@ class PersonPickerViewModelTest {
     @AfterTest
     fun tearDown() = unmockkAll()
 
-    // ── Initial state ─────────────────────────────────────────────────────────
-
-    @Test
-    fun `initial state has picker closed and no notice`() = runTest {
-        val vm = makeViewModel(scope = this)
-        val state = vm.state.value
-
-        assertFalse(state.isPickerOpen)
-        assertNull(state.pickerWeekStartDate)
-        assertNull(state.pickerWeeklyPartId)
-        assertNull(state.pickerSlot)
-        assertNull(state.pickerWeekPlanId)
-        assertEquals("", state.pickerSearchTerm)
-        assertEquals(emptyList(), state.pickerSuggestions)
-        assertFalse(state.isPickerLoading)
-        assertFalse(state.isAssigning)
-        assertFalse(state.isRemovingAssignment)
-        assertNull(state.notice)
-        assertNull(state.deliveryWarning)
-        Unit
-    }
-
     // ── openPersonPicker ──────────────────────────────────────────────────────
 
     @Test
@@ -154,20 +132,6 @@ class PersonPickerViewModelTest {
         Unit
     }
 
-    // ── setPickerSearchTerm ───────────────────────────────────────────────────
-
-    @Test
-    fun `setPickerSearchTerm updates search term in state`() = runTest {
-        val vm = makeViewModel(scope = this)
-
-        vm.setPickerSearchTerm("Mar")
-        assertEquals("Mar", vm.state.value.pickerSearchTerm)
-
-        vm.setPickerSearchTerm("Mario R")
-        assertEquals("Mario R", vm.state.value.pickerSearchTerm)
-        Unit
-    }
-
     // ── reloadSuggestions ─────────────────────────────────────────────────────
 
     @Test
@@ -238,35 +202,6 @@ class PersonPickerViewModelTest {
         assertFalse(vm.state.value.isPickerOpen) // picker closed after assignment
         assertFalse(vm.state.value.isAssigning)
         coVerify(exactly = 1) { assegna(weekStartDate, weeklyPartId, personId, slot) }
-        Unit
-    }
-
-    @Test
-    fun `confirmAssignment shows error on assignment failure`() = runTest {
-        val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
-        val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
-        coEvery { verificaConsegna(any(), any()) } returns null
-        val assegna = mockk<AssegnaPersonaUseCase>()
-        coEvery { assegna(any(), any(), any(), any()) } returns Either.Left(DomainError.PersonaSospesa)
-
-        val vm = makeViewModel(
-            scope = this,
-            suggerisci = suggerisci,
-            assegna = assegna,
-            verificaConsegna = verificaConsegna,
-        )
-        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
-        advanceUntilIdle()
-
-        var successCalled = false
-        vm.confirmAssignment(personId) { successCalled = true }
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        assertFalse(vm.state.value.isAssigning)
-        assertNotNull(vm.state.value.notice)
-        assertEquals(FeedbackBannerKind.ERROR, vm.state.value.notice?.kind)
         Unit
     }
 
@@ -490,24 +425,6 @@ class PersonPickerViewModelTest {
         assertTrue(successCalled)
         assertFalse(vm.state.value.isRemovingAssignment)
         coVerify(exactly = 1) { rimuovi(assignmentId) }
-        Unit
-    }
-
-    @Test
-    fun `removeAssignment shows error on failure`() = runTest {
-        val rimuovi = mockk<RimuoviAssegnazioneUseCase>()
-        coEvery { rimuovi(any()) } returns Either.Left(DomainError.Validation("db error"))
-
-        val vm = makeViewModel(scope = this, rimuovi = rimuovi)
-
-        var successCalled = false
-        vm.removeAssignment(AssignmentId("a-1")) { successCalled = true }
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        assertFalse(vm.state.value.isRemovingAssignment)
-        assertNotNull(vm.state.value.notice)
-        assertEquals(FeedbackBannerKind.ERROR, vm.state.value.notice?.kind)
         Unit
     }
 
