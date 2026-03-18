@@ -4,7 +4,6 @@ import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.application.AssignmentSettings
 import org.example.project.feature.assignments.application.AssignmentSettingsStore
 import org.example.project.core.persistence.TransactionScope
-import java.util.UUID
 
 class SqlDelightAssignmentSettingsStore(
     private val database: MinisteroDatabase,
@@ -25,16 +24,15 @@ class SqlDelightAssignmentSettingsStore(
     context(tx: TransactionScope)
     override suspend fun save(settings: AssignmentSettings) {
         val normalized = settings.normalized()
-        val existingId = database.ministeroDatabaseQueries
-            .findAssignmentSettings()
-            .executeAsOneOrNull()
-            ?.id
-
         database.ministeroDatabaseQueries.upsertAssignmentSettings(
-            id = existingId ?: UUID.randomUUID().toString(),
+            id = SINGLETON_ID,
             strict_cooldown = if (normalized.strictCooldown) 1L else 0L,
             lead_cooldown_weeks = normalized.leadCooldownWeeks.toLong(),
             assist_cooldown_weeks = normalized.assistCooldownWeeks.toLong(),
         )
+    }
+
+    private companion object {
+        const val SINGLETON_ID = "singleton"
     }
 }

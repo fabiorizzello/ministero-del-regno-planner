@@ -92,7 +92,8 @@ CREATE TABLE assignment_settings (
     strict_cooldown INTEGER NOT NULL DEFAULT 1,
     lead_cooldown_weeks INTEGER NOT NULL DEFAULT 4,
     assist_cooldown_weeks INTEGER NOT NULL DEFAULT 2,
-    CHECK(strict_cooldown IN (0, 1))
+    CHECK(strict_cooldown IN (0, 1)),
+    CHECK(id = 'singleton')
 );
 
 CREATE TABLE schema_update_anomaly (
