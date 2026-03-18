@@ -787,7 +787,7 @@ private fun UpdateCenterMenu(
                     tooltip = "Scarica la release e prepara l'installazione al riavvio dell'app",
                 )
                 Text(
-                    text = "Scarico ora. Ti chiedo il riavvio solo quando l'installazione e pronta.",
+                    text = "Scarico ora. Ti chiedo il riavvio solo quando l'installazione è pronta.",
                     style = MaterialTheme.typography.bodySmall,
                     color = sketch.inkMuted,
                 )
@@ -932,19 +932,19 @@ private fun sameVersion(left: String?, right: String?): Boolean =
     normalizeVersion(left) == normalizeVersion(right)
 
 private fun updatePrimaryMessage(state: UpdateCenterUiState): String = when {
-    state.restartRequired -> "L'aggiornamento e pronto. Premi il pulsante qui sotto per completare l'installazione."
+    state.restartRequired -> "L'aggiornamento è pronto. Premi il pulsante qui sotto per completare l'installazione."
     state.isInstalling -> "Sto preparando l'installazione. Non serve fare altro adesso."
     state.isDownloading -> "Sto scaricando il pacchetto di aggiornamento."
-    state.isChecking -> "Sto controllando se esiste una release piu recente."
-    state.updateAvailable -> "${formatVersion(state.latestVersion)} e pronta. Un clic la scarica e prepara l'installazione."
-    state.hasError -> "L'ultimo tentativo non e andato a buon fine."
-    state.lastCheck != null -> "Stai gia usando l'ultima versione disponibile."
-    else -> "Controlla se esiste una versione piu recente dell'app."
+    state.isChecking -> "Sto controllando se esiste una release più recente."
+    state.updateAvailable -> "${formatVersion(state.latestVersion)} è pronta. Un clic la scarica e prepara l'installazione."
+    state.hasError -> "L'ultimo tentativo non è andato a buon fine."
+    state.lastCheck != null -> "Stai già usando l'ultima versione disponibile."
+    else -> "Controlla se esiste una versione più recente dell'app."
 }
 
 private fun updateSecondaryMessage(state: UpdateCenterUiState): String? = when {
     state.restartRequired -> "Dopo il click compare una piccola finestra con le fasi reali di installazione e l'app si riapre automaticamente."
-    state.isInstalling -> "Tra poco ti chiedero il riavvio per installare la nuova versione."
+    state.isInstalling -> "Tra poco ti chiederò il riavvio per installare la nuova versione."
     state.isDownloading -> state.statusText
     state.hasError -> state.statusText
     state.updateAvailable -> "Versione corrente ${formatVersion(state.currentVersion)}."
