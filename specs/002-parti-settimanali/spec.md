@@ -158,7 +158,11 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 
 - **WeekPlan**: id (UUID), weekStartDate (sempre lunedì), parts (lista ordinata),
   programId (opzionale, FK a ProgramMonth), status (ACTIVE | SKIPPED).
-- **WeeklyPart**: id (UUID), partType (FK), sortOrder. Appartiene a un WeekPlan.
+- **WeeklyPart**: id (UUID), partType (FK), sortOrder,
+  snapshot (PartTypeSnapshot?, snapshot dei campi del PartType al momento della
+  creazione — label, peopleCount, sexRule, fixed), partTypeRevisionId (String?,
+  identifica la revisione del PartType a cui si riferisce questa parte).
+  Appartiene a un WeekPlan.
 - **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | STESSO_SESSO),
   fixed (boolean), sortOrder. Catalogo dei tipi di parte disponibili.
 - **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot;
