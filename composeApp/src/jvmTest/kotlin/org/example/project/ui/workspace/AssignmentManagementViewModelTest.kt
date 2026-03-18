@@ -19,7 +19,7 @@ import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
-import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioniUseCase
 import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.TicketGenerationResult
@@ -240,7 +240,7 @@ class AssignmentManagementViewModelTest {
 
     @Test
     fun `openAssignmentTickets apre modale con biglietti senza banner di successo`() = runTest {
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
             assistantName = null,
@@ -265,7 +265,7 @@ class AssignmentManagementViewModelTest {
 
     @Test
     fun `closeAssignmentTicketsDialog chiude modale e pulisce stato`() = runTest {
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         val ticket = AssignmentTicketImage(
             fullName = "Mario Rossi",
             assistantName = null,
@@ -306,7 +306,7 @@ class AssignmentManagementViewModelTest {
 
     @Test
     fun `openAssignmentTickets mostra errore e testa loading su Either Left`() = runTest {
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         coEvery { genera.generateProgramTickets(programId) } returns Either.Left(DomainError.NotFound("Programma"))
 
         val vm = makeViewModel(scope = this, genera = genera)
@@ -340,7 +340,7 @@ class AssignmentManagementViewModelTest {
         val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
         coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 0, blocked = 0))
 
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
@@ -425,7 +425,7 @@ class AssignmentManagementViewModelTest {
         val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
         coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 1, blocked = 0))
 
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
@@ -506,7 +506,7 @@ class AssignmentManagementViewModelTest {
             (ticket.weeklyPartId to ticket.weekPlanId) to deliveryInfo,
         )
 
-        val genera = mockk<GeneraImmaginiAssegnazioni>()
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
         coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
@@ -541,7 +541,7 @@ class AssignmentManagementViewModelTest {
         salva: SalvaImpostazioniAssegnatoreUseCase = mockk(relaxed = true),
         svuota: SvuotaAssegnazioniProgrammaUseCase = mockk(relaxed = true),
         stampa: StampaProgrammaUseCase = mockk(relaxed = true),
-        genera: GeneraImmaginiAssegnazioni = mockk(relaxed = true),
+        genera: GeneraImmaginiAssegnazioniUseCase = mockk(relaxed = true),
         segnaComInviato: SegnaComInviatoUseCase = mockk(relaxed = true),
         annullaConsegna: AnnullaConsegnaUseCase = mockk(relaxed = true),
         caricaStatoConsegne: CaricaStatoConsegneUseCase = mockk(relaxed = true),

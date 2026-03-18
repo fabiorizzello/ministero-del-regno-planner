@@ -73,7 +73,7 @@ private data class AssignmentSlipWithOrder(
     val weekPlanId: WeekPlanId,
 )
 
-class GeneraImmaginiAssegnazioni(
+class GeneraImmaginiAssegnazioniUseCase(
     private val programStore: ProgramStore,
     private val weekPlanQueries: WeekPlanQueries,
     private val caricaAssegnazioni: CaricaAssegnazioniUseCase,

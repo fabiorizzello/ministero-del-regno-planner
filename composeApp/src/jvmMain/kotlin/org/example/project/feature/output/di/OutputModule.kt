@@ -5,7 +5,7 @@ import org.example.project.feature.output.application.AssignmentsRenderer
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.FileOpener
-import org.example.project.feature.output.application.GeneraImmaginiAssegnazioni
+import org.example.project.feature.output.application.GeneraImmaginiAssegnazioniUseCase
 import org.example.project.feature.output.application.ProgramRenderer
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.SlipDeliveryStore
@@ -22,7 +22,7 @@ val outputModule = module {
     single<AssignmentsRenderer> { PdfAssignmentsRenderer() }
     single<ProgramRenderer> { PdfProgramRenderer() }
     single<FileOpener> { DesktopFileOpener() }
-    single { GeneraImmaginiAssegnazioni(get(), get(), get(), get(), get()) }
+    single { GeneraImmaginiAssegnazioniUseCase(get(), get(), get(), get(), get()) }
     single { StampaProgrammaUseCase(get(), get(), get(), get(), get()) }
 
     // Slip delivery

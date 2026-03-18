@@ -40,7 +40,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 
-class GeneraImmaginiAssegnazioniTest {
+class GeneraImmaginiAssegnazioniUseCaseTest {
 
     @Test
     fun `generateProgramTickets crea png del mese, pulisce i vecchi e mantiene i metadati ordinati`() = runTest {
@@ -93,7 +93,7 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
@@ -147,7 +147,7 @@ class GeneraImmaginiAssegnazioniTest {
                 assignment("a3", week.parts[2].id, "p-z", "Zeno", "Verdi", slot = 2),   // Studio slot 2
             ),
         )
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
@@ -208,7 +208,7 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
@@ -230,7 +230,7 @@ class GeneraImmaginiAssegnazioniTest {
         val programStore = mockk<ProgramStore>()
         coEvery { programStore.findById(programId) } returns null
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = mockk(),
             caricaAssegnazioni = mockk(),
@@ -250,7 +250,7 @@ class GeneraImmaginiAssegnazioniTest {
         val weekPlanQueries = mockk<WeekPlanQueries>()
         coEvery { weekPlanQueries.findByDate(weekDate) } returns null
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
@@ -282,7 +282,7 @@ class GeneraImmaginiAssegnazioniTest {
             assignment("a1", week.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = mockk(),
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
@@ -311,7 +311,7 @@ class GeneraImmaginiAssegnazioniTest {
         val weekPlanQueries = mockk<WeekPlanQueries>()
         coEvery { weekPlanQueries.listByProgram(programId) } returns emptyList()
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = mockk(),
@@ -352,7 +352,7 @@ class GeneraImmaginiAssegnazioniTest {
             ),
         )
 
-        val useCase = GeneraImmaginiAssegnazioni(
+        val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
