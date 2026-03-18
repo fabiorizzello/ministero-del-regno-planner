@@ -58,57 +58,42 @@ class DomainErrorMappingAssignmentsUseCaseTest {
     }
 
     @Test
-    fun `assegna persona maps suspended to PersonaSospesa`() = runTest {
+    fun `assegna persona maps domain violations to typed errors`() = runTest {
         val week = sampleWeek(peopleCount = 2)
-        val useCase = AssegnaPersonaUseCase(
+
+        // suspended person → PersonaSospesa
+        val suspendedUseCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(week, assignments = emptyList()),
             transactionRunner = PassthroughTransactionRunner,
             personStore = SinglePersonStore(
                 Proclamatore(
-                    id = ProclamatoreId("p1"),
-                    nome = "Mario",
-                    cognome = "Rossi",
-                    sesso = Sesso.M,
-                    sospeso = true,
+                    id = ProclamatoreId("p1"), nome = "Mario", cognome = "Rossi",
+                    sesso = Sesso.M, sospeso = true,
                 ),
             ),
         )
-
-        val result = useCase(
-            weekStartDate = week.weekStartDate,
-            weeklyPartId = week.parts.first().id,
-            personId = ProclamatoreId("p1"),
-            slot = 1,
+        assertEquals(
+            DomainError.PersonaSospesa,
+            assertIs<Either.Left<DomainError>>(
+                suspendedUseCase(week.weekStartDate, week.parts.first().id, ProclamatoreId("p1"), 1),
+            ).value,
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.PersonaSospesa, left)
-    }
-
-    @Test
-    fun `assegna persona maps invalid slot to SlotNonValido`() = runTest {
-        val week = sampleWeek(peopleCount = 2)
-        val useCase = AssegnaPersonaUseCase(
+        // invalid slot → SlotNonValido
+        val slotUseCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(week, assignments = emptyList()),
             transactionRunner = PassthroughTransactionRunner,
             personStore = SinglePersonStore(activePerson("p1")),
         )
-
-        val result = useCase(
-            weekStartDate = week.weekStartDate,
-            weeklyPartId = week.parts.first().id,
-            personId = ProclamatoreId("p1"),
-            slot = 3,
+        assertEquals(
+            DomainError.SlotNonValido(slot = 3, max = 2),
+            assertIs<Either.Left<DomainError>>(
+                slotUseCase(week.weekStartDate, week.parts.first().id, ProclamatoreId("p1"), 3),
+            ).value,
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.SlotNonValido(slot = 3, max = 2), left)
-    }
-
-    @Test
-    fun `assegna persona maps duplicate in week to PersonaGiaAssegnata`() = runTest {
-        val week = sampleWeek(peopleCount = 2)
-        val useCase = AssegnaPersonaUseCase(
+        // duplicate person in week → PersonaGiaAssegnata
+        val dupUseCase = AssegnaPersonaUseCase(
             weekPlanStore = SingleWeekStore(
                 week = week,
                 assignments = listOf(
@@ -123,16 +108,12 @@ class DomainErrorMappingAssignmentsUseCaseTest {
             transactionRunner = PassthroughTransactionRunner,
             personStore = SinglePersonStore(activePerson("p1")),
         )
-
-        val result = useCase(
-            weekStartDate = week.weekStartDate,
-            weeklyPartId = week.parts.first().id,
-            personId = ProclamatoreId("p1"),
-            slot = 1,
+        assertEquals(
+            DomainError.PersonaGiaAssegnata,
+            assertIs<Either.Left<DomainError>>(
+                dupUseCase(week.weekStartDate, week.parts.first().id, ProclamatoreId("p1"), 1),
+            ).value,
         )
-
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.PersonaGiaAssegnata, left)
     }
 
     @Test

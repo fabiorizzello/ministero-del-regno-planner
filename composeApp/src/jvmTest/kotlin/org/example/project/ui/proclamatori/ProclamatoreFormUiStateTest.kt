@@ -11,47 +11,32 @@ import kotlin.test.assertTrue
 class ProclamatoreFormUiStateTest {
 
     @Test
-    fun `canSubmitForm Nuovo false quando nome e' blank`() {
-        val state = ProclamatoreFormUiState(nome = "", cognome = "Rossi")
-        assertFalse(state.canSubmitForm(ProclamatoriRoute.Nuovo))
-    }
-
-    @Test
-    fun `canSubmitForm Nuovo false quando cognome e' blank`() {
-        val state = ProclamatoreFormUiState(nome = "Mario", cognome = "  ")
-        assertFalse(state.canSubmitForm(ProclamatoriRoute.Nuovo))
-    }
-
-    @Test
     fun `canSubmitForm Nuovo true con nome e cognome validi`() {
         val state = ProclamatoreFormUiState(nome = "Mario", cognome = "Rossi")
         assertTrue(state.canSubmitForm(ProclamatoriRoute.Nuovo))
     }
 
     @Test
-    fun `canSubmitForm Nuovo false durante controllo duplicato in corso`() {
-        val state = ProclamatoreFormUiState(
-            nome = "Mario",
-            cognome = "Rossi",
-            isCheckingDuplicate = true,
-        )
-        assertFalse(state.canSubmitForm(ProclamatoriRoute.Nuovo))
-    }
+    fun `canSubmitForm Nuovo false per ogni condizione invalidante`() {
+        val blankNome = ProclamatoreFormUiState(nome = "", cognome = "Rossi")
+        assertFalse(blankNome.canSubmitForm(ProclamatoriRoute.Nuovo), "blank nome")
 
-    @Test
-    fun `canSubmitForm Nuovo false quando c'e' errore duplicato`() {
-        val state = ProclamatoreFormUiState(
-            nome = "Mario",
-            cognome = "Rossi",
+        val blankCognome = ProclamatoreFormUiState(nome = "Mario", cognome = "  ")
+        assertFalse(blankCognome.canSubmitForm(ProclamatoriRoute.Nuovo), "blank cognome")
+
+        val checkingDuplicate = ProclamatoreFormUiState(
+            nome = "Mario", cognome = "Rossi", isCheckingDuplicate = true,
+        )
+        assertFalse(checkingDuplicate.canSubmitForm(ProclamatoriRoute.Nuovo), "checking duplicate")
+
+        val duplicateError = ProclamatoreFormUiState(
+            nome = "Mario", cognome = "Rossi",
             duplicateError = "Esiste già uno studente con questo nome e cognome",
         )
-        assertFalse(state.canSubmitForm(ProclamatoriRoute.Nuovo))
-    }
+        assertFalse(duplicateError.canSubmitForm(ProclamatoriRoute.Nuovo), "duplicate error")
 
-    @Test
-    fun `canSubmitForm Nuovo false durante caricamento`() {
-        val state = ProclamatoreFormUiState(nome = "Mario", cognome = "Rossi", isLoading = true)
-        assertFalse(state.canSubmitForm(ProclamatoriRoute.Nuovo))
+        val loading = ProclamatoreFormUiState(nome = "Mario", cognome = "Rossi", isLoading = true)
+        assertFalse(loading.canSubmitForm(ProclamatoriRoute.Nuovo), "loading")
     }
 
     @Test
