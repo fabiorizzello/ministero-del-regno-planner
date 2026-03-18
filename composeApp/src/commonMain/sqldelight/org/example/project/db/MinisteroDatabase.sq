@@ -121,7 +121,8 @@ CREATE TABLE weekly_part (
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE,
     FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT,
-    FOREIGN KEY (part_type_revision_id) REFERENCES part_type_revision(id) ON DELETE SET NULL
+    FOREIGN KEY (part_type_revision_id) REFERENCES part_type_revision(id) ON DELETE SET NULL,
+    UNIQUE(week_plan_id, sort_order)
 );
 
 CREATE TABLE assignment (
