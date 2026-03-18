@@ -168,7 +168,7 @@ class DomainErrorMappingAssignmentsUseCaseTest {
 
             val result = useCase(AssignmentId("a1"))
             val left = assertIs<Either.Left<DomainError>>(result).value
-            assertEquals(DomainError.RimozioneAssegnazioniFallita("db down"), left)
+            assertEquals(DomainError.Validation("db down"), left)
         }
     }
 
