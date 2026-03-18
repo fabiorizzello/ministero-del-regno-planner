@@ -461,15 +461,21 @@ internal class AssignmentManagementViewModel(
     }
 
     private suspend fun loadAssignmentSettings() {
-        val settings = caricaImpostazioniAssegnatore()
-        _uiState.update {
-            it.copy(
-                assignmentSettings = AssignmentSettingsUiState(
-                    strictCooldown = settings.strictCooldown,
-                    leadCooldownWeeks = settings.leadCooldownWeeks.toString(),
-                    assistCooldownWeeks = settings.assistCooldownWeeks.toString(),
-                ),
-            )
+        try {
+            val settings = caricaImpostazioniAssegnatore()
+            _uiState.update {
+                it.copy(
+                    assignmentSettings = AssignmentSettingsUiState(
+                        strictCooldown = settings.strictCooldown,
+                        leadCooldownWeeks = settings.leadCooldownWeeks.toString(),
+                        assistCooldownWeeks = settings.assistCooldownWeeks.toString(),
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(notice = errorNotice("Errore caricamento impostazioni assegnatore: ${e.message}"))
+            }
         }
     }
 

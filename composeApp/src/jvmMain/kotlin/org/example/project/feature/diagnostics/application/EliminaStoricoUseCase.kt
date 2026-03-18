@@ -16,11 +16,9 @@ class EliminaStoricoUseCase(
     private val vacuumDatabase: suspend () -> Boolean = { false },
 ) {
     suspend operator fun invoke(cutoffDate: LocalDate): Either<DomainError, EliminazioneStoricoResult> = either {
-        Either.catch {
-            transactionRunner.runInTransaction {
-                store.deleteWeekPlansBeforeDate(cutoffDate)
-            }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore eliminazione storico") }.bind()
+        transactionRunner.runInTransactionEither {
+            either { store.deleteWeekPlansBeforeDate(cutoffDate) }
+        }.bind()
 
         val vacuumOk = vacuumDatabase()
         EliminazioneStoricoResult(vacuumExecuted = vacuumOk)
