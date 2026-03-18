@@ -2,93 +2,84 @@
 
 Prompt sorgente: 5x review-codebase su 5 feature slice (people, weeklyparts, programs,
 schemas, print+assignments), 2026-03-12.
+Review round 13: 5-round full-codebase scan (people, assignments+output, weeklyparts+programs+schemas,
+updates+diagnostics+core, test+SQL schema), 2026-03-18.
 
 ---
 
 ## Findings aperti
 
-### Update review (round 6, 2026-03-18)
-
-- **UPD-H01** — Launch failure invisibile: quando `avviaInstallazionePreparata` fallisce, `restartRequired` resta `true` e la UI prioritizza il pulsante "Riavvia" sopra lo stato errore, nascondendo il messaggio all'utente. File: `UpdateCenterViewModel.kt:162-176`, `AppScreen.kt:810,759,946`
-- **UPD-M05** — Dead code in AppScreen.kt: `legacyUpdateVersionSummary()` (riga 957, `@Suppress("unused")`), `UpdateJourneyStatus` enum (riga 969), `UpdateJourneyPalette` data class (riga 976). Zero reference.
-- **UPD-M06** — Accenti mancanti nei testi UI italiani: "e" → "è", "piu" → "più", "gia" → "già" in 6 punti di `AppScreen.kt` (righe 790, 935, 938, 940, 941, 942)
-- **UPD-L01** — Cache validation accetta qualsiasi file quando `sizeBytes=0`: `AggiornaApplicazione.kt:286` usa `asset.sizeBytes <= 0L || currentSize == asset.sizeBytes`, un file corrotto verrebbe riusato se la size non è nota
-- **UPD-L02** — Test gap: scenari non coperti — download ok + prep fallisce, `restartToInstall` senza `pendingInstall`, `startUpdate` durante download, release senza asset
+Nessun finding aperto.
 
 ### Debito accettato
 
 - MEDIUM-020 — DiagnosticsViewModel I/O diretto: utility screen senza logica di dominio, debito accettato
+- R10-003 — `findProgramByYearMonth` / `deleteWeekPlan` usate solo dal seed CLI: debito accettato, tooling code
+- R10-002 — `insertWeekPlan` usata solo da test: debito accettato, stessa logica di R10-003 (tooling/test code)
+- R10-010 — Date comparisons basate su ordinamento stringhe ISO-8601: by design, SQLite non ha tipo DATE nativo
 
 ---
 
 ## Findings risolti
 
-### Fairness refactoring (round 1, 2026-03-12)
+### Batch low-effort (2026-03-18)
 
-- HIGH-001 — Doc drift data-model.md → `a129c0a`
-- HIGH-002 — Doc drift spec Q&A formula → `a129c0a`
-- MEDIUM-001 — DRY lastWasConductor → `885f966`
-- MEDIUM-002 — Triple→Pair → `885f966`
-- MEDIUM-003 — 999→Int.MAX_VALUE → `885f966`
-- MEDIUM-004 — Test gap: mai assegnato → `a13ed09`
-- MEDIUM-005 — Test gap: count+cooldown → `a13ed09`
-- MEDIUM-006 — Test gap: assistant-repeat → `a13ed09`
+- **R8-001** (HIGH) — `requireNotNull` → `raise(DomainError.Validation)` in either block. Commit: `a72aa8e`
+- **R7-005** (MEDIUM) — `Either.catch` → `runInTransactionEither` in EliminaStoricoUseCase. Commit: `e343ab2`
+- **R7-010** (MEDIUM) — `Either.catch` → `runInTransactionEither` in SegnaComInviato + AnnullaConsegna. Commit: `8d4fa83`
+- **R8-008** (MEDIUM) — Added error handling to `loadAssignmentSettings`. Commit: `b826999`
+- **R8-009** (MEDIUM) — Added error handling to `loadPartTypes` via `executeAsyncOperation`. Commit: `1e1fe2c`
+- **R10-001** (MEDIUM) — Deleted 5 orphan SQL queries. Commit: `8d7dbd8`
+- **R7-004** (LOW) — `requireNotNull` → safe `Instant.MIN` fallback. Commit: `737827e`
+- **R7-007** (LOW) — Deleted dead `requireValid` function. Commit: `7531272`
+- **R8-010** (LOW) — Removed dead `caricaAssegnazioni` dependency from PersonPickerViewModel. Commit: `cb5ee42`
+- **R11-001** (LOW) — Deleted dead `mapProclamatoreRow` function. Commit: `b1d533a`
+- **R11-004** (LOW) — Silent `return@forEach` → `error()` for impossible state. Commit: `053b7c3`
+- **R11-006** (LOW) — Removed redundant `.sortedBy` after SQL `ORDER BY`. Commit: `cf352e6`
+- **SA-001** (MEDIUM) — Spec 002 updated: "nessuna parte" → "con la parte fissa". Commit: `bd8e6e1`
+- **SA-005** (LOW) — Spec 002 updated: `programId: String?` → `ProgramMonthId?`. Commit: `bd8e6e1`
+- **SA-006** (LOW) — Spec 005 updated: `slotToRoleLabel()` → `roleLabel` property. Commit: `bd8e6e1`
+- **SA-007** (LOW) — Spec 005 updated: removed stale `AssignmentHistoryEntry` reference. Commit: `bd8e6e1`
+- **SA-008** (LOW) — Spec 007 updated: documented third `firstOrNull()` fallback. Commit: `bd8e6e1`
+- **R11-007** (LOW) — Invalidato: `sospeso=false` è il default del data class Proclamatore; l'assignment query non ha accesso allo stato sospensione
+- **R8-015** (LOW) — Invalidato: `SchemaManagementViewModelTest.kt` esiste con 9 test su helper functions
 
-### Full codebase review (round 2, 2026-03-12)
+### Batch impatto-rapido (2026-03-18)
 
-- HIGH-003 — Dual validation Proclamatore.of() vs Aggregate → `f558cbc`
-- HIGH-004 — Dead code setSuspended() → `b45c2b8`
-- HIGH-005 — Zero test eligibility cleanup → `dd559fb`
-- HIGH-006 — N+1 queries generateProgramTickets → `8961736`
-- MEDIUM-007 — Spec drift Proclamatore.init → `b0dc797`
-- MEDIUM-008 — Missing test max-length → `bf7c96f`
-- MEDIUM-009 — Dead code recompactedSortOrders() → `9d4d1ca`
-- MEDIUM-010 — Commento OutputConstants errato → `62ae9e1`
-- MEDIUM-011 — createWeekWithFixedPart bypassa of() → `bf67a2a`
-- MEDIUM-012 — AssegnaPersona double-wraps Either → `b8bbf79`
-- MEDIUM-013 — Anomaly ID hashCode() → composite key → `fe3bf68`
-- MEDIUM-014 — fileOpener.open() fuori either → `0df4770`
-- MEDIUM-015 — Test happy-path RimuoviAssegnazione → `b9150c4`
-- MEDIUM-016 — Test ArchivaAnomalieSchema → `b9150c4`
-- MEDIUM-017 — Test domain replaceParts() → `b9150c4`
+- **R10-004** (MEDIUM) — Added `UNIQUE(week_plan_id, sort_order)` on `weekly_part`. Commit: `f35a69e`
+- **R10-005** (LOW) — Added `UNIQUE(schema_week_id, sort_order)` on `schema_week_part`. Commit: `ff66296`
+- **R10-006** (LOW) — Added CHECK constraints on TEXT enum columns (`sex`, `sex_rule`). Commit: `b565e8f`
+- **R10-007** (LOW) — Added `CHECK(id = 'singleton')` on `assignment_settings` + fixed store to use fixed id. Commit: `22af4d5`
+- **R10-008** (LOW) — Added partial unique index on `slip_delivery` for active deliveries. Commit: `a0f48a7`
+- **R11-002** (MEDIUM) — Replaced silent `Sesso.M` fallback with `error()` for impossible state. Commit: `4fdd67a`
+- **R11-003** (LOW) — Replaced silent `SexRule.STESSO_SESSO` fallback with `error()` for impossible state. Commit: `4fdd67a`
+- **SA-002** (MEDIUM) — Added coroutine `Mutex` to `AutoAssegnaProgrammaUseCase` per spec requirement. Commit: `c372e3b`
 
-### Codebase review (round 3, 2026-03-12)
+### Batch architetturale (2026-03-18)
 
-- MEDIUM-018 — Settings.putString fuori tx → `c254e17`
-- MEDIUM-019 — SchemaCatalogRemoteSource returns Either → `b2e1d15`
+- **R7-009** (LOW) — Moved print DTOs from infrastructure to application layer. Commit: `da35e0d`
+- **R7-001** (MEDIUM) — Introduced `ProgramRenderer`/`AssignmentsRenderer` interfaces to remove application→infrastructure imports. Commit: `d88c2fb`
+- **R7-002** (MEDIUM) — Moved `dateFormatter`/`formatMonthYearLabel` to `core/formatting`. Commit: `7423a24`
+- **R7-014** (LOW) — Renamed `GeneraImmaginiAssegnazioni` → `GeneraImmaginiAssegnazioniUseCase`. Commit: `2c44527`
+- **R9-001** (MEDIUM) — `SalvaImpostazioniAssegnatoreUseCase`: return `Either<DomainError, Unit>`. Commit: `a855dd2`
+- **R9-002** (MEDIUM) — `AutoAssegnaProgrammaUseCase`: return `Either<DomainError, AutoAssignProgramResult>`. Commit: `865381b`
+- **R11-005** (MEDIUM) — Standardized defensive pattern to `error()` for impossible DB states. Commit: `7d52413`
+- **R10-009** (LOW) — Added 52-week time window to `allAssignmentRankingData` query. Commit: `a914ff5`
+- **R8-014** (LOW) — Made eligibility persistence atomic with batch transaction. Commit: `2f6430d`
+- **R9-003** (LOW) — Changed use case DI from `single` to `factory` (except `AutoAssegnaProgrammaUseCase` — Mutex). Commit: `c80edf3`
+- **R10-002** (LOW) — Moved to debito accettato: `insertWeekPlan` test-only query, stessa logica di R10-003
 
-### Codebase review (round 4, 2026-03-12)
+### Batch R12-001 — Either.catch → runInTransactionEither (2026-03-18)
 
-- MEDIUM-021 — 4 query SQL orfane → `143bf69`
-- MEDIUM-022 — Test gap partial failure AutoAssegna → `5030fc8`
+- **R12-001** (MEDIUM) — Replaced `Either.catch { runInTransaction {} }.mapLeft { ... }` with `runInTransactionEither` across 20 use cases in 5 features. 5 parallel worktrees, all merged with `--no-ff`. Commits: people `3ccc1a6`, assignments `4623cb8`, programs `d9168bb`, schemas `1620cbc`, weeklyparts `d8ad560`. Tests updated: `DomainErrorMappingAssignmentsUseCaseTest`, `PersonPickerViewModelTest`, `AssignmentManagementViewModelTest`, `ArchivaAnomalieSchemaUseCaseTest`, `RiordinaPartiUseCaseTest` (error message assertions aligned to `runInTransactionEither` wrapping).
 
-### Update review (round 5, 2026-03-13)
+### Batch finale — test gaps + spec (2026-03-18)
 
-- UPD-M01 — Timeout update limitato al solo download installer → `20269ab`
-- UPD-M02 — Messaggi errore update orientati all’azione utente → `a920675`
-
-### Update review fix (round 6, 2026-03-18)
-
-- UPD-M03 — Rimosso BETA channel dal codice, allineato a spec → `356434b`
-- UPD-M04 — Allineata spec User Story 2 all’implementazione reale (external updater) → `30e99d6`
-
----
-
-## Findings invalidati
-
-- INV-001 — Fairness doc formula: changelog intenzionale
-- INV-002 — abs() asimmetria: design corretto
-- INV-003 — Count window exclusive end: by design
-- INV-004 — VACUUM dual connection: non esiste nel codebase
-- INV-005 — Dead ImpostaIdoneitaAssistenzaUseCase: attivamente usato
-- INV-006 — Orphan ranking queries: tutte referenziate da SqlDelightAssignmentStore
-- INV-007 — Missing index slip_delivery.week_plan_id: indice composito presente
-- INV-008 — Private DTOs schemas: design corretto
-- INV-009 — TOCTOU gap AggiornaSchemiUseCase: nessun gap
-- INV-010 — AppBootstrap race: synchronized corretto
-- INV-011 — ViewModel error handling: pattern diversi ma tutti corretti nel contesto
-- INV-012 — getOrElse{error()} in SqlDelightWeekPlanStore: pattern corretto per stato impossibile (dati DB già validati in write)
-- INV-013 — N+1 listByWeek in SuggerisciProclamatori loop: re-query necessario per correttezza (requiredSex da assignment appena scritti)
+- **R8-016** (LOW) — Added 32-test suite for `PartEditorViewModel`. Commit: `bf6cf4d`
+- **R8-017** (LOW) — Added 22-test suite for `PersonPickerViewModel`. Commit: `fd6abf6`
+- **R8-018** (LOW) — Added 34-test suite for `ProclamatoriListViewModel`. Commit: `37e2b18`
+- **SA-003** (LOW) — Spec 002 FR-006 updated: `CercaTipiParteUseCase` loads all, filtering is client-side. Commit: `b738323`
+- **SA-004** (LOW) — Spec 002 Key Entities updated: added `snapshot` and `partTypeRevisionId` to WeeklyPart. Commit: `71bbdea`
 
 ---
 
@@ -104,3 +95,13 @@ schemas, print+assignments), 2026-03-12.
 | 2026-03-13 | post-merge round 5 (UPD-M01/UPD-M02) | full suite | 0 |
 | 2026-03-18 | review round 6 (update feature) | update tests | 0 |
 | 2026-03-18 | post-fix UPD-M03 (worktree) | full suite | 0 |
+| 2026-03-18 | post-merge batch UPD-H01/M05/M06/L01/L02 | full suite | 0 |
+| 2026-03-18 | review round 7-9 (core, VMs, cross-cutting) | analisi statica | — |
+| 2026-03-18 | review round 10-11 (.sq, row mappers, stores) | analisi statica | — |
+| 2026-03-18 | review round 12 (spec alignment, 7 spec) | analisi statica | — |
+| 2026-03-18 | post-merge batch low-effort (4 worktree: dead-code, error-handling, vm-fixes, spec-align) | full suite | 0 |
+| 2026-03-18 | post-merge batch impatto-rapido (3 worktree: sql-constraints, parser-fallbacks, auto-assign-mutex) | full suite | 0 |
+| 2026-03-18 | post-merge batch architetturale (4 worktree: layer-inversions, use-case-either, minor-patterns, di-factory) | full suite | 0 |
+| 2026-03-18 | post-merge batch finale (4 worktree: spec-align-2, test-part-editor, test-person-picker, test-proclamatori) | full suite | 0 |
+| 2026-03-18 | review round 13: 5-round full-codebase scan (5 parallel agents) | analisi statica | — |
+| 2026-03-18 | post-merge batch R12-001 (5 worktree: people, assignments, programs, schemas, weeklyparts) | full suite | 0 |
