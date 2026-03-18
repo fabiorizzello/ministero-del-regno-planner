@@ -49,8 +49,8 @@ class AggiornaSchemiUseCase(
                 .getOrNull() ?: raise(DomainError.DataSchemaNonValida(remoteWeek.weekStartDate))
         }
 
-        Either.catch {
-            transactionRunner.runInTransaction {
+        transactionRunner.runInTransactionEither {
+            Either.Right(run {
                 if (eligibilityCleanupCandidates.isNotEmpty()) {
                     eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
                     schemaUpdateAnomalyStore.append(
@@ -84,8 +84,8 @@ class AggiornaSchemiUseCase(
                     )
                 }
                 schemaTemplateStore.replaceAll(storedTemplates)
-            }
-        }.mapLeft { DomainError.Validation(it.message ?: "Errore aggiornamento schemi") }.bind()
+            })
+        }.bind()
 
         settings.putString("last_schema_import_at", LocalDateTime.now().toString())
 
