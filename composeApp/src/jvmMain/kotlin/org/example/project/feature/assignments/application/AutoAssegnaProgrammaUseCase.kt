@@ -1,5 +1,7 @@
 package org.example.project.feature.assignments.application
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.example.project.core.domain.toMessage
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
@@ -33,11 +35,15 @@ class AutoAssegnaProgrammaUseCase(
     private val assignmentRanking: AssignmentRanking,
     private val eligibilityStore: EligibilityStore,
 ) {
+    private val mutex = Mutex()
+
     suspend operator fun invoke(
         programId: ProgramMonthId,
         referenceDate: LocalDate,
-    ): AutoAssignProgramResult = transactionRunner.runInTransaction {
-        doAssign(programId, referenceDate)
+    ): AutoAssignProgramResult = mutex.withLock {
+        transactionRunner.runInTransaction {
+            doAssign(programId, referenceDate)
+        }
     }
 
     context(tx: TransactionScope)

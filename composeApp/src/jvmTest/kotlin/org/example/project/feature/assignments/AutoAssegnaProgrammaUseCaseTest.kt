@@ -1,8 +1,13 @@
 package org.example.project.feature.assignments
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.PassthroughTransactionRunner
+import org.example.project.core.persistence.DefaultTransactionScope
+import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
+import java.util.concurrent.atomic.AtomicInteger
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
@@ -320,6 +325,54 @@ class AutoAssegnaProgrammaUseCaseTest {
         // Slot 1 assignment was persisted
         assertEquals(1, saved?.assignments?.size ?: 0)
         assertEquals(candidate.id, saved?.assignments?.single()?.personId)
+    }
+
+    @Test
+    fun `concurrent invocations are serialized by mutex`() = runTest {
+        val concurrencyCounter = AtomicInteger(0)
+        var maxConcurrency = 0
+
+        val delayingRunner = object : TransactionRunner {
+            override suspend fun <T> runInTransaction(block: suspend TransactionScope.() -> T): T {
+                val current = concurrencyCounter.incrementAndGet()
+                maxConcurrency = maxOf(maxConcurrency, current)
+                delay(50) // give the second coroutine a chance to start
+                val result = with(DefaultTransactionScope) { block() }
+                concurrencyCounter.decrementAndGet()
+                return result
+            }
+        }
+
+        val weekStore = InMemoryWeekPlanStore(
+            WeekPlanAggregate(weekPlan = week, assignments = emptyList()),
+        )
+        val useCase = AutoAssegnaProgrammaUseCase(
+            weekPlanStore = weekStore,
+            assignmentRepository = EmptyAssignmentsRepository,
+            suggerisciProclamatori = SuggerisciProclamatoriUseCase(
+                weekPlanStore = weekStore,
+                assignmentStore = StaticAssignmentRanking(listOf(candidateSuggestion)),
+                assignmentRepository = EmptyAssignmentsRepository,
+                eligibilityStore = SingleCandidateEligibilityStore(candidate.id, partType.id),
+                assignmentSettingsStore = StaticSettingsStore,
+            ),
+            assegnaPersona = AssegnaPersonaUseCase(
+                weekPlanStore = weekStore,
+                transactionRunner = PassthroughTransactionRunner,
+                personStore = TransactionTestPersonStore(candidate),
+            ),
+            transactionRunner = delayingRunner,
+            assignmentRanking = StaticAssignmentRanking(listOf(candidateSuggestion)),
+            eligibilityStore = SingleCandidateEligibilityStore(candidate.id, partType.id),
+        )
+
+        val a = async { useCase(programId = programId, referenceDate = weekStart) }
+        val b = async { useCase(programId = programId, referenceDate = weekStart) }
+        a.await()
+        b.await()
+
+        // If the mutex works, max concurrency inside runInTransaction is 1
+        assertEquals(1, maxConcurrency, "Expected serialized execution (max concurrency = 1)")
     }
 
     @Test
