@@ -6,7 +6,8 @@ CREATE TABLE person (
     suspended INTEGER NOT NULL DEFAULT 0,
     can_assist INTEGER NOT NULL DEFAULT 0,
     CHECK(suspended IN (0, 1)),
-    CHECK(can_assist IN (0, 1))
+    CHECK(can_assist IN (0, 1)),
+    CHECK(sex IN ('M', 'F'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS person_unique_full_name_nocase
@@ -24,7 +25,8 @@ CREATE TABLE part_type (
     current_revision_id TEXT DEFAULT NULL,
     CHECK(people_count >= 1),
     CHECK(fixed IN (0, 1)),
-    CHECK(active IN (0, 1))
+    CHECK(active IN (0, 1)),
+    CHECK(sex_rule IN ('UOMO', 'STESSO_SESSO'))
 );
 
 CREATE TABLE part_type_revision (
@@ -38,7 +40,8 @@ CREATE TABLE part_type_revision (
     created_at TEXT NOT NULL,
     FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE CASCADE,
     CHECK(people_count >= 1),
-    CHECK(fixed IN (0, 1))
+    CHECK(fixed IN (0, 1)),
+    CHECK(sex_rule IN ('UOMO', 'STESSO_SESSO'))
 );
 
 CREATE INDEX IF NOT EXISTS part_type_revision_part_type_id_idx
@@ -66,7 +69,8 @@ CREATE TABLE schema_week_part (
     part_type_id TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (schema_week_id) REFERENCES schema_week(id) ON DELETE CASCADE,
-    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT
+    FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT,
+    UNIQUE(schema_week_id, sort_order)
 );
 
 CREATE INDEX IF NOT EXISTS schema_week_part_week_id_idx
@@ -88,7 +92,8 @@ CREATE TABLE assignment_settings (
     strict_cooldown INTEGER NOT NULL DEFAULT 1,
     lead_cooldown_weeks INTEGER NOT NULL DEFAULT 4,
     assist_cooldown_weeks INTEGER NOT NULL DEFAULT 2,
-    CHECK(strict_cooldown IN (0, 1))
+    CHECK(strict_cooldown IN (0, 1)),
+    CHECK(id = 'singleton')
 );
 
 CREATE TABLE schema_update_anomaly (
@@ -121,7 +126,8 @@ CREATE TABLE weekly_part (
     sort_order INTEGER NOT NULL,
     FOREIGN KEY (week_plan_id) REFERENCES week_plan(id) ON DELETE CASCADE,
     FOREIGN KEY (part_type_id) REFERENCES part_type(id) ON DELETE RESTRICT,
-    FOREIGN KEY (part_type_revision_id) REFERENCES part_type_revision(id) ON DELETE SET NULL
+    FOREIGN KEY (part_type_revision_id) REFERENCES part_type_revision(id) ON DELETE SET NULL,
+    UNIQUE(week_plan_id, sort_order)
 );
 
 CREATE TABLE assignment (
@@ -161,6 +167,9 @@ CREATE TABLE slip_delivery (
 
 CREATE INDEX IF NOT EXISTS slip_delivery_part_week_idx
 ON slip_delivery(weekly_part_id, week_plan_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_slip_delivery_active
+ON slip_delivery(weekly_part_id, week_plan_id) WHERE cancelled_at IS NULL;
 
 -- Slip delivery queries
 

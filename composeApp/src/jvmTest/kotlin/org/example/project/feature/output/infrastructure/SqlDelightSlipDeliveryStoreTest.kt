@@ -126,8 +126,8 @@ class SqlDelightSlipDeliveryStoreTest {
 
         with(DefaultTransactionScope) {
             store.insert(d1)
-            store.insert(d2)
             store.cancel(d1.id, cancelTime1)
+            store.insert(d2)
             store.cancel(d2.id, cancelTime2)
         }
 
