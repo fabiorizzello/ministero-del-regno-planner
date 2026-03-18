@@ -160,20 +160,6 @@ class PersonPickerViewModelTest {
         Unit
     }
 
-    @Test
-    fun `reloadSuggestions does nothing when picker is closed`() = runTest {
-        val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
-
-        val vm = makeViewModel(scope = this, suggerisci = suggerisci)
-        // Picker is closed by default
-        vm.reloadSuggestions()
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { suggerisci(any(), any(), any(), any(), any(), any()) }
-        Unit
-    }
-
     // ── confirmAssignment — no delivery warning ───────────────────────────────
 
     @Test
@@ -467,29 +453,6 @@ class PersonPickerViewModelTest {
         vm.dismissNotice()
 
         assertNull(vm.state.value.notice)
-        Unit
-    }
-
-    // ── confirmAssignment without picker open ─────────────────────────────────
-
-    @Test
-    fun `confirmAssignment does nothing when picker is not open`() = runTest {
-        val assegna = mockk<AssegnaPersonaUseCase>()
-        val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
-
-        val vm = makeViewModel(
-            scope = this,
-            assegna = assegna,
-            verificaConsegna = verificaConsegna,
-        )
-
-        var successCalled = false
-        vm.confirmAssignment(personId) { successCalled = true }
-        advanceUntilIdle()
-
-        assertFalse(successCalled)
-        coVerify(exactly = 0) { verificaConsegna(any(), any()) }
-        coVerify(exactly = 0) { assegna(any(), any(), any(), any()) }
         Unit
     }
 

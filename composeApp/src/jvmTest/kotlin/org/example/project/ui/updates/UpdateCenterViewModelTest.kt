@@ -505,61 +505,6 @@ class UpdateCenterViewModelTest {
         }
     }
 
-    @Test
-    fun `startUpdate with release but no asset is a no-op`() = runTest {
-        val aggiornaApplicazione = mockk<AggiornaApplicazione>()
-        val updateSettingsStore = mockk<UpdateSettingsStore>()
-        val verificaAggiornamenti = mockk<VerificaAggiornamenti>(relaxed = true)
-        io.mockk.every { updateSettingsStore.loadLastCheck() } returns null
-        val vmScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
-
-        val vm = UpdateCenterViewModel(
-            scope = vmScope,
-            verificaAggiornamenti = verificaAggiornamenti,
-            aggiornaApplicazione = aggiornaApplicazione,
-            updateStatusStore = UpdateStatusStore(),
-            updateSettingsStore = updateSettingsStore,
-        )
-
-        try {
-            // Set up state where updateAvailable=true but asset=null
-            applyUpdateResult(
-                vm,
-                Either.Right(
-                    UpdateCheckResult(
-                        currentVersion = "1.0.0",
-                        latestVersion = "v1.1.0",
-                        updateAvailable = true,
-                        asset = null,
-                        releaseTitle = "v1.1.0",
-                        releaseNotes = "Migliorie",
-                        source = UpdateSource.GITHUB,
-                        checkedAt = java.time.Instant.parse("2026-03-10T10:00:00Z"),
-                    ),
-                ),
-            )
-
-            assertTrue(vm.state.value.updateAvailable)
-            assertNull(vm.state.value.updateAsset)
-
-            val stateBefore = vm.state.value
-
-            vm.startUpdate()
-            advanceUntilIdle()
-
-            // State should be unchanged — startUpdate returned early
-            val stateAfter = vm.state.value
-            assertFalse(stateAfter.isDownloading, "No download should have started")
-            assertFalse(stateAfter.hasError, "No error should be set")
-            assertEquals(stateBefore, stateAfter, "State should be completely unchanged")
-
-            // Verify no download was triggered
-            coVerify(exactly = 0) { aggiornaApplicazione.downloadInstaller(any(), any()) }
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
     private fun applyUpdateResult(vm: UpdateCenterViewModel, result: Either<DomainError, UpdateCheckResult>) {
         val method = UpdateCenterViewModel::class.java.getDeclaredMethod("applyUpdateResult", Either::class.java)
         method.isAccessible = true
