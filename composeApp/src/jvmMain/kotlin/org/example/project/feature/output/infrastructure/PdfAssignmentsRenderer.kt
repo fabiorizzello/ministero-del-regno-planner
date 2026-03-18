@@ -15,7 +15,7 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.project.feature.output.application.AssignmentSlipData
 import org.example.project.feature.output.application.AssignmentsRenderer
-import org.example.project.ui.components.dateFormatter
+import org.example.project.core.formatting.dateFormatter
 
 class PdfAssignmentsRenderer : AssignmentsRenderer {
     private val logger = KotlinLogging.logger {}

@@ -17,7 +17,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
-import org.example.project.ui.components.formatMonthYearLabel
+import org.example.project.core.formatting.formatMonthYearLabel
 
 internal fun weekPlanStatusLabel(status: WeekPlanStatus): String = when (status) {
     WeekPlanStatus.ACTIVE -> "Attiva"
