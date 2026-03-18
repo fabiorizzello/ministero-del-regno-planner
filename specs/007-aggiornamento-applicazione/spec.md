@@ -193,7 +193,7 @@ Il flusso è **completamente automatico e idempotente** — ogni step verifica s
 - Il packaging MSI deve essere eseguito con **JetBrains Runtime 21**. Usare Temurin/OpenJDK produce un installer che include una JVM valida ma non compatibile con `Jewel DecoratedWindow`, causando il crash all'avvio con messaggio finale `Failed to launch JVM`.
 - Se non trova una JBR 21 locale e `-WhatIf` non è attivo, lo script scarica automaticamente l'ultima `jbrsdk` 21 Windows x64 dalle release ufficiali di `JetBrains/JetBrainsRuntime` e la riusa nelle esecuzioni successive.
 - L'upgrade code MSI viene derivato automaticamente da JPackage in base a `packageName`. Non modificare `packageName` tra release oppure Windows tratterà le versioni come prodotti diversi (doppia installazione).
-- `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come fallback. Lo script deve uploadare il file `.msi`.
+- `GitHubReleasesClient` cerca asset con estensione `.msi` come prima scelta, `.exe` come secondo tentativo, e infine `firstOrNull()` su qualsiasi asset disponibile come ultimo fallback (resilienza a formati non-standard). Lo script deve uploadare il file `.msi`.
 - Lo script supporta `-WhatIf` per verificare il flusso senza effetti collaterali.
 - Se `-Version` manca in un contesto non interattivo, lo script non si ferma con un errore generico: mostra la versione corrente e suggerisce i prossimi bump patch/minor/major da passare esplicitamente.
 - `gh` rileva il repository automaticamente dal remote git — non serve configurazione aggiuntiva.
