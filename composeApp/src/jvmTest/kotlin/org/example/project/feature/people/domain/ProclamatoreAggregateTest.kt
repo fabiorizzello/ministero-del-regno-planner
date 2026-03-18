@@ -38,52 +38,36 @@ class ProclamatoreAggregateTest {
     }
 
     @Test
-    fun `create returns NomeObbligatorio when nome is blank`() {
-        val result = ProclamatoreAggregate.create(
-            id = ProclamatoreId("p1"),
-            nome = "   ",
-            cognome = "Rossi",
-            sesso = Sesso.M,
+    fun `create and updateProfile reject blank required fields`() {
+        val createBlankNome = ProclamatoreAggregate.create(
+            id = ProclamatoreId("p1"), nome = "   ", cognome = "Rossi", sesso = Sesso.M,
+        )
+        assertEquals(
+            DomainError.NomeObbligatorio,
+            assertIs<Either.Left<DomainError>>(createBlankNome).value,
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.NomeObbligatorio, left)
-    }
-
-    @Test
-    fun `create returns CognomeObbligatorio when cognome is blank`() {
-        val result = ProclamatoreAggregate.create(
-            id = ProclamatoreId("p1"),
-            nome = "Mario",
-            cognome = "   ",
-            sesso = Sesso.M,
+        val createBlankCognome = ProclamatoreAggregate.create(
+            id = ProclamatoreId("p1"), nome = "Mario", cognome = "   ", sesso = Sesso.M,
+        )
+        assertEquals(
+            DomainError.CognomeObbligatorio,
+            assertIs<Either.Left<DomainError>>(createBlankCognome).value,
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.CognomeObbligatorio, left)
-    }
-
-    @Test
-    fun `updateProfile returns NomeObbligatorio when nome is blank`() {
         val aggregate = ProclamatoreAggregate(
             Proclamatore(
-                id = ProclamatoreId("p1"),
-                nome = "Mario",
-                cognome = "Rossi",
-                sesso = Sesso.M,
+                id = ProclamatoreId("p1"), nome = "Mario", cognome = "Rossi", sesso = Sesso.M,
             ),
         )
-
-        val result = aggregate.updateProfile(
-            nome = "",
-            cognome = "Rossi",
-            sesso = Sesso.M,
-            sospeso = false,
-            puoAssistere = false,
+        val updateBlankNome = aggregate.updateProfile(
+            nome = "", cognome = "Rossi", sesso = Sesso.M, sospeso = false, puoAssistere = false,
         )
-
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.NomeObbligatorio, left)
+        assertEquals(
+            DomainError.NomeObbligatorio,
+            assertIs<Either.Left<DomainError>>(updateBlankNome).value,
+        )
+        Unit
     }
 
     @Test
