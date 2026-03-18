@@ -140,8 +140,10 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   a valori contigui 0..n-1.
 - **FR-005**: Il sistema MUST consentire il riordinamento delle parti (aggiornamento
   sortOrder).
-- **FR-006**: Il sistema MUST consentire la ricerca dei tipi di parte disponibili per
-  nome/codice.
+- **FR-006**: Il sistema MUST caricare tutti i tipi di parte disponibili
+  (`CercaTipiParteUseCase` restituisce l'elenco completo). Il catalogo è
+  sufficientemente piccolo da non richiedere filtro server-side; l'eventuale
+  ricerca per nome/codice avviene lato UI.
 - **FR-007**: Il sistema MUST aggiornare il catalogo dei tipi di parte e gli schemi
   settimanali da sorgente remoto su richiesta. L'aggiornamento avviene in una **singola
   transazione atomica**: validazione date upfront, poi upsert part types e sovrascrittura
@@ -156,7 +158,11 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
 
 - **WeekPlan**: id (UUID), weekStartDate (sempre lunedì), parts (lista ordinata),
   programId (opzionale, FK a ProgramMonth), status (ACTIVE | SKIPPED).
-- **WeeklyPart**: id (UUID), partType (FK), sortOrder. Appartiene a un WeekPlan.
+- **WeeklyPart**: id (UUID), partType (FK), sortOrder,
+  snapshot (PartTypeSnapshot?, snapshot dei campi del PartType al momento della
+  creazione — label, peopleCount, sexRule, fixed), partTypeRevisionId (String?,
+  identifica la revisione del PartType a cui si riferisce questa parte).
+  Appartiene a un WeekPlan.
 - **PartType**: id, code, label, peopleCount (>= 1), sexRule (UOMO | STESSO_SESSO),
   fixed (boolean), sortOrder. Catalogo dei tipi di parte disponibili.
 - **SexRule**: UOMO = solo proclamatori maschi per qualsiasi slot;
