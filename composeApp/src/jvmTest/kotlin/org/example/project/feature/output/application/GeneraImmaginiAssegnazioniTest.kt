@@ -13,6 +13,8 @@ import org.example.project.feature.assignments.application.CaricaAssegnazioniUse
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
+import org.example.project.feature.output.application.AssignmentsRenderer
+import org.example.project.feature.output.application.AssignmentSlipData
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -96,11 +98,10 @@ class GeneraImmaginiAssegnazioniTest {
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -151,11 +152,10 @@ class GeneraImmaginiAssegnazioniTest {
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -213,11 +213,10 @@ class GeneraImmaginiAssegnazioniTest {
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
-            outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, pngPath ->
+            renderer = TestAssignmentsRenderer { _, pngPath ->
                 ImageIO.write(BufferedImage(12, 18, BufferedImage.TYPE_INT_RGB), "png", pngPath.toFile())
             },
+            outputDirProvider = { tempDir },
         )
 
         val result = useCase.generateProgramTickets(programId).getOrNull()!!
@@ -358,9 +357,8 @@ class GeneraImmaginiAssegnazioniTest {
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = PdfAssignmentsRenderer(),
+            renderer = TestAssignmentsRenderer { _, _ -> throw RuntimeException("PDF rendering fallito") },
             outputDirProvider = { tempDir },
-            pdfToPngRenderer = { _, _ -> throw RuntimeException("PDF rendering fallito") },
         )
 
         val result = useCase.generateProgramTickets(programId)
@@ -434,4 +432,18 @@ class GeneraImmaginiAssegnazioniTest {
             sesso = Sesso.M,
         ),
     )
+
+    /**
+     * Wraps the real [PdfAssignmentsRenderer] but substitutes [renderPdfToImage]
+     * with a test-controlled function.
+     */
+    private class TestAssignmentsRenderer(
+        private val delegate: PdfAssignmentsRenderer = PdfAssignmentsRenderer(),
+        private val pdfToImage: (java.nio.file.Path, java.nio.file.Path) -> Unit,
+    ) : AssignmentsRenderer {
+        override fun renderAssignmentSlipPdf(slip: AssignmentSlipData, outputPath: java.nio.file.Path) =
+            delegate.renderAssignmentSlipPdf(slip, outputPath)
+        override fun renderPdfToImage(pdfPath: java.nio.file.Path, pngPath: java.nio.file.Path) =
+            pdfToImage(pdfPath, pngPath)
+    }
 }

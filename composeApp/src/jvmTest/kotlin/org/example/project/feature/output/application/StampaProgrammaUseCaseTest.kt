@@ -13,7 +13,6 @@ import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.person
-import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.programs.application.ProgramStore

@@ -17,8 +17,6 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.output.infrastructure.PdfAssignmentsRenderer
-import org.example.project.feature.output.infrastructure.renderPdfToPngFile
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
@@ -67,7 +65,7 @@ data class TicketGenerationResult(
 )
 
 private data class AssignmentSlipWithOrder(
-    val slip: PdfAssignmentsRenderer.AssignmentSlip,
+    val slip: AssignmentSlipData,
     val sortOrder: Int,
     val weekStart: LocalDate,
     val weekEnd: LocalDate,
@@ -80,10 +78,9 @@ class GeneraImmaginiAssegnazioni(
     private val weekPlanQueries: WeekPlanQueries,
     private val caricaAssegnazioni: CaricaAssegnazioniUseCase,
     private val assignmentRepository: AssignmentRepository,
-    private val renderer: PdfAssignmentsRenderer,
+    private val renderer: AssignmentsRenderer,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val outputDirProvider: () -> Path = { AppRuntime.paths().exportsDir.resolve("assegnazioni") },
-    private val pdfToPngRenderer: (Path, Path) -> Unit = ::renderPdfToPngFile,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -235,7 +232,7 @@ class GeneraImmaginiAssegnazioni(
             val student = partAssignments.firstOrNull { it.slot == 1 } ?: return@mapNotNull null
             val assistant = partAssignments.firstOrNull { it.slot == 2 }
             AssignmentSlipWithOrder(
-                slip = PdfAssignmentsRenderer.AssignmentSlip(
+                slip = AssignmentSlipData(
                     studentName = student.fullName,
                     assistantName = assistant?.fullName,
                     weekStart = weekPlan.weekStartDate,
@@ -254,13 +251,13 @@ class GeneraImmaginiAssegnazioni(
     private fun renderSlipImage(
         outputDir: Path,
         baseName: String,
-        slip: PdfAssignmentsRenderer.AssignmentSlip,
+        slip: AssignmentSlipData,
     ): Either<DomainError, Path> {
         val pdfPath = outputDir.resolve("$baseName-tmp.pdf")
         val pngPath = outputDir.resolve("$baseName.png")
         return try {
             renderer.renderAssignmentSlipPdf(slip, pdfPath)
-            pdfToPngRenderer(pdfPath, pngPath)
+            renderer.renderPdfToImage(pdfPath, pngPath)
             logger.info { "Immagine creata: ${pngPath.toAbsolutePath()}" }
             pngPath.right()
         } catch (error: Exception) {

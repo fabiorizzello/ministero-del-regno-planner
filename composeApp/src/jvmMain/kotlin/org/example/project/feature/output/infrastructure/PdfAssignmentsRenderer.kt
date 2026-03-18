@@ -13,9 +13,11 @@ import org.apache.pdfbox.pdmodel.font.PDFont
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.example.project.feature.output.application.AssignmentSlipData
+import org.example.project.feature.output.application.AssignmentsRenderer
 import org.example.project.ui.components.dateFormatter
 
-class PdfAssignmentsRenderer {
+class PdfAssignmentsRenderer : AssignmentsRenderer {
     private val logger = KotlinLogging.logger {}
     private val helvetica = PDType1Font(Standard14Fonts.FontName.HELVETICA)
     private val helveticaBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
@@ -32,15 +34,7 @@ class PdfAssignmentsRenderer {
         val assignments: List<String>,
     )
 
-    data class AssignmentSlip(
-        val studentName: String,
-        val assistantName: String?,
-        val weekStart: LocalDate,
-        val partNumber: Int,
-        val partLabel: String,
-    )
-
-    fun renderAssignmentSlipPdf(slip: AssignmentSlip, outputPath: Path) {
+    override fun renderAssignmentSlipPdf(slip: AssignmentSlipData, outputPath: Path) {
         val templateBytes = PdfAssignmentsRenderer::class.java
             .getResourceAsStream("/templates/S-89.pdf")
             ?.readBytes()
@@ -78,6 +72,10 @@ class PdfAssignmentsRenderer {
             document.save(outputPath.toFile())
         }
         logger.info { "Biglietto S-89 generato: ${outputPath.toAbsolutePath()}" }
+    }
+
+    override fun renderPdfToImage(pdfPath: Path, pngPath: Path) {
+        renderPdfToPngFile(pdfPath, pngPath)
     }
 
     private fun drawSlipValue(content: PDPageContentStream, text: String, x: Float, y: Float) {

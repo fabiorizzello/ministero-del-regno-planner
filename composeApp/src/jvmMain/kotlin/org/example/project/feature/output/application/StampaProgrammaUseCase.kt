@@ -12,7 +12,6 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
-import org.example.project.feature.output.infrastructure.PdfProgramRenderer
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.application.WeekPlanQueries
@@ -99,7 +98,7 @@ class StampaProgrammaUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanQueries,
     private val assignmentRepository: AssignmentRepository,
-    private val renderer: PdfProgramRenderer,
+    private val renderer: ProgramRenderer,
     private val fileOpener: FileOpener,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val programExportDirProvider: () -> Path = { AppRuntime.paths().exportsDir.resolve("programmi") },
