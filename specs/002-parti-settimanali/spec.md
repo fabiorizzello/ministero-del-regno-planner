@@ -21,7 +21,8 @@ aggiungere 3 parti → verificare che le 3 parti siano visibili nell'ordine corr
 **Acceptance Scenarios**:
 
 1. **Given** una data di lunedì valida, **When** si crea un WeekPlan, **Then** il
-   piano viene salvato con status ACTIVE e nessuna parte.
+   piano viene salvato con status ACTIVE e con la parte fissa (es. "Preghiera") a
+   sortOrder 0.
 2. **Given** un WeekPlan creato, **When** si aggiunge un tipo di parte, **Then** la
    parte appare nell'elenco con il sortOrder corretto.
 3. **Given** si tenta di creare un WeekPlan con una data che non è un lunedì, **Then**
@@ -215,5 +216,6 @@ di parte nel DB corrisponda a quelli del sorgente remoto.
   asimmetrico è deliberato ma non ancora documentato nella spec 005 come decisione
   formale.
 - Q: `WeekPlan.programId` è tipato come `String?` o come `ProgramMonthId?`? → A:
-  Attualmente è `String?` nel codice — tech debt noto (TYPE-001 in review-notes).
-  Non è un `ProgramMonthId` value class. Da correggere in una sessione dedicata.
+  Risolto (TYPE-001 completato). `programId` è ora tipato come `ProgramMonthId?`
+  (value class). La conversione avviene al boundary SQL: `.value` in input,
+  `ProgramMonthId(row.program_id)` in output.

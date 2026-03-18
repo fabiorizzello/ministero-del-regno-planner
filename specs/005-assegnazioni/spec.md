@@ -129,8 +129,8 @@ successive per slot 1.
 - Nel workspace UI, il reset di una singola settimana (`Rimuovi assegnazioni`) è
   disponibile solo per settimane future; per la settimana corrente non deve essere
   mostrato.
-- Slot = 1 → ruolo "Studente"; slot >= 2 → ruolo "Assistente" (determinato dal
-  modello `AssignmentHistoryEntry.role`).
+- Slot = 1 → ruolo "Studente"; slot >= 2 → ruolo "Assistente" (proprietà computed
+  `Assignment.roleLabel` e `AssignmentWithPerson.roleLabel`).
 - Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
   ci sono più parti nella stessa settimana (`isPersonAssignedInWeek` cross-parte).
 
@@ -248,9 +248,9 @@ successive per slot 1.
   (qualsiasi ruolo), `lastSlot1GlobalAssignmentPerPerson` (per determinare l'ultimo ruolo).
 - Q: Qual è il label di ruolo per slot 1 e slot >= 2? → A: Slot 1 = "Studente",
   slot >= 2 = "Assistente". Uniformato in tutti gli output (storico, PDF mensile,
-  PDF settimanale, PNG). `AssignmentHistoryEntry.role` restituisce "Studente" per
-  slot 1. La funzione `slotToRoleLabel(slot: Int): String` nel domain model
-  `Assignment.kt` è la fonte canonica.
+  PDF settimanale, PNG). La proprietà computed `Assignment.roleLabel` (e
+  `AssignmentWithPerson.roleLabel`) restituisce "Studente" per slot 1 e
+  "Assistente" per slot >= 2 — è la fonte canonica.
 
 ### Session 2026-03-05
 
