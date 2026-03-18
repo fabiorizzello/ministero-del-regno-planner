@@ -14,22 +14,6 @@ internal fun parseSessoOrDefault(sex: String): Sesso =
             Sesso.M
         }
 
-internal fun mapProclamatoreRow(
-    id: String,
-    first_name: String,
-    last_name: String,
-    sex: String,
-    suspended: Long,
-): Proclamatore {
-    return Proclamatore(
-        id = ProclamatoreId(id),
-        nome = first_name,
-        cognome = last_name,
-        sesso = parseSessoOrDefault(sex),
-        sospeso = suspended == 1L,
-    )
-}
-
 internal fun mapProclamatoreAssignableRow(
     id: String,
     first_name: String,
