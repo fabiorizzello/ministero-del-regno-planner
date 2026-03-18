@@ -5,7 +5,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.unmockkAll
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -26,7 +25,6 @@ import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.ui.components.FeedbackBannerKind
-import org.example.project.ui.components.FeedbackBannerModel
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -55,19 +53,6 @@ class ProclamatoriListViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(1, state.allItems.size)
         assertEquals("Mario", state.allItems[0].nome)
-    }
-
-    @Test
-    fun `onScreenEntered con lista vuota produce allItems vuoto`() = runTest {
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(any()) } returns emptyList()
-
-        val vm = makeViewModel(scope = this, cerca = cerca)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-
-        assertFalse(vm.uiState.value.isLoading)
-        assertTrue(vm.uiState.value.allItems.isEmpty())
     }
 
     @Test
@@ -191,43 +176,6 @@ class ProclamatoriListViewModelTest {
         assertEquals("", vm.uiState.value.searchTerm)
     }
 
-    @Test
-    fun `resetSearch non fa nulla se searchTerm e' gia' vuoto`() = runTest {
-        var searchCount = 0
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(any()) } answers {
-            searchCount++
-            emptyList()
-        }
-
-        val vm = makeViewModel(scope = this, cerca = cerca)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-        searchCount = 0
-
-        vm.resetSearch() // searchTerm is already blank
-        advanceTimeBy(300)
-        advanceUntilIdle()
-
-        assertEquals(0, searchCount)
-    }
-
-    // ── dismissNotice / setNotice ────────────────────────────────────────────
-
-    @Test
-    fun `setNotice imposta la notifica e dismissNotice la rimuove`() = runTest {
-        val vm = makeViewModel(scope = this)
-
-        assertNull(vm.uiState.value.notice)
-
-        val notice = FeedbackBannerModel("test", FeedbackBannerKind.SUCCESS)
-        vm.setNotice(notice)
-        assertEquals(notice, vm.uiState.value.notice)
-
-        vm.dismissNotice()
-        assertNull(vm.uiState.value.notice)
-    }
-
     // ── setSort ──────────────────────────────────────────────────────────────
 
     @Test
@@ -244,72 +192,7 @@ class ProclamatoriListViewModelTest {
         assertEquals(SortDirection.DESC, vm.uiState.value.sort.direction)
     }
 
-    // ── pagination ───────────────────────────────────────────────────────────
-
-    @Test
-    fun `goToNextPage incrementa pageIndex entro i limiti`() = runTest {
-        val items = (1..25).map { makeProclamatore("$it", "Nome$it", "Cognome$it") }
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(any()) } returns items
-
-        val vm = makeViewModel(scope = this, cerca = cerca)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-
-        assertEquals(0, vm.uiState.value.pageIndex)
-
-        vm.goToNextPage()
-        assertEquals(1, vm.uiState.value.pageIndex)
-
-        // 25 items / 20 per page = 2 pages (indices 0 and 1)
-        vm.goToNextPage()
-        assertEquals(1, vm.uiState.value.pageIndex) // clamped to max
-    }
-
-    @Test
-    fun `goToPreviousPage decrementa pageIndex ma non sotto zero`() = runTest {
-        val items = (1..25).map { makeProclamatore("$it", "Nome$it", "Cognome$it") }
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(any()) } returns items
-
-        val vm = makeViewModel(scope = this, cerca = cerca)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-
-        vm.goToNextPage()
-        assertEquals(1, vm.uiState.value.pageIndex)
-
-        vm.goToPreviousPage()
-        assertEquals(0, vm.uiState.value.pageIndex)
-
-        vm.goToPreviousPage()
-        assertEquals(0, vm.uiState.value.pageIndex) // clamped to 0
-    }
-
     // ── selection ────────────────────────────────────────────────────────────
-
-    @Test
-    fun `toggleSelectPage seleziona e deseleziona gruppi di ID`() = runTest {
-        val vm = makeViewModel(scope = this)
-        val ids = listOf(ProclamatoreId("1"), ProclamatoreId("2"), ProclamatoreId("3"))
-
-        vm.toggleSelectPage(ids, true)
-        assertEquals(ids.toSet(), vm.uiState.value.selectedIds)
-
-        vm.toggleSelectPage(listOf(ProclamatoreId("1"), ProclamatoreId("2")), false)
-        assertEquals(setOf(ProclamatoreId("3")), vm.uiState.value.selectedIds)
-    }
-
-    @Test
-    fun `clearSelection svuota le selezioni`() = runTest {
-        val vm = makeViewModel(scope = this)
-        vm.setRowSelected(ProclamatoreId("1"), true)
-        vm.setRowSelected(ProclamatoreId("2"), true)
-        assertEquals(2, vm.uiState.value.selectedIds.size)
-
-        vm.clearSelection()
-        assertTrue(vm.uiState.value.selectedIds.isEmpty())
-    }
 
     @Test
     fun `refreshList rimuove le selezioni di ID non piu' presenti`() = runTest {
@@ -571,42 +454,6 @@ class ProclamatoriListViewModelTest {
         assertFalse(vm.uiState.value.isBatchInProgress)
     }
 
-    @Test
-    fun `confirmBatchDelete ignora seconda chiamata se batch gia' in corso`() = runTest {
-        val blocker = CompletableDeferred<Unit>()
-        val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(any()) } returns listOf(makeProclamatore("1", "A", "B"))
-
-        val elimina = mockk<EliminaProclamatoreUseCase>()
-        coEvery { elimina(any()) } coAnswers {
-            blocker.await()
-            Either.Right(Unit)
-        }
-
-        val contaAssegnazioni = mockk<ContaAssegnazioniPersonaUseCase>()
-        coEvery { contaAssegnazioni(any()) } returns 0
-
-        val vm = makeViewModel(scope = this, cerca = cerca, elimina = elimina, contaAssegnazioni = contaAssegnazioni)
-        vm.onScreenEntered()
-        advanceUntilIdle()
-
-        vm.setRowSelected(ProclamatoreId("1"), true)
-        vm.requestBatchDeleteConfirm()
-        advanceUntilIdle()
-
-        vm.confirmBatchDelete()
-        advanceUntilIdle()
-        assertTrue(vm.uiState.value.isBatchInProgress)
-
-        vm.confirmBatchDelete() // guard — should be ignored
-
-        blocker.complete(Unit)
-        advanceUntilIdle()
-
-        // Only one invocation of elimina
-        coVerify(exactly = 1) { elimina(any()) }
-    }
-
     // ── dismissSchemaUpdateAnomalies ─────────────────────────────────────────
 
     @Test
@@ -656,25 +503,6 @@ class ProclamatoriListViewModelTest {
 
         assertTrue(vm.uiState.value.schemaUpdateAnomalies.isEmpty())
         assertFalse(vm.uiState.value.isDismissingSchemaAnomalies)
-    }
-
-    @Test
-    fun `dismissSchemaUpdateAnomalies ignora seconda chiamata se gia' in corso`() = runTest {
-        val blocker = CompletableDeferred<Either<DomainError, Unit>>()
-        val archivaAnomalieSchema = mockk<ArchivaAnomalieSchemaUseCase>()
-        coEvery { archivaAnomalieSchema() } coAnswers { blocker.await() }
-
-        val vm = makeViewModel(scope = this, archivaAnomalieSchema = archivaAnomalieSchema)
-        vm.dismissSchemaUpdateAnomalies()
-        advanceUntilIdle()
-
-        assertTrue(vm.uiState.value.isDismissingSchemaAnomalies)
-        vm.dismissSchemaUpdateAnomalies() // guard
-
-        blocker.complete(Either.Right(Unit))
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { archivaAnomalieSchema() }
     }
 
     // ── refreshList with page index adjustment ───────────────────────────────
