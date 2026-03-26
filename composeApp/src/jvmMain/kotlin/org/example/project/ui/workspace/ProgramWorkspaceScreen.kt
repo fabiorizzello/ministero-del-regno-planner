@@ -995,6 +995,7 @@ private fun ProgramMonthSelectorButton(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(10.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val border = when {
@@ -1013,6 +1014,7 @@ private fun ProgramMonthSelectorButton(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(shape)
             .handCursorOnHover(enabled = enabled)
             .hoverable(interactionSource)
             .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -1022,7 +1024,7 @@ private fun ProgramMonthSelectorButton(
                 indication = null,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(10.dp),
+        shape = shape,
         color = container,
         border = BorderStroke(1.dp, border),
     ) {
@@ -1104,6 +1106,7 @@ private fun DesktopToggle(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(999.dp)
     val focused by interactionSource.collectIsFocusedAsState()
     val hovered by interactionSource.collectIsHoveredAsState()
     val trackColor = if (checked) {
@@ -1115,6 +1118,7 @@ private fun DesktopToggle(
         modifier = Modifier
             .width(42.dp)
             .height(24.dp)
+            .clip(shape)
             .handCursorOnHover()
             .hoverable(interactionSource)
             .focusable(interactionSource = interactionSource)
@@ -1122,7 +1126,7 @@ private fun DesktopToggle(
                 interactionSource = interactionSource,
                 indication = null,
             ) { onToggle(!checked) },
-        shape = RoundedCornerShape(999.dp),
+        shape = shape,
         color = if (focused || hovered) trackColor.copy(alpha = 0.92f) else trackColor,
         border = BorderStroke(
             1.dp,
@@ -1204,6 +1208,7 @@ private fun DesktopInlineAction(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(10.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.72f
@@ -1226,6 +1231,7 @@ private fun DesktopInlineAction(
     }
     Surface(
         modifier = modifier
+            .clip(shape)
             .handCursorOnHover(enabled = enabled)
             .hoverable(interactionSource)
             .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -1235,7 +1241,7 @@ private fun DesktopInlineAction(
                 indication = null,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(10.dp),
+        shape = shape,
         color = containerColor,
         border = BorderStroke(
             1.dp,

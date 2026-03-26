@@ -426,6 +426,7 @@ private fun DiagnosticsOutlinedActionButton(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(999.dp)
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
     val borderColor = when {
@@ -449,6 +450,7 @@ private fun DiagnosticsOutlinedActionButton(
         Surface(
             modifier = modifier
                 .height(34.dp)
+                .clip(shape)
                 .handCursorOnHover(enabled = enabled)
                 .hoverable(interactionSource, enabled = enabled)
                 .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -458,7 +460,7 @@ private fun DiagnosticsOutlinedActionButton(
                     indication = null,
                     onClick = onClick,
                 ),
-            shape = RoundedCornerShape(999.dp),
+            shape = shape,
             border = BorderStroke(if (isFocused) 1.5.dp else 1.dp, borderColor),
             color = containerColor,
         ) {

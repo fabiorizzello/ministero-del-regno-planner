@@ -1560,6 +1560,7 @@ private fun WeekHdrButton(
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(8.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val bgColor = when {
@@ -1574,11 +1575,12 @@ private fun WeekHdrButton(
     }
     Surface(
         modifier = Modifier
+            .clip(shape)
             .handCursorOnHover()
             .hoverable(interactionSource)
             .focusable(interactionSource = interactionSource)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = shape,
         color = bgColor,
         border = BorderStroke(1.dp, borderColor),
     ) {
@@ -1661,6 +1663,7 @@ internal fun SidebarFooterButton(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(8.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.46f
@@ -1673,6 +1676,7 @@ internal fun SidebarFooterButton(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(shape)
                 .handCursorOnHover(enabled)
                 .hoverable(interactionSource)
                 .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -1682,7 +1686,7 @@ internal fun SidebarFooterButton(
                     indication = null,
                     onClick = onClick,
                 ),
-            shape = RoundedCornerShape(8.dp),
+            shape = shape,
             color = bgColor,
             border = BorderStroke(1.dp, sketch.lineSoft.copy(alpha = alpha)),
         ) {
@@ -1717,6 +1721,7 @@ internal fun ProgramRightPanelButton(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(8.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.72f
@@ -1739,6 +1744,7 @@ internal fun ProgramRightPanelButton(
     WorkspaceTooltipWrap(tooltip) {
         Surface(
             modifier = modifier
+                .clip(shape)
                 .handCursorOnHover(enabled)
                 .hoverable(interactionSource)
                 .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -1748,7 +1754,7 @@ internal fun ProgramRightPanelButton(
                     indication = null,
                     onClick = onClick,
                 ),
-            shape = RoundedCornerShape(8.dp),
+            shape = shape,
             color = container,
             border = BorderStroke(1.dp, border),
         ) {
@@ -1941,6 +1947,7 @@ internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
     val sketch = MaterialTheme.workspaceSketch
     var open by remember { mutableStateOf(true) }
     Surface(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(9.dp),
         color = sketch.warn.copy(alpha = 0.08f),
         border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.4f)),
@@ -1994,7 +2001,7 @@ internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
             AnimatedVisibility(visible = open) {
                 Column {
                     Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.warn.copy(alpha = 0.4f)))
-                    issues.take(6).forEach { issue ->
+                    issues.forEach { issue ->
                         val weekLabel = formatWeekRangeLabel(issue.weekStartDate, issue.weekStartDate.plusDays(6))
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
@@ -2008,9 +2015,12 @@ internal fun ProgramIssuesPanel(issues: List<AutoAssignUnresolvedSlot>) {
                                     letterSpacing = 0.4.sp,
                                 ),
                                 color = sketch.warn,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 issue.reason,
+                                modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = sketch.inkSoft,
                             )
@@ -2033,6 +2043,7 @@ internal fun ProgramDangerButton(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(8.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.72f
@@ -2050,6 +2061,7 @@ internal fun ProgramDangerButton(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(shape)
                 .handCursorOnHover(enabled)
                 .hoverable(interactionSource)
                 .focusable(enabled = enabled, interactionSource = interactionSource)
@@ -2059,7 +2071,7 @@ internal fun ProgramDangerButton(
                     indication = null,
                     onClick = onClick,
                 ),
-            shape = RoundedCornerShape(8.dp),
+            shape = shape,
             color = container,
             border = BorderStroke(1.dp, border),
         ) {

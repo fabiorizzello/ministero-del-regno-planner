@@ -792,13 +792,15 @@ private fun SuggestionRow(
         } else {
             onAssign
         }
+        val buttonShape = RoundedCornerShape(6.dp)
         Surface(
             modifier = Modifier
                 .width(BUTTON_COLUMN_WIDTH)
                 .height(36.dp)
+                .clip(buttonShape)
                 .handCursorOnHover(enabled = !isAssigning)
                 .clickable(enabled = !isAssigning, onClick = buttonAction),
-            shape = RoundedCornerShape(6.dp),
+            shape = buttonShape,
             color = buttonColor.copy(alpha = if (isAssigning) 0.35f else 0.92f),
             border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.9f)),
         ) {

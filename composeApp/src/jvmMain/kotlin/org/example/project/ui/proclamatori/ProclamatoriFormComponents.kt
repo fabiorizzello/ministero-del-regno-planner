@@ -13,8 +13,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
@@ -61,8 +60,9 @@ import org.example.project.ui.theme.workspaceSketch
 
 /** Maximum length for nome and cognome fields */
 private const val NAME_MAX_LENGTH = 100
+private const val LEAD_ROLE_COLUMNS = 2
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProclamatoriFormContentForm(
     route: ProclamatoriRoute,
@@ -168,11 +168,13 @@ internal fun ProclamatoriFormContentForm(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
                         val selected = sesso == sVal
+                        val chipShape = RoundedCornerShape(8.dp)
                         Surface(
                             modifier = Modifier
+                                .clip(chipShape)
                                 .clickable { onSessoChange(sVal) }
                                 .handCursorOnHover(),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = chipShape,
                             color = if (selected) sketch.accentSoft else MaterialTheme.colorScheme.surface,
                             border = BorderStroke(
                                 1.5.dp,
@@ -187,64 +189,6 @@ internal fun ProclamatoriFormContentForm(
                             )
                         }
                     }
-                }
-            }
-
-            // ── Sospeso — toggle card ────────────────────────────────────────
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !isLoading) { onSospesoChange(!sospeso) }
-                    .handCursorOnHover(enabled = !isLoading),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(
-                    1.dp,
-                    if (sospeso) sketch.warn.copy(alpha = 0.45f) else sketch.lineStrong,
-                ),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (sospeso) sketch.warn.copy(alpha = 0.07f) else sketch.surfaceMuted,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Sospeso",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (sospeso) sketch.warn else MaterialTheme.colorScheme.onSurface,
-                            ),
-                        )
-                        Text(
-                            "Non viene incluso nell'assegnazione automatica",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = sospeso,
-                        onCheckedChange = onSospesoChange,
-                        enabled = !isLoading,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = sketch.surface,
-                            checkedTrackColor = sketch.warn,
-                            checkedBorderColor = sketch.warn,
-                            uncheckedTrackColor = sketch.lineStrong,
-                            uncheckedThumbColor = sketch.surface,
-                            uncheckedBorderColor = sketch.lineStrong,
-                            disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
-                            disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
-                            disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
-                            disabledUncheckedThumbColor = sketch.surface,
-                            disabledUncheckedTrackColor = sketch.lineSoft,
-                            disabledUncheckedBorderColor = sketch.lineSoft,
-                        ),
-                    )
                 }
             }
 
@@ -277,37 +221,27 @@ internal fun ProclamatoriFormContentForm(
                     )
                 }
                 if (leadEligibilityOptions.isNotEmpty()) {
-                    // Separator between meta controls and role-specific chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            "Per parte",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        )
-                        androidx.compose.foundation.layout.Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        )
-                    }
-                    // Lead part type chips
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        leadEligibilityOptions.forEach { option ->
-                            EligibilityFilterChip(
-                                selected = option.checked,
-                                onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
-                                label = option.label,
-                                enabled = option.canSelect,
-                                modifier = Modifier.handCursorOnHover(enabled = option.canSelect),
-                            )
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        leadEligibilityOptions.chunked(LEAD_ROLE_COLUMNS).forEach { rowOptions ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                rowOptions.forEach { option ->
+                                    EligibilityFilterChip(
+                                        selected = option.checked,
+                                        onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
+                                        label = option.label,
+                                        enabled = option.canSelect,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .handCursorOnHover(enabled = option.canSelect),
+                                    )
+                                }
+                                repeat(LEAD_ROLE_COLUMNS - rowOptions.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
                         }
                     }
                 } else {
@@ -317,6 +251,59 @@ internal fun ProclamatoriFormContentForm(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            // ── Sospeso — secondary toggle ───────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isLoading) { onSospesoChange(!sospeso) }
+                    .handCursorOnHover(enabled = !isLoading),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        "Sospeso",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        if (sospeso) {
+                            "Escluso dall'assegnazione automatica"
+                        } else {
+                            "Escludi dall'assegnazione automatica"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (sospeso) {
+                            sketch.warn.copy(alpha = 0.82f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+                Switch(
+                    checked = sospeso,
+                    onCheckedChange = onSospesoChange,
+                    enabled = !isLoading,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = sketch.surface,
+                        checkedTrackColor = sketch.warn,
+                        checkedBorderColor = sketch.warn,
+                        uncheckedTrackColor = sketch.lineStrong,
+                        uncheckedThumbColor = sketch.surface,
+                        uncheckedBorderColor = sketch.lineStrong,
+                        disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
+                        disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
+                        disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
+                        disabledUncheckedThumbColor = sketch.surface,
+                        disabledUncheckedTrackColor = sketch.lineSoft,
+                        disabledUncheckedBorderColor = sketch.lineSoft,
+                    ),
+                )
             }
 
             // ── Buttons ──────────────────────────────────────────────────────
@@ -395,6 +382,7 @@ private fun EligibilityFilterChip(
     enabled: Boolean = true,
 ) {
     val primary = MaterialTheme.colorScheme.primary
+    val chipShape = RoundedCornerShape(10.dp)
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f)
     } else {
@@ -419,8 +407,9 @@ private fun EligibilityFilterChip(
     Surface(
         modifier = modifier
             .heightIn(min = 36.dp)
+            .clip(chipShape)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = chipShape,
         color = if (enabled) containerColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         border = BorderStroke(1.5.dp, if (enabled) borderColor else disabledBorderColor),
     ) {

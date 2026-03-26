@@ -220,12 +220,18 @@ class SuggerisciProclamatoriUseCaseTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `persona non inclusa nel ranking SQL non compare nei suggeriti`() = runTest {
+    fun `persona sospesa viene esclusa anche se presente nel ranking`() = runTest {
         val personSospesa = person(id = "p-sospeso", nome = "Giulia", cognome = "Neri", sesso = Sesso.F, sospeso = true)
         val personAttiva = person(id = "p-attivo", nome = "Marco", cognome = "Blu", sesso = Sesso.M)
 
-        // Il ranking SQL filtra sospesi: solo personAttiva arriva all'use case
+        // Anche se il ranking includesse una persona sospesa, l'use case deve escluderla.
         val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personSospesa,
+                lastGlobalWeeks = 9,
+                lastForPartTypeWeeks = 6,
+                lastConductorWeeks = null,
+            ),
             SuggestedProclamatore(
                 proclamatore = personAttiva,
                 lastGlobalWeeks = 5,

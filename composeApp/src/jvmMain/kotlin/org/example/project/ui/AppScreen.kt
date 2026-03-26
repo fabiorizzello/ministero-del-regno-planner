@@ -445,6 +445,7 @@ private fun TopBarSectionButton(
         Surface(
             modifier = Modifier
                 .testTag(tag)
+                .clip(shape)
                 .handCursorOnHover()
                 .hoverable(interactionSource)
                 .focusable(interactionSource = interactionSource)
@@ -528,10 +529,11 @@ private fun ScaleMenuButton(
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled || selected) 1f else 0.45f
+    val shape = RoundedCornerShape(6.dp)
 
     TooltipWrap(tooltip) {
         Surface(
-            shape = RoundedCornerShape(6.dp),
+            shape = shape,
             color = when {
                 selected -> sketch.accentSoft
                 (isHovered || isFocused) && enabled -> sketch.surface
@@ -546,6 +548,7 @@ private fun ScaleMenuButton(
                 },
             ),
             modifier = modifier
+                .clip(shape)
                 .hoverable(interactionSource)
                 .focusable(enabled = enabled && !selected, interactionSource = interactionSource)
                 .handCursorOnHover(enabled = enabled && !selected)
@@ -586,6 +589,7 @@ private fun ToolbarIconAction(
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
     val alpha = if (enabled) 1f else 0.45f
+    val shape = if (fillHeight) RoundedCornerShape(0.dp) else CircleShape
 
     val bg = when {
         isDestructive && isHovered -> MaterialTheme.colorScheme.error.copy(alpha = 0.88f)
@@ -610,11 +614,12 @@ private fun ToolbarIconAction(
 
     TooltipWrap(tooltip) {
         Surface(
-            shape = if (fillHeight) RoundedCornerShape(0.dp) else CircleShape,
+            shape = shape,
             color = bg,
             border = border,
             modifier = modifier
                 .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
+                .clip(shape)
                 .hoverable(interactionSource)
                 .focusable(enabled = enabled, interactionSource = interactionSource)
                 .handCursorOnHover(enabled = enabled)
@@ -696,11 +701,13 @@ private fun UpdateToolbarAction(
         tooltip = { PlainTooltip { Text(tooltipText) } },
         state = rememberTooltipState(),
     ) {
+        val shape = CircleShape
         Surface(
-            shape = CircleShape,
+            shape = shape,
             color = bg,
             border = border,
             modifier = modifier
+                .clip(shape)
                 .hoverable(interactionSource)
                 .focusable(interactionSource = interactionSource)
                 .handCursorOnHover()
@@ -1039,6 +1046,7 @@ private fun UpdateMenuAction(
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val shape = RoundedCornerShape(999.dp)
     val borderColor = when {
         !enabled -> sketch.lineSoft.copy(alpha = 0.7f)
         emphasized -> sketch.warn.copy(alpha = 0.5f)
@@ -1058,11 +1066,12 @@ private fun UpdateMenuAction(
     }
     val actionContent: @Composable (Modifier) -> Unit = { anchorModifier ->
         Surface(
-            shape = RoundedCornerShape(999.dp),
+            shape = shape,
             color = background,
             border = BorderStroke(1.dp, borderColor),
             modifier = modifier
                 .then(anchorModifier)
+                .clip(shape)
                 .handCursorOnHover(enabled = enabled)
                 .hoverable(interactionSource, enabled = enabled)
                 .clickable(

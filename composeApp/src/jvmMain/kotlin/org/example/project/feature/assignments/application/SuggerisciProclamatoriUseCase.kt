@@ -87,7 +87,7 @@ class SuggerisciProclamatoriUseCase(
                     cooldownRemainingWeeks = remaining.coerceAtLeast(0),
                     sexMismatch = isSexMismatch,
                 )
-                annotated to (passaSesso && passaIdoneita && p.id !in excludedIds)
+                annotated to (passaSesso && passaIdoneita && !p.sospeso && p.id !in excludedIds)
             }
             .filter { (_, allowed) -> allowed }
             .map { (suggestion, _) -> suggestion to weightedScore(suggestion, slot) }
