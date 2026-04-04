@@ -235,7 +235,7 @@ fun DecoratedWindowScope.AppScreen(
                                         border = BorderStroke(1.dp, sketch.toolbarSelectedBorder.copy(alpha = 0.55f)),
                                     ) {
                                         Text(
-                                            text = "S",
+                                            text = "SM",
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = sketch.toolbarSelectedInk,
