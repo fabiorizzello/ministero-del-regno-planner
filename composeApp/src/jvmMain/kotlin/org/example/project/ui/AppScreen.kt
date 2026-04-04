@@ -27,7 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.FormatSize
@@ -53,6 +55,7 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -79,10 +82,12 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
 import kotlin.math.roundToInt
+import org.example.project.core.config.UiPreferencesStore
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
 import org.example.project.ui.theme.AppTheme
+import org.example.project.ui.theme.ThemeMode
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
@@ -119,10 +124,19 @@ internal enum class AppSection(
 @Composable
 fun DecoratedWindowScope.AppScreen(
     initialUiScale: Float = 1f,
+    initialThemeMode: ThemeMode = ThemeMode.LIGHT,
     onUiScaleChange: (Float) -> Unit = {},
+    onThemeModeChange: (ThemeMode) -> Unit = {},
     onRestartRequested: () -> Unit = {},
 ) {
-    AppTheme {
+    var themeModeName by rememberSaveable { mutableStateOf(initialThemeMode.name) }
+    val isDarkTheme = themeModeName == ThemeMode.DARK.name
+
+    LaunchedEffect(themeModeName) {
+        onThemeModeChange(ThemeMode.valueOf(themeModeName))
+    }
+
+    AppTheme(darkTheme = isDarkTheme) {
         val spacing = MaterialTheme.spacing
         val workspaceTokens = MaterialTheme.workspaceTokens
         val sketch = MaterialTheme.workspaceSketch
@@ -133,6 +147,7 @@ fun DecoratedWindowScope.AppScreen(
         var isSizeMenuExpanded by rememberSaveable { mutableStateOf(false) }
         var isUpdateMenuExpanded by rememberSaveable { mutableStateOf(false) }
         val updateViewModel = remember { GlobalContext.get().get<UpdateCenterViewModel>() }
+        val uiPreferencesStore = remember { GlobalContext.get().get<UiPreferencesStore>() }
         val updateState by updateViewModel.state.collectAsState()
         val baseDensity = LocalDensity.current
         val scaledDensity = remember(baseDensity, uiScale) {
@@ -141,12 +156,21 @@ fun DecoratedWindowScope.AppScreen(
                 fontScale = baseDensity.fontScale * uiScale,
             )
         }
+        val initialSection = remember(uiPreferencesStore) {
+            AppSection.entries.firstOrNull {
+                it.name == uiPreferencesStore.loadLastSection(AppSection.PLANNING.name)
+            } ?: AppSection.PLANNING
+        }
 
-        Navigator(AppSection.PLANNING.screen) { navigator ->
+        Navigator(initialSection.screen) { navigator ->
             val currentSection = AppSection.entries
                 .firstOrNull { it.screen::class == navigator.lastItem::class }
-                ?: AppSection.PLANNING
+                ?: initialSection
             val navigationSections = remember { AppSection.entries.toList() }
+
+            LaunchedEffect(currentSection) {
+                uiPreferencesStore.saveLastSection(currentSection.name)
+            }
 
             CompositionLocalProvider(
                 LocalSectionNavigator provides { section ->
@@ -251,6 +275,12 @@ fun DecoratedWindowScope.AppScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                 ) {
+                                    ThemeModeToggle(
+                                        darkTheme = isDarkTheme,
+                                        onCheckedChange = { checked ->
+                                            themeModeName = if (checked) ThemeMode.DARK.name else ThemeMode.LIGHT.name
+                                        },
+                                    )
                                     ToolbarIconAction(
                                         onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
                                         icon = Icons.Filled.BugReport,
@@ -270,8 +300,8 @@ fun DecoratedWindowScope.AppScreen(
                                             onDismissRequest = { isUpdateMenuExpanded = false },
                                             properties = PopupProperties(focusable = true),
                                             shape = RoundedCornerShape(12.dp),
-                                            containerColor = sketch.surface,
-                                            border = BorderStroke(1.dp, sketch.lineSoft),
+                                            containerColor = sketch.menuSurface,
+                                            border = BorderStroke(1.dp, sketch.menuBorder),
                                             shadowElevation = 8.dp,
                                         ) {
                                                 UpdateCenterMenu(
@@ -305,8 +335,8 @@ fun DecoratedWindowScope.AppScreen(
                                             },
                                             properties = PopupProperties(focusable = true),
                                             shape = RoundedCornerShape(12.dp),
-                                            containerColor = sketch.surface,
-                                            border = BorderStroke(1.dp, sketch.lineSoft),
+                                            containerColor = sketch.menuSurface,
+                                            border = BorderStroke(1.dp, sketch.menuBorder),
                                             shadowElevation = 8.dp,
                                         ) {
                                             Column(
@@ -407,6 +437,77 @@ fun DecoratedWindowScope.AppScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeModeToggle(
+    darkTheme: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val background = when {
+        darkTheme -> sketch.selectionSurface
+        isFocused -> sketch.focusSurface
+        isHovered -> sketch.hoverSurface
+        else -> sketch.cardSurfaceMuted
+    }
+    val border = when {
+        darkTheme -> sketch.selectionBorder
+        isFocused -> sketch.accent.copy(alpha = 0.68f)
+        isHovered -> sketch.cardBorderStrong
+        else -> sketch.cardBorder
+    }
+    val content = if (darkTheme) sketch.accent else sketch.inkSoft
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+            positioning = TooltipAnchorPosition.Above,
+        ),
+        tooltip = {
+            PlainTooltip {
+                Text(if (darkTheme) "Passa al tema chiaro" else "Passa al tema scuro")
+            }
+        },
+        state = rememberTooltipState(),
+    ) {
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .hoverable(interactionSource)
+                .focusable(interactionSource = interactionSource)
+                .handCursorOnHover()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { onCheckedChange(!darkTheme) },
+                ),
+            shape = RoundedCornerShape(999.dp),
+            color = background,
+            border = BorderStroke(1.dp, border),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = if (darkTheme) Icons.Filled.DarkMode else Icons.Filled.LightMode,
+                    contentDescription = if (darkTheme) "Tema scuro" else "Tema chiaro",
+                    tint = content,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = if (darkTheme) "Scuro" else "Chiaro",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = content,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun TopBarSectionButton(
     selected: Boolean,
@@ -424,7 +525,7 @@ private fun TopBarSectionButton(
 
     val containerColor = when {
         selected -> sketch.toolbarSelectedBg
-        isFocused -> sketch.accentSoft.copy(alpha = 0.85f)
+        isFocused -> sketch.focusSurface
         isHovered -> sketch.toolbarSurface
         else -> Color.Transparent
     }
@@ -535,16 +636,16 @@ private fun ScaleMenuButton(
         Surface(
             shape = shape,
             color = when {
-                selected -> sketch.accentSoft
-                (isHovered || isFocused) && enabled -> sketch.surface
-                else -> sketch.surfaceMuted
+                selected -> sketch.selectionSurface
+                (isHovered || isFocused) && enabled -> sketch.cardSurface
+                else -> sketch.cardSurfaceMuted
             },
             border = BorderStroke(
                 1.dp,
                 when {
-                    selected -> sketch.accent.copy(alpha = 0.72f)
-                    isFocused && enabled -> sketch.accent.copy(alpha = 0.72f)
-                    else -> sketch.lineSoft.copy(alpha = alpha)
+                    selected -> sketch.selectionBorder.copy(alpha = 0.72f)
+                    isFocused && enabled -> sketch.selectionBorder.copy(alpha = 0.72f)
+                    else -> sketch.cardBorder.copy(alpha = alpha)
                 },
             ),
             modifier = modifier
@@ -594,15 +695,15 @@ private fun ToolbarIconAction(
     val bg = when {
         isDestructive && isHovered -> MaterialTheme.colorScheme.error.copy(alpha = 0.88f)
         isDestructive && isFocused -> MaterialTheme.colorScheme.error.copy(alpha = 0.92f)
-        isFocused -> sketch.accentSoft.copy(alpha = 0.8f)
-        isHovered -> sketch.toolbarSurface
+        isFocused -> sketch.focusSurface
+        isHovered -> sketch.hoverSurface
         else -> Color.Transparent
     }
     val border: BorderStroke? = when {
         isDestructive && (isHovered || isFocused) ->
             BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.78f))
         isFocused -> BorderStroke(1.dp, sketch.accent.copy(alpha = 0.7f * alpha))
-        isHovered -> BorderStroke(1.dp, sketch.toolbarBorder.copy(alpha = alpha))
+        isHovered -> BorderStroke(1.dp, sketch.menuBorder.copy(alpha = alpha))
         else -> null
     }
     val tint = if (isDestructive) {
@@ -659,8 +760,8 @@ private fun UpdateToolbarAction(
         state.restartRequired -> sketch.ok.copy(alpha = 0.14f)
         state.updateAvailable -> sketch.warn.copy(alpha = 0.12f)
         state.hasError -> sketch.bad.copy(alpha = 0.1f)
-        isFocused -> sketch.accentSoft.copy(alpha = 0.8f)
-        isHovered -> sketch.toolbarSurface
+        isFocused -> sketch.focusSurface
+        isHovered -> sketch.hoverSurface
         else -> Color.Transparent
     }
     val border = when {
@@ -668,7 +769,7 @@ private fun UpdateToolbarAction(
         state.updateAvailable -> BorderStroke(1.dp, sketch.warn.copy(alpha = 0.45f))
         state.hasError -> BorderStroke(1.dp, sketch.bad.copy(alpha = 0.4f))
         isFocused -> BorderStroke(1.dp, sketch.accent.copy(alpha = 0.7f))
-        isHovered -> BorderStroke(1.dp, sketch.toolbarBorder)
+        isHovered -> BorderStroke(1.dp, sketch.menuBorder)
         else -> null
     }
     val icon = when {
@@ -829,8 +930,8 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = sketch.surface,
-        border = BorderStroke(1.dp, sketch.lineSoft),
+        color = sketch.cardSurface,
+        border = BorderStroke(1.dp, sketch.cardBorder),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -855,8 +956,8 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = sketch.surfaceMuted,
-                        border = BorderStroke(1.dp, sketch.lineSoft),
+                        color = sketch.cardSurfaceMuted,
+                        border = BorderStroke(1.dp, sketch.cardBorder),
                     ) {
                         Icon(
                             imageVector = tone.icon,
@@ -886,8 +987,8 @@ private fun UpdateHeroCard(state: UpdateCenterUiState) {
                     }
                     Surface(
                         shape = RoundedCornerShape(999.dp),
-                        color = sketch.surfaceMuted,
-                        border = BorderStroke(1.dp, sketch.lineSoft),
+                        color = sketch.cardSurfaceMuted,
+                        border = BorderStroke(1.dp, sketch.cardBorder),
                     ) {
                         Text(
                             text = normalizedUpdateVersionSummary(state),
@@ -997,8 +1098,8 @@ private fun UpdateReleaseNotesCard(title: String?, notes: String?) {
     val spacing = MaterialTheme.spacing
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = sketch.surfaceMuted,
-        border = BorderStroke(1.dp, sketch.lineSoft),
+        color = sketch.cardSurfaceMuted,
+        border = BorderStroke(1.dp, sketch.cardBorder),
     ) {
         Column(
             modifier = Modifier
@@ -1048,16 +1149,16 @@ private fun UpdateMenuAction(
     val isHovered by interactionSource.collectIsHoveredAsState()
     val shape = RoundedCornerShape(999.dp)
     val borderColor = when {
-        !enabled -> sketch.lineSoft.copy(alpha = 0.7f)
+        !enabled -> sketch.cardBorder.copy(alpha = 0.7f)
         emphasized -> sketch.warn.copy(alpha = 0.5f)
         isHovered -> sketch.accent.copy(alpha = 0.45f)
-        else -> sketch.lineStrong
+        else -> sketch.cardBorderStrong
     }
     val background = when {
-        !enabled -> sketch.surfaceMuted.copy(alpha = 0.65f)
+        !enabled -> sketch.cardSurfaceMuted.copy(alpha = 0.65f)
         emphasized -> sketch.warn.copy(alpha = 0.12f)
-        isHovered -> sketch.accentSoft.copy(alpha = 0.7f)
-        else -> sketch.surface
+        isHovered -> sketch.selectionSurfaceMuted
+        else -> sketch.cardSurface
     }
     val content = when {
         !enabled -> sketch.inkMuted.copy(alpha = 0.7f)

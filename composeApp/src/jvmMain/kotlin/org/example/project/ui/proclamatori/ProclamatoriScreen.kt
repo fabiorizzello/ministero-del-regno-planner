@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.core.config.UiPreferencesStore
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.workspace.WorkspaceStateKind
@@ -45,6 +46,7 @@ sealed interface ProclamatoriRoute {
 fun ProclamatoriScreen() {
     val listVm = remember { GlobalContext.get().get<ProclamatoriListViewModel>() }
     val formVm = remember { GlobalContext.get().get<ProclamatoreFormViewModel>() }
+    val uiPreferencesStore = remember { GlobalContext.get().get<UiPreferencesStore>() }
     val listState by listVm.uiState.collectAsState()
     val formState by formVm.uiState.collectAsState()
 
@@ -53,6 +55,17 @@ fun ProclamatoriScreen() {
     val tableListState = rememberLazyListState()
     val searchFocusRequester = remember { FocusRequester() }
     val rootFocusRequester = remember { FocusRequester() }
+    var viewMode by remember(uiPreferencesStore) {
+        mutableStateOf(
+            ProclamatoriListViewMode.entries.firstOrNull {
+                it.name == uiPreferencesStore.loadStudentsViewMode(ProclamatoriListViewMode.TABLE.name)
+            } ?: ProclamatoriListViewMode.TABLE,
+        )
+    }
+
+    LaunchedEffect(viewMode) {
+        uiPreferencesStore.saveStudentsViewMode(viewMode.name)
+    }
 
     listState.deleteCandidate?.let { candidate ->
         ConfirmDeleteDialogComponent(
@@ -211,7 +224,6 @@ fun ProclamatoriScreen() {
                     onRequestDeleteSelected = { listVm.requestBatchDeleteConfirm() },
                     onClearSelection = { listVm.clearSelection() },
                     onGoNuovo = { goToNuovo() },
-                    onImportJson = { listVm.startImportFromJson() },
                     onDismissSchemaAnomalies = { listVm.dismissSchemaUpdateAnomalies() },
                     onEdit = { id ->
                         formVm.loadForEdit(
@@ -226,11 +238,12 @@ fun ProclamatoriScreen() {
                 )
             }
 
-            ProclamatoriElencoContentTable(
+            ProclamatoriElencoContent(
                 state = listState,
+                viewMode = viewMode,
+                onViewModeChange = { viewMode = it },
                 searchFocusRequester = searchFocusRequester,
                 tableListState = tableListState,
-                canImportInitialJson = !listState.isLoading && !listState.isImporting && listState.allItems.isEmpty(),
                 events = elencoEvents,
             )
     }

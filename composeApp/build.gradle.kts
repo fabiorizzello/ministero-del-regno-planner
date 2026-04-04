@@ -83,10 +83,6 @@ val packagingJavaHome = providers.gradleProperty("packaging.java.home")
     .map(::File)
     .filter(File::isDirectory)
 
-tasks.withType<JavaExec>().configureEach {
-    javaLauncher.set(jetbrainsRuntimeLauncher)
-}
-
 kover {
     reports {
         filters {
@@ -138,6 +134,7 @@ sqldelight {
 tasks.register<JavaExec>("seedHistoricalDemoData") {
     description = "Genera dataset storico realistico (proclamatori, idoneita', catalogo, programmi e assegnazioni)"
     group = "application"
+    javaLauncher.set(jetbrainsRuntimeLauncher)
     mainClass.set("org.example.project.core.cli.SeedHistoricalDemoDataKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
@@ -147,6 +144,7 @@ tasks.register<JavaExec>("seedHistoricalDemoData") {
 tasks.register<JavaExec>("generateWolEfficaciCatalog") {
     description = "Genera un catalogo schemi JSON dal selettore settimane WOL (sezione EFFICACI NEL MINISTERO)"
     group = "application"
+    javaLauncher.set(jetbrainsRuntimeLauncher)
     mainClass.set("org.example.project.core.cli.GenerateWolEfficaciCatalogKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
@@ -156,6 +154,7 @@ tasks.register<JavaExec>("generateWolEfficaciCatalog") {
 tasks.register<JavaExec>("runUpdateDev") {
     description = "Avvia l'app con update locale rallentato per testare progresso download e velocita"
     group = "application"
+    javaLauncher.set(jetbrainsRuntimeLauncher)
     mainClass.set("org.example.project.MainKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
@@ -181,6 +180,12 @@ tasks.register<JavaExec>("runUpdateDev") {
     }
 }
 
+tasks.withType<JavaExec>().matching {
+    it.name in setOf("run", "runDistributable", "runRelease", "runReleaseDistributable", "jvmRun")
+}.configureEach {
+    javaLauncher.set(jetbrainsRuntimeLauncher)
+}
+
 compose.desktop {
     application {
         mainClass = "org.example.project.MainKt"
@@ -204,6 +209,7 @@ compose.desktop {
 }
 
 val releasePackageInputDir = layout.buildDirectory.dir("release-jpackage/input")
+val releasePackageNativeDir = layout.buildDirectory.dir("release-jpackage/native")
 val jvmRuntimeClasspath = configurations.named("jvmRuntimeClasspath")
 val mainJarFile = tasks.named("jvmJar")
 val externalUpdaterScript = layout.projectDirectory.file("src/jvmMain/resources/updater/external-updater.ps1")
@@ -213,35 +219,32 @@ val skikoRuntimeJar = jvmRuntimeClasspath.map { configuration ->
     }
 }
 
+val extractReleaseNativeFiles by tasks.registering(Sync::class) {
+    description = "Estrae i native runtime necessari al packaging release"
+    group = "distribution"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(skikoRuntimeJar.map { runtimeJar ->
+        runtimeJar?.let { zipTree(it) } ?: files()
+    }) {
+        include("**/skiko-windows-*.dll", "**/icudtl.dat")
+        eachFile { path = name }
+        includeEmptyDirs = false
+    }
+    into(releasePackageNativeDir)
+}
+
 tasks.register<Sync>("prepareReleasePackageInput") {
     description = "Prepara l'input jpackage per il bundling release con JBR completa"
     group = "distribution"
-    notCompatibleWithConfigurationCache("Estrae i native Skiko con un'azione ad-hoc di release packaging")
-    dependsOn(mainJarFile)
+    dependsOn(mainJarFile, extractReleaseNativeFiles)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     from(mainJarFile)
     from(jvmRuntimeClasspath)
+    from(releasePackageNativeDir)
     from(externalUpdaterScript) {
         into("resources")
     }
     into(releasePackageInputDir)
-
-    doLast {
-        val inputDir = releasePackageInputDir.get().asFile
-        val resolvedSkikoRuntimeJar = skikoRuntimeJar.orNull
-
-        if (resolvedSkikoRuntimeJar != null) {
-            copy {
-                from(zipTree(resolvedSkikoRuntimeJar)) {
-                    include("**/skiko-windows-*.dll", "**/icudtl.dat")
-                    eachFile { path = name }
-                    includeEmptyDirs = false
-                }
-                into(inputDir)
-            }
-        }
-
-        inputDir.resolve("resources").mkdirs()
-    }
 }

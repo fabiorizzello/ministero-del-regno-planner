@@ -1,8 +1,8 @@
 /**
- * Table components for the Proclamatori list screen.
+ * List components for the Proclamatori screen.
  *
- * Contains the table UI with data rows, batch actions,
- * sort headers, and schema anomaly display.
+ * Contains the shared header, schema anomaly panel,
+ * table view, compact cards view, and shared visual atoms.
  */
 package org.example.project.ui.proclamatori
 
@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,8 +23,12 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,22 +42,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TableRows
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -80,6 +87,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
@@ -103,7 +111,6 @@ internal data class ProclamatoriElencoEvents(
     val onRequestDeleteSelected: () -> Unit,
     val onClearSelection: () -> Unit,
     val onGoNuovo: () -> Unit,
-    val onImportJson: () -> Unit,
     val onDismissSchemaAnomalies: () -> Unit,
     val onEdit: (ProclamatoreId) -> Unit,
     val onDelete: (Proclamatore) -> Unit,
@@ -111,13 +118,16 @@ internal data class ProclamatoriElencoEvents(
     val onNextPage: () -> Unit,
 )
 
+internal enum class ProclamatoriListViewMode { TABLE, CARDS }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ColumnScope.ProclamatoriElencoContentTable(
+internal fun ColumnScope.ProclamatoriElencoContent(
     state: ProclamatoriListUiState,
+    viewMode: ProclamatoriListViewMode,
+    onViewModeChange: (ProclamatoriListViewMode) -> Unit,
     searchFocusRequester: FocusRequester,
     tableListState: LazyListState,
-    canImportInitialJson: Boolean,
     events: ProclamatoriElencoEvents,
 ) {
     val searchTerm = state.searchTerm
@@ -130,8 +140,8 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     val pageIndex = state.pageIndex
     val pageSize = state.pageSize
     val spacing = MaterialTheme.spacing
+    val cardsScrollState = rememberScrollState()
 
-    // ── Header row ──────────────────────────────────────────────────────────
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -145,7 +155,7 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             Text("Studenti", style = MaterialTheme.typography.headlineMedium)
             Box(
                 modifier = Modifier
-                    .background(sketch.lineSoft, RoundedCornerShape(20.dp))
+                    .background(sketch.tableHeaderSurface, RoundedCornerShape(20.dp))
                     .padding(horizontal = 10.dp, vertical = 2.dp),
             ) {
                 Text(
@@ -159,19 +169,10 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (canImportInitialJson) {
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                    onClick = events.onImportJson,
-                    enabled = !isLoading,
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
-                ) {
-                    Icon(Icons.Filled.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text("Importa JSON")
-                }
-            }
+            ViewModeSwitch(
+                viewMode = viewMode,
+                onViewModeChange = onViewModeChange,
+            )
             TooltipBox(
                 positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
                     positioning = TooltipAnchorPosition.Above,
@@ -199,7 +200,11 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     onClick = events.onGoNuovo,
                     enabled = !isLoading,
                     shape = RoundedCornerShape(8.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp,
+                        hoveredElevation = 0.dp,
+                    ),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
@@ -214,13 +219,14 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
         onDismissRequest = events.onDismissNotice,
     )
 
-    // ── Schema anomalies ─────────────────────────────────────────────────────
     if (state.schemaUpdateAnomalies.isNotEmpty()) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(spacing.cardRadius),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+            ),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(spacing.md),
@@ -232,14 +238,18 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Anomalie idoneità da aggiornamento schemi",
+                        "Anomalie idoneita da aggiornamento schemi",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     OutlinedButton(
                         onClick = events.onDismissSchemaAnomalies,
                         enabled = !state.isDismissingSchemaAnomalies,
                         modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp,
+                            hoveredElevation = 0.dp,
+                        ),
                     ) {
                         Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
                     }
@@ -297,7 +307,6 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     val hasSelection = selectedIds.isNotEmpty()
     val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
 
-    // ── Animated bulk bar ────────────────────────────────────────────────────
     AnimatedVisibility(
         visible = hasSelection,
         enter = fadeIn() + slideInVertically(),
@@ -311,85 +320,38 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
         )
     }
 
-    // ── Table card ───────────────────────────────────────────────────────────
     Card(
         modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
         shape = RoundedCornerShape(spacing.cardRadius),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.workspaceSketch.cardBorder),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.workspaceSketch.cardSurface),
     ) {
         Column(modifier = Modifier.fillMaxHeight()) {
-            // Header row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.workspaceSketch.surfaceMuted)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = allPageSelected,
-                    onCheckedChange = { checked -> events.onToggleSelectPage(pageItemIds, checked) },
-                    modifier = Modifier.size(20.dp),
-                    enabled = !isLoading && pageItemIds.isNotEmpty(),
-                )
-                Spacer(Modifier.width(12.dp))
-                SortableColumnHeader(
-                    label = "Nome",
-                    field = ProclamatoriSortField.NOME,
+            if (viewMode == ProclamatoriListViewMode.TABLE) {
+                TableContent(
+                    pageItems = pageItems,
+                    selectedIds = selectedIds,
+                    hasSelection = hasSelection,
+                    allPageSelected = allPageSelected,
+                    pageItemIds = pageItemIds,
                     sort = sort,
-                    modifier = Modifier.weight(2.5f),
-                    onSortChange = events.onSortChange,
+                    isLoading = isLoading,
+                    tableListState = tableListState,
+                    capabilitySummaryById = state.capabilitySummaryById,
+                    events = events,
                 )
-                SortableColumnHeader(
-                    label = "Stato",
-                    field = ProclamatoriSortField.SOSPESO,
-                    sort = sort,
-                    modifier = Modifier.weight(1.2f),
-                    onSortChange = events.onSortChange,
-                )
-                Spacer(Modifier.width(56.dp))
-            }
-
-            Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = true)) {
-                LazyColumn(
-                    state = tableListState,
-                    modifier = Modifier.fillMaxSize().padding(end = spacing.lg),
-                ) {
-                    if (pageItems.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(40.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    "Nessun studente",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    } else {
-                        itemsIndexed(pageItems, key = { _, item -> item.id.value }) { _, item ->
-                            ProclamatoriDataRow(
-                                proclamatore = item,
-                                loading = isLoading,
-                                selected = item.id in selectedIds,
-                                batchMode = hasSelection,
-                                onToggleSelected = { checked -> events.onToggleRowSelected(item.id, checked) },
-                                onEdit = { events.onEdit(item.id) },
-                                onDelete = { events.onDelete(item) },
-                            )
-                        }
-                    }
-                }
-                VerticalScrollbar(
-                    adapter = rememberScrollbarAdapter(tableListState),
-                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            } else {
+                CardsContent(
+                    pageItems = pageItems,
+                    selectedIds = selectedIds,
+                    hasSelection = hasSelection,
+                    isLoading = isLoading,
+                    cardsScrollState = cardsScrollState,
+                    capabilitySummaryById = state.capabilitySummaryById,
+                    events = events,
                 )
             }
 
-            // Footer: count + pagination
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -399,8 +361,11 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
             ) {
                 Text(
                     if (sortedItems.size == allItems.size) {
-                        if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
-                    } else "${sortedItems.size} di ${allItems.size} studenti",
+                        val totalLabel = if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
+                        "$totalLabel · $pageSize per pagina"
+                    } else {
+                        "${sortedItems.size} di ${allItems.size} studenti · $pageSize per pagina"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -410,27 +375,47 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         OutlinedButton(
-                            modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex > 0).height(28.dp),
+                            modifier = Modifier
+                                .handCursorOnHover(enabled = !isLoading && pageIndex > 0)
+                                .height(28.dp),
                             onClick = events.onPreviousPage,
                             enabled = !isLoading && pageIndex > 0,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                hoveredElevation = 0.dp,
+                            ),
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Pagina precedente", modifier = Modifier.size(14.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Pagina precedente",
+                                modifier = Modifier.size(14.dp),
+                            )
                             Spacer(Modifier.width(spacing.xs))
                             Text("Prec", style = MaterialTheme.typography.labelSmall)
                         }
                         Text("${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(
-                            modifier = Modifier.handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1).height(28.dp),
+                            modifier = Modifier
+                                .handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1)
+                                .height(28.dp),
                             onClick = events.onNextPage,
                             enabled = !isLoading && pageIndex < totalPages - 1,
                             contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                hoveredElevation = 0.dp,
+                            ),
                         ) {
                             Text("Succ", style = MaterialTheme.typography.labelSmall)
                             Spacer(Modifier.width(spacing.xs))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Pagina successiva", modifier = Modifier.size(14.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Pagina successiva",
+                                modifier = Modifier.size(14.dp),
+                            )
                         }
                     }
                 }
@@ -439,7 +424,231 @@ internal fun ColumnScope.ProclamatoriElencoContentTable(
     }
 }
 
-// ─── Sort header ──────────────────────────────────────────────────────────────
+@Composable
+private fun ViewModeSwitch(
+    viewMode: ProclamatoriListViewMode,
+    onViewModeChange: (ProclamatoriListViewMode) -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Row(
+        modifier = Modifier
+            .background(sketch.cardSurfaceMuted, RoundedCornerShape(10.dp))
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProclamatoriViewModeButton(
+            icon = Icons.Filled.TableRows,
+            contentDescription = "Vista tabellare",
+            selected = viewMode == ProclamatoriListViewMode.TABLE,
+            onClick = { onViewModeChange(ProclamatoriListViewMode.TABLE) },
+        )
+        ProclamatoriViewModeButton(
+            icon = Icons.Filled.GridView,
+            contentDescription = "Vista griglia",
+            selected = viewMode == ProclamatoriListViewMode.CARDS,
+            onClick = { onViewModeChange(ProclamatoriListViewMode.CARDS) },
+        )
+    }
+}
+
+@Composable
+private fun ProclamatoriViewModeButton(
+    icon: ImageVector,
+    contentDescription: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .handCursorOnHover()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) sketch.cardSurface else Color.Transparent,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) sketch.selectionBorder.copy(alpha = 0.35f) else Color.Transparent,
+        ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp).size(18.dp),
+            tint = if (selected) sketch.accent else sketch.inkMuted,
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.TableContent(
+    pageItems: List<Proclamatore>,
+    selectedIds: Set<ProclamatoreId>,
+    hasSelection: Boolean,
+    allPageSelected: Boolean,
+    pageItemIds: List<ProclamatoreId>,
+    sort: ProclamatoriSort,
+    isLoading: Boolean,
+    tableListState: LazyListState,
+    capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi>,
+    events: ProclamatoriElencoEvents,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.workspaceSketch.tableHeaderSurface)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = allPageSelected,
+            onCheckedChange = { checked -> events.onToggleSelectPage(pageItemIds, checked) },
+            modifier = Modifier.size(20.dp),
+            enabled = !isLoading && pageItemIds.isNotEmpty(),
+        )
+        Spacer(Modifier.width(12.dp))
+        SortableColumnHeader(
+            label = "Nome",
+            field = ProclamatoriSortField.NOME,
+            sort = sort,
+            modifier = Modifier.weight(2.2f),
+            onSortChange = events.onSortChange,
+        )
+        Text(
+            text = "Capability",
+            modifier = Modifier.weight(2f),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.workspaceSketch.inkMuted,
+        )
+        SortableColumnHeader(
+            label = "Stato",
+            field = ProclamatoriSortField.SOSPESO,
+            sort = sort,
+            modifier = Modifier.weight(1.2f),
+            onSortChange = events.onSortChange,
+        )
+        Spacer(Modifier.width(56.dp))
+    }
+
+    Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = true)) {
+        LazyColumn(
+            state = tableListState,
+            modifier = Modifier.fillMaxSize().padding(end = MaterialTheme.spacing.lg),
+        ) {
+            if (pageItems.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(40.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "Nessun studente",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            } else {
+                itemsIndexed(pageItems, key = { _, item -> item.id.value }) { _, item ->
+                    ProclamatoriDataRow(
+                        proclamatore = item,
+                        summary = capabilitySummaryById[item.id],
+                        loading = isLoading,
+                        selected = item.id in selectedIds,
+                        batchMode = hasSelection,
+                        onToggleSelected = { checked -> events.onToggleRowSelected(item.id, checked) },
+                        onEdit = { events.onEdit(item.id) },
+                        onDelete = { events.onDelete(item) },
+                    )
+                }
+            }
+        }
+        VerticalScrollbar(
+            adapter = rememberScrollbarAdapter(tableListState),
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.CardsContent(
+    pageItems: List<Proclamatore>,
+    selectedIds: Set<ProclamatoreId>,
+    hasSelection: Boolean,
+    isLoading: Boolean,
+    cardsScrollState: ScrollState,
+    capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi>,
+    events: ProclamatoriElencoEvents,
+) {
+    Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = true)) {
+        if (pageItems.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Nessun studente",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = MaterialTheme.spacing.lg)
+                    .verticalScroll(cardsScrollState),
+            ) {
+                val gap = 12.dp
+                val horizontalPadding = 32.dp
+                val minCardWidth = 280.dp
+                val availableWidth = (maxWidth - horizontalPadding).coerceAtLeast(minCardWidth)
+                val columns = (((availableWidth + gap) / (minCardWidth + gap)).toInt())
+                    .coerceIn(1, 3)
+
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    pageItems.chunked(columns).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(gap),
+                        ) {
+                            rowItems.forEach { item ->
+                                ProclamatoriCompactCard(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    proclamatore = item,
+                                    summary = capabilitySummaryById[item.id],
+                                    loading = isLoading,
+                                    selected = item.id in selectedIds,
+                                    batchMode = hasSelection,
+                                    onToggleSelected = { checked -> events.onToggleRowSelected(item.id, checked) },
+                                    onEdit = { events.onEdit(item.id) },
+                                    onDelete = { events.onDelete(item) },
+                                )
+                            }
+                            repeat(columns - rowItems.size) {
+                                Spacer(Modifier.weight(1f, fill = true))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        VerticalScrollbar(
+            adapter = rememberScrollbarAdapter(cardsScrollState),
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
+    }
+}
 
 @Composable
 private fun SortableColumnHeader(
@@ -453,7 +662,6 @@ private fun SortableColumnHeader(
     val isActive = sort.field == field
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
-    // Layout column takes the full weight; interactive area is tight around label only
     Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
         Row(
             modifier = Modifier
@@ -477,7 +685,11 @@ private fun SortableColumnHeader(
             )
             if (isActive) {
                 Icon(
-                    imageVector = if (sort.direction == SortDirection.ASC) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                    imageVector = if (sort.direction == SortDirection.ASC) {
+                        Icons.Filled.ArrowUpward
+                    } else {
+                        Icons.Filled.ArrowDownward
+                    },
                     contentDescription = null,
                     modifier = Modifier.size(12.dp),
                     tint = sketch.accent,
@@ -486,8 +698,6 @@ private fun SortableColumnHeader(
         }
     }
 }
-
-// ─── Bulk bar ─────────────────────────────────────────────────────────────────
 
 @Composable
 private fun ProclamatoriiBulkBar(
@@ -523,7 +733,11 @@ private fun ProclamatoriiBulkBar(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = sketch.bad),
                 border = BorderStroke(1.dp, sketch.bad.copy(alpha = 0.5f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    hoveredElevation = 0.dp,
+                ),
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(4.dp))
@@ -537,11 +751,10 @@ private fun ProclamatoriiBulkBar(
     }
 }
 
-// ─── Data row ─────────────────────────────────────────────────────────────────
-
 @Composable
 internal fun ProclamatoriDataRow(
     proclamatore: Proclamatore,
+    summary: ProclamatoreCapabilitySummaryUi?,
     loading: Boolean,
     selected: Boolean,
     batchMode: Boolean,
@@ -555,9 +768,9 @@ internal fun ProclamatoriDataRow(
     val focused by interactionSource.collectIsFocusedAsState()
 
     val rowBg = when {
-        selected -> sketch.accentSoft
-        focused || hovered -> sketch.lineSoft.copy(alpha = 0.35f)
-        else     -> Color.Transparent
+        selected -> sketch.selectionSurface
+        focused || hovered -> sketch.hoverSurface
+        else -> Color.Transparent
     }
 
     Row(
@@ -577,25 +790,34 @@ internal fun ProclamatoriDataRow(
         )
         Spacer(Modifier.width(12.dp))
 
-        // Avatar + nome
         Row(
-            modifier = Modifier.weight(2.5f),
+            modifier = Modifier.weight(2.2f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ProclamatoreAvatar(proclamatore.nome, proclamatore.cognome, proclamatore.sesso)
             Text(
-                "${proclamatore.nome} ${proclamatore.cognome}",
+                proclamatore.fullName,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             )
         }
 
-        // Stato badge
+        Text(
+            text = formatCapabilitySummaryText(
+                canAssist = proclamatore.puoAssistere,
+                leadLabels = summary?.leadLabels.orEmpty(),
+            ),
+            modifier = Modifier.weight(2f),
+            style = MaterialTheme.typography.bodySmall,
+            color = sketch.inkSoft,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
         Box(modifier = Modifier.weight(1.2f)) {
             ProclamatoreStatusBadge(sospeso = proclamatore.sospeso)
         }
 
-        // Hover-reveal icon actions
         Row(
             modifier = Modifier.width(56.dp),
             horizontalArrangement = Arrangement.End,
@@ -626,7 +848,113 @@ internal fun ProclamatoriDataRow(
     }
 }
 
-// ─── Shared visual atoms ──────────────────────────────────────────────────────
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProclamatoriCompactCard(
+    modifier: Modifier = Modifier,
+    proclamatore: Proclamatore,
+    summary: ProclamatoreCapabilitySummaryUi?,
+    loading: Boolean,
+    selected: Boolean,
+    batchMode: Boolean,
+    onToggleSelected: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+
+    val borderColor = when {
+        selected -> sketch.selectionBorder.copy(alpha = 0.45f)
+        hovered || focused -> sketch.cardBorderStrong
+        else -> sketch.cardBorder
+    }
+    val containerColor = when {
+        selected -> sketch.selectionSurfaceMuted
+        hovered || focused -> sketch.hoverSurface
+        else -> sketch.cardSurface
+    }
+
+    Card(
+        modifier = modifier
+            .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                ProclamatoreAvatar(proclamatore.nome, proclamatore.cognome, proclamatore.sesso)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = proclamatore.fullName,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (proclamatore.sospeso) {
+                        ProclamatoreStatusBadge(sospeso = true)
+                    }
+                }
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = onToggleSelected,
+                    modifier = Modifier.size(20.dp),
+                    enabled = !loading,
+                )
+            }
+
+            CapabilitySummaryChips(
+                canAssist = proclamatore.puoAssistere,
+                leadLabels = summary?.leadLabels.orEmpty(),
+            )
+
+            Spacer(Modifier.weight(1f, fill = true))
+
+            if (!batchMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(30.dp).handCursorOnHover(enabled = !loading),
+                        enabled = !loading,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Modifica", modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(30.dp).handCursorOnHover(enabled = !loading),
+                        enabled = !loading,
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = sketch.bad),
+                    ) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Rimuovi", modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso) {
@@ -675,7 +1003,75 @@ internal fun ProclamatoreStatusBadge(sospeso: Boolean) {
     }
 }
 
-// ─── Compact search input ─────────────────────────────────────────────────────
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CapabilitySummaryChips(
+    canAssist: Boolean,
+    leadLabels: List<String>,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    if (!canAssist && leadLabels.isEmpty()) {
+        Text(
+            text = "Nessuna capability",
+            style = MaterialTheme.typography.labelSmall,
+            color = sketch.inkMuted,
+        )
+        return
+    }
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (canAssist) {
+            CapabilityChip(
+                label = "Assistente",
+                backgroundColor = sketch.accentSoft,
+                contentColor = sketch.accent,
+            )
+        }
+
+        leadLabels.forEach { label ->
+            CapabilityChip(
+                label = label,
+                backgroundColor = sketch.cardSurfaceMuted,
+                contentColor = sketch.inkSoft,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CapabilityChip(
+    label: String,
+    backgroundColor: Color,
+    contentColor: Color,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = backgroundColor,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun formatCapabilitySummaryText(
+    canAssist: Boolean,
+    leadLabels: List<String>,
+): String {
+    val items = buildList {
+        if (canAssist) add("Assistente")
+        addAll(leadLabels)
+    }
+    return items.joinToString(" · ").ifBlank { "Nessuna capability" }
+}
 
 @Composable
 private fun CompactSearchInput(
@@ -692,10 +1088,10 @@ private fun CompactSearchInput(
     Surface(
         modifier = modifier.height(40.dp),
         shape = RoundedCornerShape(8.dp),
-        color = sketch.surface,
+        color = sketch.cardSurface,
         border = BorderStroke(
             1.dp,
-            if (isFocused) sketch.accent.copy(alpha = 0.6f) else sketch.lineSoft,
+            if (isFocused) sketch.selectionBorder.copy(alpha = 0.6f) else sketch.cardBorder,
         ),
     ) {
         Row(

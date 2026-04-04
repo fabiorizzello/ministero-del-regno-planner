@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
+import org.example.project.feature.diagnostics.application.ImportaSeedApplicazioneDaJsonUseCase
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
@@ -79,8 +80,8 @@ val viewModelsModule = module {
         ProclamatoriListViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             cerca = get(),
+            caricaIdoneita = get(),
             elimina = get(),
-            importaDaJson = get(),
             contaAssegnazioni = get(),
             archivaAnomalieSchema = get(),
             schemaUpdateAnomalyStore = get(),
@@ -90,8 +91,10 @@ val viewModelsModule = module {
     factory {
         DiagnosticsViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            cercaProclamatori = get(),
             contaStorico = get<ContaStoricoUseCase>(),
             eliminaStorico = get<EliminaStoricoUseCase>(),
+            importaSeedApplicazione = get<ImportaSeedApplicazioneDaJsonUseCase>(),
         )
     }
     factory {

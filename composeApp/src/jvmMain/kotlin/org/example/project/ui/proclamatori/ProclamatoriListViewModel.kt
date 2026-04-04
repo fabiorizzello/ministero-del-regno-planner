@@ -1,21 +1,18 @@
 package org.example.project.ui.proclamatori
 
 import arrow.core.Either
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.example.project.core.domain.DomainError
+import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.schemas.application.ArchivaAnomalieSchemaUseCase
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
@@ -24,7 +21,6 @@ import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
-import org.example.project.ui.components.successNotice
 import org.example.project.ui.components.executeEitherOperationWithNotice
 
 internal data class SchemaUpdateAnomalyUi(
@@ -35,6 +31,12 @@ internal data class SchemaUpdateAnomalyUi(
     val schemaVersion: String?,
     val createdAt: String,
 )
+
+internal data class ProclamatoreCapabilitySummaryUi(
+    val leadLabels: List<String> = emptyList(),
+) {
+    val leadCount: Int get() = leadLabels.size
+}
 
 internal data class ProclamatoriListUiState(
     val searchTerm: String = "",
@@ -49,10 +51,10 @@ internal data class ProclamatoriListUiState(
     val deleteAssignmentCount: Int = 0,
     val showBatchDeleteConfirm: Boolean = false,
     val batchDeleteAssignmentCount: Int = 0,
-    val isImporting: Boolean = false,
     val isBatchInProgress: Boolean = false,
     val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
     val isDismissingSchemaAnomalies: Boolean = false,
+    val capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi> = emptyMap(),
 ) {
     val sortedItems: List<Proclamatore> get() = allItems.applySort(sort)
 }
@@ -60,8 +62,8 @@ internal data class ProclamatoriListUiState(
 internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
     private val cerca: CercaProclamatoriUseCase,
+    private val caricaIdoneita: CaricaIdoneitaProclamatoreUseCase,
     private val elimina: EliminaProclamatoreUseCase,
-    private val importaDaJson: ImportaProclamatoriDaJsonUseCase,
     private val contaAssegnazioni: ContaAssegnazioniPersonaUseCase,
     private val archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase,
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
@@ -106,10 +108,12 @@ internal class ProclamatoriListViewModel(
 
     fun setSort(nextSort: ProclamatoriSort) {
         _uiState.update { it.copy(sort = nextSort) }
+        scope.launch { refreshCurrentPageCapabilitySummaries() }
     }
 
     fun goToPreviousPage() {
         _uiState.update { it.copy(pageIndex = (it.pageIndex - 1).coerceAtLeast(0)) }
+        scope.launch { refreshCurrentPageCapabilitySummaries() }
     }
 
     fun goToNextPage() {
@@ -117,6 +121,7 @@ internal class ProclamatoriListViewModel(
             val totalPages = if (state.allItems.isEmpty()) 1 else ((state.allItems.size - 1) / state.pageSize) + 1
             state.copy(pageIndex = (state.pageIndex + 1).coerceAtMost(totalPages - 1))
         }
+        scope.launch { refreshCurrentPageCapabilitySummaries() }
     }
 
     fun toggleSelectPage(pageIds: List<ProclamatoreId>, checked: Boolean) {
@@ -223,62 +228,6 @@ internal class ProclamatoriListViewModel(
         }
     }
 
-    fun startImportFromJson() {
-        if (_uiState.value.isImporting) return
-        scope.launch {
-            _uiState.update { it.copy(isImporting = true) }
-            val selectedFile = selectJsonFileForImport()
-            if (selectedFile == null) {
-                _uiState.update { it.copy(isImporting = false) }
-                return@launch
-            }
-            importFromJsonFileInternal(selectedFile)
-        }
-    }
-
-    private fun importFromJsonFileInternal(selectedFile: File) {
-        scope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val fileSizeMb = selectedFile.length() / (1024 * 1024)
-            if (fileSizeMb > 10) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isImporting = false,
-                        notice = errorNotice("File troppo grande (${fileSizeMb}MB). Limite: 10MB"),
-                    )
-                }
-                return@launch
-            }
-            val jsonContent = withContext(Dispatchers.IO) {
-                runCatching { selectedFile.readText(Charsets.UTF_8) }.getOrNull()
-            }
-            if (jsonContent == null) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isImporting = false,
-                        notice = errorNotice("Impossibile leggere il file selezionato"),
-                    )
-                }
-                return@launch
-            }
-
-            _uiState.executeEitherOperationWithNotice(
-                loadingUpdate = { it },
-                noticeUpdate = { state, notice -> state.copy(isLoading = false, isImporting = false, notice = notice) },
-                successMessage = null,
-                operation = { withContext(Dispatchers.IO) { importaDaJson(jsonContent) } },
-                onSuccess = { imported ->
-                    _uiState.update {
-                        it.copy(notice = successNotice("Importati ${imported.importati} studenti da ${selectedFile.name}"))
-                    }
-                    refreshListInternal(resetPage = true)
-                },
-            )
-        }
-    }
-
     private suspend fun executeOnSelected(
         action: suspend (ProclamatoreId) -> Either<DomainError, Unit>,
         completedLabel: String,
@@ -320,6 +269,7 @@ internal class ProclamatoriListViewModel(
                 isLoading = false,
             )
         }
+        refreshCurrentPageCapabilitySummaries()
     }
 
     private suspend fun refreshSchemaUpdateAnomalies() {
@@ -353,5 +303,39 @@ internal class ProclamatoriListViewModel(
             )
         }
         _uiState.update { it.copy(schemaUpdateAnomalies = mapped) }
+    }
+
+    private suspend fun refreshCurrentPageCapabilitySummaries() {
+        val state = _uiState.value
+        val pageItems = state.sortedItems
+            .drop(state.pageIndex * state.pageSize)
+            .take(state.pageSize)
+        if (pageItems.isEmpty()) {
+            _uiState.update { it.copy(capabilitySummaryById = emptyMap()) }
+            return
+        }
+
+        val orderedPartTypes = partTypeStore.allWithStatus()
+            .map { it.partType }
+            .sortedBy { it.sortOrder }
+        val partTypeLabelsById = orderedPartTypes.associate { it.id to it.label }
+        val partTypeOrderById = orderedPartTypes.mapIndexed { index, partType ->
+            partType.id to index
+        }.toMap()
+
+        val summaries = pageItems.associate { person ->
+            val leadLabels = caricaIdoneita(person.id)
+                .asSequence()
+                .filter { it.canLead }
+                .map { it.partTypeId }
+                .distinct()
+                .sortedBy { partTypeOrderById[it] ?: Int.MAX_VALUE }
+                .mapNotNull { partTypeLabelsById[it] }
+                .toList()
+
+            person.id to ProclamatoreCapabilitySummaryUi(leadLabels = leadLabels)
+        }
+
+        _uiState.update { it.copy(capabilitySummaryById = summaries) }
     }
 }

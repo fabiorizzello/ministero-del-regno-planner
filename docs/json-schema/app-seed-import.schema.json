@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ministero-del-regno-planner.local/schema/app-seed-import.schema.json",
+  "title": "Ministero del Regno Planner - Seed applicazione",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "partTypes",
+    "students"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versione dello schema di import seed applicativo."
+    },
+    "partTypes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Catalogo tipi parte da attivare o aggiornare. I code vengono importati in maiuscolo.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "label",
+          "peopleCount",
+          "sexRule"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Codice stabile del tipo parte, per esempio LETTURA o PREGHIERA."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Etichetta mostrata in UI."
+          },
+          "peopleCount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Numero di persone richieste per la parte."
+          },
+          "sexRule": {
+            "type": "string",
+            "enum": [
+              "UOMO",
+              "STESSO_SESSO"
+            ],
+            "description": "Regola sesso prevista dal dominio."
+          },
+          "fixed": {
+            "type": "boolean",
+            "default": false,
+            "description": "True se e' la parte fissa usata come fallback."
+          },
+          "sortOrder": {
+            "type": "integer",
+            "description": "Ordine esplicito. Se omesso, vale l'ordine del file."
+          }
+        }
+      }
+    },
+    "students": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Archivio studenti/proclamatori con stato completo e idoneita'.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nome",
+          "cognome",
+          "sesso"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cognome": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sesso": {
+            "type": "string",
+            "enum": [
+              "M",
+              "F"
+            ]
+          },
+          "sospeso": {
+            "type": "boolean",
+            "default": false
+          },
+          "puoAssistere": {
+            "type": "boolean",
+            "default": false
+          },
+          "canLeadPartTypeCodes": {
+            "type": "array",
+            "default": [],
+            "uniqueItems": true,
+            "description": "Elenco codici tipo parte che lo studente puo' condurre.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "partTypes": [
+        {
+          "code": "PREGHIERA",
+          "label": "Preghiera",
+          "peopleCount": 1,
+          "sexRule": "UOMO",
+          "fixed": true,
+          "sortOrder": 0
+        },
+        {
+          "code": "LETTURA",
+          "label": "Lettura",
+          "peopleCount": 2,
+          "sexRule": "STESSO_SESSO",
+          "sortOrder": 1
+        }
+      ],
+      "students": [
+        {
+          "nome": "Mario",
+          "cognome": "Rossi",
+          "sesso": "M",
+          "sospeso": false,
+          "puoAssistere": true,
+          "canLeadPartTypeCodes": [
+            "PREGHIERA",
+            "LETTURA"
+          ]
+        },
+        {
+          "nome": "Anna",
+          "cognome": "Bianchi",
+          "sesso": "F",
+          "sospeso": false,
+          "puoAssistere": true,
+          "canLeadPartTypeCodes": [
+            "LETTURA"
+          ]
+        }
+      ]
+    }
+  ]
+}

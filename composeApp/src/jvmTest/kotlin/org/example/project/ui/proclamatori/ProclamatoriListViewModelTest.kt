@@ -10,9 +10,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
+import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
+import org.example.project.feature.people.application.LeadEligibility
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
@@ -102,6 +103,48 @@ class ProclamatoriListViewModelTest {
         assertEquals(1, anomalies.size)
         assertEquals("Mario Rossi", anomalies[0].personLabel)
         assertEquals("Lettura Bibbia", anomalies[0].partTypeLabel)
+    }
+
+    @Test
+    fun `onScreenEntered carica anche il riepilogo capability della pagina corrente`() = runTest {
+        val person = makeProclamatore("p1", "Mario", "Rossi")
+        val cerca = mockk<CercaProclamatoriUseCase>()
+        coEvery { cerca(any()) } returns listOf(person)
+
+        val caricaIdoneita = mockk<CaricaIdoneitaProclamatoreUseCase>()
+        coEvery { caricaIdoneita(ProclamatoreId("p1")) } returns listOf(
+            LeadEligibility(partTypeId = PartTypeId("pt1"), canLead = true),
+        )
+
+        val partTypeStore = mockk<PartTypeStore>()
+        coEvery { partTypeStore.allWithStatus() } returns listOf(
+            PartTypeWithStatus(
+                partType = PartType(
+                    id = PartTypeId("pt1"),
+                    code = "LB",
+                    label = "Lettura Bibbia",
+                    peopleCount = 1,
+                    sexRule = SexRule.STESSO_SESSO,
+                    fixed = false,
+                    sortOrder = 0,
+                ),
+                active = true,
+            ),
+        )
+
+        val vm = makeViewModel(
+            scope = this,
+            cerca = cerca,
+            caricaIdoneita = caricaIdoneita,
+            partTypeStore = partTypeStore,
+        )
+        vm.onScreenEntered()
+        advanceUntilIdle()
+
+        val summary = vm.uiState.value.capabilitySummaryById[ProclamatoreId("p1")]
+        assertNotNull(summary)
+        assertEquals(listOf("Lettura Bibbia"), summary.leadLabels)
+        assertEquals(1, summary.leadCount)
     }
 
     // ── setSearchTerm / resetSearch ──────────────────────────────────────────
@@ -545,8 +588,10 @@ class ProclamatoriListViewModelTest {
         cerca: CercaProclamatoriUseCase = mockk<CercaProclamatoriUseCase>().also {
             coEvery { it(any()) } returns emptyList()
         },
+        caricaIdoneita: CaricaIdoneitaProclamatoreUseCase = mockk<CaricaIdoneitaProclamatoreUseCase>().also {
+            coEvery { it(any()) } returns emptyList()
+        },
         elimina: EliminaProclamatoreUseCase = mockk(relaxed = true),
-        importaDaJson: ImportaProclamatoriDaJsonUseCase = mockk(relaxed = true),
         contaAssegnazioni: ContaAssegnazioniPersonaUseCase = mockk(relaxed = true),
         archivaAnomalieSchema: ArchivaAnomalieSchemaUseCase = mockk<ArchivaAnomalieSchemaUseCase>().also {
             coEvery { it() } returns Either.Right(Unit)
@@ -560,8 +605,8 @@ class ProclamatoriListViewModelTest {
     ) = ProclamatoriListViewModel(
         scope = scope,
         cerca = cerca,
+        caricaIdoneita = caricaIdoneita,
         elimina = elimina,
-        importaDaJson = importaDaJson,
         contaAssegnazioni = contaAssegnazioni,
         archivaAnomalieSchema = archivaAnomalieSchema,
         schemaUpdateAnomalyStore = schemaUpdateAnomalyStore,

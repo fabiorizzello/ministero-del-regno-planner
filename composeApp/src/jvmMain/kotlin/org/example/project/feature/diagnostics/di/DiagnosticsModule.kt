@@ -7,12 +7,14 @@ import org.example.project.core.config.AppRuntime
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.DiagnosticsStore
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
+import org.example.project.feature.diagnostics.application.ImportaSeedApplicazioneDaJsonUseCase
 import org.example.project.feature.diagnostics.infrastructure.SqlDelightDiagnosticsStore
 import org.koin.dsl.module
 
 val diagnosticsModule = module {
     single<DiagnosticsStore> { SqlDelightDiagnosticsStore(get()) }
     factory { ContaStoricoUseCase(get()) }
+    factory { ImportaSeedApplicazioneDaJsonUseCase(get(), get(), get(), get(), get()) }
     factory {
         EliminaStoricoUseCase(
             store = get(),

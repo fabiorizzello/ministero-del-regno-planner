@@ -209,7 +209,68 @@ fun DiagnosticsScreen() {
             }
         }
 
+        if (state.canImportSeed) {
             Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = sectionCardShape,
+                border = sectionCardBorder,
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Column(
+                    modifier = Modifier.padding(spacing.xl),
+                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                ) {
+                    Text("Seed applicazione", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Importa un JSON amministrativo con catalogo tipi parte e archivio studenti completo.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        "Uso previsto: bootstrap iniziale. L'import richiede archivio studenti vuoto e aggiorna il catalogo tipi parte in base al file.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Schema repo: docs/json-schema/app-seed-import.schema.json",
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    DiagnosticsTooltipWrap("Importa seed JSON con partTypes, students e canLeadPartTypeCodes") {
+                        Button(
+                            onClick = { viewModel.startSeedImport() },
+                            enabled = !state.isImportingSeed && !state.isCleaning && !state.isExporting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(34.dp)
+                                .handCursorOnHover(
+                                    enabled = !state.isImportingSeed && !state.isCleaning && !state.isExporting,
+                                ),
+                            elevation = diagnosticsFlatButtonElevation(),
+                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                        ) {
+                            if (state.isImportingSeed) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .width(18.dp)
+                                        .height(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Importazione...")
+                            } else {
+                                Icon(Icons.Filled.FileOpen, contentDescription = "Importa seed applicazione")
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text("Importa seed JSON")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Card(
             modifier = Modifier.fillMaxWidth(),
             shape = sectionCardShape,
             border = sectionCardBorder,

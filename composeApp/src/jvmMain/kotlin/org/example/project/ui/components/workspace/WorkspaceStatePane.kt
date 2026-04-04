@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.example.project.ui.theme.spacing
+import org.example.project.ui.theme.workspaceSketch
 import org.example.project.ui.theme.workspaceTokens
 
 enum class WorkspaceStateKind {
@@ -33,17 +34,18 @@ fun WorkspaceStatePane(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.workspaceTokens
+    val sketch = MaterialTheme.workspaceSketch
     val (icon, tint) = when (kind) {
         WorkspaceStateKind.Loading -> Icons.Filled.HourglassTop to MaterialTheme.colorScheme.primary
-        WorkspaceStateKind.Empty -> Icons.Filled.Inbox to MaterialTheme.colorScheme.onSurfaceVariant
+        WorkspaceStateKind.Empty -> Icons.Filled.Inbox to sketch.inkMuted
         WorkspaceStateKind.Error -> Icons.Filled.ErrorOutline to MaterialTheme.colorScheme.error
     }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.cardRadius),
-        border = BorderStroke(tokens.panelBorderWidth, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(tokens.panelBorderWidth, sketch.statePaneBorder),
+        color = sketch.statePaneSurface,
     ) {
         Column(
             modifier = Modifier.padding(MaterialTheme.spacing.lg),
@@ -54,7 +56,7 @@ fun WorkspaceStatePane(
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = sketch.inkMuted,
             )
         }
     }

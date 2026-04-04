@@ -5,6 +5,7 @@ import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -30,9 +31,12 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
+import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
+import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
+import org.example.project.feature.diagnostics.application.ImportaSeedApplicazioneDaJsonUseCase
 import org.example.project.feature.diagnostics.application.StoricoPreview
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
@@ -69,14 +73,18 @@ internal data class DiagnosticsUiState(
     val isLoading: Boolean = false,
     val isCleaning: Boolean = false,
     val isExporting: Boolean = false,
+    val isImportingSeed: Boolean = false,
+    val canImportSeed: Boolean = false,
     val showCleanupConfirmDialog: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 )
 
 internal class DiagnosticsViewModel(
     private val scope: CoroutineScope,
+    private val cercaProclamatori: CercaProclamatoriUseCase,
     private val contaStorico: ContaStoricoUseCase,
     private val eliminaStorico: EliminaStoricoUseCase,
+    private val importaSeedApplicazione: ImportaSeedApplicazioneDaJsonUseCase,
 ) {
     private val _state = MutableStateFlow(initialState())
     val state: StateFlow<DiagnosticsUiState> = _state.asStateFlow()
@@ -84,6 +92,7 @@ internal class DiagnosticsViewModel(
     fun onScreenEntered() {
         refreshStorageUsage()
         refreshCleanupPreview()
+        refreshSeedAvailability()
     }
 
     fun refreshStorageUsage() {
@@ -127,6 +136,20 @@ internal class DiagnosticsViewModel(
                 },
                 operation = { createDiagnosticsBundle() },
             )
+        }
+    }
+
+    fun startSeedImport() {
+        val current = _state.value
+        if (current.isImportingSeed || current.isCleaning || current.isExporting) return
+        scope.launch {
+            _state.update { it.copy(isImportingSeed = true) }
+            val selectedFile = selectJsonFileForSeedImport()
+            if (selectedFile == null) {
+                _state.update { it.copy(isImportingSeed = false) }
+                return@launch
+            }
+            importSeedFileInternal(selectedFile)
         }
     }
 
@@ -223,6 +246,63 @@ internal class DiagnosticsViewModel(
                 it.copy(notice = errorNotice("Copia info supporto non riuscita: ${error.message}"))
             }
         }
+    }
+
+    fun refreshSeedAvailability() {
+        scope.launch {
+            val canImport = runCatching { cercaProclamatori(null).isEmpty() }
+                .getOrDefault(false)
+            _state.update { it.copy(canImportSeed = canImport) }
+        }
+    }
+
+    private suspend fun importSeedFileInternal(selectedFile: File) {
+        val fileSizeMb = selectedFile.length() / (1024 * 1024)
+        if (fileSizeMb > 10) {
+            _state.update {
+                it.copy(
+                    isImportingSeed = false,
+                    notice = errorNotice("File troppo grande (${fileSizeMb}MB). Limite: 10MB"),
+                )
+            }
+            return
+        }
+
+        val jsonContent = withContext(Dispatchers.IO) {
+            runCatching { selectedFile.readText(Charsets.UTF_8) }.getOrNull()
+        }
+        if (jsonContent == null) {
+            _state.update {
+                it.copy(
+                    isImportingSeed = false,
+                    notice = errorNotice("Impossibile leggere il file selezionato"),
+                )
+            }
+            return
+        }
+
+        _state.executeEitherOperation(
+            loadingUpdate = { it },
+            successUpdate = { state, result ->
+                state.copy(
+                    isImportingSeed = false,
+                    canImportSeed = false,
+                    notice = successNotice(
+                        "Seed completato: ${result.importedPartTypes} tipi parte, " +
+                            "${result.importedStudents} studenti, " +
+                            "${result.importedLeadEligibility} idoneita' conduzione",
+                    ),
+                )
+            },
+            errorUpdate = { state, error ->
+                state.copy(
+                    isImportingSeed = false,
+                    canImportSeed = if (error == DomainError.ImportArchivioNonVuoto) false else state.canImportSeed,
+                    notice = errorNotice("Import seed non completato: ${error.toMessage()}"),
+                )
+            },
+            operation = { withContext(Dispatchers.IO) { importaSeedApplicazione(jsonContent) } },
+        )
     }
 
     private fun openPath(path: Path, errorPrefix: String) {
@@ -351,6 +431,7 @@ internal class DiagnosticsViewModel(
                 "parti ${state.cleanupPreview.weeklyParts}, " +
                 "assegnazioni ${state.cleanupPreview.assignments}",
         )
+        appendLine("Stato import seed: ${if (state.isImportingSeed) "in corso" else "idle"}")
         appendLine("Stato export: ${if (state.isExporting) "in corso" else "idle"}")
         appendLine("Stato pulizia: ${if (state.isCleaning) "in corso" else "idle"}")
     }
