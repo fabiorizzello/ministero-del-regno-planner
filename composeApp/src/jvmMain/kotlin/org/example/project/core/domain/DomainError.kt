@@ -47,7 +47,7 @@ fun DomainError.toMessage(): String = when (this) {
     DomainError.PersonaSospesa -> "Il proclamatore e' sospeso"
     DomainError.PersonaGiaAssegnata -> "Proclamatore gia' assegnato in questa settimana"
     is DomainError.SlotNonValido -> "Slot $slot non valido (max: $max)"
-    DomainError.SettimanaImmutabile -> "La settimana non e' modificabile (passata o saltata)"
+    DomainError.SettimanaImmutabile -> "La settimana non e' modificabile per questa operazione"
     is DomainError.ParteFissa -> "La parte '$label' non puo' essere rimossa"
     DomainError.OrdinePartiNonValido -> "Ordine parti non valido"
     DomainError.NomeObbligatorio -> "Il nome e' obbligatorio"

@@ -418,6 +418,17 @@ WHERE wp.week_plan_id = ?;
 countAssignmentsForPerson:
 SELECT COUNT(*) FROM assignment WHERE person_id = ?;
 
+lastAssignmentDateByPartTypesForPerson:
+SELECT
+    wp.part_type_id,
+    MAX(wpl.week_start_date) AS last_week_start_date
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+WHERE a.person_id = ?
+  AND wp.part_type_id IN ?
+GROUP BY wp.part_type_id;
+
 deleteAssignmentsForPerson:
 DELETE FROM assignment WHERE person_id = ?;
 

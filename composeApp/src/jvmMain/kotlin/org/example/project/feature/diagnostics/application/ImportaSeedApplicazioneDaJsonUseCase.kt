@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.raise.either
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
@@ -13,10 +14,21 @@ import org.example.project.feature.people.application.ProclamatoriQuery
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import java.util.UUID
 
 @Serializable
@@ -44,11 +56,28 @@ private data class SeedStudentDto(
     val sospeso: Boolean = false,
     val puoAssistere: Boolean = false,
     val canLeadPartTypeCodes: List<String> = emptyList(),
+    @SerialName("ultimaParte")
+    val ultimaParte: SeedStudentLastAssignmentDto? = null,
+)
+
+@Serializable
+private data class SeedStudentLastAssignmentDto(
+    @SerialName("data")
+    val data: String = "",
+    @SerialName("tipo")
+    val tipo: String = "",
 )
 
 private data class ParsedSeedStudent(
     val person: Proclamatore,
     val canLeadPartTypeCodes: Set<String>,
+    val lastAssignment: ParsedSeedStudentLastAssignment?,
+)
+
+private data class ParsedSeedStudentLastAssignment(
+    val date: LocalDate,
+    val partTypeCode: String,
+    val slot: Int,
 )
 
 private data class ParsedSeedImport(
@@ -61,12 +90,14 @@ class ImportaSeedApplicazioneDaJsonUseCase(
     private val proclamatoriStore: ProclamatoriAggregateStore,
     private val partTypeStore: PartTypeStore,
     private val eligibilityStore: EligibilityStore,
+    private val weekPlanStore: WeekPlanStore,
     private val transactionRunner: TransactionRunner,
 ) {
     data class Result(
         val importedPartTypes: Int,
         val importedStudents: Int,
         val importedLeadEligibility: Int,
+        val importedHistoricalAssignments: Int,
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -105,10 +136,27 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                     }
                 }
 
+                parsed.students.forEach { student ->
+                    val lastAssignment = student.lastAssignment ?: return@forEach
+                    val storedPartType = storedPartTypesByCode[lastAssignment.partTypeCode]
+                        ?: raise(
+                            DomainError.ImportSalvataggioFallito(
+                                "Tipo parte non disponibile per storico assegnazioni: ${lastAssignment.partTypeCode}",
+                            ),
+                        )
+                    persistHistoricalAssignment(
+                        personId = student.person.id,
+                        partType = storedPartType,
+                        assignmentDate = lastAssignment.date,
+                        slot = lastAssignment.slot,
+                    ).bind()
+                }
+
                 Result(
                     importedPartTypes = parsed.partTypes.size,
                     importedStudents = parsed.students.size,
                     importedLeadEligibility = parsed.students.sumOf { it.canLeadPartTypeCodes.size },
+                    importedHistoricalAssignments = parsed.students.count { it.lastAssignment != null },
                 )
             }
         }.bind()
@@ -264,6 +312,39 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         ParsedSeedStudent(
             person = person,
             canLeadPartTypeCodes = canLeadCodes,
+            lastAssignment = validateLastAssignment(
+                position = position,
+                item = item.ultimaParte,
+                partTypeByCode = partTypeByCode,
+            ).getOrElse { message ->
+                raise(message)
+            },
+        )
+    }
+
+    private fun validateLastAssignment(
+        position: Int,
+        item: SeedStudentLastAssignmentDto?,
+        partTypeByCode: Map<String, PartType>,
+    ): Either<String, ParsedSeedStudentLastAssignment?> = either {
+        if (item == null) return@either null
+
+        val date = try {
+            LocalDate.parse(item.data.trim())
+        } catch (_: Exception) {
+            raise("students[$position].ultimaParte: data non valida (${item.data}), atteso formato ISO yyyy-MM-dd")
+        }
+
+        val partTypeCode = normalizePartTypeCode(item.tipo)
+            .takeIf { it.isNotBlank() }
+            ?: raise("students[$position].ultimaParte: tipo obbligatorio")
+        val partType = partTypeByCode[partTypeCode]
+            ?: raise("students[$position].ultimaParte: tipo parte non definito nel catalogo importato ($partTypeCode)")
+
+        ParsedSeedStudentLastAssignment(
+            date = normalizeHistoricalAssignmentDate(date),
+            partTypeCode = partTypeCode,
+            slot = 1,
         )
     }
 
@@ -282,8 +363,67 @@ class ImportaSeedApplicazioneDaJsonUseCase(
 
     private fun normalizePartTypeCode(raw: String): String = raw.trim().uppercase()
 
+    private fun normalizeHistoricalAssignmentDate(
+        rawDate: LocalDate,
+        referenceDate: LocalDate = LocalDate.now(),
+    ): LocalDate {
+        var normalized = rawDate
+        while (normalized.isAfter(referenceDate)) {
+            normalized = normalized.minusYears(1)
+        }
+        return normalized
+    }
+
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean = when (sexRule) {
         SexRule.UOMO -> sesso == Sesso.M
         SexRule.STESSO_SESSO -> true
+    }
+
+    context(_: org.example.project.core.persistence.TransactionScope)
+    private suspend fun persistHistoricalAssignment(
+        personId: ProclamatoreId,
+        partType: PartType,
+        assignmentDate: LocalDate,
+        slot: Int,
+    ): Either<DomainError, Unit> = either {
+        val weekStartDate = assignmentDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val existingAggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
+
+        val newPart = WeeklyPart(
+            id = WeeklyPartId(UUID.randomUUID().toString()),
+            partType = partType,
+            sortOrder = existingAggregate?.weekPlan?.nextSortOrder() ?: 0,
+        )
+        val assignment = Assignment.of(
+            id = AssignmentId(UUID.randomUUID().toString()),
+            weeklyPartId = newPart.id,
+            personId = personId,
+            slot = slot,
+        ).fold(
+            ifLeft = { raise(it) },
+            ifRight = { it },
+        )
+
+        val aggregateToSave = if (existingAggregate == null) {
+            val weekPlan = WeekPlan.of(
+                id = WeekPlanId(UUID.randomUUID().toString()),
+                weekStartDate = weekStartDate,
+                parts = listOf(newPart),
+            ).bind()
+            WeekPlanAggregate(
+                weekPlan = weekPlan,
+                assignments = listOf(assignment),
+            )
+        } else {
+            val aggregateWithNewPart = existingAggregate.copy(
+                weekPlan = existingAggregate.weekPlan.copy(parts = existingAggregate.weekPlan.parts + newPart),
+            )
+            aggregateWithNewPart.addAssignment(
+                assignment = assignment,
+                personSuspended = false,
+            ).bind()
+        }
+
+        weekPlanStore.saveAggregate(aggregateToSave)
     }
 }

@@ -14,8 +14,9 @@ parte settimanale (es. slot 1 = conduttore, slot 2+ = assistente).
 **Why this priority**: L'assegnazione manuale è la funzione core dell'applicazione —
 il piano settimanale delle assegnazioni è il prodotto finale.
 
-**Independent Test**: Selezionare una parte settimanale → selezionare uno slot →
-assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
+**Independent Test**: Selezionare una parte settimanale, anche di una settimana passata
+visibile nel workspace, → selezionare uno slot → assegnare un proclamatore →
+verificare che appaia nell'elenco assegnazioni.
 
 **Acceptance Scenarios**:
 
@@ -31,6 +32,10 @@ assegnare un proclamatore → verificare che appaia nell'elenco assegnazioni.
 5. **Given** uno slot già assegnato, **When** l'utente clicca rimozione singola,
    **Then** il sistema mostra prima un prompt di conferma esplicita; solo dopo conferma
    esegue la rimozione.
+6. **Given** la settimana selezionata è passata ma visibile nel workspace,
+   **When** l'utente apre il dialog di assegnazione o conferma una rimozione,
+   **Then** il sistema consente la modifica ma mostra un avviso esplicito che indica
+   che si sta aggiornando lo storico.
 
 ---
 
@@ -126,9 +131,11 @@ successive per slot 1.
   a partire da quella data (non necessariamente l'intero programma). Espone anche
   `count(programId, fromDate)` per preview del numero di assegnazioni che sarebbero
   rimosse prima di `execute(programId, fromDate)`.
-- Nel workspace UI, il reset di una singola settimana (`Rimuovi assegnazioni`) è
-  disponibile solo per settimane future; per la settimana corrente non deve essere
-  mostrato.
+- Nel workspace UI, la modifica manuale di singole assegnazioni MUST restare disponibile
+  anche per settimane passate con stato `ACTIVE`, ma con indicazione visiva di
+  "settimana passata" e warning esplicito nel dialog.
+- Nel workspace UI, il reset massivo di una singola settimana (`Rimuovi assegnazioni`)
+  resta un'azione distinta e non è il meccanismo previsto per correggere lo storico.
 - Slot = 1 → ruolo "Studente"; slot >= 2 → ruolo "Assistente" (proprietà computed
   `Assignment.roleLabel` e `AssignmentWithPerson.roleLabel`).
 - Un proclamatore può essere assegnato al massimo una volta per settimana, anche se
@@ -140,6 +147,9 @@ successive per slot 1.
 
 - **FR-001**: Il sistema MUST consentire l'assegnazione di un proclamatore a uno slot
   specifico (weeklyPartId, slot) di una settimana.
+- **FR-001b**: Il sistema MUST consentire la modifica manuale di una singola
+  assegnazione anche su settimane passate visibili nel workspace, purché la settimana
+  sia `ACTIVE` e non `SKIPPED`.
 - **FR-002**: Il sistema MUST validare ogni assegnazione rispetto a:
   (a) slot MUST essere nel range `[1, partType.peopleCount]` — valori fuori range sono
   rifiutati con errore "Slot non valido";
@@ -172,6 +182,9 @@ successive per slot 1.
   strictCooldown) e applicarle ad ogni esecuzione del suggeritore.
 - **FR-012**: Nel workspace UI, la rimozione di una singola assegnazione MUST richiedere
   conferma esplicita dell'utente prima dell'esecuzione.
+- **FR-012b**: Nel workspace UI, quando l'assegnazione manuale o la rimozione singola
+  riguarda una settimana passata, il dialog MUST mostrare un alert non bloccante che
+  esplicita la modifica dello storico.
 - **FR-013**: Nel workspace UI, l'azione `Rimuovi assegnazioni` a livello settimana MUST
   essere mostrata solo per settimane future (mai per la settimana corrente o passata).
 

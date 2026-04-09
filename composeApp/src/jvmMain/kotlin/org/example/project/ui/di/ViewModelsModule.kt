@@ -111,6 +111,7 @@ val viewModelsModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             carica = get(),
             caricaIdoneita = get(),
+            caricaUltimeAssegnazioniPerParte = get(),
             crea = get(),
             aggiorna = get(),
             impostaIdoneitaConduzione = get(),

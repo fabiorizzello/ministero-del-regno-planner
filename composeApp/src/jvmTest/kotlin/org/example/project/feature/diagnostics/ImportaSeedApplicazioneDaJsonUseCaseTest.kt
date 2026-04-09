@@ -15,12 +15,18 @@ import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeekPlanSummary
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ImportaSeedApplicazioneDaJsonUseCaseTest {
@@ -30,11 +36,13 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         val studentStore = InMemoryStudentStore()
         val partTypeStore = InMemorySeedPartTypeStore()
         val eligibilityStore = RecordingEligibilityStore(partTypeStore)
+        val weekPlanStore = InMemoryWeekPlanStore()
         val useCase = buildUseCase(
             query = EmptyStudentQuery(),
             studentStore = studentStore,
             partTypeStore = partTypeStore,
             eligibilityStore = eligibilityStore,
+            weekPlanStore = weekPlanStore,
         )
 
         val json = """
@@ -51,7 +59,8 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "sesso": "M",
                   "sospeso": false,
                   "puoAssistere": true,
-                  "canLeadPartTypeCodes": ["preghiera", "lettura"]
+                  "canLeadPartTypeCodes": ["preghiera", "lettura"],
+                  "ultimaParte": { "data": "2026-03-16", "tipo": "lettura" }
                 },
                 {
                   "nome": "Anna",
@@ -59,7 +68,8 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "sesso": "F",
                   "sospeso": true,
                   "puoAssistere": false,
-                  "canLeadPartTypeCodes": ["lettura"]
+                  "canLeadPartTypeCodes": ["lettura"],
+                  "ultimaParte": { "data": "2026-03-23", "tipo": "lettura" }
                 }
               ]
             }
@@ -71,12 +81,19 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertEquals(2, right.importedPartTypes)
         assertEquals(2, right.importedStudents)
         assertEquals(3, right.importedLeadEligibility)
+        assertEquals(2, right.importedHistoricalAssignments)
         assertEquals(2, studentStore.persisted.size)
         assertEquals(2, partTypeStore.all().size)
         assertEquals(setOf("PREGHIERA", "LETTURA"), partTypeStore.deactivatedToCodes.single())
         assertEquals(3, eligibilityStore.recorded.size)
         assertTrue(eligibilityStore.recorded.any { it.partTypeCode == "PREGHIERA" })
         assertEquals(2, eligibilityStore.recorded.count { it.partTypeCode == "LETTURA" })
+        val firstWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 16)))
+        assertEquals(1, firstWeek.parts.size)
+        assertEquals("LETTURA", firstWeek.parts.single().partType.code)
+        val secondWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 23)))
+        assertEquals(1, secondWeek.parts.size)
+        assertEquals("LETTURA", secondWeek.parts.single().partType.code)
         Unit
     }
 
@@ -168,6 +185,38 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertTrue(error.details.contains("non puo' condurre PREGHIERA"))
         Unit
     }
+
+    @Test
+    fun `future ultimaParte date is normalized into the past before persisting history`() = runTest {
+        val weekPlanStore = InMemoryWeekPlanStore()
+        val useCase = buildUseCase(weekPlanStore = weekPlanStore)
+
+        val nextYear = LocalDate.now().plusYears(1)
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 1, "sexRule": "STESSO_SESSO" }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaParte": { "data": "$nextYear", "tipo": "LETTURA" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json)
+
+        assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result)
+        val normalizedDate = nextYear.minusYears(1)
+        val expectedWeek = normalizedDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        val savedWeek = assertNotNull(weekPlanStore.findByDate(expectedWeek))
+        assertEquals(expectedWeek, savedWeek.weekStartDate)
+    }
 }
 
 private fun buildUseCase(
@@ -175,11 +224,13 @@ private fun buildUseCase(
     studentStore: ProclamatoriAggregateStore = InMemoryStudentStore(),
     partTypeStore: PartTypeStore = InMemorySeedPartTypeStore(),
     eligibilityStore: EligibilityStore = RecordingEligibilityStore(partTypeStore),
+    weekPlanStore: WeekPlanStore = InMemoryWeekPlanStore(),
 ): ImportaSeedApplicazioneDaJsonUseCase = ImportaSeedApplicazioneDaJsonUseCase(
     proclamatoriQuery = query,
     proclamatoriStore = studentStore,
     partTypeStore = partTypeStore,
     eligibilityStore = eligibilityStore,
+    weekPlanStore = weekPlanStore,
     transactionRunner = PassthroughTransactionRunner,
 )
 
@@ -273,4 +324,51 @@ private class RecordingEligibilityStore(
     override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
 
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
+}
+
+private class InMemoryWeekPlanStore : WeekPlanStore {
+    private val byDate = linkedMapOf<LocalDate, WeekPlanAggregate>()
+
+    override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? = byDate[weekStartDate]?.weekPlan
+
+    override suspend fun listInRange(startDate: LocalDate, endDate: LocalDate): List<WeekPlanSummary> = emptyList()
+
+    override suspend fun totalSlotsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
+
+    override suspend fun findByDateAndProgram(
+        weekStartDate: LocalDate,
+        programId: org.example.project.feature.programs.domain.ProgramMonthId,
+    ): WeekPlan? = null
+
+    override suspend fun listByProgram(programId: org.example.project.feature.programs.domain.ProgramMonthId): List<WeekPlan> = emptyList()
+
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? = byDate[weekStartDate]
+
+    override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =
+        byDate.values.firstOrNull { it.weekPlan.id == weekPlanId }
+
+    override suspend fun loadAggregateByDateAndProgram(
+        weekStartDate: LocalDate,
+        programId: org.example.project.feature.programs.domain.ProgramMonthId,
+    ): WeekPlanAggregate? = null
+
+    override suspend fun listAggregatesByProgram(
+        programId: org.example.project.feature.programs.domain.ProgramMonthId,
+    ): List<WeekPlanAggregate> = emptyList()
+
+    context(tx: TransactionScope)
+    override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
+        byDate[aggregate.weekPlan.weekStartDate] = aggregate
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun replaceProgramAggregates(
+        programId: org.example.project.feature.programs.domain.ProgramMonthId,
+        aggregates: List<WeekPlanAggregate>,
+    ) {
+        aggregates.forEach { byDate[it.weekPlan.weekStartDate] = it }
+    }
+
+    context(tx: TransactionScope)
+    override suspend fun deleteByProgram(programId: org.example.project.feature.programs.domain.ProgramMonthId) {}
 }

@@ -133,7 +133,7 @@ class PartEditorViewModelTest {
     }
 
     @Test
-    fun `openPartEditor ignores past week`() = runTest {
+    fun `openPartEditor opens past week and marks historical mode`() = runTest {
         val vm = makeViewModel(scope = this, partTypes = allPartTypes)
         advanceUntilIdle()
 
@@ -141,7 +141,8 @@ class PartEditorViewModelTest {
         val week = makeWeekPlan(pastMonday)
         vm.openPartEditor(week)
 
-        assertFalse(vm.state.value.isPartEditorOpen)
+        assertTrue(vm.state.value.isPartEditorOpen)
+        assertTrue(vm.state.value.partEditorIsPast)
     }
 
     // ── dismissPartEditor ───────────────────────────────────────────────────
@@ -158,6 +159,7 @@ class PartEditorViewModelTest {
 
         assertFalse(vm.state.value.isPartEditorOpen)
         assertNull(vm.state.value.partEditorWeekId)
+        assertFalse(vm.state.value.partEditorIsPast)
         assertTrue(vm.state.value.partEditorParts.isEmpty())
     }
 

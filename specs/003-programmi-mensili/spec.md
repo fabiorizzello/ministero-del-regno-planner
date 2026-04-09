@@ -106,6 +106,9 @@ entrambi compaiano con il loro stato (PAST/CURRENT/FUTURE).
 6. **Given** non esiste `current` e non c'è una selezione precedente valida,
    **When** il workspace viene aperto o ricaricato, **Then** il sistema seleziona
    automaticamente il mese futuro più vicino (primo cronologico).
+7. **Given** il mese selezionato contiene settimane già trascorse ma ancora visibili,
+   **When** l'utente apre il dettaglio di una settimana passata `ACTIVE`, **Then** la UI
+   la mostra come passata ma comunque modificabile per correzioni manuali dello storico.
 
 ---
 
@@ -185,6 +188,8 @@ degli schemi nuovi.
 - `AggiornaProgrammaDaSchemiUseCase`: applica solo alle settimane con `weekStartDate >=
   referenceDate` (non rielabora il passato). Usa `dryRun=true` per preview senza
   modifiche al DB. Assegnazioni preservate per chiave `(partTypeId, sortOrder)`.
+- Le correzioni manuali del passato sono consentite solo a livello di singola settimana
+  visibile nel workspace; operazioni batch e rigenerazioni restano future-only.
 - Eliminazione programma corrente/futuro: cascade delete — prima i WeekPlan (e le loro parti e
   assegnazioni), poi il programma stesso, tutto in una transazione.
 - Eliminazione programma corrente/futuro: prima della conferma definitiva, il sistema
@@ -281,6 +286,12 @@ degli schemi nuovi.
 - **FR-029**: Le notifiche di errore nel workspace UI MUST essere sempre mostrate con
   messaggio esplicito e azionabile, indipendentemente dalla policy di riduzione dei
   toast di successo.
+- **FR-030**: Nel workspace UI, una settimana passata con stato `ACTIVE` MUST rimanere
+  riconoscibile come passata ma MUST consentire la modifica manuale di parti e
+  assegnazioni.
+- **FR-031**: Nel workspace UI, le settimane passate modificabili MUST mostrare un
+  indicatore visivo aggiuntivo di editabilità storica e i relativi dialog MUST mostrare
+  un alert contestuale prima della conferma dell'azione.
 
 ## Cross-Feature Dependency
 

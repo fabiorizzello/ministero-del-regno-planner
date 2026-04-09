@@ -14,6 +14,8 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
+import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
@@ -27,6 +29,18 @@ class GeneraSettimaneProgrammaUseCase(
     private val partTypeStore: PartTypeStore,
     private val transactionRunner: TransactionRunner,
 ) {
+    private data class WeekSpec(
+        val weekStartDate: LocalDate,
+        val orderedPartTypes: List<Pair<PartType, String?>>,
+        val status: WeekPlanStatus,
+    )
+
+    private data class AssignmentRestoreKey(
+        val partTypeId: PartTypeId,
+        val occurrenceIndex: Int,
+        val slot: Int,
+    )
+
     suspend operator fun invoke(
         programId: ProgramMonthId,
         skippedWeeks: Set<LocalDate> = emptySet(),
@@ -36,12 +50,6 @@ class GeneraSettimaneProgrammaUseCase(
 
         val fixedPart = partTypeStore.findFixed()
         val partTypesById = partTypeStore.all().associateBy { partType -> partType.id }
-
-        data class WeekSpec(
-            val weekStartDate: LocalDate,
-            val orderedPartTypes: List<Pair<PartType, String?>>,
-            val status: WeekPlanStatus,
-        )
 
         val weekSpecs = buildList {
             var currentWeek = program.startDate
@@ -70,24 +78,23 @@ class GeneraSettimaneProgrammaUseCase(
         }
 
         val aggregates = weekSpecs.map { spec ->
-            val week = WeekPlan.of(
-                id = WeekPlanId(UUID.randomUUID().toString()),
-                weekStartDate = spec.weekStartDate,
-                parts = spec.orderedPartTypes.mapIndexed { index, (partType, revisionId) ->
-                    WeeklyPart(
-                        id = WeeklyPartId(UUID.randomUUID().toString()),
-                        partType = partType,
-                        partTypeRevisionId = revisionId,
-                        sortOrder = index,
+            val existingAggregate = weekPlanStore.loadAggregateByDate(spec.weekStartDate)
+            if (existingAggregate != null) {
+                val existingProgramId = existingAggregate.weekPlan.programId
+                if (existingProgramId != null && existingProgramId != programId) {
+                    raise(
+                        DomainError.Validation(
+                            "Esiste gia' una settimana collegata a un altro programma per ${spec.weekStartDate}",
+                        ),
                     )
-                },
+                }
+            }
+
+            buildAggregateForSpec(
+                spec = spec,
                 programId = programId,
-                status = spec.status,
+                existingAggregate = existingAggregate,
             ).bind()
-            WeekPlanAggregate(
-                weekPlan = week,
-                assignments = emptyList(),
-            )
         }
 
         transactionRunner.runInTransactionEither {
@@ -96,4 +103,109 @@ class GeneraSettimaneProgrammaUseCase(
             Either.Right(Unit)
         }.bind()
     }
+
+    private fun buildAggregateForSpec(
+        spec: WeekSpec,
+        programId: ProgramMonthId,
+        existingAggregate: WeekPlanAggregate?,
+    ): Either<DomainError, WeekPlanAggregate> = either {
+        val generatedParts = spec.orderedPartTypes.mapIndexed { index, (partType, revisionId) ->
+            WeeklyPart(
+                id = WeeklyPartId(UUID.randomUUID().toString()),
+                partType = partType,
+                partTypeRevisionId = revisionId,
+                sortOrder = index,
+            )
+        }
+
+        val week = WeekPlan.of(
+            id = existingAggregate?.weekPlan?.id ?: WeekPlanId(UUID.randomUUID().toString()),
+            weekStartDate = spec.weekStartDate,
+            parts = generatedParts,
+            programId = programId,
+            status = spec.status,
+        ).bind()
+
+        val restoredAssignments = restoreAssignments(
+            existingAggregate = existingAggregate,
+            generatedParts = generatedParts,
+        ).bind()
+
+        WeekPlanAggregate(
+            weekPlan = week,
+            assignments = restoredAssignments,
+        )
+    }
+
+    private fun restoreAssignments(
+        existingAggregate: WeekPlanAggregate?,
+        generatedParts: List<WeeklyPart>,
+    ): Either<DomainError, List<Assignment>> = either {
+        if (existingAggregate == null) return@either emptyList()
+
+        val assignmentsByKey = snapshotAssignmentsByRestoreKey(existingAggregate)
+        val generatedKeys = generatedParts.associateByRestoreKey()
+
+        buildList {
+            generatedKeys.forEach { (key, part) ->
+                assignmentsByKey[key].orEmpty().forEach { assignment ->
+                    add(
+                        Assignment.of(
+                            id = AssignmentId(UUID.randomUUID().toString()),
+                            weeklyPartId = part.id,
+                            personId = assignment.personId,
+                            slot = assignment.slot,
+                        ).bind(),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun snapshotAssignmentsByRestoreKey(
+        aggregate: WeekPlanAggregate,
+    ): Map<AssignmentRestoreKey, List<Assignment>> {
+        val partOccurrenceById = aggregate.weekPlan.parts.associateRestoreKeys()
+        return aggregate.assignments.groupBy { assignment ->
+            val part = partOccurrenceById[assignment.weeklyPartId]
+                ?: error("Assignment references unknown part ${assignment.weeklyPartId.value}")
+            AssignmentRestoreKey(
+                partTypeId = part.first.partType.id,
+                occurrenceIndex = part.second,
+                slot = assignment.slot,
+            )
+        }
+    }
+
+    private fun List<WeeklyPart>.associateByRestoreKey(): Map<AssignmentRestoreKey, WeeklyPart> {
+        val occurrenceByType = mutableMapOf<PartTypeId, Int>()
+        return associateBy { part ->
+            val occurrence = occurrenceByType.getOrDefault(part.partType.id, 0)
+            occurrenceByType[part.partType.id] = occurrence + 1
+            AssignmentRestoreKey(
+                partTypeId = part.partType.id,
+                occurrenceIndex = occurrence,
+                slot = 1,
+            )
+        }.flatMapValuesPerSlot()
+    }
+
+    private fun List<WeeklyPart>.associateRestoreKeys(): Map<WeeklyPartId, Pair<WeeklyPart, Int>> {
+        val occurrenceByType = mutableMapOf<PartTypeId, Int>()
+        return sortedBy { it.sortOrder }.associateBy(
+            keySelector = { part -> part.id },
+            valueTransform = { part ->
+            val occurrence = occurrenceByType.getOrDefault(part.partType.id, 0)
+            occurrenceByType[part.partType.id] = occurrence + 1
+            part to occurrence
+            },
+        )
+    }
+
+    private fun Map<AssignmentRestoreKey, WeeklyPart>.flatMapValuesPerSlot(): Map<AssignmentRestoreKey, WeeklyPart> =
+        entries.flatMap { (baseKey, part) ->
+            (1..part.partType.peopleCount).map { slot ->
+                baseKey.copy(slot = slot) to part
+            }
+        }.toMap()
 }

@@ -7,7 +7,9 @@ import org.example.project.feature.assignments.application.AssignmentRepository
 import org.example.project.feature.assignments.application.AssignmentSettingsStore
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
+import org.example.project.feature.assignments.application.CaricaUltimeAssegnazioniPerParteProclamatoreUseCase
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
+import org.example.project.feature.assignments.application.PersonAssignmentHistoryQuery
 import org.example.project.feature.assignments.application.CaricaAssegnazioniUseCase
 import org.example.project.feature.assignments.application.ContaAssegnazioniPersonaUseCase
 import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
@@ -26,7 +28,9 @@ val assignmentsModule = module {
     single<AssignmentRepository> { get<SqlDelightAssignmentStore>() }
     single<AssignmentRanking> { get<SqlDelightAssignmentStore>() }
     single<PersonAssignmentLifecycle> { get<SqlDelightAssignmentStore>() }
+    single<PersonAssignmentHistoryQuery> { get<SqlDelightAssignmentStore>() }
     factory { CaricaImpostazioniAssegnatoreUseCase(get()) }
+    factory { CaricaUltimeAssegnazioniPerParteProclamatoreUseCase(get()) }
     factory { SalvaImpostazioniAssegnatoreUseCase(get(), get()) }
     factory { CaricaAssegnazioniUseCase(get(), get()) }
     factory { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }

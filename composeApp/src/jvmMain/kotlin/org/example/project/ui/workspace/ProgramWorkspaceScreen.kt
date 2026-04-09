@@ -67,6 +67,7 @@ import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.feature.weeklyparts.domain.canBeEditedManually
 import org.example.project.feature.weeklyparts.domain.canBeMutated
 import org.example.project.ui.assignments.PartAssignmentCard
 import org.example.project.ui.assignments.PersonPickerDialog
@@ -87,6 +88,11 @@ import java.time.DayOfWeek
 import java.time.temporal.TemporalAdjusters
 
 internal enum class WeekSidebarStatus { CURRENT, PAST, COMPLETE, PARTIAL, EMPTY, SKIPPED }
+
+private data class PendingAssignmentRemoval(
+    val assignment: AssignmentWithPerson,
+    val isHistoricalEdit: Boolean,
+)
 
 private fun org.example.project.feature.weeklyparts.domain.WeekPlan.sidebarStatus(
     currentMonday: java.time.LocalDate,
@@ -116,9 +122,12 @@ fun ProgramWorkspaceScreen() {
     val assignmentState by assignmentVM.uiState.collectAsState()
     val personPickerState by personPickerVM.state.collectAsState()
     val partEditorState by partEditorVM.state.collectAsState()
+    val currentMonday = remember(lifecycleState.today) {
+        lifecycleState.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    }
 
     val spacing = MaterialTheme.spacing
-    var pendingAssignmentRemoval by remember { mutableStateOf<AssignmentWithPerson?>(null) }
+    var pendingAssignmentRemoval by remember { mutableStateOf<PendingAssignmentRemoval?>(null) }
     val incomingNotices = listOfNotNull(
         lifecycleState.notice,
         schemaState.notice,
@@ -175,6 +184,7 @@ fun ProgramWorkspaceScreen() {
                 partLabel = pickedPart.partType.label,
                 slotLabel = slotLabel,
                 weekLabel = pickerWeekLabel,
+                isHistoricalEdit = personPickerState.pickerWeekStartDate?.isBefore(currentMonday) == true,
                 currentAssigneeName = currentAssigneeName,
                 searchTerm = personPickerState.pickerSearchTerm,
                 strictCooldown = assignmentState.assignmentSettings.strictCooldown,
@@ -221,6 +231,7 @@ fun ProgramWorkspaceScreen() {
             val editingAssignmentCountsByPart = editingWeekAssignments.groupingBy { it.weeklyPartId }.eachCount()
             PartEditorDialog(
                 weekLabel = formatWeekRangeLabel(editingWeek.weekStartDate, editingWeek.weekStartDate.plusDays(6)),
+                isHistoricalEdit = partEditorState.partEditorIsPast,
                 parts = partEditorState.partEditorParts,
                 availablePartTypes = partEditorState.editablePartTypes,
                 assignmentCountsByPart = editingAssignmentCountsByPart,
@@ -323,13 +334,18 @@ fun ProgramWorkspaceScreen() {
             }
         }
 
-        pendingAssignmentRemoval?.let { assignment ->
+        pendingAssignmentRemoval?.let { removal ->
             AlertDialog(
                 onDismissRequest = { pendingAssignmentRemoval = null },
                 title = { Text("Rimuovi assegnazione") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                        Text("Confermi rimozione dell'assegnazione per ${assignment.fullName}?")
+                        if (removal.isHistoricalEdit) {
+                            HistoricalEditAlert(
+                                message = "Stai modificando una settimana passata. La rimozione aggiornera' lo storico visibile.",
+                            )
+                        }
+                        Text("Confermi rimozione dell'assegnazione per ${removal.assignment.fullName}?")
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.handCursorOnHover().clickable {
@@ -349,7 +365,7 @@ fun ProgramWorkspaceScreen() {
                         label = "Rimuovi",
                         onClick = {
                             pendingAssignmentRemoval = null
-                            personPickerVM.removeAssignment(assignment.id, onSuccess = reloadData)
+                            personPickerVM.removeAssignment(removal.assignment.id, onSuccess = reloadData)
                         },
                         destructive = true,
                     )
@@ -408,9 +424,6 @@ fun ProgramWorkspaceScreen() {
                 modifier = Modifier.fillMaxWidth(),
             )
             else -> {
-            val currentMonday = remember(lifecycleState.today) {
-                lifecycleState.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            }
             val selectedProgram = remember(
                 lifecycleState.selectedProgramId,
                 lifecycleState.currentProgram,
@@ -630,7 +643,8 @@ fun ProgramWorkspaceScreen() {
                         val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
                         val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
                         val isCurrent = selectedWeek.weekStartDate == currentMonday
-                        val canMutate = selectedWeek.canBeMutated(currentMonday)
+                        val canMutate = selectedWeek.canBeEditedManually()
+                        val canSkipWeek = selectedWeek.canBeMutated(currentMonday)
                         val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
                         val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
 
@@ -679,6 +693,7 @@ fun ProgramWorkspaceScreen() {
                             isCurrent = isCurrent,
                             isSkipped = isSkipped,
                             canMutate = canMutate,
+                            canSkipWeek = canSkipWeek,
                             onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
                             onSkipWeek = { pendingSkipWeek = true },
                             onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
@@ -755,7 +770,10 @@ fun ProgramWorkspaceScreen() {
                                                         onRemoveAssignment = { assignmentId ->
                                                             val assignment = assignmentsById[assignmentId.value]
                                                             if (assignment != null && !assignmentState.skipRemoveConfirm) {
-                                                                pendingAssignmentRemoval = assignment
+                                                                pendingAssignmentRemoval = PendingAssignmentRemoval(
+                                                                    assignment = assignment,
+                                                                    isHistoricalEdit = selectedWeek.weekStartDate < currentMonday,
+                                                                )
                                                             } else {
                                                                 personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
                                                             }

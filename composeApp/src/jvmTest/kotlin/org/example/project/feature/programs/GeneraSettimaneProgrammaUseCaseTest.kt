@@ -7,10 +7,13 @@ import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
 import org.example.project.feature.programs.application.ProgramCreationContext
 import org.example.project.feature.programs.application.ProgramStore
+import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
+import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.TestWeekPlanStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
@@ -21,12 +24,15 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
+import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 
 class GeneraSettimaneProgrammaUseCaseTest {
 
@@ -79,6 +85,68 @@ class GeneraSettimaneProgrammaUseCaseTest {
         assertEquals(listOf(fixedPart.id), weekStore.partTypeIdsByWeekStart[LocalDate.of(2026, 2, 9)])
         assertEquals(listOf(fixedPart.id), weekStore.partTypeIdsByWeekStart[LocalDate.of(2026, 2, 16)])
         assertEquals(listOf(fixedPart.id), weekStore.partTypeIdsByWeekStart[LocalDate.of(2026, 2, 23)])
+        assertEquals(1, programStore.templateAppliedUpdates.size)
+    }
+
+    @Test
+    fun `reuses imported standalone week on same date and preserves compatible assignment`() = runTest {
+        val program = fixtureProgramMonth(YearMonth.of(2026, 4), id = "program-apr")
+        val programStore = InMemoryProgramStoreGeneration(program)
+        val importedPartType = partType("lettura")
+        val importedWeek = WeekPlan(
+            id = WeekPlanId("imported-week"),
+            weekStartDate = LocalDate.of(2026, 4, 6),
+            parts = listOf(
+                WeeklyPart(
+                    id = WeeklyPartId("imported-part"),
+                    partType = importedPartType,
+                    sortOrder = 0,
+                ),
+            ),
+            programId = null,
+            status = WeekPlanStatus.ACTIVE,
+        )
+        val importedAssignment = Assignment.of(
+            id = AssignmentId("imported-assignment"),
+            weeklyPartId = WeeklyPartId("imported-part"),
+            personId = ProclamatoreId("person-1"),
+            slot = 1,
+        ).getOrNull()!!
+        val schemaStore = InMemorySchemaTemplateStore(
+            mapOf(
+                LocalDate.of(2026, 4, 6) to StoredSchemaWeekTemplate(
+                    weekStartDate = LocalDate.of(2026, 4, 6),
+                    partTypeIds = listOf(importedPartType.id),
+                ),
+            ),
+        )
+        val weekStore = InMemoryWeekPlanStoreGeneration(
+            standaloneAggregatesByDate = mapOf(
+                importedWeek.weekStartDate to WeekPlanAggregate(
+                    weekPlan = importedWeek,
+                    assignments = listOf(importedAssignment),
+                ),
+            ),
+        )
+        val useCase = GeneraSettimaneProgrammaUseCase(
+            programStore = programStore,
+            weekPlanStore = weekStore,
+            schemaTemplateStore = schemaStore,
+            partTypeStore = InMemoryPartTypeStore(
+                partTypes = listOf(importedPartType),
+                fixedPart = importedPartType,
+            ),
+            transactionRunner = PassthroughTransactionRunner,
+        )
+
+        val result = useCase(program.id)
+
+        assertIs<Either.Right<Unit>>(result)
+        val aggregate = assertNotNull(weekStore.savedAggregatesByWeekStart[LocalDate.of(2026, 4, 6)])
+        assertEquals("imported-week", aggregate.weekPlan.id.value)
+        assertEquals(program.id, aggregate.weekPlan.programId)
+        assertEquals(1, aggregate.assignments.size)
+        assertEquals(ProclamatoreId("person-1"), aggregate.assignments.single().personId)
         assertEquals(1, programStore.templateAppliedUpdates.size)
     }
 }
@@ -167,13 +235,16 @@ internal class InMemoryPartTypeStore(
 
 internal class InMemoryWeekPlanStoreGeneration(
     initialWeeksByProgram: Map<ProgramMonthId, List<WeekPlan>> = emptyMap(),
+    standaloneAggregatesByDate: Map<LocalDate, WeekPlanAggregate> = emptyMap(),
 ) : TestWeekPlanStore() {
     private val weeksByProgram = initialWeeksByProgram.mapValues { it.value.toMutableList() }.toMutableMap<ProgramMonthId, MutableList<WeekPlan>>()
+    private val standaloneWeeksByDate = standaloneAggregatesByDate.toMutableMap()
 
     val deletedPrograms = mutableListOf<ProgramMonthId>()
     val createdWeeks = mutableListOf<WeekPlan>()
     val statusByWeekStart = mutableMapOf<LocalDate, WeekPlanStatus>()
     val partTypeIdsByWeekStart = mutableMapOf<LocalDate, List<PartTypeId>>()
+    val savedAggregatesByWeekStart = mutableMapOf<LocalDate, WeekPlanAggregate>()
 
     override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> = weeksByProgram[programId].orEmpty()
 
@@ -188,13 +259,14 @@ internal class InMemoryWeekPlanStoreGeneration(
             .firstOrNull { it.weekStartDate == weekStartDate }
             ?.let { week -> WeekPlanAggregate(weekPlan = week, assignments = emptyList()) }
 
-    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? = null
+    override suspend fun loadAggregateByDate(weekStartDate: LocalDate): WeekPlanAggregate? =
+        standaloneWeeksByDate[weekStartDate]
 
     override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? = null
 
     context(tx: TransactionScope)
     override suspend fun saveAggregate(aggregate: WeekPlanAggregate) {
-        // no-op
+        savedAggregatesByWeekStart[aggregate.weekPlan.weekStartDate] = aggregate
     }
 
     context(tx: TransactionScope)
@@ -204,11 +276,13 @@ internal class InMemoryWeekPlanStoreGeneration(
         weeksByProgram[programId] = weeks.toMutableList()
         createdWeeks.clear()
         createdWeeks += weeks
+        savedAggregatesByWeekStart.clear()
         statusByWeekStart.clear()
         partTypeIdsByWeekStart.clear()
-        weeks.forEach { week ->
-            statusByWeekStart[week.weekStartDate] = week.status
-            partTypeIdsByWeekStart[week.weekStartDate] = week.parts.map { part -> part.partType.id }
+        aggregates.forEach { aggregate ->
+            savedAggregatesByWeekStart[aggregate.weekPlan.weekStartDate] = aggregate
+            statusByWeekStart[aggregate.weekPlan.weekStartDate] = aggregate.weekPlan.status
+            partTypeIdsByWeekStart[aggregate.weekPlan.weekStartDate] = aggregate.weekPlan.parts.map { part -> part.partType.id }
         }
     }
 

@@ -49,7 +49,10 @@ data class WeekPlan internal constructor(
 }
 
 fun WeekPlan.canBeMutated(referenceDate: LocalDate): Boolean =
-    weekStartDate >= referenceDate && status == WeekPlanStatus.ACTIVE
+    canBeEditedManually() && weekStartDate >= referenceDate
+
+fun WeekPlan.canBeEditedManually(): Boolean =
+    status == WeekPlanStatus.ACTIVE
 
 /** Restituisce la domenica della settimana che inizia il lunedì [monday]. */
 fun sundayOf(monday: LocalDate): LocalDate = monday.plusDays(6)

@@ -15,16 +15,13 @@ data class WeekPlanAggregate(
     val weekPlan: WeekPlan,
     val assignments: List<Assignment>,
 ) {
-    private fun currentMonday(referenceDate: LocalDate): LocalDate =
-        referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
     fun addPart(
         partType: PartType,
         partId: WeeklyPartId,
         partTypeRevisionId: String? = null,
         referenceDate: LocalDate,
     ): Either<DomainError, WeekPlanAggregate> {
-        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val newPart = WeeklyPart(
             id = partId,
             partType = partType,
@@ -35,7 +32,7 @@ data class WeekPlanAggregate(
     }
 
     fun removePart(weeklyPartId: WeeklyPartId, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
-        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val part = weekPlan.findPart(weeklyPartId)
             ?: return DomainError.NotFound("Parte").left()
         if (part.partType.fixed) {
@@ -54,7 +51,7 @@ data class WeekPlanAggregate(
     }
 
     fun reorderParts(orderedPartIds: List<WeeklyPartId>, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
-        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val existingIds = weekPlan.parts.map { part -> part.id }
         if (orderedPartIds.size != existingIds.size || orderedPartIds.toSet() != existingIds.toSet()) {
             return DomainError.OrdinePartiNonValido.left()
@@ -91,7 +88,7 @@ data class WeekPlanAggregate(
         referenceDate: LocalDate,
         partIdFactory: () -> WeeklyPartId,
     ): Either<DomainError, WeekPlanAggregate> {
-        if (!weekPlan.canBeMutated(currentMonday(referenceDate))) return DomainError.SettimanaImmutabile.left()
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         if (orderedPartTypes.isEmpty()) {
             return DomainError.OrdinePartiNonValido.left()
         }

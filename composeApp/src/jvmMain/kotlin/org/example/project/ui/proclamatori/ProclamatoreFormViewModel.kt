@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
+import org.example.project.feature.assignments.application.CaricaUltimeAssegnazioniPerParteProclamatoreUseCase
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
@@ -39,6 +40,7 @@ internal data class LeadEligibilityOptionUi(
     val active: Boolean,
     val checked: Boolean,
     val canSelect: Boolean,
+    val lastAssignedOn: LocalDate? = null,
 )
 
 private data class LoadedProclamatoreData(
@@ -101,6 +103,7 @@ internal class ProclamatoreFormViewModel(
     private val scope: CoroutineScope,
     private val carica: CaricaProclamatoreUseCase,
     private val caricaIdoneita: CaricaIdoneitaProclamatoreUseCase,
+    private val caricaUltimeAssegnazioniPerParte: CaricaUltimeAssegnazioniPerParteProclamatoreUseCase,
     private val crea: CreaProclamatoreUseCase,
     private val aggiorna: AggiornaProclamatoreUseCase,
     private val impostaIdoneitaConduzione: ImpostaIdoneitaConduzioneUseCase,
@@ -152,6 +155,7 @@ internal class ProclamatoreFormViewModel(
                     buildLeadEligibilityOptions(
                         sesso = Sesso.M,
                         selected = emptyMap(),
+                        lastAssignmentDatesByPartType = emptyMap(),
                     )
                 },
             )
@@ -279,9 +283,16 @@ internal class ProclamatoreFormViewModel(
                         .associate { eligibility ->
                             eligibility.partTypeId to eligibility.canLead
                         }
+                    val allPartTypeIds = partTypeStore.allWithStatus()
+                        .map { it.partType.id }
+                        .toSet()
                     val options = buildLeadEligibilityOptions(
                         sesso = loaded.sesso,
                         selected = eligibilityByPartType,
+                        lastAssignmentDatesByPartType = caricaUltimeAssegnazioniPerParte(
+                            personId = loaded.id,
+                            partTypeIds = allPartTypeIds,
+                        ),
                     )
                     Either.Right(
                         LoadedProclamatoreData(
@@ -408,6 +419,7 @@ internal class ProclamatoreFormViewModel(
     private suspend fun buildLeadEligibilityOptions(
         sesso: Sesso,
         selected: Map<PartTypeId, Boolean>,
+        lastAssignmentDatesByPartType: Map<PartTypeId, LocalDate>,
     ): List<LeadEligibilityOptionUi> {
         val partTypes = partTypeStore.allWithStatus()
         return partTypes.map { typeWithStatus ->
@@ -415,6 +427,7 @@ internal class ProclamatoreFormViewModel(
                 typeWithStatus = typeWithStatus,
                 sesso = sesso,
                 selected = selected,
+                lastAssignmentDate = lastAssignmentDatesByPartType[typeWithStatus.partType.id],
             )
         }
     }
@@ -423,6 +436,7 @@ internal class ProclamatoreFormViewModel(
         typeWithStatus: PartTypeWithStatus,
         sesso: Sesso,
         selected: Map<PartTypeId, Boolean>,
+        lastAssignmentDate: LocalDate?,
     ): LeadEligibilityOptionUi {
         val partType = typeWithStatus.partType
         val canSelect = canLeadForSex(sesso, partType.sexRule)
@@ -433,6 +447,7 @@ internal class ProclamatoreFormViewModel(
             active = typeWithStatus.active,
             checked = if (canSelect) selected[partType.id] == true else false,
             canSelect = canSelect,
+            lastAssignedOn = lastAssignmentDate,
         )
     }
 

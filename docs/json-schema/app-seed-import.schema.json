@@ -109,6 +109,27 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "ultimaParte": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Ultima parte associata allo studente; se presente viene creata una settimana senza piano alla data indicata.",
+            "required": [
+              "data",
+              "tipo"
+            ],
+            "properties": {
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data ISO yyyy-MM-dd della settimana/assegnazione da creare."
+              },
+              "tipo": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Codice del tipo parte associato all'ultima assegnazione."
+              }
+            }
           }
         }
       }
@@ -144,7 +165,11 @@
           "canLeadPartTypeCodes": [
             "PREGHIERA",
             "LETTURA"
-          ]
+          ],
+          "ultimaParte": {
+            "data": "2026-03-16",
+            "tipo": "PREGHIERA"
+          }
         },
         {
           "nome": "Anna",
@@ -154,7 +179,11 @@
           "puoAssistere": true,
           "canLeadPartTypeCodes": [
             "LETTURA"
-          ]
+          ],
+          "ultimaParte": {
+            "data": "2026-03-23",
+            "tipo": "LETTURA"
+          }
         }
       ]
     }

@@ -362,6 +362,7 @@ fun PersonPickerDialog(
     partLabel: String,
     slotLabel: String?,
     weekLabel: String,
+    isHistoricalEdit: Boolean,
     currentAssigneeName: String?,
     searchTerm: String,
     strictCooldown: Boolean,
@@ -459,6 +460,32 @@ fun PersonPickerDialog(
                             contentDescription = "Chiudi",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+
+                if (isHistoricalEdit) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = sketch.warn.copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.35f)),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.md, vertical = spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = sketch.warn,
+                            )
+                            Text(
+                                "Stai modificando una settimana passata. La modifica aggiornera' lo storico del programma.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = sketch.ink,
+                            )
+                        }
                     }
                 }
 

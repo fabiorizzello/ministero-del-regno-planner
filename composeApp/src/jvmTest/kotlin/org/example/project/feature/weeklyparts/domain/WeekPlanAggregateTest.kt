@@ -171,7 +171,7 @@ class WeekPlanAggregateTest {
     // --- replaceParts tests ---
 
     @Test
-    fun `replaceParts on immutable week returns SettimanaImmutabile`() {
+    fun `replaceParts on past active week succeeds for historical edits`() {
         val pastMonday = LocalDate.of(2026, 2, 23) // a past Monday
         val aggregate = WeekPlanAggregate(
             weekPlan = WeekPlan(
@@ -190,8 +190,9 @@ class WeekPlanAggregateTest {
             partIdFactory = { WeeklyPartId("new-id") },
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.SettimanaImmutabile, left)
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(result).value
+        assertEquals(1, updated.weekPlan.parts.size)
+        assertEquals(WeeklyPartId("new-id"), updated.weekPlan.parts.single().id)
     }
 
     @Test

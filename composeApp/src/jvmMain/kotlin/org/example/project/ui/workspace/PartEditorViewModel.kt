@@ -16,7 +16,7 @@ import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
-import org.example.project.feature.weeklyparts.domain.canBeMutated
+import org.example.project.feature.weeklyparts.domain.canBeEditedManually
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -32,6 +32,7 @@ internal data class PartEditorUiState(
     val today: LocalDate = LocalDate.now(),
     val partEditorWeekId: String? = null,
     val partEditorParts: List<WeeklyPart> = emptyList(),
+    val partEditorIsPast: Boolean = false,
     val isSavingPartEditor: Boolean = false,
     val partTypes: List<PartType> = emptyList(),
     val notice: FeedbackBannerModel? = null,
@@ -59,11 +60,12 @@ internal class PartEditorViewModel(
 
     fun openPartEditor(week: WeekPlan) {
         val currentMonday = _state.value.today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        if (!week.canBeMutated(currentMonday)) return
+        if (!week.canBeEditedManually()) return
         _state.update {
             it.copy(
                 partEditorWeekId = week.id.value,
                 partEditorParts = week.parts.sortedBy { part -> part.sortOrder },
+                partEditorIsPast = week.weekStartDate < currentMonday,
                 isSavingPartEditor = false,
             )
         }
@@ -74,6 +76,7 @@ internal class PartEditorViewModel(
             it.copy(
                 partEditorWeekId = null,
                 partEditorParts = emptyList(),
+                partEditorIsPast = false,
                 isSavingPartEditor = false,
             )
         }
@@ -135,6 +138,7 @@ internal class PartEditorViewModel(
                     state.copy(
                         partEditorWeekId = null,
                         partEditorParts = emptyList(),
+                        partEditorIsPast = false,
                         isSavingPartEditor = false,
                         notice = notice,
                     )

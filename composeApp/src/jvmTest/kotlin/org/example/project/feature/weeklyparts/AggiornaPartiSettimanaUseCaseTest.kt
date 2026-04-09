@@ -56,11 +56,10 @@ class AggiornaPartiSettimanaUseCaseTest {
         Unit
     }
 
-    // 2. Aggiunta parte a settimana passata/immutabile → DomainError.SettimanaImmutabile
+    // 2. Aggiunta parte a settimana passata attiva → consentita per modifica storico
     @Test
-    fun `replace parts on past week returns SettimanaImmutabile`() = runTest {
+    fun `replace parts on past active week succeeds`() = runTest {
         val partType = makePartType("pt-1", "LETTURA", fixed = false)
-        // week in the past
         val pastWeekDate = LocalDate.of(2026, 2, 16) // Monday in the past
         val store = AggiornaPartiWeekPlanStore(weekDate = pastWeekDate, initialPartTypes = listOf(partType))
         val partTypeStore = InMemoryPartTypeStore(listOf(partType))
@@ -78,9 +77,8 @@ class AggiornaPartiSettimanaUseCaseTest {
             referenceDate = referenceDate,
         )
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.SettimanaImmutabile, left)
-        Unit
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(partType.id, store.savedAggregate!!.weekPlan.parts.single().partType.id)
     }
 
     // 3. Rimozione parte da settimana mutabile → parte rimossa, sort order ricompattato

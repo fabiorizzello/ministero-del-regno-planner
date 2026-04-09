@@ -290,7 +290,8 @@ internal class DiagnosticsViewModel(
                     notice = successNotice(
                         "Seed completato: ${result.importedPartTypes} tipi parte, " +
                             "${result.importedStudents} studenti, " +
-                            "${result.importedLeadEligibility} idoneita' conduzione",
+                            "${result.importedLeadEligibility} idoneita' conduzione, " +
+                            "${result.importedHistoricalAssignments} ultime parti importate",
                     ),
                 )
             },

@@ -6,6 +6,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -56,8 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -74,6 +77,9 @@ import org.example.project.ui.components.workspace.WorkspaceStatePane
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
 import org.koin.core.context.GlobalContext
+
+private val DiagnosticsActionMinWidth = 168.dp
+private val DiagnosticsSingleActionMaxWidth = 360.dp
 
 @Composable
 fun DiagnosticsScreen() {
@@ -155,57 +161,64 @@ fun DiagnosticsScreen() {
             ) {
                 Text("Informazioni applicazione", style = MaterialTheme.typography.titleMedium)
                 DiagnosticsInfoRow(label = "Versione", value = state.appVersion)
-                DiagnosticsPathRow(label = "DB", path = state.dbPath)
-                DiagnosticsPathRow(label = "Log", path = state.logsPath)
-                DiagnosticsPathRow(label = "Export", path = state.exportsPath)
+                DiagnosticsPathRow(
+                    label = "DB",
+                    path = state.dbPath,
+                    actionLabel = "Apri cartella dati",
+                    onActionClick = { viewModel.openDataFolder() },
+                )
+                DiagnosticsPathRow(
+                    label = "Log",
+                    path = state.logsPath,
+                    actionLabel = "Apri cartella log",
+                    onActionClick = { viewModel.openLogsFolder() },
+                )
+                DiagnosticsPathRow(
+                    label = "Export",
+                    path = state.exportsPath,
+                    actionLabel = "Apri cartella export",
+                    onActionClick = { viewModel.openExportsFolder() },
+                )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    DiagnosticsTooltipWrap("Crea un archivio ZIP con database, log recenti e metadata di supporto") {
-                        OutlinedButton(
-                            onClick = { viewModel.exportDiagnosticsBundle() },
-                            enabled = !state.isExporting && !state.isCleaning,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(34.dp)
-                                .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
-                            elevation = diagnosticsFlatButtonElevation(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        ) {
-                            if (state.isExporting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .width(16.dp)
-                                        .height(16.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text("Esportazione...")
-                            } else {
-                                Icon(Icons.Filled.FileOpen, contentDescription = "Esporta diagnostica")
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text("Esporta diagnostica")
+                DiagnosticsTwoActionsRow(
+                    first = { modifier ->
+                        DiagnosticsTooltipWrap("Crea un archivio ZIP con database, log recenti e metadata di supporto") {
+                            OutlinedButton(
+                                onClick = { viewModel.exportDiagnosticsBundle() },
+                                enabled = !state.isExporting && !state.isCleaning,
+                                modifier = modifier
+                                    .height(34.dp)
+                                    .handCursorOnHover(enabled = !state.isExporting && !state.isCleaning),
+                                elevation = diagnosticsFlatButtonElevation(),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            ) {
+                                if (state.isExporting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .width(16.dp)
+                                            .height(16.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text("Esportazione...")
+                                } else {
+                                    Icon(Icons.Filled.FileOpen, contentDescription = "Esporta diagnostica")
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text("Esporta diagnostica")
+                                }
                             }
                         }
-                    }
-                    DiagnosticsOutlinedActionButton(
-                        label = "Apri cartella export",
-                        icon = Icons.Filled.FolderOpen,
-                        onClick = { viewModel.openExportsFolder() },
-                        tooltip = "Apre la cartella dove vengono salvati ZIP diagnostici e file esportati",
-                        modifier = Modifier.weight(1f),
-                    )
-                    DiagnosticsOutlinedActionButton(
-                        label = "Copia info supporto",
-                        icon = Icons.Filled.ContentCopy,
-                        onClick = { viewModel.copySupportInfo() },
-                        tooltip = "Copia negli appunti versione app, percorsi e dimensioni utili per assistenza",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                    },
+                    second = { modifier ->
+                        DiagnosticsOutlinedActionButton(
+                            label = "Copia info supporto",
+                            icon = Icons.Filled.ContentCopy,
+                            onClick = { viewModel.copySupportInfo() },
+                            tooltip = "Copia negli appunti versione app, percorsi e dimensioni utili per assistenza",
+                            modifier = modifier,
+                        )
+                    },
+                )
             }
         }
 
@@ -286,33 +299,36 @@ fun DiagnosticsScreen() {
                 DiagnosticsInfoRow(label = "Log", value = formatBytes(state.logsSizeBytes))
                 DiagnosticsInfoRow(label = "Totale", value = formatBytes(state.dbSizeBytes + state.logsSizeBytes))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    DiagnosticsOutlinedActionButton(
-                        label = "Aggiorna spazio",
-                        icon = Icons.Filled.Refresh,
-                        onClick = { viewModel.refreshStorageUsage() },
-                        enabled = !state.isLoading,
-                        tooltip = "Ricalcola la dimensione corrente di database e log",
-                        modifier = Modifier.weight(1f),
-                    )
-                    DiagnosticsOutlinedActionButton(
-                        label = "Apri cartella log",
-                        icon = Icons.Filled.FolderOpen,
-                        onClick = { viewModel.openLogsFolder() },
-                        tooltip = "Apre la cartella dei log dell'applicazione",
-                        modifier = Modifier.weight(1f),
-                    )
-                    DiagnosticsOutlinedActionButton(
-                        label = "Apri cartella dati",
-                        icon = Icons.Filled.FolderOpen,
-                        onClick = { viewModel.openDataFolder() },
-                        tooltip = "Apre la cartella che contiene il database locale",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                DiagnosticsThreeActionsRow(
+                    first = { modifier ->
+                        DiagnosticsOutlinedActionButton(
+                            label = "Aggiorna spazio",
+                            icon = Icons.Filled.Refresh,
+                            onClick = { viewModel.refreshStorageUsage() },
+                            enabled = !state.isLoading,
+                            tooltip = "Ricalcola la dimensione corrente di database e log",
+                            modifier = modifier,
+                        )
+                    },
+                    second = { modifier ->
+                        DiagnosticsOutlinedActionButton(
+                            label = "Apri cartella log",
+                            icon = Icons.Filled.FolderOpen,
+                            onClick = { viewModel.openLogsFolder() },
+                            tooltip = "Apre la cartella dei log dell'applicazione",
+                            modifier = modifier,
+                        )
+                    },
+                    third = { modifier ->
+                        DiagnosticsOutlinedActionButton(
+                            label = "Apri cartella dati",
+                            icon = Icons.Filled.FolderOpen,
+                            onClick = { viewModel.openDataFolder() },
+                            tooltip = "Apre la cartella che contiene il database locale",
+                            modifier = modifier,
+                        )
+                    },
+                )
             }
         }
 
@@ -362,25 +378,13 @@ fun DiagnosticsScreen() {
                         "assegnazioni ${state.cleanupPreview.assignments}",
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    DiagnosticsOutlinedActionButton(
-                        label = "Aggiorna anteprima",
-                        icon = Icons.Filled.Refresh,
-                        onClick = { viewModel.refreshCleanupPreview() },
-                        enabled = !state.isCleaning && !state.isExporting,
-                        tooltip = "Ricalcola quante settimane, parti e assegnazioni verrebbero eliminate",
-                        modifier = Modifier.weight(1f),
-                    )
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     DiagnosticsTooltipWrap("Avvia la rimozione definitiva dei dati storici inclusi nell'anteprima") {
                         Button(
                             onClick = { viewModel.requestCleanup() },
                             enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
                             modifier = Modifier
-                                .weight(1f)
+                                .widthIn(max = DiagnosticsSingleActionMaxWidth)
                                 .height(34.dp)
                                 .handCursorOnHover(
                                     enabled = state.cleanupPreview.hasData && !state.isCleaning && !state.isExporting,
@@ -427,6 +431,71 @@ private const val CLEANUP_SCOPE_TEXT =
 
 private const val CLEANUP_EXCLUSIONS_TEXT =
     "Non vengono toccati: studenti, tipi di parte, file di log e file esportati."
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DiagnosticsThreeActionsRow(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+    third: @Composable (Modifier) -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val singleRowFits = maxWidth >= (DiagnosticsActionMinWidth * 3) + (spacing.md * 2)
+        if (singleRowFits) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                first(Modifier.weight(1f))
+                second(Modifier.weight(1f))
+                third(Modifier.weight(1f))
+            }
+        } else {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                first(Modifier.widthIn(min = DiagnosticsActionMinWidth))
+                second(Modifier.widthIn(min = DiagnosticsActionMinWidth))
+                third(Modifier.widthIn(min = DiagnosticsActionMinWidth))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DiagnosticsTwoActionsRow(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val singleRowFits = maxWidth >= (DiagnosticsActionMinWidth * 2) + spacing.md
+        if (singleRowFits) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                first(Modifier.weight(1f))
+                second(Modifier.weight(1f))
+            }
+        } else {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                first(Modifier.widthIn(min = DiagnosticsActionMinWidth))
+                second(Modifier.widthIn(min = DiagnosticsActionMinWidth))
+            }
+        }
+    }
+}
 
 @Composable
 private fun DiagnosticsRetentionChip(
@@ -615,35 +684,98 @@ private fun DiagnosticsInfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun DiagnosticsPathRow(label: String, path: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun DiagnosticsPathRow(
+    label: String,
+    path: String,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
+) {
+    val spacing = MaterialTheme.spacing
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val inlineActionFits = maxWidth >= 780.dp
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(60.dp),
+                )
+                SelectionContainer {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    ) {
+                        Text(
+                            path,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (inlineActionFits) {
+                    actionLabel?.let { safeActionLabel ->
+                        onActionClick?.let { safeActionClick ->
+                            DiagnosticsCompactPathActionButton(
+                                label = safeActionLabel,
+                                onClick = safeActionClick,
+                            )
+                        }
+                    }
+                }
+            }
+            if (!inlineActionFits) {
+                actionLabel?.let { safeActionLabel ->
+                    onActionClick?.let { safeActionClick ->
+                        DiagnosticsCompactPathActionButton(
+                            label = safeActionLabel,
+                            onClick = safeActionClick,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(spacing.xs))
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticsCompactPathActionButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier
+            .height(30.dp)
+            .wrapContentWidth()
+            .handCursorOnHover(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+        elevation = diagnosticsFlatButtonElevation(),
     ) {
+        Icon(
+            Icons.Filled.FolderOpen,
+            contentDescription = label,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(60.dp),
+            maxLines = 1,
         )
-        SelectionContainer {
-            Box(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    path,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
     }
 }
 

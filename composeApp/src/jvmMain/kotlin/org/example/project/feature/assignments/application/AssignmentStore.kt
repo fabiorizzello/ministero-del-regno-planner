@@ -58,3 +58,10 @@ interface PersonAssignmentLifecycle {
     suspend fun countAssignmentsForPerson(personId: ProclamatoreId): Int
     context(tx: TransactionScope) suspend fun removeAllForPerson(personId: ProclamatoreId)
 }
+
+interface PersonAssignmentHistoryQuery {
+    suspend fun lastAssignmentDatesByPartType(
+        personId: ProclamatoreId,
+        partTypeIds: Set<PartTypeId>,
+    ): Map<PartTypeId, LocalDate>
+}

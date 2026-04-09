@@ -4,6 +4,7 @@ import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
 import org.example.project.feature.assignments.application.AssignmentRanking
 import org.example.project.feature.assignments.application.AssignmentRepository
+import org.example.project.feature.assignments.application.PersonAssignmentHistoryQuery
 import org.example.project.feature.assignments.application.PersonAssignmentLifecycle
 import org.example.project.feature.assignments.application.SuggestionRankingCache
 import org.example.project.feature.assignments.domain.Assignment
@@ -23,7 +24,7 @@ import kotlin.math.abs
 
 class SqlDelightAssignmentStore(
     private val database: MinisteroDatabase,
-) : AssignmentRepository, AssignmentRanking, PersonAssignmentLifecycle {
+) : AssignmentRepository, AssignmentRanking, PersonAssignmentLifecycle, PersonAssignmentHistoryQuery {
 
     override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> {
         return database.ministeroDatabaseQueries
@@ -261,6 +262,19 @@ class SqlDelightAssignmentStore(
             .countAssignmentsForPerson(personId.value)
             .executeAsOne()
             .toInt()
+    }
+
+    override suspend fun lastAssignmentDatesByPartType(
+        personId: ProclamatoreId,
+        partTypeIds: Set<PartTypeId>,
+    ): Map<PartTypeId, LocalDate> {
+        if (partTypeIds.isEmpty()) return emptyMap()
+        return database.ministeroDatabaseQueries
+            .lastAssignmentDateByPartTypesForPerson(personId.value, partTypeIds.map { it.value })
+            .executeAsList()
+            .associate { row ->
+                PartTypeId(row.part_type_id) to LocalDate.parse(row.last_week_start_date)
+            }
     }
 
     context(tx: TransactionScope)

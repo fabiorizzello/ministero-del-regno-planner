@@ -6,6 +6,7 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
+import org.example.project.feature.weeklyparts.domain.canBeEditedManually
 import org.example.project.feature.weeklyparts.domain.canBeMutated
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -25,6 +26,9 @@ class ImpostaStatoSettimanaUseCase(
         if (status == WeekPlanStatus.SKIPPED) {
             val currentMonday = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             if (!aggregate.weekPlan.canBeMutated(currentMonday)) raise(DomainError.SettimanaImmutabile)
+        }
+        if (status == WeekPlanStatus.ACTIVE && !aggregate.weekPlan.canBeEditedManually() && aggregate.weekPlan.status != WeekPlanStatus.SKIPPED) {
+            raise(DomainError.SettimanaImmutabile)
         }
         transactionRunner.runInTransactionEither {
             Either.Right(weekPlanStore.saveAggregate(aggregate.setStatus(status)))

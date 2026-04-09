@@ -51,12 +51,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.ui.components.shortDateFormatter
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
 import org.example.project.ui.theme.workspaceSketch
+import java.time.LocalDate
 
 /** Maximum length for nome and cognome fields */
 private const val NAME_MAX_LENGTH = 100
@@ -211,12 +214,14 @@ internal fun ProclamatoriFormContentForm(
                         selected = allEligibilitySelected,
                         onClick = { onSetAllEligibilityChange(!allEligibilitySelected) },
                         label = "Tutti",
+                        metadata = null,
                         modifier = Modifier.handCursorOnHover(),
                     )
                     EligibilityFilterChip(
                         selected = puoAssistere,
                         onClick = { onPuoAssistereChange(!puoAssistere) },
                         label = "Assistente",
+                        metadata = null,
                         modifier = Modifier.handCursorOnHover(),
                     )
                 }
@@ -232,6 +237,7 @@ internal fun ProclamatoriFormContentForm(
                                         selected = option.checked,
                                         onClick = { onLeadEligibilityChange(option.partTypeId, !option.checked) },
                                         label = option.label,
+                                        metadata = if (isNew) null else formatLastAssignmentLabel(option.lastAssignedOn),
                                         enabled = option.canSelect,
                                         modifier = Modifier
                                             .weight(1f)
@@ -378,6 +384,7 @@ private fun EligibilityFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
+    metadata: String?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
@@ -431,11 +438,36 @@ private fun EligibilityFilterChip(
                 ),
                 modifier = Modifier.size(18.dp),
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                metadata?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (enabled) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
+    }
+}
+
+private fun formatLastAssignmentLabel(lastAssignedOn: LocalDate?): String {
+    return if (lastAssignedOn == null) {
+        "Mai assegnato"
+    } else {
+        "Ultima volta ${lastAssignedOn.format(shortDateFormatter)}"
     }
 }

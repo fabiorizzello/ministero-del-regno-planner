@@ -6,18 +6,22 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.example.project.feature.assignments.application.CaricaUltimeAssegnazioniPerParteProclamatoreUseCase
 import org.example.project.feature.people.application.AggiornaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaIdoneitaProclamatoreUseCase
 import org.example.project.feature.people.application.CaricaProclamatoreUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
 import org.example.project.feature.people.application.VerificaDuplicatoProclamatoreUseCase
+import org.example.project.feature.people.domain.Proclamatore
+import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
+import java.time.LocalDate
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -221,6 +225,63 @@ class ProclamatoreFormViewModelTest {
         assertEquals(0, checkCount)
     }
 
+    @Test
+    fun `loadForEdit carica ultima assegnazione per ogni parte`() = runTest {
+        val personId = ProclamatoreId("p1")
+        val partTypeId = PartTypeId("pt-1")
+        val loaded = Proclamatore.of(
+            id = personId,
+            nome = "Mario",
+            cognome = "Rossi",
+            sesso = Sesso.M,
+            sospeso = false,
+            puoAssistere = true,
+        ).getOrNull()!!
+        val carica = mockk<CaricaProclamatoreUseCase>()
+        val caricaIdoneita = mockk<CaricaIdoneitaProclamatoreUseCase>()
+        val caricaUltime = mockk<CaricaUltimeAssegnazioniPerParteProclamatoreUseCase>()
+        val partTypeStore = mockk<PartTypeStore>()
+        coEvery { carica(personId) } returns loaded
+        coEvery { caricaIdoneita(personId) } returns emptyList()
+        coEvery { partTypeStore.allWithStatus() } returns listOf(
+            PartTypeWithStatus(
+                partType = PartType(
+                    id = partTypeId,
+                    code = "P1",
+                    label = "Parte 1",
+                    peopleCount = 1,
+                    sexRule = SexRule.STESSO_SESSO,
+                    fixed = false,
+                    sortOrder = 0,
+                ),
+                active = true,
+            ),
+        )
+        coEvery {
+            caricaUltime(personId = personId, partTypeIds = setOf(partTypeId))
+        } returns mapOf(partTypeId to LocalDate.of(2026, 4, 7))
+
+        val vm = ProclamatoreFormViewModel(
+            scope = this,
+            carica = carica,
+            caricaIdoneita = caricaIdoneita,
+            caricaUltimeAssegnazioniPerParte = caricaUltime,
+            crea = mockk(relaxed = true),
+            aggiorna = mockk(relaxed = true),
+            impostaIdoneitaConduzione = mockk(relaxed = true),
+            partTypeStore = partTypeStore,
+            verificaDuplicato = mockk(relaxed = true),
+        )
+
+        vm.loadForEdit(personId, onNotFound = {}, onSuccess = {})
+        advanceUntilIdle()
+
+        assertEquals(
+            LocalDate.of(2026, 4, 7),
+            vm.uiState.value.leadEligibilityOptions.single().lastAssignedOn,
+        )
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private fun makeViewModel(
@@ -231,6 +292,7 @@ class ProclamatoreFormViewModelTest {
         scope = scope,
         carica = mockk<CaricaProclamatoreUseCase>(relaxed = true),
         caricaIdoneita = mockk<CaricaIdoneitaProclamatoreUseCase>(relaxed = true),
+        caricaUltimeAssegnazioniPerParte = mockk<CaricaUltimeAssegnazioniPerParteProclamatoreUseCase>(relaxed = true),
         crea = mockk<CreaProclamatoreUseCase>(relaxed = true),
         aggiorna = mockk<AggiornaProclamatoreUseCase>(relaxed = true),
         impostaIdoneitaConduzione = mockk<ImpostaIdoneitaConduzioneUseCase>(relaxed = true),

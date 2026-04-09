@@ -142,6 +142,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 internal fun PartEditorDialog(
     weekLabel: String,
+    isHistoricalEdit: Boolean,
     parts: List<WeeklyPart>,
     availablePartTypes: List<PartType>,
     assignmentCountsByPart: Map<WeeklyPartId, Int>,
@@ -257,6 +258,11 @@ internal fun PartEditorDialog(
                             )
                         }
                     }
+                }
+                if (isHistoricalEdit) {
+                    HistoricalEditAlert(
+                        message = "Stai modificando una settimana passata. Le modifiche alle parti aggiorneranno lo storico visibile nel workspace.",
+                    )
                 }
                 Text(
                     "Trascina le righe per riordinare le parti",
@@ -1464,6 +1470,7 @@ internal fun WeekDetailHeader(
     isCurrent: Boolean,
     isSkipped: Boolean,
     canMutate: Boolean,
+    canSkipWeek: Boolean,
     onOpenPartEditor: () -> Unit,
     onSkipWeek: () -> Unit,
     onReactivate: () -> Unit,
@@ -1494,7 +1501,12 @@ internal fun WeekDetailHeader(
                     when {
                         isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
                         isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
-                        isPast -> WeekDetailBadge("PASSATA", sketch.inkMuted)
+                        isPast -> {
+                            WeekDetailBadge("PASSATA", sketch.inkMuted)
+                            if (canMutate) {
+                                WeekDetailBadge("MODIFICABILE", sketch.warn)
+                            }
+                        }
                     }
                 }
                 Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
@@ -1516,13 +1528,15 @@ internal fun WeekDetailHeader(
                             border = sketch.lineSoft,
                             onClick = onOpenPartEditor,
                         )
-                        WeekHdrButton(
-                            label = "Salta settimana",
-                            icon = Icons.Filled.Block,
-                            fg = sketch.inkSoft,
-                            border = sketch.lineSoft,
-                            onClick = onSkipWeek,
-                        )
+                        if (canSkipWeek) {
+                            WeekHdrButton(
+                                label = "Salta settimana",
+                                icon = Icons.Filled.Block,
+                                fg = sketch.inkSoft,
+                                border = sketch.lineSoft,
+                                onClick = onSkipWeek,
+                            )
+                        }
                     }
                 }
             }
@@ -1548,6 +1562,39 @@ private fun WeekDetailBadge(label: String, color: Color) {
             ),
             color = color,
         )
+    }
+}
+
+@Composable
+internal fun HistoricalEditAlert(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.spacing
+    val sketch = MaterialTheme.workspaceSketch
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = sketch.warn.copy(alpha = 0.1f),
+        border = BorderStroke(1.dp, sketch.warn.copy(alpha = 0.35f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Icon(
+                Icons.Filled.Warning,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = sketch.warn,
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = sketch.ink,
+            )
+        }
     }
 }
 
