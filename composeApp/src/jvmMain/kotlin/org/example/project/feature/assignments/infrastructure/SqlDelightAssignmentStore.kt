@@ -110,6 +110,32 @@ class SqlDelightAssignmentStore(
             rows.count { it.weekDate >= windowStart && it.weekDate < windowEnd }
         }
 
+        // Fairness window (RANKING_HISTORY_WEEKS) counts used by weightedScore:
+        //  - leadCountsByPartTypeByPerson: per-(person, partType) conductor counts (slot == 1)
+        //  - assistCountInWindowByPerson:  per-person assistant counts (slot >= 2)
+        // Both use the same upper bound (exclusive) as the count window so we never count the
+        // reference week itself (an in-progress assignment must not penalize the candidate for
+        // the week we are currently suggesting for).
+        val fairnessWindowStart = windowReferenceDate.minusWeeks(RANKING_HISTORY_WEEKS).toString()
+        val leadCountsByPartTypeByPerson: Map<String, Map<PartTypeId, Int>> =
+            byPerson.mapValues { (_, rows) ->
+                rows.asSequence()
+                    .filter {
+                        it.slot == 1L &&
+                            it.weekDate >= fairnessWindowStart &&
+                            it.weekDate < windowEnd
+                    }
+                    .groupingBy { PartTypeId(it.partTypeId) }
+                    .eachCount()
+            }
+        val assistCountInWindowByPerson: Map<String, Int> = byPerson.mapValues { (_, rows) ->
+            rows.count {
+                it.slot >= 2L &&
+                    it.weekDate >= fairnessWindowStart &&
+                    it.weekDate < windowEnd
+            }
+        }
+
         // globalLast: MAX(week_start_date) per person
         val globalLast: Map<String, String?> = byPerson.mapValues { (_, rows) ->
             rows.maxOf { it.weekDate }
@@ -180,6 +206,8 @@ class SqlDelightAssignmentStore(
             partTypeBeforeByTypeAndDate = partTypeBeforeByTypeAndDate,
             partTypeAfterByTypeAndDate = partTypeAfterByTypeAndDate,
             assignmentCountInWindow = assignmentCountInWindow,
+            leadCountsByPartTypeByPerson = leadCountsByPartTypeByPerson,
+            assistCountInWindowByPerson = assistCountInWindowByPerson,
         )
     }
 
@@ -237,6 +265,8 @@ class SqlDelightAssignmentStore(
                 lastForPartTypeBeforeWeeks = partBeforeWeeks,
                 lastForPartTypeAfterWeeks = partAfterWeeks,
                 totalAssignmentsInWindow = countInWindow[p.id.value] ?: 0,
+                leadCountsByPartType = cache.leadCountsByPartTypeByPerson[p.id.value] ?: emptyMap(),
+                assistCountInWindow = cache.assistCountInWindowByPerson[p.id.value] ?: 0,
             )
         }
     }

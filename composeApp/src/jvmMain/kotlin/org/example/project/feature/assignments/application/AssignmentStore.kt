@@ -39,6 +39,16 @@ data class SuggestionRankingCache(
     val partTypeBeforeByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
     val partTypeAfterByTypeAndDate: Map<PartTypeId, Map<LocalDate, Map<String, String?>>>,
     val assignmentCountInWindow: Map<String, Int> = emptyMap(),
+    /**
+     * Per ciascun personId (stringa), mappa `partTypeId -> conteggio` delle conduzioni (slot == 1)
+     * nella finestra di equità (RANKING_HISTORY_WEEKS). Aggregato dalla stessa history già letta.
+     */
+    val leadCountsByPartTypeByPerson: Map<String, Map<PartTypeId, Int>> = emptyMap(),
+    /**
+     * Per ciascun personId (stringa), conteggio totale delle assistenze (slot >= 2) nella finestra
+     * di equità (RANKING_HISTORY_WEEKS).
+     */
+    val assistCountInWindowByPerson: Map<String, Int> = emptyMap(),
 )
 
 interface AssignmentRanking {

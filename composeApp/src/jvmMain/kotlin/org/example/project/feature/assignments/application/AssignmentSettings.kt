@@ -20,6 +20,22 @@ const val RANKING_HISTORY_WEEKS = 52L
 /** Penalità (settimane equivalenti) quando l'ultimo slot coincide con il target slot. */
 const val SLOT_REPEAT_PENALTY = 4
 
+/**
+ * Peso (settimane equivalenti) applicato a ogni conduzione precedente della stessa parte
+ * nella finestra di equità (RANKING_HISTORY_WEEKS). Soft penalty: non blocca il candidato,
+ * ma promuove la rotazione del ruolo di conduttore tra tutti gli studenti per ogni tipo di
+ * parte. Applicato solo quando il target slot e' 1 (conduttore).
+ */
+const val PART_TYPE_LEAD_WEIGHT = 2
+
+/**
+ * Peso (settimane equivalenti) applicato a ogni assistenza precedente nella finestra di
+ * equità (RANKING_HISTORY_WEEKS). Soft penalty: non blocca il candidato, ma bilancia il
+ * ruolo di assistente con i ruoli di conduzione. Applicato solo quando il target slot e'
+ * >= 2 (assistente).
+ */
+const val ASSIST_ROLE_WEIGHT = 1
+
 data class AssignmentSettings(
     val strictCooldown: Boolean = true,
     val leadCooldownWeeks: Int = 4,

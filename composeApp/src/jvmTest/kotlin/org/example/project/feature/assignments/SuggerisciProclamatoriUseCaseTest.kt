@@ -510,6 +510,213 @@ class SuggerisciProclamatoriUseCaseTest {
     }
 
     // -----------------------------------------------------------------------
+    // Fairness test F1 — equità per-parte: chi ha già condotto questa parte scende
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `equita' per-parte penalizza chi ha gia' condotto lo stesso tipo di parte`() = runTest {
+        // Entrambi identici su tutto tranne leadCountsByPartType per questo specifico partType.
+        // personHeavy: ha già condotto questa parte 2 volte nella finestra (penalità 2*2=4 settimane)
+        // personLight: mai condotta questa parte (penalità 0)
+        // Score (slot=1, lastConductorWeeks=null → nessun slotRepeatPenalty):
+        //   personHeavy: 10 - 0 - 0 - 4 - 0 = 6
+        //   personLight: 10 - 0 - 0 - 0 - 0 = 10
+        val personHeavy = person(id = "p-heavy", nome = "Carlo", cognome = "Bianchi", sesso = Sesso.M)
+        val personLight = person(id = "p-light", nome = "Marco", cognome = "Verdi", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personHeavy,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                leadCountsByPartType = mapOf(partTypeId to 2),
+            ),
+            SuggestedProclamatore(
+                proclamatore = personLight,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                leadCountsByPartType = emptyMap(),
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(
+                eligible = setOf(
+                    EligibilityCleanupCandidate(personHeavy.id, partTypeId),
+                    EligibilityCleanupCandidate(personLight.id, partTypeId),
+                ),
+            ),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 1, // conduttore → partTypeLeadPenalty attivo
+        )
+
+        assertEquals(2, result.size)
+        // personLight prima: nessuna storia su questa parte
+        assertEquals(personLight.id, result.first().proclamatore.id)
+        // personHeavy seconda: ha già condotto questa parte
+        assertEquals(personHeavy.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
+    // Fairness test F2 — equità assistenza: chi ha assistito molto scende come assistente
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `equita' assistenza penalizza chi ha molte assistenze quando target e' assistente`() = runTest {
+        // Entrambi identici su tutto tranne assistCountInWindow.
+        // personManyAssists: 5 assistenze → penalità 5*1 = 5
+        // personFewAssists: 0 assistenze → penalità 0
+        // Score (slot=2, lastConductorWeeks=null → slotRepeatPenalty=4 per entrambi):
+        //   personManyAssists: 10 - 0 - 4 - 0 - 5 = 1
+        //   personFewAssists:  10 - 0 - 4 - 0 - 0 = 6
+        val personManyAssists = person(id = "p-many", nome = "Luigi", cognome = "Blu", sesso = Sesso.M)
+        val personFewAssists = person(id = "p-few", nome = "Anna", cognome = "Rosa", sesso = Sesso.F)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personManyAssists,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                assistCountInWindow = 5,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personFewAssists,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                assistCountInWindow = 0,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2, // assistente → assistRolePenalty attivo
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(personFewAssists.id, result.first().proclamatore.id)
+        assertEquals(personManyAssists.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
+    // Fairness test F3 — le penalità di equità non bloccano mai il candidato
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `fairness e' soft penalty - candidato penalizzato resta nei risultati`() = runTest {
+        // Unico candidato per slot=1, con una storia pesante su questa parte.
+        // Anche se la penalità lo sposta molto in basso, deve comunque apparire nei risultati.
+        val personHeavy = person(id = "p-heavy", nome = "Carlo", cognome = "Bianchi", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personHeavy,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                leadCountsByPartType = mapOf(partTypeId to 10), // storia pesantissima
+                assistCountInWindow = 20,                       // e anche molte assistenze
+                totalAssignmentsInWindow = 30,                  // e conteggio globale altissimo
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(
+                eligible = setOf(EligibilityCleanupCandidate(personHeavy.id, partTypeId)),
+            ),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 1,
+        )
+
+        // Appare comunque: fairness e' soft penalty, non filtro
+        assertEquals(1, result.size)
+        assertEquals(personHeavy.id, result.first().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
+    // Fairness test F4 — la penalità per-parte e' specifica al tipo di parte
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `penalita' per-parte e' limitata al tipo di parte specifico`() = runTest {
+        // personHeavyOnOther: ha condotto molte volte un ALTRO tipo di parte, mai questo
+        // personClean: nessuna storia
+        // Quando target = partTypeId corrente, personHeavyOnOther NON deve essere penalizzato.
+        // Score atteso identico → ordine alfabetico secondario (cognome asc).
+        val otherPartTypeId = PartTypeId("pt-other")
+        val personHeavyOnOther = person(id = "p-heavy-other", nome = "Carlo", cognome = "Alpi", sesso = Sesso.M)
+        val personClean = person(id = "p-clean", nome = "Marco", cognome = "Zeta", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personHeavyOnOther,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+                leadCountsByPartType = mapOf(otherPartTypeId to 5), // storia su ALTRO partType
+            ),
+            SuggestedProclamatore(
+                proclamatore = personClean,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(
+                eligible = setOf(
+                    EligibilityCleanupCandidate(personHeavyOnOther.id, partTypeId),
+                    EligibilityCleanupCandidate(personClean.id, partTypeId),
+                ),
+            ),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 1,
+        )
+
+        // Stesso score → sort secondario per cognome asc: "Alpi" < "Zeta"
+        assertEquals(2, result.size)
+        assertEquals(personHeavyOnOther.id, result.first().proclamatore.id)
+        assertEquals(personClean.id, result.last().proclamatore.id)
+    }
+
+    // -----------------------------------------------------------------------
     // Test 5 — slot=1 (studente): solo chi ha idoneità conduzione appare
     // -----------------------------------------------------------------------
 

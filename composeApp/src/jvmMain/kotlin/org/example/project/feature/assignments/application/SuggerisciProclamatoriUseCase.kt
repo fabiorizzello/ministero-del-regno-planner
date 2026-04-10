@@ -90,7 +90,7 @@ class SuggerisciProclamatoriUseCase(
                 annotated to (passaSesso && passaIdoneita && !p.sospeso && p.id !in excludedIds)
             }
             .filter { (_, allowed) -> allowed }
-            .map { (suggestion, _) -> suggestion to weightedScore(suggestion, slot) }
+            .map { (suggestion, _) -> suggestion to weightedScore(suggestion, part.partType.id, slot) }
             .filter { (suggestion, _) -> !settings.strictCooldown || !suggestion.inCooldown }
 
         return eligible
@@ -103,7 +103,11 @@ class SuggerisciProclamatoriUseCase(
             .map { (suggestion, _) -> suggestion }
     }
 
-    private fun weightedScore(suggestion: SuggestedProclamatore, targetSlot: Int): Long {
+    private fun weightedScore(
+        suggestion: SuggestedProclamatore,
+        targetPartTypeId: PartTypeId,
+        targetSlot: Int,
+    ): Long {
         val safeGlobalWeeks = suggestion.lastGlobalWeeks ?: Int.MAX_VALUE
         val cooldownPenalty = if (suggestion.inCooldown) COOLDOWN_PENALTY else 0
         val countPenalty = suggestion.totalAssignmentsInWindow * COUNT_PENALTY_WEIGHT
@@ -113,7 +117,28 @@ class SuggerisciProclamatoriUseCase(
             (!suggestion.lastWasConductor && !targetIsConductor && suggestion.lastGlobalWeeks != null)
         val slotRepeatPenalty = if (sameSlotType) SLOT_REPEAT_PENALTY else 0
 
-        return safeGlobalWeeks.toLong() - countPenalty - slotRepeatPenalty - cooldownPenalty
+        // Equità per-parte: penalizza chi ha già condotto questo specifico tipo di parte nella
+        // finestra di equità. Applicata solo se il target e' il ruolo di conduttore (slot 1),
+        // altrimenti non ha senso — lo slot di assistenza non e' per-parte.
+        val partTypeLeadPenalty = if (targetIsConductor) {
+            (suggestion.leadCountsByPartType[targetPartTypeId] ?: 0) * PART_TYPE_LEAD_WEIGHT
+        } else {
+            0
+        }
+        // Equità per assistenza: penalizza chi ha accumulato molte assistenze nella finestra di
+        // equità. Applicata solo se il target e' un ruolo di assistente (slot >= 2).
+        val assistRolePenalty = if (!targetIsConductor) {
+            suggestion.assistCountInWindow * ASSIST_ROLE_WEIGHT
+        } else {
+            0
+        }
+
+        return safeGlobalWeeks.toLong() -
+            countPenalty -
+            slotRepeatPenalty -
+            partTypeLeadPenalty -
+            assistRolePenalty -
+            cooldownPenalty
     }
 }
 

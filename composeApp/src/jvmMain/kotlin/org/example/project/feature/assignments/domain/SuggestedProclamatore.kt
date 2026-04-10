@@ -1,6 +1,7 @@
 package org.example.project.feature.assignments.domain
 
 import org.example.project.feature.people.domain.Proclamatore
+import org.example.project.feature.weeklyparts.domain.PartTypeId
 
 data class SuggestedProclamatore(
     val proclamatore: Proclamatore,
@@ -15,6 +16,17 @@ data class SuggestedProclamatore(
     val cooldownRemainingWeeks: Int = 0,
     val sexMismatch: Boolean = false, // sesso diverso da quello esistente nella parte (regola STESSO_SESSO)
     val totalAssignmentsInWindow: Int = 0,
+    /**
+     * Conteggio di conduzioni (slot 1) per ciascun tipo di parte nella finestra di equità
+     * (RANKING_HISTORY_WEEKS). Usato per bilanciare la rotazione del conduttore tra i diversi
+     * tipi di parte. Mappa mancante = nessuna conduzione registrata per quel tipo.
+     */
+    val leadCountsByPartType: Map<PartTypeId, Int> = emptyMap(),
+    /**
+     * Conteggio totale di assistenze (slot >= 2) nella finestra di equità (RANKING_HISTORY_WEEKS).
+     * Usato per bilanciare il ruolo di assistente con i ruoli di conduzione.
+     */
+    val assistCountInWindow: Int = 0,
 )
 
 /** Regola conservativa di auto-assegnazione: niente mismatch di sesso e niente cooldown attivo. */

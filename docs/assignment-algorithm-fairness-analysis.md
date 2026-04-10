@@ -127,3 +127,57 @@ Dove:
 - `cooldownPenalty`: `COOLDOWN_PENALTY` (10.000) se in cooldown, 0 altrimenti
 
 Tutte e quattro le proposte (A, D, E, B) sono implementate. Formula semplice, trasparente, fair.
+
+---
+
+## Update 2026-04-10 — Equità dimensionale (per-parte + per-ruolo-assistenza)
+
+Il refactoring del 2026-03-12 aveva rimosso `lastForPartTypeWeeks` dallo scoring per
+evitare "specializzazione". Questa è rimasta una scelta corretta: lo *specifico segnale*
+(settimane dall'ultima volta su quella parte) non è utile.
+
+Contesto reale misurato: 90 studenti, 5-6 parti/settimana, ~6 assegnazioni/studente/anno,
+~1 conduzione/anno su ciascun tipo di parte specifico. In steady-state si osservava che:
+
+1. Alcuni studenti conducono sempre gli stessi tipi di parte (specializzazione "silenziosa"
+   non coperta dal `lastGlobalWeeks`).
+2. Alcuni studenti finiscono sempre come assistenti e mai come conduttori, o viceversa.
+
+Introdotta **equità dimensionale** come soft penalty (non blocco):
+
+```
+score = lastGlobalWeeks
+      - totalAssignmentsInWindow     * COUNT_PENALTY_WEIGHT       (26 weeks)
+      - slotRepeatPenalty
+      - leadCountsByPartType[target] * PART_TYPE_LEAD_WEIGHT      (52 weeks, solo slot=1)
+      - assistCountInWindow          * ASSIST_ROLE_WEIGHT         (52 weeks, solo slot>=2)
+      - cooldownPenalty
+```
+
+Segnali usati — **COUNT nella finestra di equità**, non weeks-since-last (che era il
+segnale criticato nel doc originale):
+
+- `leadCountsByPartType`: quante volte questa persona ha condotto *questo specifico tipo*
+  di parte negli ultimi `RANKING_HISTORY_WEEKS = 52`. Applicato solo quando target = slot 1.
+- `assistCountInWindow`: quante volte questa persona ha fatto da assistente (slot >= 2)
+  negli ultimi 52 settimane. Applicato solo quando target = slot >= 2.
+
+Pesi scelti dopo analisi quantitativa su 90 studenti / 5-6 parti:
+- `PART_TYPE_LEAD_WEIGHT = 2`: delta di 2 "settimane equivalenti" per conduzione precedente
+  della stessa parte. Con baseline `lastGlobalWeeks ≈ 8`, un delta di 2 pesa ~25% — nudge
+  efficace ma non dominante.
+- `ASSIST_ROLE_WEIGHT = 1`: symmetric con `COUNT_PENALTY_WEIGHT`. Valore basso perché le
+  assistenze sono frequenti (media ~3/anno), quindi cumulativamente resta impattante.
+
+Proprietà garantite dal design:
+- **Non blocca**: le penalità entrano solo nel ranking, il candidato resta sempre eleggibile
+  se supera i filtri hard (sesso/idoneità/sospensione/già-assegnato-settimana).
+- **Specifica**: la penalità per-parte si applica solo al tipo target — chi ha condotto
+  molto "Discorso" non viene penalizzato quando si sta scegliendo per "Studio Biblico".
+- **Asimmetrica per slot**: la penalità per-parte e quella per-assistenza sono mutualmente
+  esclusive (dipendono da `targetIsConductor`), quindi al massimo *una* delle due si somma
+  al `countPenalty` globale — niente tripla penalità.
+
+Nessuna nuova query SQL: le aggregazioni sono calcolate in memoria dalla history già
+caricata da `allAssignmentRankingData`, dentro `fetchRankingFromDb()`.
+
