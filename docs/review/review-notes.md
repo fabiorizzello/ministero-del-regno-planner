@@ -7,12 +7,60 @@ updates+diagnostics+core, test+SQL schema), 2026-03-18.
 Review round 14: post-commit review sulle modifiche di `983c623` (historical import + past
 assignment editing), `d6f0b38` (UI preferences + seed import tooling), `4e9d486` (assignment
 feedback refinements), 2026-04-10.
+Review round 15: deep scan mirato su criticità da import storico + edit del passato (commit
+`983c623` revisitato), 2026-04-10.
 
 ---
 
 ## Findings aperti
 
+### HIGH
+
+**R15-001 (HIGH)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:106-109,396-431`: la precondizione di
+import controlla solo `proclamatoriQuery.cerca()` — se gli studenti sono vuoti l'import procede,
+ma non verifica che siano vuoti anche `program_month` / `week_plan`. Scenario: l'utente crea
+manualmente un programma (genera weeks reali con `programId` valorizzato), poi cancella tutti gli
+studenti, poi rilancia l'import seed. `persistHistoricalAssignment` chiama
+`weekPlanStore.loadAggregateByDate(weekStartDate)` e — se la data storica casca dentro un programma
+reale — entra nel branch `existingAggregate != null`, fabbricando un nuovo `WeeklyPart` storico
+attaccato a una settimana di programma reale e salvando l'aggregato modificato. La settimana reale
+si vede arricchita di parti spurie. Causa strutturale: l'invariante "import = bootstrap su DB
+vergine" è dichiarato solo su `proclamatori`, non sull'intero stato persistente. Fix: estendere la
+precondizione anche a `weekPlanStore` / `programStore`, oppure dentro `persistHistoricalAssignment`
+rifiutare il caso `existingAggregate != null && existingAggregate.weekPlan.programId != null`.
+Effort: 20m.
+
+**R15-002 (HIGH)** — `RimuoviAssegnazioneUseCase.kt:12-15`: rimuove l'assegnazione direttamente via
+`assignmentStore.remove(assignmentId)` **bypassando completamente `WeekPlanAggregate`**. Nessun
+load dell'aggregato, nessuna verifica di `canBeEditedManually()` né dello status `SKIPPED`.
+Tutti gli altri use case mutanti (`AggiungiParte`, `RimuoviParte`, `RiordinaParti`, `AssegnaPersona`)
+passano per l'aggregato che enforce le invarianti. Conseguenza: una settimana `SKIPPED` (o
+qualsiasi altro stato futuro che marchi una settimana come immutabile) accetta comunque la
+rimozione di assegnazioni. Causa strutturale: manca un metodo `WeekPlanAggregate.removeAssignment`
+che faccia da pendant a `addAssignment`, quindi il use case scorciatoia il livello aggregate.
+Fix: aggiungere `WeekPlanAggregate.removeAssignment(assignmentId)` con guardia status, e routare
+il use case attraverso load → mutate → save. Effort: 30m.
+
 ### MEDIUM
+
+**R15-003 (MEDIUM)** — `ImpostaStatoSettimanaUseCase.kt:25-28`: la guardia
+`canBeMutated(currentMonday)` viene applicata **solo** quando `status == SKIPPED`. La transizione
+inversa (riattivazione `SKIPPED → ACTIVE`) non ha alcun controllo: una settimana SKIPPED nel
+passato può essere riattivata e — siccome `canBeEditedManually()` ignora la data — diventa di
+nuovo completamente mutabile (parti, assegnazioni). Asimmetria semantica vs il path di skip.
+Decisione richiesta: o si blocca anche la riattivazione passata in modo simmetrico, o si
+documenta esplicitamente che la riattivazione bypassa l'invariante "passato immutabile" by design.
+Effort: 15m (fix) o 5m (commento esplicativo + nota in spec 003).
+
+**R15-004 (MEDIUM)** — `WeekPlanAggregate.addAssignment:105-116`: a differenza di `addPart`,
+`removePart`, `reorderParts` e `replaceParts`, `addAssignment` **non verifica**
+`canBeEditedManually()`. Se un use case caricasse e mutasse un aggregato `SKIPPED`, l'aggiunta di
+un'assegnazione passerebbe (la `validateAssignment` controlla solo part/slot/persona). Oggi
+`AssegnaPersonaUseCase.kt:55` non controlla lo stato a monte (delega all'aggregato), quindi una
+settimana SKIPPED può ricevere nuove assegnazioni via use case standard. Causa strutturale:
+l'invariante "settimana immutabile" non è completa lato aggregato per le assegnazioni. Fix:
+aggiungere `if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()`
+all'inizio di `addAssignment`. Effort: 5m + test.
 
 **R14-004 (MEDIUM)** — ~~`ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment:393-439`:
 frammentazione delle parti storiche~~ — **debito accettato** (2026-04-10)
@@ -47,6 +95,43 @@ schema refresh". Effort: 10m.
 **R14-009 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:393`: `context(_: TransactionScope)`
 anonimo, convenzione altrove (`AssignmentStore.kt:18-23`) usa `context(tx: TransactionScope)`.
 Consistency issue. Effort: 1m.
+
+**R15-005 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:363,393-407`: lo `slot` è hard-coded
+a `1` in `validateLastAssignments` ma poi propagato come parametro fino a `Assignment.of`. Tutte
+le assegnazioni storiche importate finiscono come slot 1 (= conduttore). Conseguenza:
+`SqlDelightAssignmentStore.lastSlot1GlobalAssignmentPerPerson` (usata dal cooldown per capire se
+l'ultima assegnazione era da conduttore) include rumore — uno studente che storicamente faceva
+solo da assistente viene trattato come ex-conduttore, e il `lastConductorWeeks` ne risulta
+sfalsato. Fix minimo: rimuovere il parametro morto e inlinare `slot = 1` con commento esplicativo;
+fix completo: estendere lo schema JSON con `ruolo: conduttore|assistente` e mappare lo slot
+correttamente. Effort: 5m (cleanup) o 30m (estensione schema + test).
+
+**R15-006 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment:413-431`:
+quando `existingAggregate != null` il codice fa `existingAggregate.copy(weekPlan = ... + newPart)`
+direttamente, bypassando `WeekPlanAggregate.addPart` (che enforce `canBeEditedManually()`). Per i
+fragment storici creati ex-novo dall'import il bypass è intenzionale, ma combinato con R15-001
+diventa il vettore concreto: una volta che il branch entra perché un programma reale esiste già,
+si arriva ad attaccare parti a una settimana che potrebbe anche essere `SKIPPED`. Aggiungere un
+commento di blocco che dichiari la giustificazione del bypass, oppure introdurre un metodo
+`addHistoricalPart` esplicito sull'aggregato che documenti l'eccezione. Effort: 5m (commento) o
+20m (metodo dedicato).
+
+**R15-007 (LOW)** — `ImpostaStatoSettimanaUseCase.kt:21`: `referenceDate: LocalDate = LocalDate.now()`
+ha lo stesso footgun di R14-006 (clock implicito al call site, test potenzialmente flaky a
+mezzanotte). Soluzione coerente: iniettare un `Clock` o forzare i caller a passare la data. Già
+catalogato come pattern in R14-006 — aggregare i due fix in un singolo passaggio "Clock injection
+across use cases con dipendenza temporale". Effort: 10m.
+
+**R15-008 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.invoke:139-154` + `persistHistoricalAssignment`:
+l'intero import gira in una singola transazione monolitica e per ogni assegnazione storica esegue
+`loadAggregateByDate` + `saveAggregate` separato. Per N studenti × K parti storiche le round-trip
+DB scalano O(N·K). Per i seed attuali (decine di studenti, 1-3 parti ciascuno) è irrilevante, ma
+manca il batching o un upper bound. Considerare di raggruppare per `weekStartDate` e fare un
+unico `saveAggregate` per settimana. Effort: 1h.
+
+**R15-009 (LOW)** — `RimuoviAssegnazioneUseCase.kt:14`: `Either.Right(assignmentStore.remove(...))`
+inline invece di `either { ... }`. Stesso pattern stilistico di R14-007 (`GeneraSettimaneProgramma`).
+Da unificare quando si tocca il file per il fix di R15-002. Effort: 1m.
 
 **R14-010 (LOW)** — `CaricaUltimeAssegnazioniPerParteProclamatoreUseCase`: wrapper triviale (6 righe
 effettive) intorno a `PersonAssignmentHistoryQuery.lastAssignmentDatesByPartType`. Discutibile come
@@ -156,3 +241,4 @@ osservazione.
 | 2026-03-18 | post-merge batch R12-001 (5 worktree: people, assignments, programs, schemas, weeklyparts) | full suite | 0 |
 | 2026-04-10 | review round 14 (post-commit 983c623/d6f0b38/4e9d486: historical import, past editing, seed tooling) | analisi statica | — |
 | 2026-04-10 | post-merge batch R14-001 + R14-003 (2 worktree, R14-002 pending refactor) | 432 test | 0 |
+| 2026-04-10 | review round 15 (deep scan import storico + edit passato, focus su `983c623`) | analisi statica | — |
