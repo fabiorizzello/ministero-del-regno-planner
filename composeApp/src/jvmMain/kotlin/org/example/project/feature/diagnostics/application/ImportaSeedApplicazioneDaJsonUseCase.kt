@@ -395,6 +395,10 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         val weekStartDate = assignmentDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val existingAggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
 
+        if (existingAggregate != null && existingAggregate.weekPlan.programId != null) {
+            raise(DomainError.ImportConflittoProgrammaEsistente)
+        }
+
         val newPart = WeeklyPart(
             id = WeeklyPartId(UUID.randomUUID().toString()),
             partType = partType,
