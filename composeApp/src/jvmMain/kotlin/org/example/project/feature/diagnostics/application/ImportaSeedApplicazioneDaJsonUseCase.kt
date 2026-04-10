@@ -57,7 +57,7 @@ private data class SeedStudentDto(
     val puoAssistere: Boolean = false,
     val canLeadPartTypeCodes: List<String> = emptyList(),
     @SerialName("ultimaParte")
-    val ultimaParte: SeedStudentLastAssignmentDto? = null,
+    val ultimaParte: List<SeedStudentLastAssignmentDto> = emptyList(),
 )
 
 @Serializable
@@ -71,7 +71,7 @@ private data class SeedStudentLastAssignmentDto(
 private data class ParsedSeedStudent(
     val person: Proclamatore,
     val canLeadPartTypeCodes: Set<String>,
-    val lastAssignment: ParsedSeedStudentLastAssignment?,
+    val lastAssignments: List<ParsedSeedStudentLastAssignment>,
 )
 
 private data class ParsedSeedStudentLastAssignment(
@@ -137,26 +137,27 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 }
 
                 parsed.students.forEach { student ->
-                    val lastAssignment = student.lastAssignment ?: return@forEach
-                    val storedPartType = storedPartTypesByCode[lastAssignment.partTypeCode]
-                        ?: raise(
-                            DomainError.ImportSalvataggioFallito(
-                                "Tipo parte non disponibile per storico assegnazioni: ${lastAssignment.partTypeCode}",
-                            ),
-                        )
-                    persistHistoricalAssignment(
-                        personId = student.person.id,
-                        partType = storedPartType,
-                        assignmentDate = lastAssignment.date,
-                        slot = lastAssignment.slot,
-                    ).bind()
+                    student.lastAssignments.forEach { lastAssignment ->
+                        val storedPartType = storedPartTypesByCode[lastAssignment.partTypeCode]
+                            ?: raise(
+                                DomainError.ImportSalvataggioFallito(
+                                    "Tipo parte non disponibile per storico assegnazioni: ${lastAssignment.partTypeCode}",
+                                ),
+                            )
+                        persistHistoricalAssignment(
+                            personId = student.person.id,
+                            partType = storedPartType,
+                            assignmentDate = lastAssignment.date,
+                            slot = lastAssignment.slot,
+                        ).bind()
+                    }
                 }
 
                 Result(
                     importedPartTypes = parsed.partTypes.size,
                     importedStudents = parsed.students.size,
                     importedLeadEligibility = parsed.students.sumOf { it.canLeadPartTypeCodes.size },
-                    importedHistoricalAssignments = parsed.students.count { it.lastAssignment != null },
+                    importedHistoricalAssignments = parsed.students.sumOf { it.lastAssignments.size },
                 )
             }
         }.bind()
@@ -312,9 +313,9 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         ParsedSeedStudent(
             person = person,
             canLeadPartTypeCodes = canLeadCodes,
-            lastAssignment = validateLastAssignment(
+            lastAssignments = validateLastAssignments(
                 position = position,
-                item = item.ultimaParte,
+                items = item.ultimaParte,
                 partTypeByCode = partTypeByCode,
             ).getOrElse { message ->
                 raise(message)
@@ -322,30 +323,40 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         )
     }
 
-    private fun validateLastAssignment(
+    private fun validateLastAssignments(
         position: Int,
-        item: SeedStudentLastAssignmentDto?,
+        items: List<SeedStudentLastAssignmentDto>,
         partTypeByCode: Map<String, PartType>,
-    ): Either<String, ParsedSeedStudentLastAssignment?> = either {
-        if (item == null) return@either null
+    ): Either<String, List<ParsedSeedStudentLastAssignment>> = either {
+        val seenPartTypes = mutableSetOf<String>()
+        items.mapIndexed { index, item ->
+            val entryPosition = index + 1
+            val date = try {
+                LocalDate.parse(item.data.trim())
+            } catch (_: Exception) {
+                raise(
+                    "students[$position].ultimaParte[$entryPosition]: data non valida (${item.data}), atteso formato ISO yyyy-MM-dd",
+                )
+            }
 
-        val date = try {
-            LocalDate.parse(item.data.trim())
-        } catch (_: Exception) {
-            raise("students[$position].ultimaParte: data non valida (${item.data}), atteso formato ISO yyyy-MM-dd")
+            val partTypeCode = normalizePartTypeCode(item.tipo)
+                .takeIf { it.isNotBlank() }
+                ?: raise("students[$position].ultimaParte[$entryPosition]: tipo obbligatorio")
+            if (partTypeByCode[partTypeCode] == null) {
+                raise(
+                    "students[$position].ultimaParte[$entryPosition]: tipo parte non definito nel catalogo importato ($partTypeCode)",
+                )
+            }
+            if (!seenPartTypes.add(partTypeCode)) {
+                raise("students[$position].ultimaParte[$entryPosition]: tipo duplicato ($partTypeCode)")
+            }
+
+            ParsedSeedStudentLastAssignment(
+                date = normalizeHistoricalAssignmentDate(date),
+                partTypeCode = partTypeCode,
+                slot = 1,
+            )
         }
-
-        val partTypeCode = normalizePartTypeCode(item.tipo)
-            .takeIf { it.isNotBlank() }
-            ?: raise("students[$position].ultimaParte: tipo obbligatorio")
-        val partType = partTypeByCode[partTypeCode]
-            ?: raise("students[$position].ultimaParte: tipo parte non definito nel catalogo importato ($partTypeCode)")
-
-        ParsedSeedStudentLastAssignment(
-            date = normalizeHistoricalAssignmentDate(date),
-            partTypeCode = partTypeCode,
-            slot = 1,
-        )
     }
 
     private fun parseSexRule(raw: String): Either<String, SexRule> = either {

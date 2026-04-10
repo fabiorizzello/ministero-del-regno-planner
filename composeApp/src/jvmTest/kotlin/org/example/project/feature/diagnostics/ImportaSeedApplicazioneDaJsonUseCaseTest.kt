@@ -60,7 +60,10 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "sospeso": false,
                   "puoAssistere": true,
                   "canLeadPartTypeCodes": ["preghiera", "lettura"],
-                  "ultimaParte": { "data": "2026-03-16", "tipo": "lettura" }
+                  "ultimaParte": [
+                    { "data": "2026-03-16", "tipo": "lettura" },
+                    { "data": "2026-03-09", "tipo": "preghiera" }
+                  ]
                 },
                 {
                   "nome": "Anna",
@@ -69,7 +72,9 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "sospeso": true,
                   "puoAssistere": false,
                   "canLeadPartTypeCodes": ["lettura"],
-                  "ultimaParte": { "data": "2026-03-23", "tipo": "lettura" }
+                  "ultimaParte": [
+                    { "data": "2026-03-23", "tipo": "lettura" }
+                  ]
                 }
               ]
             }
@@ -81,7 +86,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertEquals(2, right.importedPartTypes)
         assertEquals(2, right.importedStudents)
         assertEquals(3, right.importedLeadEligibility)
-        assertEquals(2, right.importedHistoricalAssignments)
+        assertEquals(3, right.importedHistoricalAssignments)
         assertEquals(2, studentStore.persisted.size)
         assertEquals(2, partTypeStore.all().size)
         assertEquals(setOf("PREGHIERA", "LETTURA"), partTypeStore.deactivatedToCodes.single())
@@ -91,6 +96,9 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         val firstWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 16)))
         assertEquals(1, firstWeek.parts.size)
         assertEquals("LETTURA", firstWeek.parts.single().partType.code)
+        val earlierWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 9)))
+        assertEquals(1, earlierWeek.parts.size)
+        assertEquals("PREGHIERA", earlierWeek.parts.single().partType.code)
         val secondWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 23)))
         assertEquals(1, secondWeek.parts.size)
         assertEquals("LETTURA", secondWeek.parts.single().partType.code)
@@ -187,6 +195,38 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
     }
 
     @Test
+    fun `duplicate tipo in ultimaParte returns validation error`() = runTest {
+        val useCase = buildUseCase()
+
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 1, "sexRule": "STESSO_SESSO" }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaParte": [
+                    { "data": "2026-03-16", "tipo": "LETTURA" },
+                    { "data": "2026-03-09", "tipo": "LETTURA" }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        val error = assertIs<DomainError.ImportContenutoNonValido>(left)
+        assertTrue(error.details.contains("tipo duplicato"))
+        Unit
+    }
+
+    @Test
     fun `future ultimaParte date is normalized into the past before persisting history`() = runTest {
         val weekPlanStore = InMemoryWeekPlanStore()
         val useCase = buildUseCase(weekPlanStore = weekPlanStore)
@@ -203,7 +243,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "nome": "Mario",
                   "cognome": "Rossi",
                   "sesso": "M",
-                  "ultimaParte": { "data": "$nextYear", "tipo": "LETTURA" }
+                  "ultimaParte": [ { "data": "$nextYear", "tipo": "LETTURA" } ]
                 }
               ]
             }

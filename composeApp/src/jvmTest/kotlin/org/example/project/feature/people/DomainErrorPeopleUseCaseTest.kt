@@ -9,7 +9,6 @@ import org.example.project.feature.people.application.AggiornaProclamatoreUseCas
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EligibilityCleanupCandidate
 import org.example.project.feature.people.application.EligibilityStore
-import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.LeadEligibility
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
@@ -120,20 +119,6 @@ class DomainErrorPeopleUseCaseTest {
         assertEquals(Sesso.F, outcome.proclamatore.sesso)
         assertTrue(outcome.proclamatore.puoAssistere)
         assertEquals(emptyList(), outcome.futureWeeksWhereAssigned)
-    }
-
-    @Test
-    fun `importa proclamatori returns ImportJsonNonValido for invalid payload`() = runTest {
-        val useCase = ImportaProclamatoriDaJsonUseCase(
-            query = FakeProclamatoriQuery(),
-            store = InMemoryProclamatoriStore(),
-            transactionRunner = PassthroughTransactionRunner,
-        )
-
-        val result = useCase("not-a-json")
-
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.ImportJsonNonValido, left)
     }
 
 }

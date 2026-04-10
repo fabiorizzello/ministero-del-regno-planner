@@ -111,23 +111,27 @@
             }
           },
           "ultimaParte": {
-            "type": "object",
-            "additionalProperties": false,
-            "description": "Ultima parte associata allo studente; se presente viene creata una settimana senza piano alla data indicata.",
-            "required": [
-              "data",
-              "tipo"
-            ],
-            "properties": {
-              "data": {
-                "type": "string",
-                "format": "date",
-                "description": "Data ISO yyyy-MM-dd della settimana/assegnazione da creare."
-              },
-              "tipo": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Codice del tipo parte associato all'ultima assegnazione."
+            "type": "array",
+            "default": [],
+            "description": "Ultime assegnazioni per tipo parte. Una entry per ogni tipo: per ciascuna viene creata una settimana fantasma alla data indicata. I tipo non possono ripetersi nello stesso studente.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tipo",
+                "data"
+              ],
+              "properties": {
+                "tipo": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Codice del tipo parte associato all'ultima assegnazione."
+                },
+                "data": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Data ISO yyyy-MM-dd della settimana/assegnazione da creare."
+                }
               }
             }
           }
@@ -166,10 +170,16 @@
             "PREGHIERA",
             "LETTURA"
           ],
-          "ultimaParte": {
-            "data": "2026-03-16",
-            "tipo": "PREGHIERA"
-          }
+          "ultimaParte": [
+            {
+              "tipo": "PREGHIERA",
+              "data": "2026-03-16"
+            },
+            {
+              "tipo": "LETTURA",
+              "data": "2026-03-09"
+            }
+          ]
         },
         {
           "nome": "Anna",
@@ -180,10 +190,12 @@
           "canLeadPartTypeCodes": [
             "LETTURA"
           ],
-          "ultimaParte": {
-            "data": "2026-03-23",
-            "tipo": "LETTURA"
-          }
+          "ultimaParte": [
+            {
+              "tipo": "LETTURA",
+              "data": "2026-03-23"
+            }
+          ]
         }
       ]
     }

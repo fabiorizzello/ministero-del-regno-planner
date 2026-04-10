@@ -20,7 +20,6 @@ sealed interface DomainError {
     data object ImportArchivioNonVuoto : DomainError
     data object ImportJsonNonValido : DomainError
     data class ImportVersioneSchemaNonSupportata(val version: Int) : DomainError
-    data object ImportSenzaProclamatori : DomainError
     data object ProgrammaPassatoNonEliminabile : DomainError
     data object MeseTargetNonValido : DomainError
     data object MeseFuoriFinestraCreazione : DomainError
@@ -58,7 +57,6 @@ fun DomainError.toMessage(): String = when (this) {
     DomainError.ImportArchivioNonVuoto -> "Import disponibile solo con archivio proclamatori vuoto"
     DomainError.ImportJsonNonValido -> "File JSON non valido"
     is DomainError.ImportVersioneSchemaNonSupportata -> "Versione schema non supportata: $version"
-    DomainError.ImportSenzaProclamatori -> "Il file non contiene proclamatori da importare"
     DomainError.ProgrammaPassatoNonEliminabile -> "Puoi eliminare solo il programma corrente o futuri"
     DomainError.MeseTargetNonValido -> "Mese target non valido"
     DomainError.MeseFuoriFinestraCreazione -> "Puoi creare solo mesi nella finestra corrente..+2"

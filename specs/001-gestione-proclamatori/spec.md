@@ -239,9 +239,9 @@ proclamatori → verificare che N proclamatori siano presenti nell'elenco.
 - Q: La validazione max-length 100 è solo nei use case o anche nel domain model? → A:
   Ora è nel domain model: `ProclamatoreAggregate.create()` e `updateProfile()` eseguono
   sia `isNotBlank()` che `length <= 100` su input trimmed. `Proclamatore.of()` delega a
-  `ProclamatoreAggregate.create()`. Questo garantisce che nessun path di creazione
-  (incluso `ImportaProclamatoriDaJsonUseCase`) possa produrre un `Proclamatore` invalido
-  indipendentemente da quale use case lo costruisce (parse-don't-validate).
+  `ProclamatoreAggregate.create()`. Questo garantisce che nessun path di creazione possa
+  produrre un `Proclamatore` invalido indipendentemente da quale use case lo costruisce
+  (parse-don't-validate).
 
 ### Session 2026-03-06
 

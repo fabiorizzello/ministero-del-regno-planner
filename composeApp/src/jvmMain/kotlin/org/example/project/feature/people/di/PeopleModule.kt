@@ -7,7 +7,6 @@ import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.people.application.CreaProclamatoreUseCase
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.EliminaProclamatoreUseCase
-import org.example.project.feature.people.application.ImportaProclamatoriDaJsonUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaAssistenzaUseCase
 import org.example.project.feature.people.application.ImpostaIdoneitaConduzioneUseCase
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
@@ -28,7 +27,6 @@ val peopleModule = module {
     factory { CercaProclamatoriUseCase(get()) }
     factory { CaricaProclamatoreUseCase(get()) }
     factory { CreaProclamatoreUseCase(get(), get(), get()) }
-    factory { ImportaProclamatoriDaJsonUseCase(get(), get(), get()) }
     factory { AggiornaProclamatoreUseCase(get(), get(), get(), get()) }
     factory { ImpostaIdoneitaAssistenzaUseCase(get(), get()) }
     factory { ImpostaIdoneitaConduzioneUseCase(get(), get()) }
