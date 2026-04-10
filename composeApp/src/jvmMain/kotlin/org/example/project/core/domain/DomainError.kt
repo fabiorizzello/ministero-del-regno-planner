@@ -34,6 +34,7 @@ sealed interface DomainError {
     data class EliminazioneProclamatoreFallita(val reason: String?) : DomainError
     data class ImportSalvataggioFallito(val reason: String?) : DomainError
     data class ImportContenutoNonValido(val details: String) : DomainError
+    data object ImportConflittoProgrammaEsistente : DomainError
     data class SettimanaSenzaTemplateENessunaParteFissa(val weekStartDate: LocalDate) : DomainError
     data class CatalogoSchemiIncoerente(val weekStartDate: String) : DomainError
     data class DataSchemaNonValida(val rawValue: String) : DomainError
@@ -71,6 +72,7 @@ fun DomainError.toMessage(): String = when (this) {
     is DomainError.EliminazioneProclamatoreFallita -> "Errore nell'eliminazione: ${reason ?: "sconosciuto"}"
     is DomainError.ImportSalvataggioFallito -> "Import non completato. Errore durante il salvataggio: ${reason ?: "sconosciuto"}"
     is DomainError.ImportContenutoNonValido -> details
+    DomainError.ImportConflittoProgrammaEsistente -> "Import non consentito: esiste già un programma che include la data dell'assegnazione storica"
     is DomainError.SettimanaSenzaTemplateENessunaParteFissa -> "Nessun template e nessuna parte fissa per $weekStartDate"
     is DomainError.CatalogoSchemiIncoerente -> "Schema settimana $weekStartDate contiene partTypeCode non presenti nel catalogo"
     is DomainError.DataSchemaNonValida -> "Data schema non valida: $rawValue"

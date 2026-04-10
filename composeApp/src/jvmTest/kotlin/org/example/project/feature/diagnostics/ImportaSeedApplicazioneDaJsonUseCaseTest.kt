@@ -18,6 +18,7 @@ import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -227,6 +228,49 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
     }
 
     @Test
+    fun `historical assignment on existing program week is rejected`() = runTest {
+        val weekPlanStore = InMemoryWeekPlanStore()
+        val programWeekStart = LocalDate.of(2026, 3, 16)
+        val existingProgramWeek = WeekPlan.of(
+            id = WeekPlanId("existing-program-week"),
+            weekStartDate = programWeekStart,
+            parts = emptyList(),
+            programId = ProgramMonthId("program-2026-03"),
+        ).getOrNull() ?: error("failed to build seed WeekPlan for test")
+        weekPlanStore.seed(
+            WeekPlanAggregate(
+                weekPlan = existingProgramWeek,
+                assignments = emptyList(),
+            ),
+        )
+
+        val useCase = buildUseCase(weekPlanStore = weekPlanStore)
+
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 1, "sexRule": "STESSO_SESSO" }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaParte": [ { "data": "2026-03-18", "tipo": "LETTURA" } ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.ImportConflittoProgrammaEsistente, left)
+        Unit
+    }
+
+    @Test
     fun `future ultimaParte date is rejected with ImportContenutoNonValido`() = runTest {
         val weekPlanStore = InMemoryWeekPlanStore()
         val useCase = buildUseCase(weekPlanStore = weekPlanStore)
@@ -368,6 +412,10 @@ private class RecordingEligibilityStore(
 
 private class InMemoryWeekPlanStore : WeekPlanStore {
     private val byDate = linkedMapOf<LocalDate, WeekPlanAggregate>()
+
+    fun seed(aggregate: WeekPlanAggregate) {
+        byDate[aggregate.weekPlan.weekStartDate] = aggregate
+    }
 
     override suspend fun findByDate(weekStartDate: LocalDate): WeekPlan? = byDate[weekStartDate]?.weekPlan
 
