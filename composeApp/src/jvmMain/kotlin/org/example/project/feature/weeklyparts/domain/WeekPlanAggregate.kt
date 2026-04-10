@@ -8,8 +8,6 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
-import java.time.DayOfWeek
-import java.time.temporal.TemporalAdjusters
 
 data class WeekPlanAggregate(
     val weekPlan: WeekPlan,
@@ -19,7 +17,6 @@ data class WeekPlanAggregate(
         partType: PartType,
         partId: WeeklyPartId,
         partTypeRevisionId: String? = null,
-        referenceDate: LocalDate,
     ): Either<DomainError, WeekPlanAggregate> {
         if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val newPart = WeeklyPart(
@@ -31,7 +28,7 @@ data class WeekPlanAggregate(
         return copy(weekPlan = weekPlan.copy(parts = weekPlan.parts + newPart)).right()
     }
 
-    fun removePart(weeklyPartId: WeeklyPartId, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
+    fun removePart(weeklyPartId: WeeklyPartId): Either<DomainError, WeekPlanAggregate> {
         if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val part = weekPlan.findPart(weeklyPartId)
             ?: return DomainError.NotFound("Parte").left()
@@ -50,7 +47,7 @@ data class WeekPlanAggregate(
         ).right()
     }
 
-    fun reorderParts(orderedPartIds: List<WeeklyPartId>, referenceDate: LocalDate): Either<DomainError, WeekPlanAggregate> {
+    fun reorderParts(orderedPartIds: List<WeeklyPartId>): Either<DomainError, WeekPlanAggregate> {
         if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         val existingIds = weekPlan.parts.map { part -> part.id }
         if (orderedPartIds.size != existingIds.size || orderedPartIds.toSet() != existingIds.toSet()) {
@@ -85,7 +82,6 @@ data class WeekPlanAggregate(
 
     fun replaceParts(
         orderedPartTypes: List<Pair<PartType, String?>>,
-        referenceDate: LocalDate,
         partIdFactory: () -> WeeklyPartId,
     ): Either<DomainError, WeekPlanAggregate> {
         if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()

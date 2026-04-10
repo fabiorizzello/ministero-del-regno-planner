@@ -115,7 +115,7 @@ class AggiornaProgrammaDaSchemiUseCase(
             transactionRunner.runInTransactionEither {
                 either {
                     for (candidate in refreshCandidates) {
-                        applyRefreshCandidate(candidate, referenceDate).bind()
+                        applyRefreshCandidate(candidate).bind()
                     }
                     programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
                 }
@@ -156,9 +156,8 @@ class AggiornaProgrammaDaSchemiUseCase(
     context(tx: TransactionScope)
     private suspend fun applyRefreshCandidate(
         candidate: WeekRefreshCandidate,
-        referenceDate: LocalDate,
     ): Either<DomainError, Unit> = either {
-        val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes, referenceDate) {
+        val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes) {
             WeeklyPartId(UUID.randomUUID().toString())
         }.bind()
 

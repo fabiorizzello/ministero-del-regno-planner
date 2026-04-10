@@ -52,7 +52,6 @@ class DomainErrorMappingWeeklyPartsUseCaseTest {
         val result = useCase(
             weekStartDate = weekStore.week.weekStartDate,
             weeklyPartId = weekStore.fixedPart.id,
-            referenceDate = weekStore.week.weekStartDate,
         )
 
         val left = assertIs<Either.Left<DomainError>>(result).value
