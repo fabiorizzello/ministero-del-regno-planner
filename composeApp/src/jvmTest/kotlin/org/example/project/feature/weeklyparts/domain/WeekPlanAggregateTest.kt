@@ -244,6 +244,61 @@ class WeekPlanAggregateTest {
     }
 
     @Test
+    fun `clear assignments happy path removes all assignments on active week`() {
+        val existing = Assignment(
+            id = AssignmentId("a1"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+        val other = Assignment(
+            id = AssignmentId("a2"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p2"),
+            slot = 2,
+        )
+        val aggregate = aggregateWithSinglePart(
+            peopleCount = 2,
+            assignments = listOf(existing, other),
+        )
+
+        val result = aggregate.clearAssignments()
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(result).value
+
+        assertEquals(emptyList(), updated.assignments)
+    }
+
+    @Test
+    fun `clear assignments returns SettimanaImmutabile when week is SKIPPED`() {
+        val existing = Assignment(
+            id = AssignmentId("a1"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = LocalDate.of(2026, 3, 9),
+                parts = listOf(
+                    WeeklyPart(
+                        id = WeeklyPartId("part-1"),
+                        partType = partType(peopleCount = 2),
+                        sortOrder = 0,
+                    ),
+                ),
+                status = WeekPlanStatus.SKIPPED,
+            ),
+            assignments = listOf(existing),
+        )
+
+        val result = aggregate.clearAssignments()
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.SettimanaImmutabile, left)
+    }
+
+    @Test
     fun `add assignment on past active week succeeds`() {
         val pastMonday = LocalDate.of(2026, 2, 23)
         val aggregate = WeekPlanAggregate(

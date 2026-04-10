@@ -124,7 +124,10 @@ data class WeekPlanAggregate(
         return copy(assignments = assignments - target).right()
     }
 
-    fun clearAssignments(): WeekPlanAggregate = copy(assignments = emptyList())
+    fun clearAssignments(): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
+        return copy(assignments = emptyList()).right()
+    }
 
     fun setStatus(status: WeekPlanStatus): WeekPlanAggregate =
         if (weekPlan.status == status) this else copy(weekPlan = weekPlan.copy(status = status))
