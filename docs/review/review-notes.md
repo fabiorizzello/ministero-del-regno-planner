@@ -14,17 +14,6 @@ Review round 15: deep scan mirato su criticità da import storico + edit del pas
 
 ## Findings aperti
 
-### HIGH
-
-**R15-010 (HIGH)** — `RimuoviAssegnazioniSettimanaUseCase.kt:19-25` + `WeekPlanAggregate.clearAssignments:127`:
-stesso pattern di R15-002. Il use case carica l'aggregato via `loadAggregateByDate` e chiama
-`aggregate.clearAssignments()`, che è definita come `copy(assignments = emptyList())` **senza
-guardia `canBeEditedManually()`**. Una settimana `SKIPPED` (immutabile) può essere bulk-svuotata
-delle assegnazioni via questo use case. Emerso durante la review post-fix di R15-002. Fix
-suggerito: convertire `clearAssignments()` in `Either<DomainError, WeekPlanAggregate>` con guardia
-status, oppure aggiungere il check a livello use case prima di invocarla. Effort: 20m + test
-(regressione: SKIPPED → `SettimanaImmutabile`).
-
 ### MEDIUM
 
 **R14-004 (MEDIUM)** — ~~`ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment:393-439`:
@@ -188,6 +177,7 @@ osservazione.
 - **R15-003** (MEDIUM) — `ImpostaStatoSettimanaUseCase`: la guardia passato-immutabile si applica simmetricamente a qualunque transizione di status (`aggregate.weekPlan.status != status`) con check diretto `weekStartDate < currentMonday` (non via `canBeMutated` per evitare il caso circolare SKIPPED→ACTIVE su settimana futura). No-op (stesso status) passa senza guardia. Test estesi a 7 casi inclusa la regressione SKIPPED→ACTIVE passato. Commit: `0a773f4`. Worktree: `fix/finding-r15-003` (merged `80af9a3`).
 - **R15-004** (MEDIUM) — `WeekPlanAggregate.addAssignment` ora verifica `canBeEditedManually()` come primo statement, coerente con `addPart/removePart/reorderParts/replaceParts`. 2 test aggiunti (rifiuto SKIPPED + happy path su ACTIVE passato). Commit: `652b59e` (nel worktree di R15-002, merged `dbdd704`).
 - **R15-009** (LOW) — Risolto collaterale: il rewrite di `RimuoviAssegnazioneUseCase` in R15-002 usa `either {}` invece del vecchio `Either.Right(...)` inline.
+- **R15-010** (HIGH) — `WeekPlanAggregate.clearAssignments()` convertita a `Either<DomainError, WeekPlanAggregate>` con guardia `canBeEditedManually()` (parallelo di R15-002 sul bulk-clear). `RimuoviAssegnazioniSettimanaUseCase.invoke` riscritta in stile idiomatico `runInTransactionEither { either { … .bind() } }` con `loadAggregateByDate` dentro la transazione. Test di regressione SKIPPED→`SettimanaImmutabile` aggiunti sia su `WeekPlanAggregateTest` che su `RimuoviAssegnazioniSettimanaUseCaseTest`. Commit: `a661720`. Worktree: `fix/finding-r15-010` (merged `c6946c9`). Full suite: 441 test, 0 fallimenti.
 
 ### Batch round 14 (2026-04-10)
 
@@ -223,3 +213,4 @@ osservazione.
 | 2026-04-10 | post-merge batch R14-001 + R14-003 (2 worktree, R14-002 pending refactor) | 432 test | 0 |
 | 2026-04-10 | review round 15 (deep scan import storico + edit passato, focus su `983c623`) | analisi statica | — |
 | 2026-04-10 | post-merge batch R15-001 + R15-002 + R15-003 + R15-004 (3 worktree paralleli, 4 finding) | 438 test | 0 |
+| 2026-04-10 | post-merge R15-010 (worktree isolato, parallelo di R15-002) | 441 test | 0 |
