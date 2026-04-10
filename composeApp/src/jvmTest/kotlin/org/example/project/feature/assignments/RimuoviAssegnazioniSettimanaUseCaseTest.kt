@@ -4,6 +4,7 @@ import arrow.core.Either
 import kotlinx.coroutines.test.runTest
 import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.PassthroughTransactionRunner
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.application.RimuoviAssegnazioniSettimanaUseCase
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
@@ -16,6 +17,7 @@ import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.LocalDate
@@ -27,7 +29,10 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
 
     private val weekStart = LocalDate.of(2026, 3, 9)
 
-    private fun sampleAggregate(assignments: List<Assignment>): WeekPlanAggregate {
+    private fun sampleAggregate(
+        assignments: List<Assignment>,
+        status: WeekPlanStatus = WeekPlanStatus.ACTIVE,
+    ): WeekPlanAggregate {
         val partType = PartType(
             id = PartTypeId("pt-1"),
             code = "PT",
@@ -43,6 +48,7 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
             parts = listOf(
                 WeeklyPart(id = WeeklyPartId("wp-1"), partType = partType, sortOrder = 0),
             ),
+            status = status,
         )
         return WeekPlanAggregate(weekPlan = week, assignments = assignments)
     }
@@ -67,6 +73,26 @@ class RimuoviAssegnazioniSettimanaUseCaseTest {
 
         assertIs<Either.Right<Unit>>(result)
         assertEquals(0, store.currentAggregate!!.assignments.size)
+    }
+
+    @Test
+    fun `returns SettimanaImmutabile when week is SKIPPED (R15-010 regression)`() = runTest {
+        val initialAssignments = listOf(assignment("a1", slot = 1), assignment("a2", slot = 2))
+        val skippedAggregate = sampleAggregate(
+            assignments = initialAssignments,
+            status = WeekPlanStatus.SKIPPED,
+        )
+        val store = SingleAggregateWeekStore(skippedAggregate)
+        val useCase = RimuoviAssegnazioniSettimanaUseCase(
+            weekPlanStore = store,
+            transactionRunner = PassthroughTransactionRunner,
+        )
+
+        val result = useCase(weekStart)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.SettimanaImmutabile, left)
+        assertEquals(2, store.currentAggregate!!.assignments.size)
     }
 
     @Test
