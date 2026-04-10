@@ -106,6 +106,7 @@ data class WeekPlanAggregate(
         assignment: Assignment,
         personSuspended: Boolean,
     ): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         validateAssignment(
             weeklyPartId = assignment.weeklyPartId,
             personId = assignment.personId,

@@ -146,6 +146,71 @@ class WeekPlanAggregateTest {
     }
 
     @Test
+    fun `add assignment returns SettimanaImmutabile when week is SKIPPED`() {
+        val futureMonday = LocalDate.of(2026, 3, 9)
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = futureMonday,
+                parts = listOf(
+                    WeeklyPart(
+                        id = WeeklyPartId("part-1"),
+                        partType = partType(peopleCount = 2),
+                        sortOrder = 0,
+                    ),
+                ),
+                status = WeekPlanStatus.SKIPPED,
+            ),
+            assignments = emptyList(),
+        )
+
+        val result = aggregate.addAssignment(
+            assignment = Assignment(
+                id = AssignmentId("a1"),
+                weeklyPartId = WeeklyPartId("part-1"),
+                personId = ProclamatoreId("p1"),
+                slot = 1,
+            ),
+            personSuspended = false,
+        )
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.SettimanaImmutabile, left)
+    }
+
+    @Test
+    fun `add assignment on past active week succeeds`() {
+        val pastMonday = LocalDate.of(2026, 2, 23)
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = pastMonday,
+                parts = listOf(
+                    WeeklyPart(
+                        id = WeeklyPartId("part-1"),
+                        partType = partType(peopleCount = 2),
+                        sortOrder = 0,
+                    ),
+                ),
+            ),
+            assignments = emptyList(),
+        )
+
+        val result = aggregate.addAssignment(
+            assignment = Assignment(
+                id = AssignmentId("a1"),
+                weeklyPartId = WeeklyPartId("part-1"),
+                personId = ProclamatoreId("p1"),
+                slot = 1,
+            ),
+            personSuspended = false,
+        )
+
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(result).value
+        assertEquals(1, updated.assignments.size)
+    }
+
+    @Test
     fun `add part appends new part with next sort order`() {
         val aggregate = aggregateWithParts(
             listOf(
