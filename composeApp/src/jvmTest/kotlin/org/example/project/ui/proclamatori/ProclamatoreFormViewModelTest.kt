@@ -260,6 +260,7 @@ class ProclamatoreFormViewModelTest {
         coEvery {
             caricaUltime(personId = personId, partTypeIds = setOf(partTypeId))
         } returns mapOf(partTypeId to LocalDate.of(2026, 4, 7))
+        coEvery { caricaUltime.lastAssistantDate(personId) } returns null
 
         val vm = ProclamatoreFormViewModel(
             scope = this,

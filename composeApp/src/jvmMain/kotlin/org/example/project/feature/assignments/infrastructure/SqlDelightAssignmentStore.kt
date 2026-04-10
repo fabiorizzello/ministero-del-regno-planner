@@ -277,6 +277,14 @@ class SqlDelightAssignmentStore(
             }
     }
 
+    override suspend fun lastAssistantAssignmentDate(personId: ProclamatoreId): LocalDate? {
+        return database.ministeroDatabaseQueries
+            .lastAssistantAssignmentDateForPerson(personId.value)
+            .executeAsOneOrNull()
+            ?.last_week_start_date
+            ?.let(LocalDate::parse)
+    }
+
     context(tx: TransactionScope)
     override suspend fun removeAllForPerson(personId: ProclamatoreId) {
         database.ministeroDatabaseQueries.deleteAssignmentsForPerson(personId.value)

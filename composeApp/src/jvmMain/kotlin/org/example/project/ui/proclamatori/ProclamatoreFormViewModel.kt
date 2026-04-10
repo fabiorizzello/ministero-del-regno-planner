@@ -46,6 +46,7 @@ internal data class LeadEligibilityOptionUi(
 private data class LoadedProclamatoreData(
     val proclamatore: Proclamatore,
     val options: List<LeadEligibilityOptionUi>,
+    val lastAssistantAssignmentDate: LocalDate?,
 )
 
 internal data class ProclamatoreFormUiState(
@@ -65,6 +66,7 @@ internal data class ProclamatoreFormUiState(
     val sospeso: Boolean = false,
     val puoAssistere: Boolean = false,
     val leadEligibilityOptions: List<LeadEligibilityOptionUi> = emptyList(),
+    val lastAssistantAssignmentDate: LocalDate? = null,
     val showFieldErrors: Boolean = false,
 ) {
     private fun currentLeadEligibilityByPartType(): Map<PartTypeId, Boolean> {
@@ -135,6 +137,7 @@ internal class ProclamatoreFormViewModel(
                     isCheckingDuplicate = false,
                     showFieldErrors = false,
                     leadEligibilityOptions = emptyList(),
+                    lastAssistantAssignmentDate = null,
                 )
             }
             _uiState.executeAsyncOperation(
@@ -238,6 +241,7 @@ internal class ProclamatoreFormViewModel(
                 isCheckingDuplicate = false,
                 showFieldErrors = false,
                 leadEligibilityOptions = emptyList(),
+                lastAssistantAssignmentDate = null,
             )
         }
     }
@@ -264,6 +268,7 @@ internal class ProclamatoreFormViewModel(
                         sospeso = result.proclamatore.sospeso,
                         puoAssistere = result.proclamatore.puoAssistere,
                         leadEligibilityOptions = result.options,
+                        lastAssistantAssignmentDate = result.lastAssistantAssignmentDate,
                         formError = null,
                         duplicateError = null,
                         isCheckingDuplicate = false,
@@ -294,10 +299,13 @@ internal class ProclamatoreFormViewModel(
                             partTypeIds = allPartTypeIds,
                         ),
                     )
+                    val lastAssistantDate = caricaUltimeAssegnazioniPerParte
+                        .lastAssistantDate(loaded.id)
                     Either.Right(
                         LoadedProclamatoreData(
                             proclamatore = loaded,
                             options = options,
+                            lastAssistantAssignmentDate = lastAssistantDate,
                         ),
                     )
                 },

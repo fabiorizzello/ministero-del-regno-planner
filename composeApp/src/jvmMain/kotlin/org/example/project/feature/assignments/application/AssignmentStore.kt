@@ -65,4 +65,6 @@ interface PersonAssignmentHistoryQuery {
         personId: ProclamatoreId,
         partTypeIds: Set<PartTypeId>,
     ): Map<PartTypeId, LocalDate>
+
+    suspend fun lastAssistantAssignmentDate(personId: ProclamatoreId): LocalDate?
 }

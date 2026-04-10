@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material.icons.Icons
@@ -36,6 +36,7 @@ import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
+import java.time.LocalDate
 
 /**
  * Reusable confirmation dialog for delete operations.
@@ -98,6 +99,7 @@ internal fun ProclamatoriFormDialogComponent(
     puoAssistere: Boolean,
     onPuoAssistereChange: (Boolean) -> Unit,
     leadEligibilityOptions: List<LeadEligibilityOptionUi>,
+    lastAssistantAssignmentDate: LocalDate?,
     onLeadEligibilityChange: (PartTypeId, Boolean) -> Unit,
     onSetAllEligibilityChange: (Boolean) -> Unit,
     nomeTrim: String,
@@ -124,7 +126,8 @@ internal fun ProclamatoriFormDialogComponent(
             shadowElevation = 0.dp,
             modifier = Modifier
                 .padding(spacing.lg)
-                .width(640.dp),
+                .widthIn(min = 720.dp, max = 1100.dp)
+                .fillMaxWidth(0.9f),
         ) {
             Column(
                 modifier = Modifier.padding(spacing.xxl),
@@ -165,6 +168,7 @@ internal fun ProclamatoriFormDialogComponent(
                     puoAssistere = puoAssistere,
                     onPuoAssistereChange = onPuoAssistereChange,
                     leadEligibilityOptions = leadEligibilityOptions,
+                    lastAssistantAssignmentDate = lastAssistantAssignmentDate,
                     onLeadEligibilityChange = onLeadEligibilityChange,
                     onSetAllEligibilityChange = onSetAllEligibilityChange,
                     nomeTrim = nomeTrim,

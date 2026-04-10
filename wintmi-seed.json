@@ -1,0 +1,1920 @@
+{
+  "version": 1,
+  "partTypes": [
+    {
+      "code": "LETTURA_DELLA_BIBBIA",
+      "label": "Lettura della Bibbia",
+      "peopleCount": 1,
+      "sexRule": "UOMO",
+      "sortOrder": 0
+    },
+    {
+      "code": "INIZIARE_CONVERSAZIONE",
+      "label": "Iniziare conversazioni",
+      "peopleCount": 2,
+      "sexRule": "STESSO_SESSO",
+      "sortOrder": 1
+    },
+    {
+      "code": "COLTIVARE_INTERESSE",
+      "label": "Coltivare l'interesse",
+      "peopleCount": 2,
+      "sexRule": "STESSO_SESSO",
+      "sortOrder": 2
+    },
+    {
+      "code": "FARE_DISCEPOLI",
+      "label": "Fare discepoli",
+      "peopleCount": 2,
+      "sexRule": "STESSO_SESSO",
+      "sortOrder": 3
+    },
+    {
+      "code": "DISCORSO",
+      "label": "Discorso",
+      "peopleCount": 1,
+      "sexRule": "UOMO",
+      "fixed": true,
+      "sortOrder": 4
+    }
+  ],
+  "students": [
+    {
+      "nome": "Alessandro",
+      "cognome": "Alfarano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Annarita",
+      "cognome": "Arnone",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Cruciano",
+      "cognome": "Arnone",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-01-19"
+        }
+      ]
+    },
+    {
+      "nome": "Benedetto",
+      "cognome": "Balboni",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-03-16"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-07-28"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-04-07"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-11-03"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2024-11-25"
+        }
+      ]
+    },
+    {
+      "nome": "Chanel",
+      "cognome": "Balboni",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-01-05"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-09-29"
+        }
+      ]
+    },
+    {
+      "nome": "Emily",
+      "cognome": "Balboni",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-06-16"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-12-22"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-09-01"
+        }
+      ]
+    },
+    {
+      "nome": "Michael",
+      "cognome": "Balboni",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-01-05"
+        }
+      ]
+    },
+    {
+      "nome": "Franca",
+      "cognome": "Botrugno",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-11-24"
+        }
+      ]
+    },
+    {
+      "nome": "Pietro",
+      "cognome": "Botrugno",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2024-09-30"
+        }
+      ]
+    },
+    {
+      "nome": "Antonio",
+      "cognome": "Bruno",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-02-02"
+        }
+      ]
+    },
+    {
+      "nome": "Danila",
+      "cognome": "Bruno",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2024-04-01"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-01-26"
+        }
+      ]
+    },
+    {
+      "nome": "Lucia",
+      "cognome": "Bruno",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-01-05"
+        }
+      ]
+    },
+    {
+      "nome": "Stefano",
+      "cognome": "Bruno",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-12-22"
+        }
+      ]
+    },
+    {
+      "nome": "Carmela",
+      "cognome": "Capone",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-05-05"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-01-06"
+        }
+      ]
+    },
+    {
+      "nome": "Anna Rita",
+      "cognome": "Carissimo",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-15"
+        }
+      ]
+    },
+    {
+      "nome": "Vincenzo",
+      "cognome": "Carissimo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-01"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-08-18"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-10-13"
+        }
+      ]
+    },
+    {
+      "nome": "Alessio",
+      "cognome": "Causo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-01-26"
+        }
+      ]
+    },
+    {
+      "nome": "Mario",
+      "cognome": "Causo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2024-08-05"
+        }
+      ]
+    },
+    {
+      "nome": "Natascia",
+      "cognome": "Causo",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-02-09"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-12-18"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-09-15"
+        }
+      ]
+    },
+    {
+      "nome": "Dario",
+      "cognome": "Cazzato",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-22"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-02-10"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-03-10"
+        }
+      ]
+    },
+    {
+      "nome": "Anna",
+      "cognome": "Ciullo",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2023-08-28"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-10-30"
+        }
+      ]
+    },
+    {
+      "nome": "Francesco",
+      "cognome": "Ciullo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "DISCORSO",
+          "data": "2026-02-09"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-09-08"
+        }
+      ]
+    },
+    {
+      "nome": "Osilda",
+      "cognome": "Ciullo",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-01-27"
+        }
+      ]
+    },
+    {
+      "nome": "Elisa",
+      "cognome": "Consenti",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-08"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-05-26"
+        }
+      ]
+    },
+    {
+      "nome": "Luigi",
+      "cognome": "Consenti",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Maria Lucia",
+      "cognome": "Consenti",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-10-13"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-10-23"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-23"
+        }
+      ]
+    },
+    {
+      "nome": "Laura",
+      "cognome": "Corpus",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Sara",
+      "cognome": "Corvaglia",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-15"
+        }
+      ]
+    },
+    {
+      "nome": "Anna",
+      "cognome": "De Gaetani",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-02-17"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-07-07"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-01-19"
+        }
+      ]
+    },
+    {
+      "nome": "Roberta",
+      "cognome": "De Matteis",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-29"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-07-24"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-02"
+        }
+      ]
+    },
+    {
+      "nome": "Antonio",
+      "cognome": "De Santis",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-09-29"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-11-25"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-06-16"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-02-23"
+        }
+      ]
+    },
+    {
+      "nome": "Fortuna",
+      "cognome": "De Santis",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-04-21"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-12-15"
+        }
+      ]
+    },
+    {
+      "nome": "Alessandra",
+      "cognome": "Dell'Accantera",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-07-07"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-01-26"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-08-25"
+        }
+      ]
+    },
+    {
+      "nome": "Andrea",
+      "cognome": "Dell'Accantera",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-10-27"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2024-03-18"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-03-31"
+        }
+      ]
+    },
+    {
+      "nome": "Anna Lisa",
+      "cognome": "Dell'Accantera",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-12-08"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-07-15"
+        }
+      ]
+    },
+    {
+      "nome": "Davide",
+      "cognome": "Dell'Accantera",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "DISCORSO",
+          "data": "2026-03-02"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-01-15"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-04-28"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-01-13"
+        }
+      ]
+    },
+    {
+      "nome": "Federico",
+      "cognome": "Dell'Accantera",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-02-23"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-09-08"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-04-15"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-10-06"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-03-03"
+        }
+      ]
+    },
+    {
+      "nome": "Greta",
+      "cognome": "Dell'accantera",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2024-12-30"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-16"
+        }
+      ]
+    },
+    {
+      "nome": "Lucetta",
+      "cognome": "Dell'Accantera",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2024-11-18"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-04-01"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-23"
+        }
+      ]
+    },
+    {
+      "nome": "Luigi",
+      "cognome": "Dell'Accantera",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "DISCORSO",
+          "data": "2026-01-05"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-11-06"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2024-09-30"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-06-02"
+        }
+      ]
+    },
+    {
+      "nome": "Raul",
+      "cognome": "Dell'Accantera",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Matteo",
+      "cognome": "Della Roccia",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-03-09"
+        }
+      ]
+    },
+    {
+      "nome": "Miriam",
+      "cognome": "Della Roccia",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-23"
+        }
+      ]
+    },
+    {
+      "nome": "Nashifere",
+      "cognome": "Dermyshi",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Andrea",
+      "cognome": "Franza",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-12-15"
+        }
+      ]
+    },
+    {
+      "nome": "Bettina",
+      "cognome": "Franza",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Lorenzo",
+      "cognome": "Franza",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-03-16"
+        }
+      ]
+    },
+    {
+      "nome": "Luana",
+      "cognome": "Franza",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-11-03"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-01-08"
+        }
+      ]
+    },
+    {
+      "nome": "Misael",
+      "cognome": "Franza",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-09-08"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-02-16"
+        }
+      ]
+    },
+    {
+      "nome": "Rita",
+      "cognome": "Franza",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Valentina",
+      "cognome": "Franza",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-04-14"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-10-20"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-02"
+        }
+      ]
+    },
+    {
+      "nome": "Vito",
+      "cognome": "Franza",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2023-07-17"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-09-15"
+        }
+      ]
+    },
+    {
+      "nome": "Alessandro",
+      "cognome": "Gianfreda",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-02-24"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-02-09"
+        }
+      ]
+    },
+    {
+      "nome": "Stefania",
+      "cognome": "Gianfreda",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-01-26"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-12-16"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-08-18"
+        }
+      ]
+    },
+    {
+      "nome": "Jessica",
+      "cognome": "Iannece",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-04-06"
+        }
+      ]
+    },
+    {
+      "nome": "Simone",
+      "cognome": "Iannece",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-11-10"
+        }
+      ]
+    },
+    {
+      "nome": "Marcella",
+      "cognome": "Laurenzana",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-01-13"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-05-20"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-09"
+        }
+      ]
+    },
+    {
+      "nome": "Anna Rita",
+      "cognome": "Licci",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-09-08"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-02-16"
+        }
+      ]
+    },
+    {
+      "nome": "Mimina",
+      "cognome": "Manco",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-11-24"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-16"
+        }
+      ]
+    },
+    {
+      "nome": "Lina",
+      "cognome": "Mangione",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-02"
+        }
+      ]
+    },
+    {
+      "nome": "Michela",
+      "cognome": "Màsala",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-09-16"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-11-10"
+        }
+      ]
+    },
+    {
+      "nome": "Miriam",
+      "cognome": "Napoli-Rizzello",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-08-11"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-01-26"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2024-08-19"
+        }
+      ]
+    },
+    {
+      "nome": "Davide",
+      "cognome": "Paiano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Enza",
+      "cognome": "Paiano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-03-23"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-03-17"
+        }
+      ]
+    },
+    {
+      "nome": "Manuela",
+      "cognome": "Paiano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-01-26"
+        }
+      ]
+    },
+    {
+      "nome": "Maria Rosaria",
+      "cognome": "Perruccio",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Cinzia",
+      "cognome": "Piccinni",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-02-02"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-12-23"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-09-01"
+        }
+      ]
+    },
+    {
+      "nome": "Marina",
+      "cognome": "Pierri",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-03-09"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2025-01-20"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-10-20"
+        }
+      ]
+    },
+    {
+      "nome": "Fabrizio",
+      "cognome": "Potenza",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2023-08-21"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-04-01"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-12-29"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-09-29"
+        }
+      ]
+    },
+    {
+      "nome": "Elisa",
+      "cognome": "Priapo",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-09"
+        }
+      ]
+    },
+    {
+      "nome": "Luigi",
+      "cognome": "Priapo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-03-23"
+        }
+      ]
+    },
+    {
+      "nome": "Michele",
+      "cognome": "Priapo",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-04-06"
+        }
+      ]
+    },
+    {
+      "nome": "Dora",
+      "cognome": "Rizzello",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2024-04-01"
+        }
+      ]
+    },
+    {
+      "nome": "Fabio",
+      "cognome": "Rizzello",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2023-06-12"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-07-14"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-03-16"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-12-29"
+        }
+      ]
+    },
+    {
+      "nome": "Marzia",
+      "cognome": "Rizzello",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-12-08"
+        }
+      ]
+    },
+    {
+      "nome": "Annarita",
+      "cognome": "Rodigliano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2024-01-29"
+        }
+      ]
+    },
+    {
+      "nome": "Chemuel",
+      "cognome": "Rodigliano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "DISCORSO",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-04-06"
+        },
+        {
+          "tipo": "DISCORSO",
+          "data": "2025-10-27"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-01-20"
+        },
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-05-26"
+        }
+      ]
+    },
+    {
+      "nome": "Cristian",
+      "cognome": "Rodigliano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-03-02"
+        }
+      ]
+    },
+    {
+      "nome": "Desirèe",
+      "cognome": "Rodigliano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-09-29"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-01-06"
+        }
+      ]
+    },
+    {
+      "nome": "Marisa",
+      "cognome": "Rodigliano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-01-19"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-07-07"
+        }
+      ]
+    },
+    {
+      "nome": "Uliana",
+      "cognome": "Rodigliano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-03-23"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2023-08-28"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-11-17"
+        }
+      ]
+    },
+    {
+      "nome": "Daniel",
+      "cognome": "Romano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-10-20"
+        }
+      ]
+    },
+    {
+      "nome": "Italia",
+      "cognome": "Romano",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-03-02"
+        }
+      ]
+    },
+    {
+      "nome": "Luca",
+      "cognome": "Romano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": []
+    },
+    {
+      "nome": "Natan",
+      "cognome": "Romano",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": false,
+      "canLeadPartTypeCodes": [
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2025-10-27"
+        }
+      ]
+    },
+    {
+      "nome": "Silvana",
+      "cognome": "Sciampagna",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-04-06"
+        }
+      ]
+    },
+    {
+      "nome": "Tina",
+      "cognome": "Seclì",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2024-10-28"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2026-01-19"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-07-28"
+        }
+      ]
+    },
+    {
+      "nome": "Ester",
+      "cognome": "Sergi",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-05-26"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2025-11-17"
+        }
+      ]
+    },
+    {
+      "nome": "Maria  Assunta",
+      "cognome": "Zecca",
+      "sesso": "F",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2025-09-15"
+        },
+        {
+          "tipo": "FARE_DISCEPOLI",
+          "data": "2024-10-21"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-16"
+        }
+      ]
+    },
+    {
+      "nome": "Tommaso",
+      "cognome": "Zecca",
+      "sesso": "M",
+      "sospeso": false,
+      "puoAssistere": true,
+      "canLeadPartTypeCodes": [
+        "COLTIVARE_INTERESSE",
+        "FARE_DISCEPOLI",
+        "INIZIARE_CONVERSAZIONE",
+        "LETTURA_DELLA_BIBBIA"
+      ],
+      "ultimaParte": [
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-02-09"
+        }
+      ]
+    }
+  ]
+}

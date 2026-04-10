@@ -262,6 +262,7 @@ fun ProclamatoriScreen() {
             puoAssistere = formState.puoAssistere,
             onPuoAssistereChange = { formVm.setPuoAssistere(it) },
             leadEligibilityOptions = formState.leadEligibilityOptions,
+            lastAssistantAssignmentDate = formState.lastAssistantAssignmentDate,
             onLeadEligibilityChange = { partTypeId, checked ->
                 formVm.setLeadEligibility(partTypeId, checked)
             },

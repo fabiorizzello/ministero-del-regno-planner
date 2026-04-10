@@ -14,4 +14,8 @@ class CaricaUltimeAssegnazioniPerParteProclamatoreUseCase(
         if (partTypeIds.isEmpty()) return emptyMap()
         return historyQuery.lastAssignmentDatesByPartType(personId, partTypeIds)
     }
+
+    suspend fun lastAssistantDate(personId: ProclamatoreId): LocalDate? {
+        return historyQuery.lastAssistantAssignmentDate(personId)
+    }
 }
