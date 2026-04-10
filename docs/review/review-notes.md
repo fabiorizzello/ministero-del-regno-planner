@@ -16,51 +16,16 @@ Review round 15: deep scan mirato su criticità da import storico + edit del pas
 
 ### HIGH
 
-**R15-001 (HIGH)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:106-109,396-431`: la precondizione di
-import controlla solo `proclamatoriQuery.cerca()` — se gli studenti sono vuoti l'import procede,
-ma non verifica che siano vuoti anche `program_month` / `week_plan`. Scenario: l'utente crea
-manualmente un programma (genera weeks reali con `programId` valorizzato), poi cancella tutti gli
-studenti, poi rilancia l'import seed. `persistHistoricalAssignment` chiama
-`weekPlanStore.loadAggregateByDate(weekStartDate)` e — se la data storica casca dentro un programma
-reale — entra nel branch `existingAggregate != null`, fabbricando un nuovo `WeeklyPart` storico
-attaccato a una settimana di programma reale e salvando l'aggregato modificato. La settimana reale
-si vede arricchita di parti spurie. Causa strutturale: l'invariante "import = bootstrap su DB
-vergine" è dichiarato solo su `proclamatori`, non sull'intero stato persistente. Fix: estendere la
-precondizione anche a `weekPlanStore` / `programStore`, oppure dentro `persistHistoricalAssignment`
-rifiutare il caso `existingAggregate != null && existingAggregate.weekPlan.programId != null`.
-Effort: 20m.
-
-**R15-002 (HIGH)** — `RimuoviAssegnazioneUseCase.kt:12-15`: rimuove l'assegnazione direttamente via
-`assignmentStore.remove(assignmentId)` **bypassando completamente `WeekPlanAggregate`**. Nessun
-load dell'aggregato, nessuna verifica di `canBeEditedManually()` né dello status `SKIPPED`.
-Tutti gli altri use case mutanti (`AggiungiParte`, `RimuoviParte`, `RiordinaParti`, `AssegnaPersona`)
-passano per l'aggregato che enforce le invarianti. Conseguenza: una settimana `SKIPPED` (o
-qualsiasi altro stato futuro che marchi una settimana come immutabile) accetta comunque la
-rimozione di assegnazioni. Causa strutturale: manca un metodo `WeekPlanAggregate.removeAssignment`
-che faccia da pendant a `addAssignment`, quindi il use case scorciatoia il livello aggregate.
-Fix: aggiungere `WeekPlanAggregate.removeAssignment(assignmentId)` con guardia status, e routare
-il use case attraverso load → mutate → save. Effort: 30m.
+**R15-010 (HIGH)** — `RimuoviAssegnazioniSettimanaUseCase.kt:19-25` + `WeekPlanAggregate.clearAssignments:127`:
+stesso pattern di R15-002. Il use case carica l'aggregato via `loadAggregateByDate` e chiama
+`aggregate.clearAssignments()`, che è definita come `copy(assignments = emptyList())` **senza
+guardia `canBeEditedManually()`**. Una settimana `SKIPPED` (immutabile) può essere bulk-svuotata
+delle assegnazioni via questo use case. Emerso durante la review post-fix di R15-002. Fix
+suggerito: convertire `clearAssignments()` in `Either<DomainError, WeekPlanAggregate>` con guardia
+status, oppure aggiungere il check a livello use case prima di invocarla. Effort: 20m + test
+(regressione: SKIPPED → `SettimanaImmutabile`).
 
 ### MEDIUM
-
-**R15-003 (MEDIUM)** — `ImpostaStatoSettimanaUseCase.kt:25-28`: la guardia
-`canBeMutated(currentMonday)` viene applicata **solo** quando `status == SKIPPED`. La transizione
-inversa (riattivazione `SKIPPED → ACTIVE`) non ha alcun controllo: una settimana SKIPPED nel
-passato può essere riattivata e — siccome `canBeEditedManually()` ignora la data — diventa di
-nuovo completamente mutabile (parti, assegnazioni). Asimmetria semantica vs il path di skip.
-Decisione richiesta: o si blocca anche la riattivazione passata in modo simmetrico, o si
-documenta esplicitamente che la riattivazione bypassa l'invariante "passato immutabile" by design.
-Effort: 15m (fix) o 5m (commento esplicativo + nota in spec 003).
-
-**R15-004 (MEDIUM)** — `WeekPlanAggregate.addAssignment:105-116`: a differenza di `addPart`,
-`removePart`, `reorderParts` e `replaceParts`, `addAssignment` **non verifica**
-`canBeEditedManually()`. Se un use case caricasse e mutasse un aggregato `SKIPPED`, l'aggiunta di
-un'assegnazione passerebbe (la `validateAssignment` controlla solo part/slot/persona). Oggi
-`AssegnaPersonaUseCase.kt:55` non controlla lo stato a monte (delega all'aggregato), quindi una
-settimana SKIPPED può ricevere nuove assegnazioni via use case standard. Causa strutturale:
-l'invariante "settimana immutabile" non è completa lato aggregato per le assegnazioni. Fix:
-aggiungere `if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()`
-all'inizio di `addAssignment`. Effort: 5m + test.
 
 **R14-004 (MEDIUM)** — ~~`ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment:393-439`:
 frammentazione delle parti storiche~~ — **debito accettato** (2026-04-10)
@@ -131,7 +96,14 @@ unico `saveAggregate` per settimana. Effort: 1h.
 
 **R15-009 (LOW)** — `RimuoviAssegnazioneUseCase.kt:14`: `Either.Right(assignmentStore.remove(...))`
 inline invece di `either { ... }`. Stesso pattern stilistico di R14-007 (`GeneraSettimaneProgramma`).
-Da unificare quando si tocca il file per il fix di R15-002. Effort: 1m.
+Da unificare quando si tocca il file per il fix di R15-002. Effort: 1m. — **risolto collaterale
+dal fix R15-002** (il use case è stato riscritto con `either {}`).
+
+**R15-011 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCaseTest.kt`: manca un test per il ramo
+`existingAggregate != null && programId == null` in `persistHistoricalAssignment`, cioè l'append
+di una seconda assegnazione storica sulla stessa settimana-frammento (quando due studenti hanno
+`ultimaParte` nella stessa data). Il ramo è permesso by design (historical-only fragments sono
+OK), ma non è blindato da regressione. Emerso durante la review post-fix di R15-001. Effort: 15m.
 
 **R14-010 (LOW)** — `CaricaUltimeAssegnazioniPerParteProclamatoreUseCase`: wrapper triviale (6 righe
 effettive) intorno a `PersonAssignmentHistoryQuery.lastAssignmentDatesByPartType`. Discutibile come
@@ -209,6 +181,14 @@ osservazione.
 - **SA-003** (LOW) — Spec 002 FR-006 updated: `CercaTipiParteUseCase` loads all, filtering is client-side. Commit: `b738323`
 - **SA-004** (LOW) — Spec 002 Key Entities updated: added `snapshot` and `partTypeRevisionId` to WeeklyPart. Commit: `71bbdea`
 
+### Batch round 15 (2026-04-10)
+
+- **R15-001** (HIGH) — Aggiunta guardia chirurgica in `ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment`: se l'aggregato esistente ha `programId != null`, raise del nuovo `DomainError.ImportConflittoProgrammaEsistente` (messaggio italiano in `toMessage()`). Impedisce che l'import storico alleghi parti spurie a settimane di programmi reali quando il DB ha programmi ma 0 studenti. Test di regressione aggiunto. Commit: `a46ed5b`. Worktree: `fix/finding-r15-001` (merged `6ec5ba9`).
+- **R15-002** (HIGH) — Refactor di `RimuoviAssegnazioneUseCase` attraverso `WeekPlanAggregate`. Aggiunti: (a) query SQL `weekPlanIdByAssignmentId` con JOIN assignment/weekly_part; (b) `AssignmentRepository.findWeekPlanIdByAssignmentId` + impl in `SqlDelightAssignmentStore`; (c) `WeekPlanAggregate.removeAssignment(id)` con guardia `canBeEditedManually()`. Use case ora: load weekPlanId → load aggregate → removeAssignment → saveAggregate, tutto dentro `runInTransactionEither`. DI aggiornata (3 dipendenze). Nuovo test `RimuoviAssegnazioneUseCaseTest` con 4 casi inclusa la regressione SKIPPED. Commit: `2a28836`. Worktree: `fix/finding-r15-002` (merged `dbdd704`).
+- **R15-003** (MEDIUM) — `ImpostaStatoSettimanaUseCase`: la guardia passato-immutabile si applica simmetricamente a qualunque transizione di status (`aggregate.weekPlan.status != status`) con check diretto `weekStartDate < currentMonday` (non via `canBeMutated` per evitare il caso circolare SKIPPED→ACTIVE su settimana futura). No-op (stesso status) passa senza guardia. Test estesi a 7 casi inclusa la regressione SKIPPED→ACTIVE passato. Commit: `0a773f4`. Worktree: `fix/finding-r15-003` (merged `80af9a3`).
+- **R15-004** (MEDIUM) — `WeekPlanAggregate.addAssignment` ora verifica `canBeEditedManually()` come primo statement, coerente con `addPart/removePart/reorderParts/replaceParts`. 2 test aggiunti (rifiuto SKIPPED + happy path su ACTIVE passato). Commit: `652b59e` (nel worktree di R15-002, merged `dbdd704`).
+- **R15-009** (LOW) — Risolto collaterale: il rewrite di `RimuoviAssegnazioneUseCase` in R15-002 usa `either {}` invece del vecchio `Either.Right(...)` inline.
+
 ### Batch round 14 (2026-04-10)
 
 - **R14-001** (HIGH) — Rimosso branch logicamente irraggiungibile in `ImpostaStatoSettimanaUseCase.kt:30-32`. La guardia combinava `!canBeEditedManually()` e `status != SKIPPED` che sono mutuamente esclusive con 2 soli valori di `WeekPlanStatus`. Commit: `4a5de22`. Worktree: `fix/finding-r14-001` (merged).
@@ -242,3 +222,4 @@ osservazione.
 | 2026-04-10 | review round 14 (post-commit 983c623/d6f0b38/4e9d486: historical import, past editing, seed tooling) | analisi statica | — |
 | 2026-04-10 | post-merge batch R14-001 + R14-003 (2 worktree, R14-002 pending refactor) | 432 test | 0 |
 | 2026-04-10 | review round 15 (deep scan import storico + edit passato, focus su `983c623`) | analisi statica | — |
+| 2026-04-10 | post-merge batch R15-001 + R15-002 + R15-003 + R15-004 (3 worktree paralleli, 4 finding) | 438 test | 0 |
