@@ -23,9 +23,7 @@ import kotlin.test.assertTrue
 
 class AggiornaPartiSettimanaUseCaseTest {
 
-    // referenceDate = same week as the week plan → mutable
     private val weekDate = LocalDate.of(2026, 3, 2) // Monday
-    private val referenceDate = LocalDate.of(2026, 3, 4) // Wednesday same week
 
     // 1. Aggiunta parte a settimana mutabile → parte aggiunta correttamente
     @Test
@@ -46,7 +44,6 @@ class AggiornaPartiSettimanaUseCaseTest {
         val result = useCase(
             weekPlanId = store.weekPlanId,
             orderedPartTypeIds = listOf(newPartType.id),
-            referenceDate = referenceDate,
         )
 
         assertIs<Either.Right<Unit>>(result)
@@ -74,7 +71,6 @@ class AggiornaPartiSettimanaUseCaseTest {
         val result = useCase(
             weekPlanId = store.weekPlanId,
             orderedPartTypeIds = listOf(partType.id),
-            referenceDate = referenceDate,
         )
 
         assertIs<Either.Right<Unit>>(result)
@@ -103,7 +99,6 @@ class AggiornaPartiSettimanaUseCaseTest {
         val result = useCase(
             weekPlanId = store.weekPlanId,
             orderedPartTypeIds = listOf(pt2.id, pt1.id),
-            referenceDate = referenceDate,
         )
 
         assertIs<Either.Right<Unit>>(result)
@@ -133,7 +128,6 @@ class AggiornaPartiSettimanaUseCaseTest {
         val result = useCase(
             weekPlanId = store.weekPlanId,
             orderedPartTypeIds = emptyList(),
-            referenceDate = referenceDate,
         )
 
         val left = assertIs<Either.Left<DomainError>>(result).value

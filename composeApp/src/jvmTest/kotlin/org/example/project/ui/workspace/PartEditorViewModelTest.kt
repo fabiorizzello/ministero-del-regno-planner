@@ -296,7 +296,7 @@ class PartEditorViewModelTest {
     @Test
     fun `savePartEditor calls use case and invokes onSuccess`() = runTest {
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } returns Either.Right(Unit)
+        coEvery { aggiorna(any(), any()) } returns Either.Right(Unit)
 
         val vm = makeViewModel(scope = this, partTypes = allPartTypes, aggiorna = aggiorna)
         advanceUntilIdle()
@@ -316,7 +316,7 @@ class PartEditorViewModelTest {
     @Test
     fun `savePartEditor success shows success notice`() = runTest {
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } returns Either.Right(Unit)
+        coEvery { aggiorna(any(), any()) } returns Either.Right(Unit)
 
         val vm = makeViewModel(scope = this, partTypes = allPartTypes, aggiorna = aggiorna)
         advanceUntilIdle()
@@ -334,7 +334,7 @@ class PartEditorViewModelTest {
     @Test
     fun `savePartEditor passes ordered partTypeIds to use case`() = runTest {
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } returns Either.Right(Unit)
+        coEvery { aggiorna(any(), any()) } returns Either.Right(Unit)
 
         val vm = makeViewModel(scope = this, partTypes = allPartTypes, aggiorna = aggiorna)
         advanceUntilIdle()
@@ -353,7 +353,6 @@ class PartEditorViewModelTest {
             aggiorna(
                 WeekPlanId(week.id.value),
                 listOf(editablePartType.id, editablePartType2.id),
-                any(),
             )
         }
         Unit
@@ -374,7 +373,7 @@ class PartEditorViewModelTest {
         assertNotNull(vm.state.value.notice)
         assertEquals(FeedbackBannerKind.ERROR, vm.state.value.notice?.kind)
         assertTrue(vm.state.value.notice?.message?.contains("almeno una parte") == true)
-        coVerify(exactly = 0) { aggiorna(any(), any(), any()) }
+        coVerify(exactly = 0) { aggiorna(any(), any()) }
     }
 
     @Test
@@ -391,13 +390,13 @@ class PartEditorViewModelTest {
         advanceUntilIdle()
 
         assertFalse(successCalled)
-        coVerify(exactly = 0) { aggiorna(any(), any(), any()) }
+        coVerify(exactly = 0) { aggiorna(any(), any()) }
     }
 
     @Test
     fun `savePartEditor error shows error notice`() = runTest {
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } returns Either.Left(DomainError.OrdinePartiNonValido)
+        coEvery { aggiorna(any(), any()) } returns Either.Left(DomainError.OrdinePartiNonValido)
 
         val vm = makeViewModel(scope = this, partTypes = allPartTypes, aggiorna = aggiorna)
         advanceUntilIdle()
@@ -416,7 +415,7 @@ class PartEditorViewModelTest {
     fun `savePartEditor does not call use case if already saving`() = runTest {
         val blocker = CompletableDeferred<Unit>()
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } coAnswers {
+        coEvery { aggiorna(any(), any()) } coAnswers {
             blocker.await()
             Either.Right(Unit)
         }
@@ -436,13 +435,13 @@ class PartEditorViewModelTest {
         blocker.complete(Unit)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { aggiorna(any(), any(), any()) }
+        coVerify(exactly = 1) { aggiorna(any(), any()) }
     }
 
     @Test
     fun `savePartEditor error does not call onSuccess`() = runTest {
         val aggiorna = mockk<AggiornaPartiSettimanaUseCase>()
-        coEvery { aggiorna(any(), any(), any()) } returns Either.Left(DomainError.Validation("fail"))
+        coEvery { aggiorna(any(), any()) } returns Either.Left(DomainError.Validation("fail"))
 
         val vm = makeViewModel(scope = this, partTypes = allPartTypes, aggiorna = aggiorna)
         advanceUntilIdle()

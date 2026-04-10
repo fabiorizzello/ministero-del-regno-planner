@@ -31,7 +31,6 @@ class RimuoviParteUseCaseTransactionTest {
         val result = useCase(
             weekStartDate = weekStore.weekDate,
             weeklyPartId = weekStore.initialPart.id,
-            referenceDate = weekStore.weekDate,
         )
 
         assertIs<Either.Right<Unit>>(result)

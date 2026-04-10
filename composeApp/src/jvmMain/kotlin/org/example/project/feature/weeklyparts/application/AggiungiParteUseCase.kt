@@ -18,7 +18,6 @@ class AggiungiParteUseCase(
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         partTypeId: PartTypeId,
-        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, WeekPlan> = either {
         val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
             ?: raise(DomainError.NotFound("Settimana"))
@@ -30,7 +29,6 @@ class AggiungiParteUseCase(
             partType = partType,
             partId = WeeklyPartId(UUID.randomUUID().toString()),
             partTypeRevisionId = revisionId,
-            referenceDate = referenceDate,
         ).fold(
             ifLeft = { raise(it) },
             ifRight = { it },

@@ -14,12 +14,11 @@ class RimuoviParteUseCase(
     suspend operator fun invoke(
         weekStartDate: LocalDate,
         weeklyPartId: WeeklyPartId,
-        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, Unit> = either {
         val aggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
             ?: raise(DomainError.NotFound("Settimana"))
 
-        val updated = aggregate.removePart(weeklyPartId, referenceDate).fold(
+        val updated = aggregate.removePart(weeklyPartId).fold(
             ifLeft = { raise(it) },
             ifRight = { it },
         )

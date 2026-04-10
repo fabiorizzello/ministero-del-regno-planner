@@ -22,8 +22,7 @@ import kotlin.test.assertNull
 
 class RimuoviParteUseCaseTest {
 
-    private val weekDate = LocalDate.of(2026, 3, 2)    // Monday
-    private val referenceDate = LocalDate.of(2026, 3, 4) // Wednesday same week → mutable
+    private val weekDate = LocalDate.of(2026, 3, 2) // Monday
 
     // 1. Happy path: parte rimovibile → Either.Right, aggregate salvato senza la parte
     @Test
@@ -40,7 +39,6 @@ class RimuoviParteUseCaseTest {
         val result = useCase(
             weekStartDate = weekDate,
             weeklyPartId = WeeklyPartId("part-1"),
-            referenceDate = referenceDate,
         )
 
         assertIs<Either.Right<Unit>>(result)
@@ -64,7 +62,6 @@ class RimuoviParteUseCaseTest {
         val result = useCase(
             weekStartDate = weekDate,
             weeklyPartId = WeeklyPartId("part-fixed"),
-            referenceDate = referenceDate,
         )
 
         val left = assertIs<Either.Left<DomainError>>(result).value
@@ -85,7 +82,6 @@ class RimuoviParteUseCaseTest {
         val result = useCase(
             weekStartDate = LocalDate.of(2026, 1, 5), // different date → not found
             weeklyPartId = WeeklyPartId("part-1"),
-            referenceDate = referenceDate,
         )
 
         val left = assertIs<Either.Left<DomainError>>(result).value
@@ -112,7 +108,6 @@ class RimuoviParteUseCaseTest {
         val result = useCase(
             weekStartDate = weekDate,
             weeklyPartId = WeeklyPartId("part-2"), // remove the middle one
-            referenceDate = referenceDate,
         )
 
         assertIs<Either.Right<Unit>>(result)

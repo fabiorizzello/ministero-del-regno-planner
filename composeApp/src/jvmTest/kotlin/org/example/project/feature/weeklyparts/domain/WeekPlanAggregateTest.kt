@@ -86,7 +86,7 @@ class WeekPlanAggregateTest {
             ),
         )
 
-        val result = aggregate.removePart(WeeklyPartId("fixed-part"), LocalDate.of(2026, 3, 2))
+        val result = aggregate.removePart(WeeklyPartId("fixed-part"))
         val left = assertIs<arrow.core.Either.Left<DomainError>>(result).value
         assertEquals(DomainError.ParteFissa("Parte Fissa"), left)
     }
@@ -102,7 +102,7 @@ class WeekPlanAggregateTest {
             ),
         )
 
-        val result = aggregate.removePart(WeeklyPartId("part-a"), LocalDate.of(2026, 3, 2))
+        val result = aggregate.removePart(WeeklyPartId("part-a"))
         val updated = assertIs<arrow.core.Either.Right<WeekPlanAggregate>>(result).value
 
         assertEquals(1, updated.weekPlan.parts.size)
@@ -121,7 +121,6 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.reorderParts(
             orderedPartIds = listOf(WeeklyPartId("part-a"), WeeklyPartId("missing")),
-            referenceDate = LocalDate.of(2026, 3, 2),
         )
 
         val left = assertIs<arrow.core.Either.Left<DomainError>>(result).value
@@ -139,7 +138,6 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.reorderParts(
             orderedPartIds = listOf(WeeklyPartId("part-b"), WeeklyPartId("part-a")),
-            referenceDate = LocalDate.of(2026, 3, 2),
         )
 
         val updated = assertIs<arrow.core.Either.Right<WeekPlanAggregate>>(result).value
@@ -159,7 +157,6 @@ class WeekPlanAggregateTest {
             aggregate.addPart(
                 partType = partType(id = "new"),
                 partId = WeeklyPartId("part-new"),
-                referenceDate = LocalDate.of(2026, 3, 2),
             ),
         ).value
 
@@ -186,7 +183,6 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.replaceParts(
             orderedPartTypes = listOf(partType() to null),
-            referenceDate = LocalDate.of(2026, 3, 9), // well after the week
             partIdFactory = { WeeklyPartId("new-id") },
         )
 
@@ -220,7 +216,6 @@ class WeekPlanAggregateTest {
         val newPartTypeB = partType(id = "y")
         val result = aggregate.replaceParts(
             orderedPartTypes = listOf(newPartTypeA to "rev-1", newPartTypeB to null),
-            referenceDate = futureMonday,
             partIdFactory = { WeeklyPartId("gen-${counter++}") },
         )
 
@@ -251,7 +246,6 @@ class WeekPlanAggregateTest {
 
         val result = aggregate.replaceParts(
             orderedPartTypes = emptyList(),
-            referenceDate = futureMonday,
             partIdFactory = { WeeklyPartId("unused") },
         )
 

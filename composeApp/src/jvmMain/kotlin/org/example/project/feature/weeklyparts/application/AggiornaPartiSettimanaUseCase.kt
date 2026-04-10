@@ -7,7 +7,6 @@ import org.example.project.core.persistence.TransactionRunner
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
-import java.time.LocalDate
 import java.util.UUID
 
 class AggiornaPartiSettimanaUseCase(
@@ -18,7 +17,6 @@ class AggiornaPartiSettimanaUseCase(
     suspend operator fun invoke(
         weekPlanId: WeekPlanId,
         orderedPartTypeIds: List<PartTypeId>,
-        referenceDate: LocalDate = LocalDate.now(),
     ): Either<DomainError, Unit> = either {
         if (orderedPartTypeIds.isEmpty()) {
             raise(DomainError.OrdinePartiNonValido)
@@ -31,7 +29,7 @@ class AggiornaPartiSettimanaUseCase(
                 ?: raise(DomainError.NotFound("Tipo parte"))
             partType to partTypeStore.getLatestRevisionId(partTypeId)
         }
-        val updated = aggregate.replaceParts(orderedParts, referenceDate) {
+        val updated = aggregate.replaceParts(orderedParts) {
             WeeklyPartId(UUID.randomUUID().toString())
         }.fold(
             ifLeft = { raise(it) },
