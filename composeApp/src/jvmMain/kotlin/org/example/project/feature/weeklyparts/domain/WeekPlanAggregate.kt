@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
@@ -106,6 +107,7 @@ data class WeekPlanAggregate(
         assignment: Assignment,
         personSuspended: Boolean,
     ): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
         validateAssignment(
             weeklyPartId = assignment.weeklyPartId,
             personId = assignment.personId,
@@ -113,6 +115,13 @@ data class WeekPlanAggregate(
             slot = assignment.slot,
         )?.let { return it.left() }
         return copy(assignments = assignments + assignment).right()
+    }
+
+    fun removeAssignment(assignmentId: AssignmentId): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
+        val target = assignments.find { it.id == assignmentId }
+            ?: return DomainError.NotFound("Assegnazione").left()
+        return copy(assignments = assignments - target).right()
     }
 
     fun clearAssignments(): WeekPlanAggregate = copy(assignments = emptyList())
