@@ -22,6 +22,7 @@ interface AssignmentRepository {
     suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int>
     context(tx: TransactionScope) suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int
     suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int
+    suspend fun findWeekPlanIdByAssignmentId(assignmentId: AssignmentId): WeekPlanId?
 }
 
 /**

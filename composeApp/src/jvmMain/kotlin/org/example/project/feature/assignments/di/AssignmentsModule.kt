@@ -34,7 +34,7 @@ val assignmentsModule = module {
     factory { SalvaImpostazioniAssegnatoreUseCase(get(), get()) }
     factory { CaricaAssegnazioniUseCase(get(), get()) }
     factory { AssegnaPersonaUseCase(get(), get(), get<ProclamatoriAggregateStore>()) }
-    factory { RimuoviAssegnazioneUseCase(get(), get()) }
+    factory { RimuoviAssegnazioneUseCase(get(), get(), get()) }
     factory { RimuoviAssegnazioniSettimanaUseCase(get(), get()) }
     factory { SuggerisciProclamatoriUseCase(get(), get(), get(), get(), get()) }
     // single: class-level Mutex must be shared across all callers

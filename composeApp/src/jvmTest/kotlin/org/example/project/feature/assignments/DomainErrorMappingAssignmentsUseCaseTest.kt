@@ -6,11 +6,8 @@ import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.assignments.application.AssegnaPersonaUseCase
-import org.example.project.feature.assignments.application.AssignmentRepository
-import org.example.project.feature.assignments.application.RimuoviAssegnazioneUseCase
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
-import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.domain.Proclamatore
 import org.example.project.feature.people.domain.ProclamatoreId
@@ -116,43 +113,6 @@ class DomainErrorMappingAssignmentsUseCaseTest {
         )
     }
 
-    @Test
-    fun `rimuovi assegnazione happy path delegates to store remove`() = runTest {
-        val removedIds = mutableListOf<AssignmentId>()
-        val useCase = RimuoviAssegnazioneUseCase(
-            assignmentStore = object : AssignmentRepository by FakeAssignmentRepository() {
-                context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {
-                    removedIds += assignmentId
-                }
-            },
-            transactionRunner = PassthroughTransactionRunner,
-        )
-
-        val result = useCase(AssignmentId("a1"))
-
-        assertIs<Either.Right<Unit>>(result)
-        assertEquals(listOf(AssignmentId("a1")), removedIds)
-        Unit
-    }
-
-    @Test
-    fun `rimuovi assegnazione maps repository exceptions to typed domain error`() {
-        runTest {
-            val useCase = RimuoviAssegnazioneUseCase(
-                assignmentStore = object : AssignmentRepository by FakeAssignmentRepository() {
-                    context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {
-                        error("db down")
-                    }
-                },
-                transactionRunner = PassthroughTransactionRunner,
-            )
-
-            val result = useCase(AssignmentId("a1"))
-            val left = assertIs<Either.Left<DomainError>>(result).value
-            assertEquals(DomainError.Validation("db down"), left)
-        }
-    }
-
     private fun sampleWeek(peopleCount: Int): WeekPlan {
         val partType = PartType(
             id = PartTypeId("pt-1"),
@@ -207,20 +167,6 @@ private class SingleWeekStore(
 
     override suspend fun findByDateAndProgram(weekStartDate: LocalDate, programId: ProgramMonthId): WeekPlan? = null
     override suspend fun listByProgram(programId: ProgramMonthId): List<WeekPlan> = emptyList()
-}
-
-private class FakeAssignmentRepository(
-) : AssignmentRepository {
-    override suspend fun listByWeek(weekPlanId: WeekPlanId): List<AssignmentWithPerson> = emptyList()
-    override suspend fun listByWeekPlanIds(weekPlanIds: Set<WeekPlanId>): Map<WeekPlanId, List<AssignmentWithPerson>> = emptyMap()
-
-    context(tx: TransactionScope) override suspend fun save(assignment: Assignment) {}
-    context(tx: TransactionScope) override suspend fun remove(assignmentId: AssignmentId) {}
-    context(tx: TransactionScope) override suspend fun removeAllByWeekPlan(weekPlanId: WeekPlanId) {}
-    override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int = 0
-    override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
-    context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
-    override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
 }
 
 private class SinglePersonStore(

@@ -298,4 +298,11 @@ class SqlDelightAssignmentStore(
             .executeAsOne().toInt()
     }
 
+    override suspend fun findWeekPlanIdByAssignmentId(assignmentId: AssignmentId): WeekPlanId? {
+        return database.ministeroDatabaseQueries
+            .weekPlanIdByAssignmentId(assignmentId.value)
+            .executeAsOneOrNull()
+            ?.let(::WeekPlanId)
+    }
+
 }

@@ -179,6 +179,71 @@ class WeekPlanAggregateTest {
     }
 
     @Test
+    fun `remove assignment happy path removes matching assignment and preserves others`() {
+        val existing = Assignment(
+            id = AssignmentId("a1"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+        val other = Assignment(
+            id = AssignmentId("a2"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p2"),
+            slot = 2,
+        )
+        val aggregate = aggregateWithSinglePart(
+            peopleCount = 2,
+            assignments = listOf(existing, other),
+        )
+
+        val result = aggregate.removeAssignment(AssignmentId("a1"))
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(result).value
+
+        assertEquals(listOf(other), updated.assignments)
+    }
+
+    @Test
+    fun `remove assignment returns NotFound when assignment id is unknown`() {
+        val aggregate = aggregateWithSinglePart(peopleCount = 2)
+
+        val result = aggregate.removeAssignment(AssignmentId("missing"))
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.NotFound("Assegnazione"), left)
+    }
+
+    @Test
+    fun `remove assignment returns SettimanaImmutabile when week is SKIPPED`() {
+        val existing = Assignment(
+            id = AssignmentId("a1"),
+            weeklyPartId = WeeklyPartId("part-1"),
+            personId = ProclamatoreId("p1"),
+            slot = 1,
+        )
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = LocalDate.of(2026, 3, 9),
+                parts = listOf(
+                    WeeklyPart(
+                        id = WeeklyPartId("part-1"),
+                        partType = partType(peopleCount = 2),
+                        sortOrder = 0,
+                    ),
+                ),
+                status = WeekPlanStatus.SKIPPED,
+            ),
+            assignments = listOf(existing),
+        )
+
+        val result = aggregate.removeAssignment(AssignmentId("a1"))
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.SettimanaImmutabile, left)
+    }
+
+    @Test
     fun `add assignment on past active week succeeds`() {
         val pastMonday = LocalDate.of(2026, 2, 23)
         val aggregate = WeekPlanAggregate(

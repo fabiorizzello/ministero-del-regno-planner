@@ -255,4 +255,5 @@ private class FakeAssignmentRepo(
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = error("not needed")
     context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = error("not needed")
     override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = error("not needed")
+    override suspend fun findWeekPlanIdByAssignmentId(assignmentId: AssignmentId): WeekPlanId? = error("not needed")
 }

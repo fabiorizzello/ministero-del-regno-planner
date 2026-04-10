@@ -35,6 +35,7 @@ internal object EmptyAssignmentsRepository : AssignmentRepository {
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
     context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
     override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
+    override suspend fun findWeekPlanIdByAssignmentId(assignmentId: AssignmentId): WeekPlanId? = null
 }
 
 internal class StaticAssignmentRepository(
@@ -50,6 +51,7 @@ internal class StaticAssignmentRepository(
     override suspend fun countAssignmentsByWeekInRange(startDate: LocalDate, endDate: LocalDate): Map<WeekPlanId, Int> = emptyMap()
     context(tx: TransactionScope) override suspend fun deleteByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
     override suspend fun countByProgramFromDate(programId: ProgramMonthId, fromDate: LocalDate): Int = 0
+    override suspend fun findWeekPlanIdByAssignmentId(assignmentId: AssignmentId): WeekPlanId? = null
 }
 
 // ---------------------------------------------------------------------------

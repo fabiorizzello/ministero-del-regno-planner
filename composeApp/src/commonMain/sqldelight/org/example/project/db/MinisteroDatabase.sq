@@ -409,6 +409,12 @@ ON CONFLICT(weekly_part_id, slot) DO UPDATE SET
 deleteAssignment:
 DELETE FROM assignment WHERE id = ?;
 
+weekPlanIdByAssignmentId:
+SELECT wp.week_plan_id
+FROM assignment a
+JOIN weekly_part wp ON a.weekly_part_id = wp.id
+WHERE a.id = ?;
+
 countAssignmentsForWeek:
 SELECT COUNT(*)
 FROM assignment a
