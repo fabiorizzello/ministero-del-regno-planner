@@ -339,6 +339,12 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 )
             }
 
+            if (date.isAfter(LocalDate.now())) {
+                raise(
+                    "students[$position].ultimaParte[$entryPosition]: data nel futuro ($date) non ammessa per dati storici",
+                )
+            }
+
             val partTypeCode = normalizePartTypeCode(item.tipo)
                 .takeIf { it.isNotBlank() }
                 ?: raise("students[$position].ultimaParte[$entryPosition]: tipo obbligatorio")
@@ -352,7 +358,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             }
 
             ParsedSeedStudentLastAssignment(
-                date = normalizeHistoricalAssignmentDate(date),
+                date = date,
                 partTypeCode = partTypeCode,
                 slot = 1,
             )
@@ -373,17 +379,6 @@ class ImportaSeedApplicazioneDaJsonUseCase(
     }
 
     private fun normalizePartTypeCode(raw: String): String = raw.trim().uppercase()
-
-    private fun normalizeHistoricalAssignmentDate(
-        rawDate: LocalDate,
-        referenceDate: LocalDate = LocalDate.now(),
-    ): LocalDate {
-        var normalized = rawDate
-        while (normalized.isAfter(referenceDate)) {
-            normalized = normalized.minusYears(1)
-        }
-        return normalized
-    }
 
     private fun canLeadForSex(sesso: Sesso, sexRule: SexRule): Boolean = when (sexRule) {
         SexRule.UOMO -> sesso == Sesso.M

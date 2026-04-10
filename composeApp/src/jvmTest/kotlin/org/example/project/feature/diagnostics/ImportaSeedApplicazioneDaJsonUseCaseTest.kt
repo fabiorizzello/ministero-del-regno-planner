@@ -227,7 +227,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
     }
 
     @Test
-    fun `future ultimaParte date is normalized into the past before persisting history`() = runTest {
+    fun `future ultimaParte date is rejected with ImportContenutoNonValido`() = runTest {
         val weekPlanStore = InMemoryWeekPlanStore()
         val useCase = buildUseCase(weekPlanStore = weekPlanStore)
 
@@ -251,11 +251,11 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
 
         val result = useCase(json)
 
-        assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result)
-        val normalizedDate = nextYear.minusYears(1)
-        val expectedWeek = normalizedDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-        val savedWeek = assertNotNull(weekPlanStore.findByDate(expectedWeek))
-        assertEquals(expectedWeek, savedWeek.weekStartDate)
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        val error = assertIs<DomainError.ImportContenutoNonValido>(left)
+        assertTrue(error.details.contains("data nel futuro"))
+        assertTrue(error.details.contains(nextYear.toString()))
+        Unit
     }
 }
 
