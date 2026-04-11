@@ -1,0 +1,6 @@
+{
+  "ai": "codex",
+  "ai_skills": true,
+  "integration": "codex",
+  "script": "ps"
+}
