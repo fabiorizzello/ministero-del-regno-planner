@@ -1,11 +1,19 @@
 package org.example.project.ui.workspace
 
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.assignments.domain.AssignmentId
+import org.example.project.feature.assignments.person
+import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.programs.fixtureProgramMonth
+import org.example.project.feature.weeklyparts.domain.PartType
+import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.SexRule
 import org.example.project.feature.weeklyparts.domain.WeekPlan
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeeklyPart
+import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import java.time.YearMonth
 import java.time.LocalDate
 import kotlin.test.Test
@@ -83,4 +91,104 @@ class ProgramLifecycleViewModelSelectionTest {
         assertTrue(updated.selectedProgramWeeks.isEmpty())
         assertTrue(updated.selectedProgramAssignments.isEmpty())
     }
+
+    @Test
+    fun `calculateProgramSidebarState marks month as to generate when no weeks exist`() {
+        val state = calculateProgramSidebarState(
+            weeks = emptyList(),
+            assignmentsByWeek = emptyMap(),
+        )
+
+        assertEquals(ProgramSidebarStatus.TO_GENERATE, state.status)
+    }
+
+    @Test
+    fun `calculateProgramSidebarState marks month as to assign when weeks exist without assignments`() {
+        val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
+
+        val state = calculateProgramSidebarState(
+            weeks = listOf(week),
+            assignmentsByWeek = emptyMap(),
+        )
+
+        assertEquals(ProgramSidebarStatus.TO_ASSIGN, state.status)
+        assertEquals(2, state.totalSlots)
+        assertEquals(0, state.assignedSlots)
+    }
+
+    @Test
+    fun `calculateProgramSidebarState marks month as partial when some slots are assigned`() {
+        val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
+
+        val state = calculateProgramSidebarState(
+            weeks = listOf(week),
+            assignmentsByWeek = mapOf(
+                week.id.value to listOf(fixtureAssignment(week.parts.first().id, slot = 1)),
+            ),
+        )
+
+        assertEquals(ProgramSidebarStatus.PARTIAL, state.status)
+        assertEquals(2, state.totalSlots)
+        assertEquals(1, state.assignedSlots)
+    }
+
+    @Test
+    fun `calculateProgramSidebarState marks month as ready when all slots are assigned`() {
+        val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
+
+        val state = calculateProgramSidebarState(
+            weeks = listOf(week),
+            assignmentsByWeek = mapOf(
+                week.id.value to listOf(
+                    fixtureAssignment(week.parts.first().id, slot = 1),
+                    fixtureAssignment(week.parts.first().id, slot = 2),
+                ),
+            ),
+        )
+
+        assertEquals(ProgramSidebarStatus.READY, state.status)
+        assertEquals(2, state.totalSlots)
+        assertEquals(2, state.assignedSlots)
+    }
 }
+
+private fun fixtureWeekPlan(
+    id: String,
+    peopleCount: Int,
+): WeekPlan {
+    val partType = PartType(
+        id = PartTypeId("part-type-$id"),
+        code = "PT-$id",
+        label = "Parte $id",
+        peopleCount = peopleCount,
+        sexRule = SexRule.STESSO_SESSO,
+        fixed = false,
+        sortOrder = 0,
+    )
+    return WeekPlan(
+        id = WeekPlanId(id),
+        weekStartDate = LocalDate.of(2026, 3, 2),
+        parts = listOf(
+            WeeklyPart(
+                id = WeeklyPartId("part-$id"),
+                partType = partType,
+                sortOrder = 0,
+            ),
+        ),
+        programId = ProgramMonthId("program-$id"),
+    )
+}
+
+private fun fixtureAssignment(
+    weeklyPartId: WeeklyPartId,
+    slot: Int,
+): AssignmentWithPerson = AssignmentWithPerson.of(
+    id = AssignmentId("assignment-${weeklyPartId.value}-$slot"),
+    weeklyPartId = weeklyPartId,
+    personId = person("person-$slot", "Mario", "Rossi", Sesso.M).id,
+    slot = slot,
+    proclamatore = person("person-$slot", "Mario", "Rossi", Sesso.M),
+).fold(
+    ifLeft = { error -> throw AssertionError(error.message) },
+    ifRight = { it },
+)

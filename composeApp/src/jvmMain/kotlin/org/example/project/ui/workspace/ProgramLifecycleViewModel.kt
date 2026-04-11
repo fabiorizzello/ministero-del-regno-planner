@@ -30,7 +30,6 @@ import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
-import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.executeEitherOperationWithNotice
 import org.example.project.core.domain.toMessage
 import java.time.LocalDate
@@ -43,11 +42,26 @@ internal data class DeleteProgramImpact(
     val assignmentsCount: Int,
 )
 
+internal enum class ProgramSidebarStatus {
+    TO_GENERATE,
+    TO_ASSIGN,
+    PARTIAL,
+    READY,
+}
+
+internal data class ProgramSidebarState(
+    val status: ProgramSidebarStatus,
+    val weeksCount: Int,
+    val totalSlots: Int,
+    val assignedSlots: Int,
+)
+
 internal data class ProgramLifecycleUiState(
     val today: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
     val currentProgram: ProgramMonth? = null,
     val futurePrograms: List<ProgramMonth> = emptyList(),
+    val programSidebarStates: Map<ProgramMonthId, ProgramSidebarState> = emptyMap(),
     val creatableTargets: List<YearMonth> = emptyList(),
     val selectedProgramId: ProgramMonthId? = null,
     val selectedProgramWeeks: List<WeekPlan> = emptyList(),
@@ -211,20 +225,27 @@ internal class ProgramLifecycleViewModel(
     fun loadProgramsAndWeeks() {
         loadJob?.cancel()
         loadJob = scope.launch {
-            _state.executeEitherOperation(
-                loadingUpdate = { it.copy(isLoading = true) },
-                successUpdate = { state, snapshot ->
-                    applyProgramSnapshot(state, snapshot)
+            _state.update { it.copy(isLoading = true) }
+            val today = _state.value.today
+            caricaProgrammiAttivi(today).fold(
+                ifLeft = { error ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            notice = errorNotice("Errore caricamento cruscotto programma: ${error.toMessage()}"),
+                        )
+                    }
                 },
-                errorUpdate = { state, error ->
-                    state.copy(
-                        isLoading = false,
-                        notice = errorNotice("Errore caricamento cruscotto programma: ${error.toMessage()}"),
-                    )
-                },
-                operation = {
-                    val today = _state.value.today
-                    caricaProgrammiAttivi(today)
+                ifRight = { snapshot ->
+                    val programs = buildList {
+                        snapshot.current?.let(::add)
+                        addAll(snapshot.futures)
+                    }
+                    val sidebarStates = runCatching { loadProgramSidebarStates(programs) }
+                        .getOrElse { emptyMap() }
+                    _state.update { state ->
+                        applyProgramSnapshot(state, snapshot).copy(programSidebarStates = sidebarStates)
+                    }
                 },
             )
             loadWeeksForSelectedProgram()
@@ -253,6 +274,12 @@ internal class ProgramLifecycleViewModel(
                         it.copy(
                             selectedProgramWeeks = weeks,
                             selectedProgramAssignments = assignmentsByWeek,
+                            programSidebarStates = updateSidebarState(
+                                existing = it.programSidebarStates,
+                                programId = selectedProgramId,
+                                weeks = weeks,
+                                assignmentsByWeek = assignmentsByWeek,
+                            ),
                         )
                     }
                 }
@@ -261,6 +288,12 @@ internal class ProgramLifecycleViewModel(
                         it.copy(
                             selectedProgramWeeks = weeks,
                             selectedProgramAssignments = emptyMap(),
+                            programSidebarStates = updateSidebarState(
+                                existing = it.programSidebarStates,
+                                programId = selectedProgramId,
+                                weeks = weeks,
+                                assignmentsByWeek = emptyMap(),
+                            ),
                             notice = errorNotice("Errore caricamento assegnazioni: ${error.message}"),
                         )
                     }
@@ -276,6 +309,18 @@ internal class ProgramLifecycleViewModel(
             }
         }
         deferredByWeekId.mapValues { (_, deferred) -> deferred.await() }
+    }
+
+    private suspend fun loadProgramSidebarStates(
+        programs: List<ProgramMonth>,
+    ): Map<ProgramMonthId, ProgramSidebarState> = coroutineScope {
+        programs.associate { program ->
+            program.id to async {
+                val weeks = weekPlanStore.listByProgram(program.id)
+                val assignmentsByWeek = loadAssignmentsByWeek(weeks)
+                calculateProgramSidebarState(weeks, assignmentsByWeek)
+            }
+        }.mapValues { (_, deferred) -> deferred.await() }
     }
 
 }
@@ -355,6 +400,9 @@ internal fun applyProgramSnapshot(
         isLoading = false,
         currentProgram = snapshot.current,
         futurePrograms = snapshot.futures,
+        programSidebarStates = state.programSidebarStates.filterKeys { programId ->
+            programId == snapshot.current?.id || snapshot.futures.any { it.id == programId }
+        },
         creatableTargets = creatableTargets,
         selectedProgramId = selectedProgramId,
         selectedProgramWeeks = if (clearWeeks) emptyList() else state.selectedProgramWeeks,
@@ -362,3 +410,35 @@ internal fun applyProgramSnapshot(
         deleteImpactConfirm = null,
     )
 }
+
+internal fun calculateProgramSidebarState(
+    weeks: List<WeekPlan>,
+    assignmentsByWeek: Map<String, List<AssignmentWithPerson>>,
+): ProgramSidebarState {
+    val totalSlots = weeks.sumOf { week -> week.parts.sumOf { it.partType.peopleCount } }
+    val assignedSlots = assignmentsByWeek.values.sumOf { it.size }
+    val status = when {
+        weeks.isEmpty() -> ProgramSidebarStatus.TO_GENERATE
+        totalSlots == 0 || assignedSlots >= totalSlots -> ProgramSidebarStatus.READY
+        assignedSlots == 0 -> ProgramSidebarStatus.TO_ASSIGN
+        else -> ProgramSidebarStatus.PARTIAL
+    }
+    return ProgramSidebarState(
+        status = status,
+        weeksCount = weeks.size,
+        totalSlots = totalSlots,
+        assignedSlots = assignedSlots,
+    )
+}
+
+private fun updateSidebarState(
+    existing: Map<ProgramMonthId, ProgramSidebarState>,
+    programId: ProgramMonthId,
+    weeks: List<WeekPlan>,
+    assignmentsByWeek: Map<String, List<AssignmentWithPerson>>,
+): Map<ProgramMonthId, ProgramSidebarState> = existing + (
+    programId to calculateProgramSidebarState(
+        weeks = weeks,
+        assignmentsByWeek = assignmentsByWeek,
+    )
+)

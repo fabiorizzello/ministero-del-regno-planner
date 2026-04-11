@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -504,28 +505,30 @@ fun ProgramWorkspaceScreen() {
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
+                                indicator = programSidebarIndicator(
+                                    sidebarState = lifecycleState.programSidebarStates[program.id],
+                                    isSchemaImpacted = program.id in schemaState.impactedProgramIds,
+                                ),
                                 onClick = {
                                     lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
-                            if (program.id in schemaState.impactedProgramIds) {
-                                ProgramMisalignedBadge()
-                            }
                         }
                         lifecycleState.futurePrograms.forEach { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
+                                indicator = programSidebarIndicator(
+                                    sidebarState = lifecycleState.programSidebarStates[program.id],
+                                    isSchemaImpacted = program.id in schemaState.impactedProgramIds,
+                                ),
                                 onClick = {
                                     lifecycleVM.selectProgram(program.id)
                                     selectedWeekId = null
                                 },
                             )
-                            if (program.id in schemaState.impactedProgramIds) {
-                                ProgramMisalignedBadge()
-                            }
                         }
                         lifecycleState.creatableTargets.forEach { target ->
                             val label = formatMonthYearLabel(target.monthValue, target.year)
@@ -1008,6 +1011,7 @@ private fun ProgramMonthSelectorButton(
     label: String,
     selected: Boolean,
     accent: Color,
+    indicator: ProgramMonthStatusIndicator?,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
@@ -1046,14 +1050,67 @@ private fun ProgramMonthSelectorButton(
         color = container,
         border = BorderStroke(1.dp, border),
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
-            style = MaterialTheme.typography.titleSmall,
-            color = content.copy(alpha = if (enabled) 1f else 0.45f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = content.copy(alpha = if (enabled) 1f else 0.45f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            indicator?.let { currentIndicator ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(currentIndicator.color.copy(alpha = if (enabled) 1f else 0.45f)),
+                    )
+                    Text(
+                        text = currentIndicator.label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 10.sp,
+                        ),
+                        color = currentIndicator.color.copy(alpha = if (enabled) 0.92f else 0.45f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class ProgramMonthStatusIndicator(
+    val label: String,
+    val color: Color,
+)
+
+@Composable
+private fun programSidebarIndicator(
+    sidebarState: ProgramSidebarState?,
+    isSchemaImpacted: Boolean,
+): ProgramMonthStatusIndicator? {
+    val sketch = MaterialTheme.workspaceSketch
+    if (isSchemaImpacted) {
+        return ProgramMonthStatusIndicator(
+            label = "Da aggiornare",
+            color = sketch.warn,
         )
+    }
+    return when (sidebarState?.status) {
+        ProgramSidebarStatus.TO_GENERATE -> ProgramMonthStatusIndicator("Da generare", sketch.inkMuted)
+        ProgramSidebarStatus.TO_ASSIGN -> ProgramMonthStatusIndicator("Vuoto", sketch.bad)
+        ProgramSidebarStatus.PARTIAL -> ProgramMonthStatusIndicator("Parziale", sketch.warn)
+        ProgramSidebarStatus.READY -> ProgramMonthStatusIndicator("Completo", sketch.ok)
+        null -> null
     }
 }
 
