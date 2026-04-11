@@ -147,24 +147,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            val sketch = MaterialTheme.workspaceSketch
-            Text("Studenti", style = MaterialTheme.typography.headlineMedium)
-            Box(
-                modifier = Modifier
-                    .background(sketch.tableHeaderSurface, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    "${allItems.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = sketch.inkMuted,
-                )
-            }
-        }
+        Text("Studenti", style = MaterialTheme.typography.headlineMedium)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
@@ -141,6 +142,11 @@ internal fun ProclamatoriFormContentForm(
                     modifier = Modifier.width(IDENTITY_COLUMN_WIDTH),
                     verticalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
+                    FormStudentAvatar(
+                        nome = nomeTrim.ifBlank { nome },
+                        cognome = cognomeTrim.ifBlank { cognome },
+                        sesso = sesso,
+                    )
                     val textFieldColors = OutlinedTextFieldDefaults.colors(
                         cursorColor = MaterialTheme.colorScheme.primary,
                         errorCursorColor = MaterialTheme.colorScheme.error,
@@ -194,24 +200,37 @@ internal fun ProclamatoriFormContentForm(
                             listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
                                 val selected = sesso == sVal
                                 val chipShape = RoundedCornerShape(8.dp)
+                                val accentBg = if (sVal == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+                                val accentFg = if (sVal == Sesso.M) sketch.accent else sketch.avatarFemminaFg
                                 Surface(
                                     modifier = Modifier
                                         .clip(chipShape)
                                         .clickable { onSessoChange(sVal) }
                                         .handCursorOnHover(),
                                     shape = chipShape,
-                                    color = if (selected) sketch.accentSoft else MaterialTheme.colorScheme.surface,
+                                    color = if (selected) accentBg else MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(
                                         1.5.dp,
-                                        if (selected) sketch.accent else sketch.lineStrong,
+                                        if (selected) accentFg else sketch.lineStrong,
                                     ),
                                 ) {
-                                    Text(
-                                        text = label,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = if (selected) sketch.accent else MaterialTheme.colorScheme.onSurface,
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .background(if (selected) accentFg else accentBg),
+                                        )
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = if (selected) accentFg else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -360,6 +379,42 @@ internal fun ProclamatoriFormContentForm(
                     Text(formError, color = MaterialTheme.colorScheme.error)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FormStudentAvatar(
+    nome: String,
+    cognome: String,
+    sesso: Sesso,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val bgColor = if (sesso == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+    val fgColor = if (sesso == Sesso.M) sketch.accent else sketch.avatarFemminaFg
+    val initials = buildString {
+        nome.firstOrNull()?.let { append(it.uppercaseChar()) }
+        cognome.firstOrNull()?.let { append(it.uppercaseChar()) }
+        if (isEmpty()) append(if (sesso == Sesso.M) "U" else "D")
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(bgColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = initials,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = fgColor,
+                maxLines = 1,
+            )
         }
     }
 }

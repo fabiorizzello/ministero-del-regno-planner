@@ -162,6 +162,36 @@ class SqlDelightAssignmentStore(
             }.filterValues { it != null }
         }
 
+        val conductorBeforeByDate: Map<LocalDate, Map<String, String?>> = referenceDates.associateWith { date ->
+            val dateStr = date.toString()
+            byPerson.mapValues { (_, rows) ->
+                rows.filter { it.slot == 1L && it.weekDate <= dateStr }
+                    .maxOfOrNull { it.weekDate }
+            }.filterValues { it != null }
+        }
+
+        val conductorAfterByDate: Map<LocalDate, Map<String, String?>> = referenceDates.associateWith { date ->
+            val dateStr = date.toString()
+            byPerson.mapValues { (_, rows) ->
+                rows.filter { it.slot == 1L && it.weekDate > dateStr }
+                    .minOfOrNull { it.weekDate }
+            }.filterValues { it != null }
+        }
+
+        val nearestAssignmentWasConductorByDate: Map<LocalDate, Map<String, Boolean>> = referenceDates.associateWith { date ->
+            val dateStr = date.toString()
+            byPerson.mapNotNull { (personId, rows) ->
+                val nearest = rows.minWithOrNull(
+                    compareBy<RankRow> {
+                        abs(ChronoUnit.DAYS.between(LocalDate.parse(it.weekDate), date).toInt())
+                    }.thenByDescending {
+                        if (it.weekDate <= dateStr) 1 else 0
+                    }.thenByDescending { it.weekDate },
+                )
+                nearest?.let { personId to (it.slot == 1L) }
+            }.toMap()
+        }
+
         // partTypeLastByType: for each partTypeId, MAX(week_start_date) WHERE part_type_id matches per person
         val partTypeLastByType: Map<PartTypeId, Map<String, String?>> = partTypeIds.associateWith { ptId ->
             val ptValue = ptId.value
@@ -202,6 +232,9 @@ class SqlDelightAssignmentStore(
             allActive = allActive,
             globalBeforeByDate = globalBeforeByDate,
             globalAfterByDate = globalAfterByDate,
+            conductorBeforeByDate = conductorBeforeByDate,
+            conductorAfterByDate = conductorAfterByDate,
+            nearestAssignmentWasConductorByDate = nearestAssignmentWasConductorByDate,
             partTypeLastByType = partTypeLastByType,
             partTypeBeforeByTypeAndDate = partTypeBeforeByTypeAndDate,
             partTypeAfterByTypeAndDate = partTypeAfterByTypeAndDate,
@@ -217,35 +250,37 @@ class SqlDelightAssignmentStore(
         referenceDate: LocalDate,
     ): List<SuggestedProclamatore> {
         val globalRanking = cache.globalLast
-        val conductorRanking = cache.conductorLast
         val globalBeforeRanking = cache.globalBeforeByDate[referenceDate] ?: emptyMap()
         val globalAfterRanking = cache.globalAfterByDate[referenceDate] ?: emptyMap()
+        val conductorBeforeRanking = cache.conductorBeforeByDate[referenceDate] ?: emptyMap()
+        val conductorAfterRanking = cache.conductorAfterByDate[referenceDate] ?: emptyMap()
+        val nearestAssignmentWasConductor = cache.nearestAssignmentWasConductorByDate[referenceDate] ?: emptyMap()
         val partTypeRanking = cache.partTypeLastByType[partTypeId] ?: emptyMap()
         val partTypeBeforeRanking = cache.partTypeBeforeByTypeAndDate[partTypeId]?.get(referenceDate) ?: emptyMap()
         val partTypeAfterRanking = cache.partTypeAfterByTypeAndDate[partTypeId]?.get(referenceDate) ?: emptyMap()
         val countInWindow = cache.assignmentCountInWindow
 
         return cache.allActive.map { p ->
-            val lastGlobalDate = globalRanking[p.id.value]
             val lastPartDate = partTypeRanking[p.id.value]
-            val lastConductorDate = conductorRanking[p.id.value]
             val lastGlobalBeforeDate = globalBeforeRanking[p.id.value]
             val nextGlobalAfterDate = globalAfterRanking[p.id.value]
+            val lastConductorBeforeDate = conductorBeforeRanking[p.id.value]
+            val nextConductorAfterDate = conductorAfterRanking[p.id.value]
             val lastPartBeforeDate = partTypeBeforeRanking[p.id.value]
             val nextPartAfterDate = partTypeAfterRanking[p.id.value]
-            val signedGlobalWeeks = lastGlobalDate?.let {
-                ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
-            }
             val signedPartWeeks = lastPartDate?.let {
-                ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
-            }
-            val signedConductorWeeks = lastConductorDate?.let {
                 ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
             }
             val globalBeforeWeeks = lastGlobalBeforeDate?.let {
                 ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
             }
             val globalAfterWeeks = nextGlobalAfterDate?.let {
+                ChronoUnit.WEEKS.between(referenceDate, LocalDate.parse(it)).toInt()
+            }
+            val conductorBeforeWeeks = lastConductorBeforeDate?.let {
+                ChronoUnit.WEEKS.between(LocalDate.parse(it), referenceDate).toInt()
+            }
+            val conductorAfterWeeks = nextConductorAfterDate?.let {
                 ChronoUnit.WEEKS.between(referenceDate, LocalDate.parse(it)).toInt()
             }
             val partBeforeWeeks = lastPartBeforeDate?.let {
@@ -257,9 +292,10 @@ class SqlDelightAssignmentStore(
 
             SuggestedProclamatore(
                 proclamatore = p,
-                lastGlobalWeeks = signedGlobalWeeks?.let(::abs),
+                lastGlobalWeeks = nearestWeeks(globalBeforeWeeks, globalAfterWeeks),
                 lastForPartTypeWeeks = signedPartWeeks?.let(::abs),
-                lastConductorWeeks = signedConductorWeeks?.let(::abs),
+                lastConductorWeeks = nearestWeeks(conductorBeforeWeeks, conductorAfterWeeks),
+                lastAssignmentWasConductor = nearestAssignmentWasConductor[p.id.value],
                 lastGlobalBeforeWeeks = globalBeforeWeeks,
                 lastGlobalAfterWeeks = globalAfterWeeks,
                 lastForPartTypeBeforeWeeks = partBeforeWeeks,
@@ -269,6 +305,13 @@ class SqlDelightAssignmentStore(
                 assistCountInWindow = cache.assistCountInWindowByPerson[p.id.value] ?: 0,
             )
         }
+    }
+
+    private fun nearestWeeks(beforeWeeks: Int?, afterWeeks: Int?): Int? = when {
+        beforeWeeks == null -> afterWeeks
+        afterWeeks == null -> beforeWeeks
+        beforeWeeks <= afterWeeks -> beforeWeeks
+        else -> afterWeeks
     }
 
     override suspend fun countAssignmentsForWeek(weekPlanId: WeekPlanId): Int {

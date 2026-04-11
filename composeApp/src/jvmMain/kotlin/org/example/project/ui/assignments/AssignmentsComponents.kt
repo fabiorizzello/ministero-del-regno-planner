@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -41,6 +42,7 @@ import org.example.project.feature.assignments.domain.AssignmentWithPerson
 import org.example.project.feature.assignments.domain.SuggestedProclamatore
 
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
 import org.example.project.ui.components.SexRuleChip
@@ -738,8 +740,13 @@ private fun SuggestionRow(
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            SuggestionSexAvatar(
+                nome = suggestion.proclamatore.nome,
+                cognome = suggestion.proclamatore.cognome,
+                sesso = suggestion.proclamatore.sesso,
+            )
             Text(
                 text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
                 modifier = Modifier.weight(1f),
@@ -858,6 +865,33 @@ private fun SuggestionRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SuggestionSexAvatar(
+    nome: String,
+    cognome: String,
+    sesso: Sesso,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val backgroundColor = if (sesso == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+    val contentColor = if (sesso == Sesso.M) sketch.accent else sketch.avatarFemminaFg
+    val initials = "${nome.firstOrNull() ?: ""}${cognome.firstOrNull() ?: ""}".uppercase()
+
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = initials,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            color = contentColor,
+            maxLines = 1,
+        )
     }
 }
 

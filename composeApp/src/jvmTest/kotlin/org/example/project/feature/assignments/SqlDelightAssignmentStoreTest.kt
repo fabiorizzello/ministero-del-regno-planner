@@ -191,6 +191,80 @@ class SqlDelightAssignmentStoreTest {
         assertEquals(1, suggestion.lastForPartTypeAfterWeeks)
     }
 
+    @Test
+    fun `suggestedProclamatori uses nearest assignment around reference date when past and future are asymmetric`() = runTest {
+        val driver = JdbcSqliteDriver(
+            url = JdbcSqliteDriver.IN_MEMORY,
+            schema = MinisteroDatabase.Schema,
+        )
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+        val database = MinisteroDatabase(driver)
+        val queries = database.ministeroDatabaseQueries
+
+        queries.upsertProclaimer(
+            id = "person-1",
+            first_name = "Mario",
+            last_name = "Rossi",
+            sex = "M",
+            suspended = 0,
+            can_assist = 1,
+        )
+        queries.upsertPartType(
+            id = "part-type-1",
+            code = "LETTURA",
+            label = "Lettura",
+            people_count = 2,
+            sex_rule = "STESSO_SESSO",
+            fixed = 0,
+            sort_order = 0,
+        )
+
+        queries.insertWeekPlan(id = "week-past", week_start_date = "2026-02-02")
+        queries.insertWeekPlan(id = "week-future", week_start_date = "2026-04-27")
+        queries.insertWeeklyPart(
+            id = "weekly-part-past",
+            week_plan_id = "week-past",
+            part_type_id = "part-type-1",
+            part_type_revision_id = null,
+            sort_order = 0,
+        )
+        queries.insertWeeklyPart(
+            id = "weekly-part-future",
+            week_plan_id = "week-future",
+            part_type_id = "part-type-1",
+            part_type_revision_id = null,
+            sort_order = 0,
+        )
+        // Past assistant 1 week before reference date.
+        queries.upsertAssignment(
+            id = "assignment-past",
+            weekly_part_id = "weekly-part-past",
+            person_id = "person-1",
+            slot = 2,
+        )
+        // Future conductor 11 weeks after reference date.
+        queries.upsertAssignment(
+            id = "assignment-future",
+            weekly_part_id = "weekly-part-future",
+            person_id = "person-1",
+            slot = 1,
+        )
+
+        val store = SqlDelightAssignmentStore(database)
+        val suggestion = store.suggestedProclamatori(
+            partTypeId = PartTypeId("part-type-1"),
+            slot = 1,
+            referenceDate = LocalDate.parse("2026-02-09"),
+        ).firstOrNull { it.proclamatore.id.value == "person-1" }
+
+        assertNotNull(suggestion)
+        assertEquals(1, suggestion.lastGlobalWeeks)
+        assertEquals(11, suggestion.lastConductorWeeks)
+        assertEquals(false, suggestion.lastAssignmentWasConductor)
+        assertEquals(1, suggestion.lastGlobalBeforeWeeks)
+        assertEquals(11, suggestion.lastGlobalAfterWeeks)
+    }
+
     // -------------------------------------------------------------------------
     // Test A — cross-parts check (WeekPlanAggregate.validateAssignment)
     // -------------------------------------------------------------------------

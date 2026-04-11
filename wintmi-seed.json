@@ -36,6 +36,14 @@
       "sexRule": "UOMO",
       "fixed": true,
       "sortOrder": 4
+    },
+    {
+      "code": "SPIEGARE_CIO_CHE_SI_CREDE",
+      "label": "Spiegare quello in cui si crede",
+      "peopleCount": 2,
+      "sexRule": "STESSO_SESSO",
+      "fixed": false,
+      "sortOrder": 5
     }
   ],
   "students": [
@@ -85,6 +93,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -121,6 +130,7 @@
       "puoAssistere": false,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -143,6 +153,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -186,6 +197,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -236,6 +248,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -291,6 +304,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -313,6 +327,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -331,6 +346,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -391,6 +407,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -417,6 +434,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -445,6 +463,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -467,6 +486,7 @@
       "puoAssistere": false,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "INIZIARE_CONVERSAZIONE",
         "LETTURA_DELLA_BIBBIA"
@@ -490,6 +510,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -508,6 +529,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -530,6 +552,7 @@
       "puoAssistere": false,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -545,6 +568,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -571,6 +595,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -584,6 +609,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -602,6 +628,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -628,6 +655,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -654,6 +682,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -686,6 +715,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -708,6 +738,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -734,6 +765,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -762,6 +794,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -784,6 +817,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -816,6 +850,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -852,6 +887,7 @@
       "puoAssistere": false,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -874,6 +910,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -900,6 +937,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -959,6 +997,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1003,6 +1042,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1032,6 +1072,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1084,6 +1125,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1110,6 +1152,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1155,6 +1198,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1181,6 +1225,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1199,6 +1244,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1219,6 +1265,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1245,6 +1292,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1267,6 +1315,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1305,6 +1354,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1327,6 +1377,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1353,6 +1404,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1368,6 +1420,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1417,6 +1470,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1443,6 +1497,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1469,6 +1524,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1501,6 +1557,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1568,6 +1625,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1600,6 +1658,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "INIZIARE_CONVERSAZIONE"
       ],
       "ultimaParte": [
@@ -1633,6 +1692,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "DISCORSO",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
@@ -1681,6 +1741,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1703,6 +1764,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1725,6 +1787,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1767,6 +1830,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1813,6 +1877,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1831,6 +1896,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1857,6 +1923,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1879,6 +1946,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
@@ -1905,6 +1973,7 @@
       "puoAssistere": true,
       "canLeadPartTypeCodes": [
         "COLTIVARE_INTERESSE",
+        "SPIEGARE_CIO_CHE_SI_CREDE",
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE",
         "LETTURA_DELLA_BIBBIA"

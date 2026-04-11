@@ -144,6 +144,8 @@ class SuggerisciProclamatoriUseCase(
 
 /** True when the most recent assignment (any part type) was in slot 1 (conductor). */
 private val SuggestedProclamatore.lastWasConductor: Boolean
-    get() = lastConductorWeeks != null &&
-        lastGlobalWeeks != null &&
-        lastConductorWeeks == lastGlobalWeeks
+    get() = lastAssignmentWasConductor ?: (
+        lastConductorWeeks != null &&
+            lastGlobalWeeks != null &&
+            lastConductorWeeks == lastGlobalWeeks
+        )
