@@ -9,6 +9,8 @@ assignment editing), `d6f0b38` (UI preferences + seed import tooling), `4e9d486`
 feedback refinements), 2026-04-10.
 Review round 15: deep scan mirato su criticità da import storico + edit del passato (commit
 `983c623` revisitato), 2026-04-10.
+Review round 16: post-commit review sulle modifiche admin catalog (`8be9cc9`) + program sidebar
+status (`7f101f2`) + assignment ranking dimensional fairness (`593720b`), 2026-04-13.
 
 ---
 
@@ -25,68 +27,24 @@ frammentarsi. Per le parti a 2 slot (`INIZIARE_CONVERSAZIONE`, `COLTIVARE_INTERE
 separate è semanticamente accettabile (conduttore e assistente sono ruoli distinti, non
 equivalenti). Nessuna azione.
 
+**R16-002 (MEDIUM)** — `ProgramLifecycleViewModel.loadProgramSidebarStates`: per ogni programma
+visibile in sidebar viene caricato l'intero set di settimane + assegnazioni in parallelo per
+calcolare lo status di completamento. Con N programmi futuri il fan-out è N × (1 query weeks +
+M query assignments). Decisione di prodotto: introdurre **paginazione/lazy load** sulla sidebar
+(carica lo stato solo per i programmi visibili o on-demand all'espansione). Tracciato come
+work item dedicato, non parte del batch round 16. Effort: 1-2h.
+
+**R16-008 (MEDIUM)** — `GeneraSettimaneProgrammaUseCase.kt:180`:
+`snapshotAssignmentsByRestoreKey` usa `error("Assignment references unknown part ...")` quando
+un'assegnazione punta a una `weeklyPartId` non presente nelle parti dell'aggregato. È difensivo
+contro un invariant violato dal DB (assignments.weekly_part_id orfano), ma `error()` produce
+un crash non recuperabile mentre il caller (`runInTransactionEither`) si aspetterebbe un
+`DomainError` propagabile. Soluzione: convertire in `raise(DomainError.InvarianteAggregatoViolato)`
+o equivalente (richiede l'introduzione di un nuovo case `DomainError`), dato che il use case è
+già dentro un `either {}`. Emerso post-fix R14-008.
+Effort: 15m.
+
 ### LOW
-
-**R14-005 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:169,337`: `catch (_: Exception)`
-troppo generico. A riga 169 catturare `SerializationException`, a riga 337 `DateTimeParseException`.
-Catturare `Exception` nasconde errori di programmazione (OOM, NPE). Effort: 5m.
-
-**R14-006 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.validateLastAssignments`: la rejezione
-`date.isAfter(LocalDate.now())` e il test che usa `LocalDate.now().plusYears(1)` fanno entrambi
-riferimento a `LocalDate.now()` → test potenzialmente flaky se la chiamata attraversa la
-mezzanotte. Il use case non accetta un `Clock`. Fix: iniettare un `Clock` nel use case o rendere
-`referenceDate` parametro esplicito. Effort: 15m.
-
-**R14-007 (LOW)** — `GeneraSettimaneProgrammaUseCase.kt:100-104`: stile misto nel blocco di
-transazione. Usa `Either.Right(Unit)` finale invece di wrappare in `either { ... }` come altri
-use case. Inconsistenza stilistica minore, leggibilità. Effort: 2m.
-
-**R14-008 (LOW)** — `GeneraSettimaneProgrammaUseCase.kt:140-210`: logica `AssignmentRestoreKey` +
-`associateByRestoreKey` + `flatMapValuesPerSlot` non auto-esplicativa. Aggiungere un commento di
-blocco che spieghi: "restore assignments by (partType, occurrenceIndex, slot) positional key across
-schema refresh". Effort: 10m.
-
-**R14-009 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:393`: `context(_: TransactionScope)`
-anonimo, convenzione altrove (`AssignmentStore.kt:18-23`) usa `context(tx: TransactionScope)`.
-Consistency issue. Effort: 1m.
-
-**R15-005 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.kt:363,393-407`: lo `slot` è hard-coded
-a `1` in `validateLastAssignments` ma poi propagato come parametro fino a `Assignment.of`. Tutte
-le assegnazioni storiche importate finiscono come slot 1 (= conduttore). Conseguenza:
-`SqlDelightAssignmentStore.lastSlot1GlobalAssignmentPerPerson` (usata dal cooldown per capire se
-l'ultima assegnazione era da conduttore) include rumore — uno studente che storicamente faceva
-solo da assistente viene trattato come ex-conduttore, e il `lastConductorWeeks` ne risulta
-sfalsato. Fix minimo: rimuovere il parametro morto e inlinare `slot = 1` con commento esplicativo;
-fix completo: estendere lo schema JSON con `ruolo: conduttore|assistente` e mappare lo slot
-correttamente. Effort: 5m (cleanup) o 30m (estensione schema + test).
-
-**R15-006 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.persistHistoricalAssignment:413-431`:
-quando `existingAggregate != null` il codice fa `existingAggregate.copy(weekPlan = ... + newPart)`
-direttamente, bypassando `WeekPlanAggregate.addPart` (che enforce `canBeEditedManually()`). Per i
-fragment storici creati ex-novo dall'import il bypass è intenzionale, ma combinato con R15-001
-diventa il vettore concreto: una volta che il branch entra perché un programma reale esiste già,
-si arriva ad attaccare parti a una settimana che potrebbe anche essere `SKIPPED`. Aggiungere un
-commento di blocco che dichiari la giustificazione del bypass, oppure introdurre un metodo
-`addHistoricalPart` esplicito sull'aggregato che documenti l'eccezione. Effort: 5m (commento) o
-20m (metodo dedicato).
-
-**R15-007 (LOW)** — `ImpostaStatoSettimanaUseCase.kt:21`: `referenceDate: LocalDate = LocalDate.now()`
-ha lo stesso footgun di R14-006 (clock implicito al call site, test potenzialmente flaky a
-mezzanotte). Soluzione coerente: iniettare un `Clock` o forzare i caller a passare la data. Già
-catalogato come pattern in R14-006 — aggregare i due fix in un singolo passaggio "Clock injection
-across use cases con dipendenza temporale". Effort: 10m.
-
-**R15-008 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCase.invoke:139-154` + `persistHistoricalAssignment`:
-l'intero import gira in una singola transazione monolitica e per ogni assegnazione storica esegue
-`loadAggregateByDate` + `saveAggregate` separato. Per N studenti × K parti storiche le round-trip
-DB scalano O(N·K). Per i seed attuali (decine di studenti, 1-3 parti ciascuno) è irrilevante, ma
-manca il batching o un upper bound. Considerare di raggruppare per `weekStartDate` e fare un
-unico `saveAggregate` per settimana. Effort: 1h.
-
-**R15-009 (LOW)** — `RimuoviAssegnazioneUseCase.kt:14`: `Either.Right(assignmentStore.remove(...))`
-inline invece di `either { ... }`. Stesso pattern stilistico di R14-007 (`GeneraSettimaneProgramma`).
-Da unificare quando si tocca il file per il fix di R15-002. Effort: 1m. — **risolto collaterale
-dal fix R15-002** (il use case è stato riscritto con `either {}`).
 
 **R15-011 (LOW)** — `ImportaSeedApplicazioneDaJsonUseCaseTest.kt`: manca un test per il ramo
 `existingAggregate != null && programId == null` in `persistHistoricalAssignment`, cioè l'append
@@ -94,18 +52,14 @@ di una seconda assegnazione storica sulla stessa settimana-frammento (quando due
 `ultimaParte` nella stessa data). Il ramo è permesso by design (historical-only fragments sono
 OK), ma non è blindato da regressione. Emerso durante la review post-fix di R15-001. Effort: 15m.
 
-**R14-010 (LOW)** — `CaricaUltimeAssegnazioniPerParteProclamatoreUseCase`: wrapper triviale (6 righe
-effettive) intorno a `PersonAssignmentHistoryQuery.lastAssignmentDatesByPartType`. Discutibile come
-debito: il layer use case è un contract boundary, quindi tenerlo è difendibile; in alternativa,
-il ViewModel potrebbe iniettare direttamente la query. Nessuna azione obbligatoria, solo
-osservazione.
-
 ### Debito accettato
 
 - MEDIUM-020 — DiagnosticsViewModel I/O diretto: utility screen senza logica di dominio, debito accettato
 - R10-003 — `findProgramByYearMonth` / `deleteWeekPlan` usate solo dal seed CLI: debito accettato, tooling code
 - R10-002 — `insertWeekPlan` usata solo da test: debito accettato, stessa logica di R10-003 (tooling/test code)
 - R10-010 — Date comparisons basate su ordinamento stringhe ISO-8601: by design, SQLite non ha tipo DATE nativo
+- **R14-010** — `CaricaUltimeAssegnazioniPerParteProclamatoreUseCase` wrapper triviale: il layer use case è un contract boundary, mantenerlo è difendibile. Nessuna azione (2026-04-13)
+- **R15-008** — Import seed N+1 query pattern: per i seed attuali (decine di studenti, 1-3 parti) il costo è irrilevante; il batching è un'ottimizzazione prematura senza un dataset reale che la giustifichi (2026-04-13)
 
 ---
 
@@ -185,6 +139,32 @@ osservazione.
 - **R14-002** (HIGH) — Rimossa mutazione silenziosa di date future nell'import seed. `normalizeHistoricalAssignmentDate` eliminato; `validateLastAssignments` ora rifiuta le date future con `DomainError.ImportContenutoNonValido` ("data nel futuro ... non ammessa per dati storici"). Test aggiornato (`future ultimaParte date is rejected with ImportContenutoNonValido`). Il fix è stato riapplicato sopra il refactor `ultimaParte` singleton→list (`bc5e65d`) dopo che il branch originario `fix/finding-r14-002` è diventato non mergiabile; branch orfano scartato.
 - **R14-003** (MEDIUM) — Rimosso parametro `referenceDate` morto da `WeekPlanAggregate.addPart/removePart/reorderParts/replaceParts` e dai 4 use case che lo propagavano (`AggiungiParte`, `RimuoviParte`, `RiordinaParti`, `AggiornaPartiSettimana`) e dal privato `applyRefreshCandidate` in `AggiornaProgrammaDaSchemi`. `AggiornaProgrammaDaSchemi.invoke` mantiene `referenceDate` perché filtra le settimane (`week.weekStartDate < referenceDate`). Commit: `51dfb4d`. Worktree: `fix/finding-r14-003` (merged). 13 file, -52/+19.
 
+### Batch round 16 (2026-04-13) — 4 worktree paralleli, 11 finding low/medium
+
+**WT-A — Cleanup ImportaSeed + ImpostaStato** (commit `aea6851`, merge `66f601b`):
+- **R14-005** (LOW) — `ImportaSeedApplicazioneDaJsonUseCase.kt`: `catch (_: Exception)` sostituito con catch specifici (`SerializationException`, `DateTimeParseException`).
+- **R14-006** (LOW) — `ImportaSeedApplicazioneDaJsonUseCase`: `referenceDate: LocalDate` ora parametro esplicito del `invoke()`. Test usano data fissata, no più `LocalDate.now()` flaky.
+- **R14-009** (LOW) — `context(_: TransactionScope)` anonimo → `context(tx: TransactionScope)` per consistency con il resto del codebase.
+- **R15-005** (LOW) — Rimosso parametro `slot` morto da `validateLastAssignments`/`persistHistoricalAssignment`; inlinato `slot = 1` con commento esplicativo che documenta il limite del seed schema attuale (no `ruolo` campo).
+- **R15-006** (LOW) — Aggiunto commento di blocco su `persistHistoricalAssignment` che dichiara la giustificazione del bypass di `addPart` per i fragment storici (la guardia `programId != null` di R15-001 è il vero gate di sicurezza).
+- **R15-007** (LOW) — `ImpostaStatoSettimanaUseCase`: `referenceDate: LocalDate` ora parametro esplicito (no default `LocalDate.now()`); chiamanti aggiornati (`DiagnosticsViewModel`, `PartEditorViewModel`).
+
+**WT-B — Cleanup GeneraSettimaneProgrammaUseCase** (commit `9fc8579`, merge `690b70d`):
+- **R14-007** (LOW) — Blocco transazione riscritto in stile idiomatico `runInTransactionEither { either { ... } }`, eliminato `Either.Right(Unit)` finale.
+- **R14-008** (LOW) — Aggiunto commento di blocco prima di `AssignmentRestoreKey` che spiega la strategia di restore posizionale `(partType, occurrenceIndex, slot)` durante schema refresh.
+- **R16-008** (NUOVO, MEDIUM) — Emerso durante la review post-fix: `snapshotAssignmentsByRestoreKey:180` usa `error()` invece di `raise(DomainError)`. Tracciato in "Findings aperti", non fixato in WT-B per non allargare lo scope.
+
+**WT-C — Cleanup program sidebar** (commit `6d27ccf`, merge `42c3fef`):
+- **R16-001b** (HIGH) — `ProgramLifecycleViewModel.loadProgramsAndWeeks`: `runCatching { loadProgramSidebarStates(programs) }.getOrElse { emptyMap() }` sostituito con `Either.catch { ... }.fold(...)` che emette un `errorNotice` esplicito invece di mascherare silenziosamente il fallimento.
+- **R16-004** (LOW) — Composable `programSidebarIndicator` rinominato `ProgramSidebarIndicator` (PascalCase per @Composable convention).
+- **R16-005** (LOW) — `ProgramSidebarState` data class con 3 campi inutilizzati collassata a `ProgramSidebarStatus` enum singolo; funzione `calculateProgramSidebarState` rinominata `calculateProgramSidebarStatus`. 4 test aggiornati.
+
+**WT-D — Refactor admin catalog con use cases** (commit `f3f5322`, merge `7adc84f`):
+- **R16-001** (HIGH) — `PartTypeCatalogViewModel` + `WeeklySchemaCatalogViewModel`: eliminato anti-pattern `runCatching { store.x() }.fold(...)` sostituendolo con `executeAsyncOperation` + thin throwing use cases. Pattern coerente con `CercaTipiParteUseCase`.
+- **R16-003** (HIGH) — Eliminato layer skipping VM→Store. Introdotti due nuovi use case nell'application layer: `CaricaCatalogoTipiParteUseCase` (`feature/weeklyparts/application`) e `CaricaCatalogoSchemiSettimanaliUseCase` (`feature/schemas/application`, contiene `data class CatalogoSchemiSettimanali` per la composizione cross-feature templates+partTypes).
+- **R16-006** (LOW) — Nuovo componente `AdminReadonlyListRow` in `AdminCatalogComponents.kt`. `WeeklySchemaCatalogScreen` non usa più `AdminSelectionItem(selected=false, onClick={})` per le righe di sola lettura del dettaglio settimana — eliminata l'ambiguità semantica.
+- **R16-007** (LOW) — Eliminato `detailByWeek: mutableMapOf` da `WeeklySchemaCatalogViewModel`. La cache è ora `cachedDetails: Map<LocalDate, WeeklySchemaDetail>` dentro `WeeklySchemaCatalogUiState`, immutabile e snapshottabile come il resto dello state.
+
 ---
 
 ## Verifiche eseguite
@@ -214,3 +194,5 @@ osservazione.
 | 2026-04-10 | review round 15 (deep scan import storico + edit passato, focus su `983c623`) | analisi statica | — |
 | 2026-04-10 | post-merge batch R15-001 + R15-002 + R15-003 + R15-004 (3 worktree paralleli, 4 finding) | 438 test | 0 |
 | 2026-04-10 | post-merge R15-010 (worktree isolato, parallelo di R15-002) | 441 test | 0 |
+| 2026-04-13 | review round 16 (post-commit admin catalog + program sidebar + ranking) | analisi statica | — |
+| 2026-04-13 | post-merge batch round 16 (4 worktree: WT-A import-seed, WT-B GeneraSettimane, WT-C program-sidebar, WT-D admin-catalog) | 465 test | 0 |
