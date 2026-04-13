@@ -12,6 +12,7 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviUse
 import org.example.project.feature.programs.application.CreaProssimoProgrammaUseCase
 import org.example.project.feature.programs.application.EliminaProgrammaUseCase
 import org.example.project.feature.programs.application.GeneraSettimaneProgrammaUseCase
+import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.fixtureProgramMonth
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
@@ -95,5 +96,51 @@ class ProgramLifecycleViewModelCreateProgramFeedbackTest {
             "Expected schema refresh follow-up, got: ${state.notice?.details}",
         )
         coVerify(exactly = 1) { eliminaProgramma(createdProgram.id, any()) }
+    }
+
+    @Test
+    fun `createProgramForTarget auto-selects the freshly created program`() = runTest {
+        val currentProgram = fixtureProgramMonth(YearMonth.of(2026, 4), id = "program-current")
+        val createdProgram = fixtureProgramMonth(YearMonth.of(2026, 5), id = "program-created")
+
+        val schemaTemplateStore = mockk<SchemaTemplateStore>()
+        coEvery { schemaTemplateStore.isEmpty() } returns false
+
+        val creaProssimoProgramma = mockk<CreaProssimoProgrammaUseCase>()
+        coEvery { creaProssimoProgramma(2026, 5, any()) } returns Either.Right(createdProgram)
+
+        val generaSettimaneProgramma = mockk<GeneraSettimaneProgrammaUseCase>()
+        coEvery { generaSettimaneProgramma(createdProgram.id, any()) } returns Either.Right(Unit)
+
+        val caricaProgrammiAttivi = mockk<CaricaProgrammiAttiviUseCase>()
+        coEvery { caricaProgrammiAttivi(any()) } returns Either.Right(
+            ProgramSelectionSnapshot(
+                previous = null,
+                current = currentProgram,
+                futures = listOf(createdProgram),
+            ),
+        )
+
+        val weekPlanStore = mockk<WeekPlanQueries>()
+        coEvery { weekPlanStore.listByProgram(any()) } returns emptyList()
+
+        val vm = ProgramLifecycleViewModel(
+            scope = this,
+            caricaProgrammiAttivi = caricaProgrammiAttivi,
+            creaProssimoProgramma = creaProssimoProgramma,
+            eliminaProgramma = mockk<EliminaProgrammaUseCase>(relaxed = true),
+            generaSettimaneProgramma = generaSettimaneProgramma,
+            schemaTemplateStore = schemaTemplateStore,
+            weekPlanStore = weekPlanStore,
+            caricaAssegnazioni = mockk<CaricaAssegnazioniUseCase>(relaxed = true),
+            cercaTipiParte = mockk<CercaTipiParteUseCase>(relaxed = true),
+        )
+
+        vm.createProgramForTarget(2026, 5)
+        advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.isCreatingProgram)
+        assertEquals(createdProgram.id, state.selectedProgramId)
     }
 }

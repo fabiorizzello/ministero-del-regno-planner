@@ -173,7 +173,13 @@ internal class ProgramLifecycleViewModel(
                             }
                         },
                         ifRight = {
-                            _state.update { state -> state.copy(isCreatingProgram = false, notice = null) }
+                            _state.update { state ->
+                                state.copy(
+                                    isCreatingProgram = false,
+                                    notice = null,
+                                    selectedProgramId = program.id,
+                                )
+                            }
                             loadProgramsAndWeeks()
                         },
                     )
