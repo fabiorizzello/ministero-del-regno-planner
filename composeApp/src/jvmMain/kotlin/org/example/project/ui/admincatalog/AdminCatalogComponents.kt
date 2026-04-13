@@ -221,6 +221,50 @@ internal fun AdminSelectionItem(
 }
 
 @Composable
+internal fun AdminReadonlyListRow(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    tag: String? = null,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    Surface(
+        modifier = modifier
+            .then(if (tag != null) Modifier.testTag(tag) else Modifier)
+            .clip(RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, sketch.cardBorder),
+        color = sketch.cardSurface,
+        shadowElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Medium,
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 internal fun AdminReadonlyNotice(
     text: String,
     modifier: Modifier = Modifier,

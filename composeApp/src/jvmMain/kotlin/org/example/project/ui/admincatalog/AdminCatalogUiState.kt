@@ -19,6 +19,7 @@ internal data class WeeklySchemaCatalogUiState(
     val weeks: List<WeeklySchemaListItem> = emptyList(),
     val selectedWeekStartDate: LocalDate? = null,
     val selectedDetail: WeeklySchemaDetail? = null,
+    val cachedDetails: Map<LocalDate, WeeklySchemaDetail> = emptyMap(),
     val notice: FeedbackBannerModel? = null,
 ) {
     val emptyStateVisible: Boolean = !isLoading && weeks.isEmpty() && notice == null
