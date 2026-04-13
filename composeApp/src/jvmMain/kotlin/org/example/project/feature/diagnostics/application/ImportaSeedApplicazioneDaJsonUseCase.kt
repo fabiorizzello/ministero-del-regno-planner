@@ -5,9 +5,11 @@ import arrow.core.getOrElse
 import arrow.core.raise.either
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
+import org.example.project.core.persistence.TransactionScope
 import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.people.application.ProclamatoriAggregateStore
 import org.example.project.feature.people.application.ProclamatoriQuery
@@ -28,6 +30,7 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import java.time.temporal.TemporalAdjusters
 import java.util.UUID
 
@@ -77,7 +80,6 @@ private data class ParsedSeedStudent(
 private data class ParsedSeedStudentLastAssignment(
     val date: LocalDate,
     val partTypeCode: String,
-    val slot: Int,
 )
 
 private data class ParsedSeedImport(
@@ -102,13 +104,16 @@ class ImportaSeedApplicazioneDaJsonUseCase(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend operator fun invoke(jsonContent: String): Either<DomainError, Result> = either {
+    suspend operator fun invoke(
+        jsonContent: String,
+        referenceDate: LocalDate,
+    ): Either<DomainError, Result> = either {
         val existingStudents = proclamatoriQuery.cerca(termine = null)
         if (existingStudents.isNotEmpty()) {
             raise(DomainError.ImportArchivioNonVuoto)
         }
 
-        val parsed = parseAndValidate(jsonContent).bind()
+        val parsed = parseAndValidate(jsonContent, referenceDate).bind()
 
         transactionRunner.runInTransactionEither {
             either {
@@ -148,7 +153,6 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                             personId = student.person.id,
                             partType = storedPartType,
                             assignmentDate = lastAssignment.date,
-                            slot = lastAssignment.slot,
                         ).bind()
                     }
                 }
@@ -163,10 +167,13 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         }.bind()
     }
 
-    private fun parseAndValidate(jsonContent: String): Either<DomainError, ParsedSeedImport> = either {
+    private fun parseAndValidate(
+        jsonContent: String,
+        referenceDate: LocalDate,
+    ): Either<DomainError, ParsedSeedImport> = either {
         val dto = try {
             json.decodeFromString<SeedImportDto>(jsonContent)
-        } catch (_: Exception) {
+        } catch (_: SerializationException) {
             raise(DomainError.ImportJsonNonValido)
         }
 
@@ -204,7 +211,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         val students = mutableListOf<ParsedSeedStudent>()
         val seenStudents = mutableSetOf<String>()
         dto.students.forEachIndexed { index, item ->
-            validateStudent(index, item, seenStudents, partTypeByCode).fold(
+            validateStudent(index, item, seenStudents, partTypeByCode, referenceDate).fold(
                 ifLeft = { errors += it },
                 ifRight = { students += it },
             )
@@ -262,6 +269,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         item: SeedStudentDto,
         seenStudents: MutableSet<String>,
         partTypeByCode: Map<String, PartType>,
+        referenceDate: LocalDate,
     ): Either<String, ParsedSeedStudent> = either {
         val position = index + 1
         val nome = item.nome.trim()
@@ -317,6 +325,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 position = position,
                 items = item.ultimaParte,
                 partTypeByCode = partTypeByCode,
+                referenceDate = referenceDate,
             ).getOrElse { message ->
                 raise(message)
             },
@@ -327,19 +336,20 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         position: Int,
         items: List<SeedStudentLastAssignmentDto>,
         partTypeByCode: Map<String, PartType>,
+        referenceDate: LocalDate,
     ): Either<String, List<ParsedSeedStudentLastAssignment>> = either {
         val seenPartTypes = mutableSetOf<String>()
         items.mapIndexed { index, item ->
             val entryPosition = index + 1
             val date = try {
                 LocalDate.parse(item.data.trim())
-            } catch (_: Exception) {
+            } catch (_: DateTimeParseException) {
                 raise(
                     "students[$position].ultimaParte[$entryPosition]: data non valida (${item.data}), atteso formato ISO yyyy-MM-dd",
                 )
             }
 
-            if (date.isAfter(LocalDate.now())) {
+            if (date.isAfter(referenceDate)) {
                 raise(
                     "students[$position].ultimaParte[$entryPosition]: data nel futuro ($date) non ammessa per dati storici",
                 )
@@ -360,7 +370,6 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             ParsedSeedStudentLastAssignment(
                 date = date,
                 partTypeCode = partTypeCode,
-                slot = 1,
             )
         }
     }
@@ -385,12 +394,11 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         SexRule.STESSO_SESSO -> true
     }
 
-    context(_: org.example.project.core.persistence.TransactionScope)
+    context(tx: TransactionScope)
     private suspend fun persistHistoricalAssignment(
         personId: ProclamatoreId,
         partType: PartType,
         assignmentDate: LocalDate,
-        slot: Int,
     ): Either<DomainError, Unit> = either {
         val weekStartDate = assignmentDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val existingAggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
@@ -408,7 +416,9 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             id = AssignmentId(UUID.randomUUID().toString()),
             weeklyPartId = newPart.id,
             personId = personId,
-            slot = slot,
+            // Slot 1 (conduttore): lo schema seed corrente non distingue ruoli, tutte le
+            // assegnazioni storiche sono trattate come conduttore. Vedi R15-005.
+            slot = 1,
         ).fold(
             ifLeft = { raise(it) },
             ifRight = { it },
@@ -425,6 +435,11 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 assignments = listOf(assignment),
             )
         } else {
+            // Bypass intenzionale di WeekPlanAggregate.addPart: i fragment storici creati
+            // ex-novo dall'import non rispondono al gate canBeEditedManually() perche' esistono
+            // solo per registrare l'ultima assegnazione di un proclamatore prima dell'introduzione
+            // dell'app. La guardia R15-001 (programId != null -> ImportConflittoProgrammaEsistente)
+            // garantisce che questo branch non venga mai esercitato su settimane di programmi reali.
             val aggregateWithNewPart = existingAggregate.copy(
                 weekPlan = existingAggregate.weekPlan.copy(parts = existingAggregate.weekPlan.parts + newPart),
             )

@@ -167,7 +167,7 @@ internal class PartEditorViewModel(
                 errorUpdate = { state, error ->
                     state.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.toMessage()}", FeedbackBannerKind.ERROR))
                 },
-                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.ACTIVE) },
+                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.ACTIVE, referenceDate = LocalDate.now()) },
             )
             if (succeeded) onSuccess()
         }
@@ -185,7 +185,7 @@ internal class PartEditorViewModel(
                 errorUpdate = { state, error ->
                     state.copy(notice = FeedbackBannerModel("Errore salto settimana: ${error.toMessage()}", FeedbackBannerKind.ERROR))
                 },
-                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.SKIPPED) },
+                operation = { impostaStatoSettimana(week.id, WeekPlanStatus.SKIPPED, referenceDate = LocalDate.now()) },
             )
             if (succeeded) onSuccess()
         }
