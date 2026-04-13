@@ -505,8 +505,8 @@ fun ProgramWorkspaceScreen() {
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
-                                indicator = programSidebarIndicator(
-                                    sidebarState = lifecycleState.programSidebarStates[program.id],
+                                indicator = ProgramSidebarIndicator(
+                                    sidebarStatus = lifecycleState.programSidebarStates[program.id],
                                     isSchemaImpacted = program.id in schemaState.impactedProgramIds,
                                 ),
                                 onClick = {
@@ -520,8 +520,8 @@ fun ProgramWorkspaceScreen() {
                                 label = formatMonthYearLabel(program.month, program.year),
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
-                                indicator = programSidebarIndicator(
-                                    sidebarState = lifecycleState.programSidebarStates[program.id],
+                                indicator = ProgramSidebarIndicator(
+                                    sidebarStatus = lifecycleState.programSidebarStates[program.id],
                                     isSchemaImpacted = program.id in schemaState.impactedProgramIds,
                                 ),
                                 onClick = {
@@ -1094,8 +1094,8 @@ private data class ProgramMonthStatusIndicator(
 )
 
 @Composable
-private fun programSidebarIndicator(
-    sidebarState: ProgramSidebarState?,
+private fun ProgramSidebarIndicator(
+    sidebarStatus: ProgramSidebarStatus?,
     isSchemaImpacted: Boolean,
 ): ProgramMonthStatusIndicator? {
     val sketch = MaterialTheme.workspaceSketch
@@ -1105,7 +1105,7 @@ private fun programSidebarIndicator(
             color = sketch.warn,
         )
     }
-    return when (sidebarState?.status) {
+    return when (sidebarStatus) {
         ProgramSidebarStatus.TO_GENERATE -> ProgramMonthStatusIndicator("Da generare", sketch.inkMuted)
         ProgramSidebarStatus.TO_ASSIGN -> ProgramMonthStatusIndicator("Vuoto", sketch.bad)
         ProgramSidebarStatus.PARTIAL -> ProgramMonthStatusIndicator("Parziale", sketch.warn)

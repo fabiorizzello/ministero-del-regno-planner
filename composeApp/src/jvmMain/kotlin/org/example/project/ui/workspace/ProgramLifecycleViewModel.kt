@@ -1,5 +1,6 @@
 package org.example.project.ui.workspace
 
+import arrow.core.Either
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -49,19 +50,12 @@ internal enum class ProgramSidebarStatus {
     READY,
 }
 
-internal data class ProgramSidebarState(
-    val status: ProgramSidebarStatus,
-    val weeksCount: Int,
-    val totalSlots: Int,
-    val assignedSlots: Int,
-)
-
 internal data class ProgramLifecycleUiState(
     val today: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
     val currentProgram: ProgramMonth? = null,
     val futurePrograms: List<ProgramMonth> = emptyList(),
-    val programSidebarStates: Map<ProgramMonthId, ProgramSidebarState> = emptyMap(),
+    val programSidebarStates: Map<ProgramMonthId, ProgramSidebarStatus> = emptyMap(),
     val creatableTargets: List<YearMonth> = emptyList(),
     val selectedProgramId: ProgramMonthId? = null,
     val selectedProgramWeeks: List<WeekPlan> = emptyList(),
@@ -241,11 +235,23 @@ internal class ProgramLifecycleViewModel(
                         snapshot.current?.let(::add)
                         addAll(snapshot.futures)
                     }
-                    val sidebarStates = runCatching { loadProgramSidebarStates(programs) }
-                        .getOrElse { emptyMap() }
-                    _state.update { state ->
-                        applyProgramSnapshot(state, snapshot).copy(programSidebarStates = sidebarStates)
-                    }
+                    Either.catch { loadProgramSidebarStates(programs) }.fold(
+                        ifLeft = { error ->
+                            _state.update { state ->
+                                applyProgramSnapshot(state, snapshot).copy(
+                                    programSidebarStates = emptyMap(),
+                                    notice = errorNotice(
+                                        "Errore caricamento stato programmi: ${error.message ?: "errore sconosciuto"}",
+                                    ),
+                                )
+                            }
+                        },
+                        ifRight = { sidebarStates ->
+                            _state.update { state ->
+                                applyProgramSnapshot(state, snapshot).copy(programSidebarStates = sidebarStates)
+                            }
+                        },
+                    )
                 },
             )
             loadWeeksForSelectedProgram()
@@ -313,12 +319,12 @@ internal class ProgramLifecycleViewModel(
 
     private suspend fun loadProgramSidebarStates(
         programs: List<ProgramMonth>,
-    ): Map<ProgramMonthId, ProgramSidebarState> = coroutineScope {
+    ): Map<ProgramMonthId, ProgramSidebarStatus> = coroutineScope {
         programs.associate { program ->
             program.id to async {
                 val weeks = weekPlanStore.listByProgram(program.id)
                 val assignmentsByWeek = loadAssignmentsByWeek(weeks)
-                calculateProgramSidebarState(weeks, assignmentsByWeek)
+                calculateProgramSidebarStatus(weeks, assignmentsByWeek)
             }
         }.mapValues { (_, deferred) -> deferred.await() }
     }
@@ -411,33 +417,27 @@ internal fun applyProgramSnapshot(
     )
 }
 
-internal fun calculateProgramSidebarState(
+internal fun calculateProgramSidebarStatus(
     weeks: List<WeekPlan>,
     assignmentsByWeek: Map<String, List<AssignmentWithPerson>>,
-): ProgramSidebarState {
+): ProgramSidebarStatus {
     val totalSlots = weeks.sumOf { week -> week.parts.sumOf { it.partType.peopleCount } }
     val assignedSlots = assignmentsByWeek.values.sumOf { it.size }
-    val status = when {
+    return when {
         weeks.isEmpty() -> ProgramSidebarStatus.TO_GENERATE
         totalSlots == 0 || assignedSlots >= totalSlots -> ProgramSidebarStatus.READY
         assignedSlots == 0 -> ProgramSidebarStatus.TO_ASSIGN
         else -> ProgramSidebarStatus.PARTIAL
     }
-    return ProgramSidebarState(
-        status = status,
-        weeksCount = weeks.size,
-        totalSlots = totalSlots,
-        assignedSlots = assignedSlots,
-    )
 }
 
 private fun updateSidebarState(
-    existing: Map<ProgramMonthId, ProgramSidebarState>,
+    existing: Map<ProgramMonthId, ProgramSidebarStatus>,
     programId: ProgramMonthId,
     weeks: List<WeekPlan>,
     assignmentsByWeek: Map<String, List<AssignmentWithPerson>>,
-): Map<ProgramMonthId, ProgramSidebarState> = existing + (
-    programId to calculateProgramSidebarState(
+): Map<ProgramMonthId, ProgramSidebarStatus> = existing + (
+    programId to calculateProgramSidebarStatus(
         weeks = weeks,
         assignmentsByWeek = assignmentsByWeek,
     )
