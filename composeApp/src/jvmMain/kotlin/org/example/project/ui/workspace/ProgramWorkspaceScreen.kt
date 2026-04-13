@@ -413,6 +413,12 @@ fun ProgramWorkspaceScreen() {
 
         val showLoadingState = lifecycleState.isLoading
 
+        // Hoisted above the `when` so they survive the loading flicker triggered by
+        // refresh-after-mutation paths (loadProgramsAndWeeks → isLoading=true → ramo
+        // else esce dalla composition → tutti i remember interni vengono distrutti).
+        var selectedWeekId by remember { mutableStateOf<String?>(null) }
+        var pendingSkipWeek by remember { mutableStateOf(false) }
+
         FeedbackBanner(
             model = activeNotice,
             onDismissRequest = ::dismissAllNotices,
@@ -454,8 +460,6 @@ fun ProgramWorkspaceScreen() {
             val fromFutureDate = remember(currentMonday) { currentMonday.plusWeeks(1) }
             val sketch = MaterialTheme.workspaceSketch
 
-            var selectedWeekId by remember { mutableStateOf<String?>(null) }
-            var pendingSkipWeek by remember { mutableStateOf(false) }
             val effectiveSelectedWeekId = remember(selectedWeekId, lifecycleState.selectedProgramWeeks, currentMonday) {
                 val id = selectedWeekId
                 val weeks = lifecycleState.selectedProgramWeeks
@@ -827,19 +831,21 @@ fun ProgramWorkspaceScreen() {
                         // Quick actions row
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (lifecycleState.selectedProgramId != null) {
-                                ProgramRightPanelButton(
-                                    label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
-                                    icon = Icons.Filled.PlayArrow,
-                                    isPrimary = true,
-                                    enabled = !assignmentState.isAutoAssigning,
-                                    tooltip = "Distribuisce automaticamente le assegnazioni del mese selezionato",
-                                    onClick = {
-                                        lifecycleState.selectedProgramId?.let { programId ->
-                                            assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                                if (!lifecycleState.isSelectedProgramPast) {
+                                    ProgramRightPanelButton(
+                                        label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
+                                        icon = Icons.Filled.PlayArrow,
+                                        isPrimary = true,
+                                        enabled = !assignmentState.isAutoAssigning,
+                                        tooltip = "Distribuisce automaticamente le assegnazioni del mese selezionato",
+                                        onClick = {
+                                            lifecycleState.selectedProgramId?.let { programId ->
+                                                assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                                 ProgramRightPanelButton(
                                     label = if (assignmentState.isLoadingAssignmentTickets) "Generazione biglietti..." else "Biglietti assegnazioni",
                                     icon = Icons.Filled.Image,
