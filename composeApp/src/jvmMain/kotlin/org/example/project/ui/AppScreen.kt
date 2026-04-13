@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material.icons.filled.ArrowCircleUp
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +84,7 @@ import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
 import kotlin.math.roundToInt
 import org.example.project.core.config.UiPreferencesStore
+import org.example.project.ui.admincatalog.AdminToolsScreen
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
@@ -110,6 +112,7 @@ private const val TAG_TOP_BAR = "top-bar"
 private const val TAG_SECTION_PROGRAMMA = "top-section-programma"
 private const val TAG_SECTION_PROCLAMATORI = "top-section-proclamatori"
 private const val TAG_SECTION_DIAGNOSTICA = "top-section-diagnostica"
+private const val ADMIN_TOOLBAR_TOOLTIP = "Apri area amministrativa"
 
 internal enum class AppSection(
     val label: String,
@@ -253,7 +256,7 @@ fun DecoratedWindowScope.AppScreen(
                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    navigationSections.filter { it != AppSection.DIAGNOSTICS }.forEach { section ->
+                                    visiblePrimaryNavigationSections(navigationSections).forEach { section ->
                                         TopBarSectionButton(
                                             selected = currentSection == section,
                                             onClick = { navigateToSection(section) },
@@ -283,11 +286,11 @@ fun DecoratedWindowScope.AppScreen(
                                     )
                                     ToolbarIconAction(
                                         onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
-                                        icon = Icons.Filled.BugReport,
-                                        contentDescription = "Diagnostica",
-                                        tooltip = "Apri strumenti diagnostici",
+                                        icon = Icons.Filled.AdminPanelSettings,
+                                        contentDescription = "Strumenti amministrativi",
+                                        tooltip = ADMIN_TOOLBAR_TOOLTIP,
                                         modifier = Modifier.alpha(
-                                            if (currentSection == AppSection.DIAGNOSTICS) 0.75f else 0.35f
+                                            if (isAdminToolbarSelected(currentSection)) 0.75f else 0.35f
                                         ),
                                     )
                                     Box {
@@ -599,9 +602,17 @@ private data object PlanningDashboardSectionScreen : Screen {
 private data object DiagnosticsSectionScreen : Screen {
     @Composable
     override fun Content() {
-        DiagnosticsScreen()
+        AdminToolsScreen()
     }
 }
+
+internal fun visiblePrimaryNavigationSections(
+    sections: List<AppSection>,
+): List<AppSection> = sections.filter { it != AppSection.DIAGNOSTICS }
+
+internal fun isAdminToolbarSelected(
+    currentSection: AppSection,
+): Boolean = currentSection == AppSection.DIAGNOSTICS
 
 private fun Float.toUiScalePercentage(): Int = (this * 100f).roundToInt()
 

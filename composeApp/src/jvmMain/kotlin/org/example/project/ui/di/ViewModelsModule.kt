@@ -6,6 +6,8 @@ import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.feature.diagnostics.application.ImportaSeedApplicazioneDaJsonUseCase
+import org.example.project.ui.admincatalog.PartTypeCatalogViewModel
+import org.example.project.ui.admincatalog.WeeklySchemaCatalogViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
 import org.example.project.ui.proclamatori.ProclamatoreFormViewModel
 import org.example.project.ui.proclamatori.ProclamatoriListViewModel
@@ -104,6 +106,19 @@ val viewModelsModule = module {
             aggiornaApplicazione = get(),
             updateStatusStore = get(),
             updateSettingsStore = get(),
+        )
+    }
+    factory {
+        PartTypeCatalogViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            partTypeStore = get(),
+        )
+    }
+    factory {
+        WeeklySchemaCatalogViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            schemaTemplateStore = get(),
+            partTypeStore = get(),
         )
     }
     factory {
