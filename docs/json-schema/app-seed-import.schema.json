@@ -134,6 +134,11 @@
                 }
               }
             }
+          },
+          "ultimaAssistenza": {
+            "type": "string",
+            "format": "date",
+            "description": "Data ISO yyyy-MM-dd dell'ultima volta che lo studente ha svolto il ruolo di assistente, indipendentemente dal tipo parte. Genera una settimana fantasma con slot=2 su un tipo parte da peopleCount>=2 scelto dal catalogo importato."
           }
         }
       }
@@ -195,7 +200,8 @@
               "tipo": "LETTURA",
               "data": "2026-03-23"
             }
-          ]
+          ],
+          "ultimaAssistenza": "2026-02-23"
         }
       ]
     }

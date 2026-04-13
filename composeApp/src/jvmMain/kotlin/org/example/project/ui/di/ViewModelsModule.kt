@@ -112,6 +112,7 @@ val viewModelsModule = module {
         PartTypeCatalogViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             caricaCatalogoTipiParte = get(),
+            caricaRevisioniTipoParte = get(),
         )
     }
     factory {

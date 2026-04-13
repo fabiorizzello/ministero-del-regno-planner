@@ -1,8 +1,14 @@
 package org.example.project.ui.admincatalog
 
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
+import org.example.project.feature.weeklyparts.domain.PartTypeFieldDelta
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.PartTypeRevisionView
 import org.example.project.feature.weeklyparts.domain.SexRule
+
+internal enum class PartTypeDetailViewMode { Dettaglio, Cronologia }
 
 internal data class PartTypeCatalogItem(
     val id: PartTypeId,
@@ -53,4 +59,32 @@ internal fun partTypeStatusLabel(
 internal fun SexRule.toDisplayLabel(): String = when (this) {
     SexRule.UOMO -> "Solo uomini"
     SexRule.STESSO_SESSO -> "Stesso sesso"
+}
+
+internal data class PartTypeRevisionListItem(
+    val revisionNumber: Int,
+    val timestampLabel: String,
+    val isCurrent: Boolean,
+    val isNoOp: Boolean,
+    val isGenesis: Boolean,
+    val deltaLines: List<String>,
+)
+
+private val revisionTimestampFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.ITALIAN)
+
+internal fun PartTypeRevisionView.toListItem(): PartTypeRevisionListItem = PartTypeRevisionListItem(
+    revisionNumber = revisionNumber,
+    timestampLabel = createdAt.format(revisionTimestampFormatter),
+    isCurrent = isCurrent,
+    isNoOp = isNoOp,
+    isGenesis = revisionNumber == 1,
+    deltaLines = deltaFromPrevious.map { it.toDisplayLine() },
+)
+
+private fun PartTypeFieldDelta.toDisplayLine(): String = when (this) {
+    is PartTypeFieldDelta.Label -> "Nome: «$from» → «$to»"
+    is PartTypeFieldDelta.PeopleCount -> "Persone: $from → $to"
+    is PartTypeFieldDelta.Sex -> "Regola sesso: ${from.toDisplayLabel()} → ${to.toDisplayLabel()}"
+    is PartTypeFieldDelta.Fixed -> if (to) "Resa fissa" else "Resa ordinaria"
 }

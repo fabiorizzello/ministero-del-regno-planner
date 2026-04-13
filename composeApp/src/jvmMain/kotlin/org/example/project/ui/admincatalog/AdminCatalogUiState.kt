@@ -9,6 +9,10 @@ internal data class PartTypeCatalogUiState(
     val items: List<PartTypeCatalogItem> = emptyList(),
     val selectedId: PartTypeId? = null,
     val selectedDetail: PartTypeCatalogDetail? = null,
+    val viewMode: PartTypeDetailViewMode = PartTypeDetailViewMode.Dettaglio,
+    val revisionsForSelected: List<PartTypeRevisionListItem> = emptyList(),
+    val cachedRevisions: Map<PartTypeId, List<PartTypeRevisionListItem>> = emptyMap(),
+    val isLoadingRevisions: Boolean = false,
     val notice: FeedbackBannerModel? = null,
 ) {
     val emptyStateVisible: Boolean = !isLoading && items.isEmpty() && notice == null

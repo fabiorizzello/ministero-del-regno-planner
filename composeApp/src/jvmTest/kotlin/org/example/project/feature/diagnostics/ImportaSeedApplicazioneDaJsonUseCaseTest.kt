@@ -303,6 +303,103 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertTrue(error.details.contains(nextYear.toString()))
         Unit
     }
+
+    @Test
+    fun `ultimaAssistenza creates ghost week with slot 2 assignment`() = runTest {
+        val weekPlanStore = InMemoryWeekPlanStore()
+        val useCase = buildUseCase(weekPlanStore = weekPlanStore)
+
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "PREGHIERA", "label": "Preghiera", "peopleCount": 1, "sexRule": "UOMO", "fixed": true, "sortOrder": 0 },
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 1 }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaAssistenza": "2025-12-22"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val right = assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result).value
+        assertEquals(1, right.importedAssistanceLastDates)
+        val ghost = assertNotNull(weekPlanStore.loadAggregateByDate(LocalDate.of(2025, 12, 22)))
+        val ghostPart = ghost.weekPlan.parts.single()
+        assertEquals("LETTURA", ghostPart.partType.code)
+        val assignment = ghost.assignments.single()
+        assertEquals(2, assignment.slot)
+        Unit
+    }
+
+    @Test
+    fun `future ultimaAssistenza date is rejected with ImportContenutoNonValido`() = runTest {
+        val useCase = buildUseCase()
+
+        val nextYear = referenceDate.plusYears(1)
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 2, "sexRule": "STESSO_SESSO" }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaAssistenza": "$nextYear"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        val error = assertIs<DomainError.ImportContenutoNonValido>(left)
+        assertTrue(error.details.contains("ultimaAssistenza"))
+        assertTrue(error.details.contains("data nel futuro"))
+        assertTrue(error.details.contains(nextYear.toString()))
+        Unit
+    }
+
+    @Test
+    fun `ultimaAssistenza without compatible 2-slot part type returns validation error`() = runTest {
+        val useCase = buildUseCase()
+
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "PREGHIERA", "label": "Preghiera", "peopleCount": 1, "sexRule": "UOMO", "fixed": true }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaAssistenza": "2025-12-22"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        val error = assertIs<DomainError.ImportContenutoNonValido>(left)
+        assertTrue(error.details.contains("ultimaAssistenza"))
+        assertTrue(error.details.contains("nessun tipo parte"))
+        Unit
+    }
 }
 
 private fun buildUseCase(

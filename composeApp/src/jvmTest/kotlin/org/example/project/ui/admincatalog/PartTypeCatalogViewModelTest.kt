@@ -5,8 +5,11 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.example.project.feature.weeklyparts.application.CaricaCatalogoTipiParteUseCase
+import org.example.project.feature.weeklyparts.application.CaricaRevisioniTipoParteUseCase
+import org.example.project.feature.weeklyparts.application.PartTypeRevisionRow
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
+import org.example.project.feature.weeklyparts.domain.PartTypeSnapshot
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.SexRule
@@ -29,6 +32,7 @@ class PartTypeCatalogViewModelTest {
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
             caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -51,6 +55,7 @@ class PartTypeCatalogViewModelTest {
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
             caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -69,6 +74,7 @@ class PartTypeCatalogViewModelTest {
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
             caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -87,6 +93,7 @@ class PartTypeCatalogViewModelTest {
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
             caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -94,6 +101,125 @@ class PartTypeCatalogViewModelTest {
         val state = viewModel.uiState.value
         assertNotNull(state.notice)
         assertTrue(shouldShowPartTypeCatalogError(state))
+    }
+
+    @Test
+    fun `setViewMode Cronologia lazy-loads revisions for current selection`() = runTest {
+        val store = mockk<PartTypeStore>()
+        coEvery { store.allWithStatus() } returns listOf(
+            PartTypeWithStatus(makePartType("LB", "Lettura Bibbia"), active = true),
+        )
+        coEvery { store.allRevisionsForPartType(PartTypeId("LB")) } returns listOf(
+            revisionRow(1, "Lettura"),
+            revisionRow(2, "Lettura Bibbia"),
+        )
+
+        val viewModel = PartTypeCatalogViewModel(
+            scope = this,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
+        )
+        viewModel.onScreenEntered()
+        advanceUntilIdle()
+        assertEquals(0, viewModel.uiState.value.revisionsForSelected.size)
+
+        viewModel.setViewMode(PartTypeDetailViewMode.Cronologia)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(PartTypeDetailViewMode.Cronologia, state.viewMode)
+        assertEquals(2, state.revisionsForSelected.size)
+        assertEquals(2, state.revisionsForSelected.first().revisionNumber, "Ordine DESC: la più recente prima")
+        assertTrue(state.revisionsForSelected.first().isCurrent)
+        assertEquals(1, state.cachedRevisions.size)
+    }
+
+    @Test
+    fun `setViewMode Cronologia secondo switch usa cache`() = runTest {
+        val store = mockk<PartTypeStore>()
+        coEvery { store.allWithStatus() } returns listOf(
+            PartTypeWithStatus(makePartType("LB", "Lettura Bibbia"), active = true),
+        )
+        var revisionCalls = 0
+        coEvery { store.allRevisionsForPartType(PartTypeId("LB")) } answers {
+            revisionCalls++
+            listOf(revisionRow(1, "Lettura Bibbia"))
+        }
+
+        val viewModel = PartTypeCatalogViewModel(
+            scope = this,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
+        )
+        viewModel.onScreenEntered()
+        advanceUntilIdle()
+        viewModel.setViewMode(PartTypeDetailViewMode.Cronologia)
+        advanceUntilIdle()
+        viewModel.setViewMode(PartTypeDetailViewMode.Dettaglio)
+        viewModel.setViewMode(PartTypeDetailViewMode.Cronologia)
+        advanceUntilIdle()
+
+        assertEquals(1, revisionCalls, "La seconda apertura deve usare la cache")
+    }
+
+    @Test
+    fun `selectItem in Cronologia carica le revisioni del nuovo selezionato`() = runTest {
+        val store = mockk<PartTypeStore>()
+        coEvery { store.allWithStatus() } returns listOf(
+            PartTypeWithStatus(makePartType("LB", "Lettura Bibbia"), active = true),
+            PartTypeWithStatus(makePartType("PG", "Preghiera"), active = true),
+        )
+        coEvery { store.allRevisionsForPartType(PartTypeId("LB")) } returns listOf(
+            revisionRow(1, "Lettura Bibbia"),
+        )
+        coEvery { store.allRevisionsForPartType(PartTypeId("PG")) } returns listOf(
+            revisionRow(1, "Preghiera"),
+            revisionRow(2, "Preghiera serale"),
+        )
+
+        val viewModel = PartTypeCatalogViewModel(
+            scope = this,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
+        )
+        viewModel.onScreenEntered()
+        advanceUntilIdle()
+        viewModel.setViewMode(PartTypeDetailViewMode.Cronologia)
+        advanceUntilIdle()
+
+        viewModel.selectItem(PartTypeId("PG"))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(PartTypeId("PG"), state.selectedId)
+        assertEquals(2, state.revisionsForSelected.size)
+        assertEquals(2, state.cachedRevisions.size)
+    }
+
+    @Test
+    fun `selectItem in Dettaglio non carica revisioni`() = runTest {
+        val store = mockk<PartTypeStore>()
+        coEvery { store.allWithStatus() } returns listOf(
+            PartTypeWithStatus(makePartType("LB", "Lettura Bibbia"), active = true),
+            PartTypeWithStatus(makePartType("PG", "Preghiera"), active = true),
+        )
+        var revisionCalls = 0
+        coEvery { store.allRevisionsForPartType(any()) } answers {
+            revisionCalls++
+            emptyList()
+        }
+
+        val viewModel = PartTypeCatalogViewModel(
+            scope = this,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
+            caricaRevisioniTipoParte = CaricaRevisioniTipoParteUseCase(store),
+        )
+        viewModel.onScreenEntered()
+        advanceUntilIdle()
+        viewModel.selectItem(PartTypeId("PG"))
+        advanceUntilIdle()
+
+        assertEquals(0, revisionCalls, "In Dettaglio non si carica la cronologia")
     }
 
     private fun makePartType(
@@ -107,5 +233,19 @@ class PartTypeCatalogViewModelTest {
         sexRule = SexRule.STESSO_SESSO,
         fixed = false,
         sortOrder = 0,
+    )
+
+    private fun revisionRow(
+        number: Int,
+        label: String,
+    ): PartTypeRevisionRow = PartTypeRevisionRow(
+        revisionNumber = number,
+        createdAt = java.time.LocalDateTime.of(2026, 1, 1, 9, 0).plusDays(number.toLong()),
+        snapshot = PartTypeSnapshot(
+            label = label,
+            peopleCount = 1,
+            sexRule = SexRule.STESSO_SESSO,
+            fixed = false,
+        ),
     )
 }
