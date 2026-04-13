@@ -35,6 +35,14 @@ class GeneraSettimaneProgrammaUseCase(
         val status: WeekPlanStatus,
     )
 
+    /*
+     * Restore strategy: durante la (ri)generazione delle settimane di un programma manteniamo
+     * le assegnazioni esistenti mappandole sulla nuova struttura di parti tramite una chiave
+     * posizionale (partTypeId, occurrenceIndex, slot). In questo modo gli stessi proclamatori
+     * restano assegnati alle stesse "slot logiche" anche quando il template del ProgrammaMese
+     * cambia: l'occurrenceIndex gestisce il caso di piu' parti dello stesso tipo nella stessa
+     * settimana, e lo slot discrimina i ruoli (studente / assistente) all'interno della parte.
+     */
     private data class AssignmentRestoreKey(
         val partTypeId: PartTypeId,
         val occurrenceIndex: Int,
@@ -98,9 +106,10 @@ class GeneraSettimaneProgrammaUseCase(
         }
 
         transactionRunner.runInTransactionEither {
-            weekPlanStore.replaceProgramAggregates(programId, aggregates)
-            programStore.updateTemplateAppliedAt(programId, LocalDateTime.now())
-            Either.Right(Unit)
+            either {
+                weekPlanStore.replaceProgramAggregates(programId, aggregates)
+                programStore.updateTemplateAppliedAt(programId, LocalDateTime.now())
+            }
         }.bind()
     }
 
