@@ -3,6 +3,7 @@ package org.example.project.feature.weeklyparts.di
 import org.example.project.feature.weeklyparts.application.AggiungiParteUseCase
 import org.example.project.feature.weeklyparts.application.AggiornaPartiSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.CaricaCatalogoTipiParteUseCase
+import org.example.project.feature.weeklyparts.application.CaricaRevisioniTipoParteUseCase
 import org.example.project.feature.weeklyparts.application.CaricaSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.CercaTipiParteUseCase
 import org.example.project.feature.weeklyparts.application.CreaSettimanaUseCase
@@ -32,4 +33,5 @@ val weeklyPartsModule = module {
     factory { ImpostaStatoSettimanaUseCase(get(), get()) }
     factory { CercaTipiParteUseCase(get()) }
     factory { CaricaCatalogoTipiParteUseCase(get()) }
+    factory { CaricaRevisioniTipoParteUseCase(get()) }
 }

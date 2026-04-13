@@ -618,6 +618,12 @@ WHERE part_type_id = ?
 ORDER BY revision_number DESC
 LIMIT 1;
 
+allPartTypeRevisionsByPartType:
+SELECT id, part_type_id, label, people_count, sex_rule, fixed, revision_number, created_at
+FROM part_type_revision
+WHERE part_type_id = ?
+ORDER BY revision_number ASC;
+
 updatePartTypeCurrentRevision:
 UPDATE part_type
 SET

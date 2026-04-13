@@ -2,10 +2,13 @@ package org.example.project.feature.weeklyparts.infrastructure
 
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.db.MinisteroDatabase
+import org.example.project.feature.weeklyparts.application.PartTypeRevisionRow
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.PartTypeId
+import org.example.project.feature.weeklyparts.domain.PartTypeSnapshot
+import org.example.project.feature.weeklyparts.domain.SexRule
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -128,6 +131,23 @@ class SqlDelightPartTypeStore(
             .findPartTypeById(partTypeId.value) { _, _, _, _, _, _, _, _, current_revision_id: String? -> RevId(current_revision_id) }
             .executeAsOneOrNull()
             ?.value
+    }
+
+    override suspend fun allRevisionsForPartType(partTypeId: PartTypeId): List<PartTypeRevisionRow> {
+        return database.ministeroDatabaseQueries
+            .allPartTypeRevisionsByPartType(partTypeId.value) { _, _, label, people_count, sex_rule, fixed, revision_number, created_at ->
+                PartTypeRevisionRow(
+                    revisionNumber = revision_number.toInt(),
+                    createdAt = LocalDateTime.parse(created_at),
+                    snapshot = PartTypeSnapshot(
+                        label = label,
+                        peopleCount = people_count.toInt(),
+                        sexRule = SexRule.valueOf(sex_rule),
+                        fixed = fixed != 0L,
+                    ),
+                )
+            }
+            .executeAsList()
     }
 
     context(tx: TransactionScope)
