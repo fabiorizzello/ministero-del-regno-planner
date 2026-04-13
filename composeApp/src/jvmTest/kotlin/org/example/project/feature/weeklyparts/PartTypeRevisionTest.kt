@@ -79,4 +79,42 @@ class PartTypeRevisionTest {
         assertNotNull(revV2)
         assert(revV1 != revV2) { "Il revision ID deve cambiare dopo il re-import" }
     }
+
+    @Test
+    fun `upsertAll con snapshot identico non crea nuova revisione`() = runTest {
+        val db = inMemoryDb()
+        val store = SqlDelightPartTypeStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
+
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
+        val ptId = store.findByCode("LETTURA")!!.id
+        val revV1 = store.getLatestRevisionId(ptId)!!
+
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
+        val revV2 = store.getLatestRevisionId(ptId)!!
+
+        assertEquals(revV1, revV2, "current_revision_id deve restare invariato se snapshot identico")
+
+        val latestNumber = db.ministeroDatabaseQueries
+            .latestPartTypeRevisionByPartType(ptId.value) { _, _, _, _, _, _, revision_number, _ -> revision_number }
+            .executeAsOneOrNull()
+        assertEquals(1L, latestNumber, "Non deve essere creata una seconda revisione")
+    }
+
+    @Test
+    fun `upsertAll ripetuto con peopleCount diverso crea nuova revisione`() = runTest {
+        val db = inMemoryDb()
+        val store = SqlDelightPartTypeStore(db)
+        val txRunner = SqlDelightTransactionRunner(db)
+
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura())) }
+        txRunner.runInTransaction { store.upsertAll(listOf(lettura().copy(peopleCount = 2))) }
+
+        val ptId = store.findByCode("LETTURA")!!.id
+        val latestNumber = db.ministeroDatabaseQueries
+            .latestPartTypeRevisionByPartType(ptId.value) { _, _, _, _, _, _, revision_number, _ -> revision_number }
+            .executeAsOneOrNull()
+        assertEquals(2L, latestNumber, "Due revisioni totali: iniziale + peopleCount cambiato")
+    }
 }
