@@ -93,50 +93,46 @@ class ProgramLifecycleViewModelSelectionTest {
     }
 
     @Test
-    fun `calculateProgramSidebarState marks month as to generate when no weeks exist`() {
-        val state = calculateProgramSidebarState(
+    fun `calculateProgramSidebarStatus marks month as to generate when no weeks exist`() {
+        val status = calculateProgramSidebarStatus(
             weeks = emptyList(),
             assignmentsByWeek = emptyMap(),
         )
 
-        assertEquals(ProgramSidebarStatus.TO_GENERATE, state.status)
+        assertEquals(ProgramSidebarStatus.TO_GENERATE, status)
     }
 
     @Test
-    fun `calculateProgramSidebarState marks month as to assign when weeks exist without assignments`() {
+    fun `calculateProgramSidebarStatus marks month as to assign when weeks exist without assignments`() {
         val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
 
-        val state = calculateProgramSidebarState(
+        val status = calculateProgramSidebarStatus(
             weeks = listOf(week),
             assignmentsByWeek = emptyMap(),
         )
 
-        assertEquals(ProgramSidebarStatus.TO_ASSIGN, state.status)
-        assertEquals(2, state.totalSlots)
-        assertEquals(0, state.assignedSlots)
+        assertEquals(ProgramSidebarStatus.TO_ASSIGN, status)
     }
 
     @Test
-    fun `calculateProgramSidebarState marks month as partial when some slots are assigned`() {
+    fun `calculateProgramSidebarStatus marks month as partial when some slots are assigned`() {
         val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
 
-        val state = calculateProgramSidebarState(
+        val status = calculateProgramSidebarStatus(
             weeks = listOf(week),
             assignmentsByWeek = mapOf(
                 week.id.value to listOf(fixtureAssignment(week.parts.first().id, slot = 1)),
             ),
         )
 
-        assertEquals(ProgramSidebarStatus.PARTIAL, state.status)
-        assertEquals(2, state.totalSlots)
-        assertEquals(1, state.assignedSlots)
+        assertEquals(ProgramSidebarStatus.PARTIAL, status)
     }
 
     @Test
-    fun `calculateProgramSidebarState marks month as ready when all slots are assigned`() {
+    fun `calculateProgramSidebarStatus marks month as ready when all slots are assigned`() {
         val week = fixtureWeekPlan(id = "week-1", peopleCount = 2)
 
-        val state = calculateProgramSidebarState(
+        val status = calculateProgramSidebarStatus(
             weeks = listOf(week),
             assignmentsByWeek = mapOf(
                 week.id.value to listOf(
@@ -146,9 +142,7 @@ class ProgramLifecycleViewModelSelectionTest {
             ),
         )
 
-        assertEquals(ProgramSidebarStatus.READY, state.status)
-        assertEquals(2, state.totalSlots)
-        assertEquals(2, state.assignedSlots)
+        assertEquals(ProgramSidebarStatus.READY, status)
     }
 }
 
