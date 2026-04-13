@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.example.project.feature.schemas.application.CaricaCatalogoSchemiSettimanaliUseCase
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
 import org.example.project.feature.weeklyparts.application.PartTypeStore
@@ -35,8 +36,7 @@ class WeeklySchemaCatalogViewModelTest {
 
         val viewModel = WeeklySchemaCatalogViewModel(
             scope = this,
-            schemaTemplateStore = schemaStore,
-            partTypeStore = partTypeStore,
+            caricaCatalogoSchemiSettimanali = CaricaCatalogoSchemiSettimanaliUseCase(schemaStore, partTypeStore),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -64,8 +64,7 @@ class WeeklySchemaCatalogViewModelTest {
 
         val viewModel = WeeklySchemaCatalogViewModel(
             scope = this,
-            schemaTemplateStore = schemaStore,
-            partTypeStore = partTypeStore,
+            caricaCatalogoSchemiSettimanali = CaricaCatalogoSchemiSettimanaliUseCase(schemaStore, partTypeStore),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -85,8 +84,7 @@ class WeeklySchemaCatalogViewModelTest {
 
         val viewModel = WeeklySchemaCatalogViewModel(
             scope = this,
-            schemaTemplateStore = schemaStore,
-            partTypeStore = partTypeStore,
+            caricaCatalogoSchemiSettimanali = CaricaCatalogoSchemiSettimanaliUseCase(schemaStore, partTypeStore),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -103,8 +101,7 @@ class WeeklySchemaCatalogViewModelTest {
 
         val viewModel = WeeklySchemaCatalogViewModel(
             scope = this,
-            schemaTemplateStore = schemaStore,
-            partTypeStore = partTypeStore,
+            caricaCatalogoSchemiSettimanali = CaricaCatalogoSchemiSettimanaliUseCase(schemaStore, partTypeStore),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()

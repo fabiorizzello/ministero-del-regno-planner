@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.example.project.feature.weeklyparts.application.CaricaCatalogoTipiParteUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.PartTypeWithStatus
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -27,7 +28,7 @@ class PartTypeCatalogViewModelTest {
 
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
-            partTypeStore = store,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -49,7 +50,7 @@ class PartTypeCatalogViewModelTest {
 
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
-            partTypeStore = store,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -67,7 +68,7 @@ class PartTypeCatalogViewModelTest {
 
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
-            partTypeStore = store,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()
@@ -85,7 +86,7 @@ class PartTypeCatalogViewModelTest {
 
         val viewModel = PartTypeCatalogViewModel(
             scope = this,
-            partTypeStore = store,
+            caricaCatalogoTipiParte = CaricaCatalogoTipiParteUseCase(store),
         )
         viewModel.onScreenEntered()
         advanceUntilIdle()

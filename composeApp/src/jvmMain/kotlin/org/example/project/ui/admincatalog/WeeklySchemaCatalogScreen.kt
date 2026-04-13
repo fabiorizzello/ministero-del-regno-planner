@@ -97,11 +97,9 @@ internal fun WeeklySchemaCatalogScreen() {
                                     verticalArrangement = Arrangement.spacedBy(androidx.compose.material3.MaterialTheme.spacing.sm),
                                 ) {
                                     items(detail.rows, key = { "${detail.weekStartDate}-${it.position}-${it.partTypeId.value}" }) { row ->
-                                        AdminSelectionItem(
+                                        AdminReadonlyListRow(
                                             title = "${row.position}. ${row.partTypeLabel}",
                                             subtitle = describeWeeklySchemaRow(row),
-                                            selected = false,
-                                            onClick = {},
                                             tag = "weekly-schema-row-${row.position}",
                                         )
                                     }

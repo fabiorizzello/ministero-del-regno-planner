@@ -3,6 +3,7 @@ package org.example.project.feature.schemas.di
 import org.example.project.core.config.RemoteConfig
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
 import org.example.project.feature.schemas.application.ArchivaAnomalieSchemaUseCase
+import org.example.project.feature.schemas.application.CaricaCatalogoSchemiSettimanaliUseCase
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
@@ -23,4 +24,5 @@ val schemasModule = module {
     }
     factory { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get(), get()) }
     factory { ArchivaAnomalieSchemaUseCase(get(), get()) }
+    factory { CaricaCatalogoSchemiSettimanaliUseCase(get(), get()) }
 }

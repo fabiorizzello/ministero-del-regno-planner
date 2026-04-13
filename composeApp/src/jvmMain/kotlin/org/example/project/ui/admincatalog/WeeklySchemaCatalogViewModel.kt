@@ -7,16 +7,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.example.project.feature.schemas.application.SchemaTemplateStore
-import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.schemas.application.CaricaCatalogoSchemiSettimanaliUseCase
 import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
 
 internal class WeeklySchemaCatalogViewModel(
     private val scope: CoroutineScope,
-    private val schemaTemplateStore: SchemaTemplateStore,
-    private val partTypeStore: PartTypeStore,
+    private val caricaCatalogoSchemiSettimanali: CaricaCatalogoSchemiSettimanaliUseCase,
 ) {
-    private val detailByWeek = mutableMapOf<LocalDate, WeeklySchemaDetail>()
     private val _uiState = MutableStateFlow(WeeklySchemaCatalogUiState())
     val uiState: StateFlow<WeeklySchemaCatalogUiState> = _uiState.asStateFlow()
 
@@ -26,52 +24,44 @@ internal class WeeklySchemaCatalogViewModel(
 
     fun reload() {
         scope.launch {
-            _uiState.update { it.copy(isLoading = true, notice = null) }
-            runCatching {
-                val templates = schemaTemplateStore.listAll()
-                val partTypes = partTypeStore.allWithStatus()
-                val weeks = buildWeeklySchemaCatalogItems(templates)
-                val details = buildWeeklySchemaCatalogDetailMap(templates, partTypes)
-                weeks to details
-            }.fold(
-                onSuccess = { (weeks, details) ->
-                    detailByWeek.clear()
-                    detailByWeek.putAll(details)
+            _uiState.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true, notice = null) },
+                successUpdate = { state, catalogo ->
+                    val weeks = buildWeeklySchemaCatalogItems(catalogo.templates)
+                    val details = buildWeeklySchemaCatalogDetailMap(catalogo.templates, catalogo.partTypes)
                     val selectedWeek = resolveSelectedWeekStartDate(
-                        previousSelectedDate = _uiState.value.selectedWeekStartDate,
+                        previousSelectedDate = state.selectedWeekStartDate,
                         items = weeks,
                     )
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            weeks = weeks,
-                            selectedWeekStartDate = selectedWeek,
-                            selectedDetail = selectedWeek?.let(details::get),
-                            notice = null,
-                        )
-                    }
+                    state.copy(
+                        isLoading = false,
+                        weeks = weeks,
+                        selectedWeekStartDate = selectedWeek,
+                        selectedDetail = selectedWeek?.let(details::get),
+                        cachedDetails = details,
+                        notice = null,
+                    )
                 },
-                onFailure = { error ->
-                    detailByWeek.clear()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            weeks = emptyList(),
-                            selectedWeekStartDate = null,
-                            selectedDetail = null,
-                            notice = errorNotice("Impossibile caricare gli schemi settimanali: ${error.message}"),
-                        )
-                    }
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isLoading = false,
+                        weeks = emptyList(),
+                        selectedWeekStartDate = null,
+                        selectedDetail = null,
+                        cachedDetails = emptyMap(),
+                        notice = errorNotice("Impossibile caricare gli schemi settimanali: ${error.message}"),
+                    )
                 },
+                operation = { caricaCatalogoSchemiSettimanali() },
             )
         }
     }
 
     fun selectWeek(weekStartDate: LocalDate) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { state ->
+            state.copy(
                 selectedWeekStartDate = weekStartDate,
-                selectedDetail = detailByWeek[weekStartDate],
+                selectedDetail = state.cachedDetails[weekStartDate],
             )
         }
     }

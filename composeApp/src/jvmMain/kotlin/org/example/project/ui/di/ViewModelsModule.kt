@@ -111,14 +111,13 @@ val viewModelsModule = module {
     factory {
         PartTypeCatalogViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            partTypeStore = get(),
+            caricaCatalogoTipiParte = get(),
         )
     }
     factory {
         WeeklySchemaCatalogViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            schemaTemplateStore = get(),
-            partTypeStore = get(),
+            caricaCatalogoSchemiSettimanali = get(),
         )
     }
     factory {

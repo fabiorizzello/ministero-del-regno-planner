@@ -6,13 +6,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.example.project.feature.weeklyparts.application.PartTypeStore
+import org.example.project.feature.weeklyparts.application.CaricaCatalogoTipiParteUseCase
 import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.ui.components.errorNotice
+import org.example.project.ui.components.executeAsyncOperation
 
 internal class PartTypeCatalogViewModel(
     private val scope: CoroutineScope,
-    private val partTypeStore: PartTypeStore,
+    private val caricaCatalogoTipiParte: CaricaCatalogoTipiParteUseCase,
 ) {
     private val _uiState = MutableStateFlow(PartTypeCatalogUiState())
     val uiState: StateFlow<PartTypeCatalogUiState> = _uiState.asStateFlow()
@@ -23,35 +24,31 @@ internal class PartTypeCatalogViewModel(
 
     fun reload() {
         scope.launch {
-            _uiState.update { it.copy(isLoading = true, notice = null) }
-            runCatching {
-                partTypeStore.allWithStatus()
-                    .map { it.toPartTypeCatalogItem() }
-                    .sortedWith(compareBy<PartTypeCatalogItem> { !it.active }.thenBy { it.code })
-            }.fold(
-                onSuccess = { items ->
-                    val selectedId = resolveSelectedPartTypeId(_uiState.value.selectedId, items)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            items = items,
-                            selectedId = selectedId,
-                            selectedDetail = items.firstOrNull { item -> item.id == selectedId }?.toDetail(),
-                            notice = null,
-                        )
-                    }
+            _uiState.executeAsyncOperation(
+                loadingUpdate = { it.copy(isLoading = true, notice = null) },
+                successUpdate = { state, loaded ->
+                    val sorted = loaded
+                        .map { it.toPartTypeCatalogItem() }
+                        .sortedWith(compareBy<PartTypeCatalogItem> { !it.active }.thenBy { it.code })
+                    val selectedId = resolveSelectedPartTypeId(state.selectedId, sorted)
+                    state.copy(
+                        isLoading = false,
+                        items = sorted,
+                        selectedId = selectedId,
+                        selectedDetail = sorted.firstOrNull { item -> item.id == selectedId }?.toDetail(),
+                        notice = null,
+                    )
                 },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            items = emptyList(),
-                            selectedId = null,
-                            selectedDetail = null,
-                            notice = errorNotice("Impossibile caricare il catalogo tipi parte: ${error.message}"),
-                        )
-                    }
+                errorUpdate = { state, error ->
+                    state.copy(
+                        isLoading = false,
+                        items = emptyList(),
+                        selectedId = null,
+                        selectedDetail = null,
+                        notice = errorNotice("Impossibile caricare il catalogo tipi parte: ${error.message}"),
+                    )
                 },
+                operation = { caricaCatalogoTipiParte() },
             )
         }
     }
