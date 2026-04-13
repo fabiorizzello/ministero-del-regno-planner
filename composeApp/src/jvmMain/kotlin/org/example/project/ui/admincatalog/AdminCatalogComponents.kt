@@ -405,5 +405,102 @@ private fun AdminSectionChip(
     }
 }
 
+@Composable
+internal fun AdminRevisionRow(
+    item: PartTypeRevisionListItem,
+    modifier: Modifier = Modifier,
+) {
+    val sketch = MaterialTheme.workspaceSketch
+    val borderColor = if (item.isCurrent) sketch.selectionBorder.copy(alpha = 0.7f) else sketch.cardBorder
+    val backgroundColor = if (item.isCurrent) sketch.selectionSurface else sketch.cardSurface
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("part-type-revision-row-${item.revisionNumber}"),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, borderColor),
+        color = backgroundColor,
+        shadowElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Revisione ${item.revisionNumber}",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = "·",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
+                )
+                Text(
+                    text = item.timestampLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
+                    modifier = Modifier.weight(1f),
+                )
+                if (item.isCurrent) {
+                    AdminRevisionBadge(text = "Attuale")
+                }
+            }
+            when {
+                item.isGenesis -> Text(
+                    text = "Versione iniziale del tipo parte.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
+                )
+                item.isNoOp -> Text(
+                    text = "Nessuna modifica rispetto alla revisione precedente.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = sketch.inkMuted,
+                )
+                else -> item.deltaLines.forEach { line ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = sketch.inkMuted,
+                        )
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminRevisionBadge(text: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+    }
+}
+
 internal const val ADMIN_READONLY_HINT =
     "In questa schermata puoi solo consultare i dati."

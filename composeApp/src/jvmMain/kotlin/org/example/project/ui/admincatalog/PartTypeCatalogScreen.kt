@@ -6,6 +6,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -88,8 +94,18 @@ internal fun PartTypeCatalogScreen() {
                                 message = "Seleziona un tipo di parte per vedere i dettagli.",
                             )
                         } else {
-                            partTypeDetailRows(detail).forEach { (label, value) ->
-                                AdminKeyValueRow(label = label, value = value)
+                            PartTypeDetailViewSwitcher(
+                                viewMode = state.viewMode,
+                                onViewModeChange = viewModel::setViewMode,
+                            )
+                            when (state.viewMode) {
+                                PartTypeDetailViewMode.Dettaglio -> partTypeDetailRows(detail).forEach { (label, value) ->
+                                    AdminKeyValueRow(label = label, value = value)
+                                }
+                                PartTypeDetailViewMode.Cronologia -> PartTypeRevisionList(
+                                    isLoading = state.isLoadingRevisions,
+                                    revisions = state.revisionsForSelected,
+                                )
                             }
                         }
                     }
@@ -109,3 +125,62 @@ internal fun partTypeDetailRows(
     "Tipo" to detail.fixedLabel,
     "Stato" to detail.activeLabel,
 )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PartTypeDetailViewSwitcher(
+    viewMode: PartTypeDetailViewMode,
+    onViewModeChange: (PartTypeDetailViewMode) -> Unit,
+) {
+    val options = PartTypeDetailViewMode.entries
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("part-type-detail-view-switcher"),
+    ) {
+        options.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = viewMode == mode,
+                onClick = { onViewModeChange(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                modifier = Modifier.testTag("part-type-detail-view-${mode.name.lowercase()}"),
+            ) {
+                Text(text = mode.label)
+            }
+        }
+    }
+}
+
+private val PartTypeDetailViewMode.label: String
+    get() = when (this) {
+        PartTypeDetailViewMode.Dettaglio -> "Dettaglio"
+        PartTypeDetailViewMode.Cronologia -> "Cronologia"
+    }
+
+@Composable
+private fun PartTypeRevisionList(
+    isLoading: Boolean,
+    revisions: List<PartTypeRevisionListItem>,
+) {
+    val spacing = MaterialTheme.spacing
+    when {
+        isLoading && revisions.isEmpty() -> WorkspaceStatePane(
+            kind = WorkspaceStateKind.Loading,
+            message = "Caricamento cronologia...",
+        )
+        revisions.isEmpty() -> WorkspaceStatePane(
+            kind = WorkspaceStateKind.Empty,
+            message = "Nessuna revisione registrata per questo tipo parte.",
+        )
+        else -> LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("part-type-revision-list"),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            items(revisions, key = { it.revisionNumber }) { rev ->
+                AdminRevisionRow(item = rev)
+            }
+        }
+    }
+}
