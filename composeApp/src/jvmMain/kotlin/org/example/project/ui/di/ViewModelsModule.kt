@@ -6,6 +6,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
 import org.example.project.feature.diagnostics.application.ImportaSeedApplicazioneDaJsonUseCase
+import org.example.project.ui.admincatalog.EquitaViewModel
 import org.example.project.ui.admincatalog.PartTypeCatalogViewModel
 import org.example.project.ui.admincatalog.WeeklySchemaCatalogViewModel
 import org.example.project.ui.diagnostics.DiagnosticsViewModel
@@ -119,6 +120,12 @@ val viewModelsModule = module {
         WeeklySchemaCatalogViewModel(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             caricaCatalogoSchemiSettimanali = get(),
+        )
+    }
+    factory {
+        EquitaViewModel(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            calcolaEquitaProclamatori = get(),
         )
     }
     factory {

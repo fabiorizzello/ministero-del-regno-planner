@@ -10,7 +10,7 @@ class AdminSecondaryNavigationTest {
     fun `visiblePrimaryNavigationSections keeps only top level operational tabs`() {
         val visible = visiblePrimaryNavigationSections(AppSection.entries.toList())
 
-        assertEquals(listOf(AppSection.PLANNING, AppSection.PROCLAMATORI), visible)
+        assertEquals(listOf(AppSection.PLANNING, AppSection.PROCLAMATORI, AppSection.EQUITA), visible)
         assertTrue(AppSection.DIAGNOSTICS !in visible)
     }
 }

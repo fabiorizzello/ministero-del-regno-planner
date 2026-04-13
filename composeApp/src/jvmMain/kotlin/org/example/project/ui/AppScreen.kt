@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
@@ -85,6 +86,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import kotlin.math.roundToInt
 import org.example.project.core.config.UiPreferencesStore
 import org.example.project.ui.admincatalog.AdminToolsScreen
+import org.example.project.ui.admincatalog.EquitaScreen
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.diagnostics.DiagnosticsScreen
 import org.example.project.ui.proclamatori.ProclamatoriScreen
@@ -111,6 +113,7 @@ private val UI_SCALE_PRESET_PERCENTAGES = listOf(90, 100, 110, 120)
 private const val TAG_TOP_BAR = "top-bar"
 private const val TAG_SECTION_PROGRAMMA = "top-section-programma"
 private const val TAG_SECTION_PROCLAMATORI = "top-section-proclamatori"
+private const val TAG_SECTION_EQUITA = "top-section-equita"
 private const val TAG_SECTION_DIAGNOSTICA = "top-section-diagnostica"
 private const val ADMIN_TOOLBAR_TOOLTIP = "Apri area amministrativa"
 
@@ -121,6 +124,7 @@ internal enum class AppSection(
 ) {
     PLANNING("Programma", Icons.Filled.Dashboard, PlanningDashboardSectionScreen),
     PROCLAMATORI("Studenti", Icons.Filled.Groups, ProclamatoriSectionScreen),
+    EQUITA("Rotazione", Icons.Filled.Equalizer, EquitaSectionScreen),
     DIAGNOSTICS("Diagnostica", Icons.Filled.BugReport, DiagnosticsSectionScreen),
 }
 
@@ -265,6 +269,7 @@ fun DecoratedWindowScope.AppScreen(
                                             tag = when (section) {
                                                 AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
                                                 AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
+                                                AppSection.EQUITA -> TAG_SECTION_EQUITA
                                                 AppSection.DIAGNOSTICS -> TAG_SECTION_DIAGNOSTICA
                                             },
                                         )
@@ -596,6 +601,13 @@ private data object PlanningDashboardSectionScreen : Screen {
     @Composable
     override fun Content() {
         ProgramWorkspaceScreen()
+    }
+}
+
+private data object EquitaSectionScreen : Screen {
+    @Composable
+    override fun Content() {
+        EquitaScreen()
     }
 }
 

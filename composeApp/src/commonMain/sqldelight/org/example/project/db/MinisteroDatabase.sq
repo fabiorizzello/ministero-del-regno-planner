@@ -214,6 +214,30 @@ FROM person
 WHERE suspended = 0
 ORDER BY last_name, first_name;
 
+equityPersonAggregates:
+SELECT
+    p.id AS person_id,
+    p.first_name,
+    p.last_name,
+    p.sex,
+    p.suspended,
+    p.can_assist,
+    COUNT(CASE WHEN wpl.id IS NOT NULL THEN a.id END) AS total_in_window,
+    SUM(CASE WHEN wpl.id IS NOT NULL AND a.slot = 1 THEN 1 ELSE 0 END) AS lead_count,
+    SUM(CASE WHEN wpl.id IS NOT NULL AND a.slot >= 2 THEN 1 ELSE 0 END) AS assist_count,
+    MAX(CASE WHEN wpl.id IS NOT NULL AND a.slot = 1 THEN wpl.week_start_date END) AS last_lead_date,
+    MAX(CASE WHEN wpl.id IS NOT NULL AND a.slot >= 2 THEN wpl.week_start_date END) AS last_assist_date,
+    MAX(CASE WHEN wpl.id IS NOT NULL THEN wpl.week_start_date END) AS last_any_date,
+    GROUP_CONCAT(CASE WHEN wpl.id IS NOT NULL THEN wpl.week_start_date END) AS assigned_weeks_csv
+FROM person p
+LEFT JOIN assignment a ON a.person_id = p.id
+LEFT JOIN weekly_part wp ON a.weekly_part_id = wp.id
+LEFT JOIN week_plan wpl ON wp.week_plan_id = wpl.id
+    AND wpl.week_start_date >= :sinceDate
+    AND wpl.week_start_date <= :untilDate
+GROUP BY p.id
+ORDER BY p.last_name, p.first_name;
+
 searchProclaimers:
 SELECT id, first_name, last_name, sex, suspended, can_assist
 FROM person
