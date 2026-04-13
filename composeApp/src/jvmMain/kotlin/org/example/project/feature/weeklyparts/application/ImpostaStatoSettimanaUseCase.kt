@@ -17,7 +17,7 @@ class ImpostaStatoSettimanaUseCase(
     suspend operator fun invoke(
         weekPlanId: WeekPlanId,
         status: WeekPlanStatus,
-        referenceDate: LocalDate = LocalDate.now(),
+        referenceDate: LocalDate,
     ): Either<DomainError, Unit> = either {
         val aggregate = weekPlanStore.loadAggregateById(weekPlanId)
             ?: raise(DomainError.NotFound("Settimana"))

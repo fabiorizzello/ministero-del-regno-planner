@@ -32,6 +32,8 @@ import kotlin.test.assertTrue
 
 class ImportaSeedApplicazioneDaJsonUseCaseTest {
 
+    private val referenceDate: LocalDate = LocalDate.of(2026, 4, 13)
+
     @Test
     fun `valid seed json imports part types students and eligibility`() = runTest {
         val studentStore = InMemoryStudentStore()
@@ -81,7 +83,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val right = assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result).value
         assertEquals(2, right.importedPartTypes)
@@ -130,7 +132,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         assertEquals(DomainError.ImportArchivioNonVuoto, left)
@@ -158,7 +160,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         val error = assertIs<DomainError.ImportContenutoNonValido>(left)
@@ -187,7 +189,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         val error = assertIs<DomainError.ImportContenutoNonValido>(left)
@@ -219,7 +221,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         val error = assertIs<DomainError.ImportContenutoNonValido>(left)
@@ -263,7 +265,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         assertEquals(DomainError.ImportConflittoProgrammaEsistente, left)
@@ -275,7 +277,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         val weekPlanStore = InMemoryWeekPlanStore()
         val useCase = buildUseCase(weekPlanStore = weekPlanStore)
 
-        val nextYear = LocalDate.now().plusYears(1)
+        val nextYear = referenceDate.plusYears(1)
         val json = """
             {
               "version": 1,
@@ -293,7 +295,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
             }
         """.trimIndent()
 
-        val result = useCase(json)
+        val result = useCase(json, referenceDate = referenceDate)
 
         val left = assertIs<Either.Left<DomainError>>(result).value
         val error = assertIs<DomainError.ImportContenutoNonValido>(left)

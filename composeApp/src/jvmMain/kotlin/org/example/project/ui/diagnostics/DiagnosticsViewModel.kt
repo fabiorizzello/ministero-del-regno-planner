@@ -302,7 +302,11 @@ internal class DiagnosticsViewModel(
                     notice = errorNotice("Import seed non completato: ${error.toMessage()}"),
                 )
             },
-            operation = { withContext(Dispatchers.IO) { importaSeedApplicazione(jsonContent) } },
+            operation = {
+                withContext(Dispatchers.IO) {
+                    importaSeedApplicazione(jsonContent, referenceDate = LocalDate.now())
+                }
+            },
         )
     }
 
