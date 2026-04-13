@@ -87,6 +87,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -1103,6 +1104,7 @@ private fun CompactSearchInput(
                     onValueChange = onValueChange,
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = sketch.ink),
+                    cursorBrush = SolidColor(sketch.accent),
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
