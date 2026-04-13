@@ -19,7 +19,9 @@ STUDENT RECORD LAYOUT (current.sd7, 160-byte records, first record is header):
             slot 2: INIZIARE_CONVERSAZIONE
             slot 3: COLTIVARE_INTERESSE
             slot 4: FARE_DISCEPOLI
-            slot 5: ASSISTENTE (not a real partType, ignored)
+            slot 5: ASSISTENTE (generic last-assistance marker, not tied to a
+                     specific partType — emitted as top-level `ultimaAssistenza`
+                     on the student, not as an `ultimaParte` entry)
         Each slot: counter@+0 (u16 LE), flag@+2 (u8), padding@+3..+7.
         counter == 0  → never assigned
         counter > 0   → last assignment week (ANCHOR_COUNTER = 1218 = 2026-05-04)
@@ -54,7 +56,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASE = REPO_ROOT / "SeedDataWorkspace" / "Wintmi"
-OUT = REPO_ROOT / "SeedDataWorkspace" / "wintmi-seed.json"
+OUT = REPO_ROOT / "wintmi-seed.json"
 SCHEMA = REPO_ROOT / "docs" / "json-schema" / "app-seed-import.schema.json"
 
 # slot index in the record → partType code
@@ -64,8 +66,9 @@ SLOT_TO_CODE = {
     2: "INIZIARE_CONVERSAZIONE",
     3: "COLTIVARE_INTERESSE",
     4: "FARE_DISCEPOLI",
-    # slot 5 = ASSISTENTE marker, intentionally skipped
+    # slot 5 = ASSISTENTE marker, handled separately as ultimaAssistenza
 }
+ASSISTANT_SLOT = 5
 
 ELIG_BIT = {
     0x02: "DISCORSO",
@@ -74,13 +77,20 @@ ELIG_BIT = {
     0x10: "COLTIVARE_INTERESSE",
     0x20: "FARE_DISCEPOLI",
 }
+# WinTMI ha 5 partType-bits ma la app ne usa 6: SPIEGARE_CIO_CHE_SI_CREDE è una
+# categoria gemella di COLTIVARE_INTERESSE (entrambe STESSO_SESSO da 2). Verificato
+# 61/61 match sulla seed corrente: ogni studente con bit 0x10 è anche eligibile
+# SPIEGARE, ogni studente senza bit 0x10 non lo è.
+DERIVED_FROM = {
+    "COLTIVARE_INTERESSE": "SPIEGARE_CIO_CHE_SI_CREDE",
+}
 PUO_ASSISTERE_BIT = 0x40
 
 # Date anchor (verified)
 ANCHOR_COUNTER = 1218
 ANCHOR_DATE = date(2026, 5, 4)
-TODAY = date(2026, 4, 10)
-CUTOFF_COUNTER = 1214  # Monday 2026-04-06, last past-or-current Monday ≤ TODAY
+TODAY = date(2026, 4, 13)
+CUTOFF_COUNTER = 1215  # Monday 2026-04-13, last past-or-current Monday ≤ TODAY
 
 FORCE_F = {"fortuna de santis", "ester sergi"}
 
@@ -97,7 +107,7 @@ def read_cp1252(buf: bytes, off: int, size: int) -> str:
         return ""
 
 def read_ultima_parte(rec: bytes) -> dict[str, int]:
-    """Extract {code: counter} from student record, filtered by cutoff."""
+    """Extract {code: counter} for partType slots 0..4, filtered by cutoff."""
     result: dict[str, int] = {}
     for slot, code in SLOT_TO_CODE.items():
         so = 0x38 + slot * 8
@@ -108,6 +118,14 @@ def read_ultima_parte(rec: bytes) -> dict[str, int]:
             continue
         result[code] = counter
     return result
+
+def read_assistant_counter(rec: bytes) -> int | None:
+    """Return slot 5 (ASSISTENTE) counter if past-or-current, else None."""
+    so = 0x38 + ASSISTANT_SLOT * 8
+    counter = struct.unpack_from("<H", rec, so)[0]
+    if counter == 0 or counter > CUTOFF_COUNTER:
+        return None
+    return counter
 
 def load_students():
     with open(BASE / "current.sd7", "rb") as f:
@@ -131,6 +149,7 @@ def load_students():
             "sex_byte": sex_byte,
             "elig_byte": elig,
             "ultima_raw": read_ultima_parte(rec),
+            "assistant_counter": read_assistant_counter(rec),
         }
     return students_by_sid
 
@@ -151,6 +170,10 @@ def canonical_eligibility(stu: dict, sex: str) -> tuple[list[str], bool]:
     # UOMO safety net: women can never lead LETTURA or DISCORSO
     if sex == "F":
         codes = [c for c in codes if c not in ("LETTURA_DELLA_BIBBIA", "DISCORSO")]
+    # Derive SPIEGARE_CIO_CHE_SI_CREDE from COLTIVARE_INTERESSE bit (verified 61/61)
+    for source, derived in DERIVED_FROM.items():
+        if source in codes and derived not in codes:
+            codes.append(derived)
     puo_assistere = bool(elig & PUO_ASSISTERE_BIT)
     return codes, puo_assistere
 
@@ -175,16 +198,20 @@ def main():
     print(f"students: {len(students_by_sid)}")
 
     part_types = [
-        {"code": "LETTURA_DELLA_BIBBIA", "label": "Lettura della Bibbia",
-         "peopleCount": 1, "sexRule": "UOMO", "sortOrder": 0},
-        {"code": "INIZIARE_CONVERSAZIONE", "label": "Iniziare conversazioni",
+        {"code": "LETTURA_DELLA_BIBBIA", "label": "Lettura Biblica",
+         "peopleCount": 1, "sexRule": "UOMO", "fixed": True, "sortOrder": 0},
+        {"code": "INIZIARE_CONVERSAZIONE", "label": "Iniziare una conversazione",
          "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 1},
         {"code": "COLTIVARE_INTERESSE", "label": "Coltivare l'interesse",
          "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 2},
         {"code": "FARE_DISCEPOLI", "label": "Fare discepoli",
          "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 3},
         {"code": "DISCORSO", "label": "Discorso",
-         "peopleCount": 1, "sexRule": "UOMO", "fixed": True, "sortOrder": 4},
+         "peopleCount": 1, "sexRule": "UOMO", "sortOrder": 4},
+        # SPIEGARE is the twin of COLTIVARE_INTERESSE in WinTMI (no separate bit),
+        # appended last to preserve the catalog ordering that was committed manually.
+        {"code": "SPIEGARE_CIO_CHE_SI_CREDE", "label": "Spiegare quello in cui si crede",
+         "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 5},
     ]
 
     ordered = sorted(
@@ -196,6 +223,7 @@ def main():
     sex_inferred = []
     total_ultima = 0
     students_with_ultima = 0
+    students_with_assistance = 0
     coverage_by_code = {code: 0 for code in SLOT_TO_CODE.values()}
     dropped_for_ineligible = 0
     for stu in ordered:
@@ -221,15 +249,25 @@ def main():
             })
             coverage_by_code[code] += 1
         ultima.sort(key=lambda x: x["tipo"])
+        # Sort alphabetically, but keep SPIEGARE_CIO_CHE_SI_CREDE adjacent to its
+        # source COLTIVARE_INTERESSE (matches the manually-curated seed ordering).
+        def code_sort_key(c: str) -> str:
+            if c == "SPIEGARE_CIO_CHE_SI_CREDE":
+                return "COLTIVARE_INTERESSE\x01"
+            return c
         entry = {
             "nome": stu["nome"],
             "cognome": stu["cognome"],
             "sesso": sesso,
             "sospeso": False,
             "puoAssistere": puo_assistere,
-            "canLeadPartTypeCodes": sorted(codes),
+            "canLeadPartTypeCodes": sorted(codes, key=code_sort_key),
             "ultimaParte": ultima,
         }
+        assistant_counter = stu["assistant_counter"]
+        if assistant_counter is not None:
+            entry["ultimaAssistenza"] = counter_to_date(assistant_counter).isoformat()
+            students_with_assistance += 1
         students_json.append(entry)
         if ultima:
             students_with_ultima += 1
@@ -251,6 +289,7 @@ def main():
     print(f"=== wintmi-seed.json written ===")
     print(f"students emitted: {len(students_json)}")
     print(f"students with ultimaParte: {students_with_ultima}")
+    print(f"students with ultimaAssistenza: {students_with_assistance}")
     print(f"total ultimaParte entries: {total_ultima}")
     print(f"ultimaParte coverage by code:")
     for code, count in coverage_by_code.items():

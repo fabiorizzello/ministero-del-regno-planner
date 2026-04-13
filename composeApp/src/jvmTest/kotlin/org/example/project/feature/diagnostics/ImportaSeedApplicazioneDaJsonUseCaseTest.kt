@@ -64,8 +64,8 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "puoAssistere": true,
                   "canLeadPartTypeCodes": ["preghiera", "lettura"],
                   "ultimaParte": [
-                    { "data": "2026-03-16", "tipo": "lettura" },
-                    { "data": "2026-03-09", "tipo": "preghiera" }
+                    { "data": "2026-02-16", "tipo": "lettura" },
+                    { "data": "2026-02-09", "tipo": "preghiera" }
                   ]
                 },
                 {
@@ -76,7 +76,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "puoAssistere": false,
                   "canLeadPartTypeCodes": ["lettura"],
                   "ultimaParte": [
-                    { "data": "2026-03-23", "tipo": "lettura" }
+                    { "data": "2026-02-23", "tipo": "lettura" }
                   ]
                 }
               ]
@@ -96,13 +96,13 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertEquals(3, eligibilityStore.recorded.size)
         assertTrue(eligibilityStore.recorded.any { it.partTypeCode == "PREGHIERA" })
         assertEquals(2, eligibilityStore.recorded.count { it.partTypeCode == "LETTURA" })
-        val firstWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 16)))
+        val firstWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 2, 16)))
         assertEquals(1, firstWeek.parts.size)
         assertEquals("LETTURA", firstWeek.parts.single().partType.code)
-        val earlierWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 9)))
+        val earlierWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 2, 9)))
         assertEquals(1, earlierWeek.parts.size)
         assertEquals("PREGHIERA", earlierWeek.parts.single().partType.code)
-        val secondWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 3, 23)))
+        val secondWeek = assertNotNull(weekPlanStore.findByDate(LocalDate.of(2026, 2, 23)))
         assertEquals(1, secondWeek.parts.size)
         assertEquals("LETTURA", secondWeek.parts.single().partType.code)
         Unit
@@ -213,8 +213,8 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "cognome": "Rossi",
                   "sesso": "M",
                   "ultimaParte": [
-                    { "data": "2026-03-16", "tipo": "LETTURA" },
-                    { "data": "2026-03-09", "tipo": "LETTURA" }
+                    { "data": "2026-02-16", "tipo": "LETTURA" },
+                    { "data": "2026-02-09", "tipo": "LETTURA" }
                   ]
                 }
               ]
@@ -232,12 +232,12 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
     @Test
     fun `historical assignment on existing program week is rejected`() = runTest {
         val weekPlanStore = InMemoryWeekPlanStore()
-        val programWeekStart = LocalDate.of(2026, 3, 16)
+        val programWeekStart = LocalDate.of(2026, 2, 16)
         val existingProgramWeek = WeekPlan.of(
             id = WeekPlanId("existing-program-week"),
             weekStartDate = programWeekStart,
             parts = emptyList(),
-            programId = ProgramMonthId("program-2026-03"),
+            programId = ProgramMonthId("program-2026-02"),
         ).getOrNull() ?: error("failed to build seed WeekPlan for test")
         weekPlanStore.seed(
             WeekPlanAggregate(
@@ -259,7 +259,7 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
                   "nome": "Mario",
                   "cognome": "Rossi",
                   "sesso": "M",
-                  "ultimaParte": [ { "data": "2026-03-18", "tipo": "LETTURA" } ]
+                  "ultimaParte": [ { "data": "2026-02-18", "tipo": "LETTURA" } ]
                 }
               ]
             }
@@ -301,6 +301,82 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         val error = assertIs<DomainError.ImportContenutoNonValido>(left)
         assertTrue(error.details.contains("data nel futuro"))
         assertTrue(error.details.contains(nextYear.toString()))
+        Unit
+    }
+
+    @Test
+    fun `ultimaParte in current or previous month is silently skipped`() = runTest {
+        val weekPlanStore = InMemoryWeekPlanStore()
+        val useCase = buildUseCase(weekPlanStore = weekPlanStore)
+
+        // referenceDate = 2026-04-13 → skip 2026-04 (current) and 2026-03 (previous),
+        // keep 2026-02 (two months back). Stessa regola di ultimaAssistenza.
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 0 }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "canLeadPartTypeCodes": ["LETTURA"],
+                  "ultimaParte": [
+                    { "data": "2026-04-06", "tipo": "LETTURA" },
+                    { "data": "2026-03-30", "tipo": "LETTURA" },
+                    { "data": "2026-02-23", "tipo": "LETTURA" }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val right = assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result).value
+        // Solo l'entry di febbraio sopravvive al filtro.
+        assertEquals(1, right.importedHistoricalAssignments)
+        assertNotNull(weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 2, 23)))
+        assertEquals(null, weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 4, 6)))
+        assertEquals(null, weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 3, 30)))
+        Unit
+    }
+
+    @Test
+    fun `ultimaParte skip bypasses tipo and duplicate validation for skipped entries`() = runTest {
+        val useCase = buildUseCase()
+
+        // Le due entry di marzo cadono nel mese precedente: la prima ha tipo sconosciuto,
+        // la seconda duplica un tipo. Entrambe vengono ignorate prima di qualsiasi check
+        // semantico, quindi l'import passa senza errori.
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 0 }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "canLeadPartTypeCodes": ["LETTURA"],
+                  "ultimaParte": [
+                    { "data": "2026-03-30", "tipo": "TIPO_INESISTENTE" },
+                    { "data": "2026-03-23", "tipo": "LETTURA" },
+                    { "data": "2026-03-16", "tipo": "LETTURA" }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val right = assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result).value
+        assertEquals(0, right.importedHistoricalAssignments)
         Unit
     }
 
@@ -368,6 +444,56 @@ class ImportaSeedApplicazioneDaJsonUseCaseTest {
         assertTrue(error.details.contains("ultimaAssistenza"))
         assertTrue(error.details.contains("data nel futuro"))
         assertTrue(error.details.contains(nextYear.toString()))
+        Unit
+    }
+
+    @Test
+    fun `ultimaAssistenza in current or previous month is silently skipped`() = runTest {
+        val weekPlanStore = InMemoryWeekPlanStore()
+        val useCase = buildUseCase(weekPlanStore = weekPlanStore)
+
+        // referenceDate = 2026-04-13 → skip 2026-04 (current) and 2026-03 (previous),
+        // keep 2026-02 (two months back).
+        val json = """
+            {
+              "version": 1,
+              "partTypes": [
+                { "code": "LETTURA", "label": "Lettura", "peopleCount": 2, "sexRule": "STESSO_SESSO", "sortOrder": 0 }
+              ],
+              "students": [
+                {
+                  "nome": "Mario",
+                  "cognome": "Rossi",
+                  "sesso": "M",
+                  "ultimaAssistenza": "2026-04-06"
+                },
+                {
+                  "nome": "Anna",
+                  "cognome": "Bianchi",
+                  "sesso": "F",
+                  "ultimaAssistenza": "2026-03-30"
+                },
+                {
+                  "nome": "Luca",
+                  "cognome": "Verdi",
+                  "sesso": "M",
+                  "ultimaAssistenza": "2026-02-23"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = useCase(json, referenceDate = referenceDate)
+
+        val right = assertIs<Either.Right<ImportaSeedApplicazioneDaJsonUseCase.Result>>(result).value
+        assertEquals(1, right.importedAssistanceLastDates)
+        // Only Luca's 2026-02-23 should produce a ghost week.
+        assertNotNull(weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 2, 23)))
+        // Mario's 2026-04-06 (current month) and Anna's 2026-03-30 (previous month) → no ghost.
+        // 2026-04-06 is a Monday, 2026-03-30 is a Monday → these are exactly the keys that
+        // would have been used if the dates had been imported.
+        assertEquals(null, weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 4, 6)))
+        assertEquals(null, weekPlanStore.loadAggregateByDate(LocalDate.of(2026, 3, 30)))
         Unit
     }
 

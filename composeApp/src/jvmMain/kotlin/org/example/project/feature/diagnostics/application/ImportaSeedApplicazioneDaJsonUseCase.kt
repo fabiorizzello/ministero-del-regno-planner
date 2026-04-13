@@ -30,6 +30,7 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeParseException
 import java.time.temporal.TemporalAdjusters
 import java.util.UUID
@@ -61,6 +62,8 @@ private data class SeedStudentDto(
     val canLeadPartTypeCodes: List<String> = emptyList(),
     @SerialName("ultimaParte")
     val ultimaParte: List<SeedStudentLastAssignmentDto> = emptyList(),
+    @SerialName("ultimaAssistenza")
+    val ultimaAssistenza: String? = null,
 )
 
 @Serializable
@@ -75,6 +78,7 @@ private data class ParsedSeedStudent(
     val person: Proclamatore,
     val canLeadPartTypeCodes: Set<String>,
     val lastAssignments: List<ParsedSeedStudentLastAssignment>,
+    val lastAssistance: LocalDate?,
 )
 
 private data class ParsedSeedStudentLastAssignment(
@@ -85,6 +89,7 @@ private data class ParsedSeedStudentLastAssignment(
 private data class ParsedSeedImport(
     val partTypes: List<PartType>,
     val students: List<ParsedSeedStudent>,
+    val assistanceHostPartTypeCode: String?,
 )
 
 class ImportaSeedApplicazioneDaJsonUseCase(
@@ -100,6 +105,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         val importedStudents: Int,
         val importedLeadEligibility: Int,
         val importedHistoricalAssignments: Int,
+        val importedAssistanceLastDates: Int,
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -153,8 +159,26 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                             personId = student.person.id,
                             partType = storedPartType,
                             assignmentDate = lastAssignment.date,
+                            slot = 1,
                         ).bind()
                     }
+                }
+
+                val assistanceHostPartType: PartType? = parsed.assistanceHostPartTypeCode?.let { code ->
+                    storedPartTypesByCode[code]
+                        ?: raise(DomainError.ImportSalvataggioFallito("Tipo parte assistenza non disponibile dopo il salvataggio: $code"))
+                }
+
+                parsed.students.forEach { student ->
+                    val lastAssistance = student.lastAssistance ?: return@forEach
+                    val hostPartType = assistanceHostPartType
+                        ?: raise(DomainError.ImportSalvataggioFallito("Tipo parte assistenza non risolto"))
+                    persistHistoricalAssignment(
+                        personId = student.person.id,
+                        partType = hostPartType,
+                        assignmentDate = lastAssistance,
+                        slot = 2,
+                    ).bind()
                 }
 
                 Result(
@@ -162,6 +186,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                     importedStudents = parsed.students.size,
                     importedLeadEligibility = parsed.students.sumOf { it.canLeadPartTypeCodes.size },
                     importedHistoricalAssignments = parsed.students.sumOf { it.lastAssignments.size },
+                    importedAssistanceLastDates = parsed.students.count { it.lastAssistance != null },
                 )
             }
         }.bind()
@@ -217,6 +242,21 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             )
         }
 
+        // Risoluzione del PartType "host" per le ghost week di ultimaAssistenza:
+        // primo PartType del catalogo importato con peopleCount >= 2, in sortOrder.
+        // Necessario solo se almeno uno studente ha ultimaAssistenza valorizzato.
+        val assistanceHostPartTypeCode: String? = if (students.any { it.lastAssistance != null }) {
+            val candidate = partTypes
+                .filter { it.peopleCount >= 2 }
+                .minByOrNull { it.sortOrder }
+            if (candidate == null) {
+                errors += "ultimaAssistenza: nessun tipo parte con peopleCount >= 2 nel catalogo importato"
+                null
+            } else {
+                candidate.code
+            }
+        } else null
+
         if (errors.isNotEmpty()) {
             val preview = errors.take(5).joinToString(" | ")
             val suffix = if (errors.size > 5) " | ..." else ""
@@ -226,6 +266,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         ParsedSeedImport(
             partTypes = partTypes,
             students = students,
+            assistanceHostPartTypeCode = assistanceHostPartTypeCode,
         )
     }
 
@@ -318,6 +359,27 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             ifRight = { it },
         )
 
+        val lastAssistance: LocalDate? = item.ultimaAssistenza?.trim()?.takeIf { it.isNotBlank() }?.let { raw ->
+            val parsed = try {
+                LocalDate.parse(raw)
+            } catch (_: DateTimeParseException) {
+                raise("students[$position].ultimaAssistenza: data non valida ($raw), atteso formato ISO yyyy-MM-dd")
+            }
+            if (parsed.isAfter(referenceDate)) {
+                raise("students[$position].ultimaAssistenza: data nel futuro ($parsed) non ammessa per dati storici")
+            }
+            // Skip silently se l'assistenza cade nel mese corrente o nel mese precedente:
+            // i programmi di questi mesi sono tipicamente gia' in carico nell'app, quindi
+            // una ghost week creerebbe conflitto o duplicato con dati reali.
+            val parsedMonth = YearMonth.from(parsed)
+            val cutoffMonth = YearMonth.from(referenceDate).minusMonths(1)
+            if (!parsedMonth.isBefore(cutoffMonth)) {
+                null
+            } else {
+                parsed
+            }
+        }
+
         ParsedSeedStudent(
             person = person,
             canLeadPartTypeCodes = canLeadCodes,
@@ -329,6 +391,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             ).getOrElse { message ->
                 raise(message)
             },
+            lastAssistance = lastAssistance,
         )
     }
 
@@ -339,7 +402,9 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         referenceDate: LocalDate,
     ): Either<String, List<ParsedSeedStudentLastAssignment>> = either {
         val seenPartTypes = mutableSetOf<String>()
-        items.mapIndexed { index, item ->
+        val cutoffMonth = YearMonth.from(referenceDate).minusMonths(1)
+        val kept = mutableListOf<ParsedSeedStudentLastAssignment>()
+        items.forEachIndexed { index, item ->
             val entryPosition = index + 1
             val date = try {
                 LocalDate.parse(item.data.trim())
@@ -355,6 +420,15 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 )
             }
 
+            // Skip silently se nel mese corrente o nel mese precedente: stessa motivazione di
+            // ultimaAssistenza — i programmi di questi mesi sono tipicamente gia' in carico,
+            // quindi una ghost week creerebbe conflitto o duplicato con dati reali.
+            // Anche tipo/duplicati non vengono validati per le entry scartate, cosi' il file
+            // puo' essere importato anche se contiene rumore nelle entry recenti.
+            if (!YearMonth.from(date).isBefore(cutoffMonth)) {
+                return@forEachIndexed
+            }
+
             val partTypeCode = normalizePartTypeCode(item.tipo)
                 .takeIf { it.isNotBlank() }
                 ?: raise("students[$position].ultimaParte[$entryPosition]: tipo obbligatorio")
@@ -367,11 +441,12 @@ class ImportaSeedApplicazioneDaJsonUseCase(
                 raise("students[$position].ultimaParte[$entryPosition]: tipo duplicato ($partTypeCode)")
             }
 
-            ParsedSeedStudentLastAssignment(
+            kept += ParsedSeedStudentLastAssignment(
                 date = date,
                 partTypeCode = partTypeCode,
             )
         }
+        kept
     }
 
     private fun parseSexRule(raw: String): Either<String, SexRule> = either {
@@ -399,6 +474,7 @@ class ImportaSeedApplicazioneDaJsonUseCase(
         personId: ProclamatoreId,
         partType: PartType,
         assignmentDate: LocalDate,
+        slot: Int,
     ): Either<DomainError, Unit> = either {
         val weekStartDate = assignmentDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val existingAggregate = weekPlanStore.loadAggregateByDate(weekStartDate)
@@ -412,13 +488,15 @@ class ImportaSeedApplicazioneDaJsonUseCase(
             partType = partType,
             sortOrder = existingAggregate?.weekPlan?.nextSortOrder() ?: 0,
         )
+        // R15-005 esteso: le assegnazioni storiche derivate da ultimaParte usano slot=1
+        // (conduttore), quelle derivate da ultimaAssistenza usano slot=2 (assistente).
+        // La query SQL lastAssistantAssignmentDateForPerson filtra slot>=2 e raccoglie
+        // automaticamente le ghost week create con slot=2.
         val assignment = Assignment.of(
             id = AssignmentId(UUID.randomUUID().toString()),
             weeklyPartId = newPart.id,
             personId = personId,
-            // Slot 1 (conduttore): lo schema seed corrente non distingue ruoli, tutte le
-            // assegnazioni storiche sono trattate come conduttore. Vedi R15-005.
-            slot = 1,
+            slot = slot,
         ).fold(
             ifLeft = { raise(it) },
             ifRight = { it },

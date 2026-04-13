@@ -3,14 +3,15 @@
   "partTypes": [
     {
       "code": "LETTURA_DELLA_BIBBIA",
-      "label": "Lettura della Bibbia",
+      "label": "Lettura Biblica",
       "peopleCount": 1,
       "sexRule": "UOMO",
+      "fixed": true,
       "sortOrder": 0
     },
     {
       "code": "INIZIARE_CONVERSAZIONE",
-      "label": "Iniziare conversazioni",
+      "label": "Iniziare una conversazione",
       "peopleCount": 2,
       "sexRule": "STESSO_SESSO",
       "sortOrder": 1
@@ -34,7 +35,6 @@
       "label": "Discorso",
       "peopleCount": 1,
       "sexRule": "UOMO",
-      "fixed": true,
       "sortOrder": 4
     },
     {
@@ -42,7 +42,6 @@
       "label": "Spiegare quello in cui si crede",
       "peopleCount": 2,
       "sexRule": "STESSO_SESSO",
-      "fixed": false,
       "sortOrder": 5
     }
   ],
@@ -56,7 +55,8 @@
       "canLeadPartTypeCodes": [
         "LETTURA_DELLA_BIBBIA"
       ],
-      "ultimaParte": []
+      "ultimaParte": [],
+      "ultimaAssistenza": "2025-12-22"
     },
     {
       "nome": "Annarita",
@@ -238,7 +238,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2026-02-02"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2024-04-01"
     },
     {
       "nome": "Danila",
@@ -277,7 +278,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-01-05"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-04-13"
     },
     {
       "nome": "Stefano",
@@ -294,7 +296,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-12-22"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-04-06"
     },
     {
       "nome": "Carmela",
@@ -317,7 +320,8 @@
           "tipo": "FARE_DISCEPOLI",
           "data": "2025-01-06"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-23"
     },
     {
       "nome": "Anna Rita",
@@ -365,7 +369,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-10-13"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-04-14"
     },
     {
       "nome": "Alessio",
@@ -424,7 +429,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-09-15"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-04-13"
     },
     {
       "nome": "Dario",
@@ -453,7 +459,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-03-10"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-16"
     },
     {
       "nome": "Anna",
@@ -476,7 +483,8 @@
           "tipo": "FARE_DISCEPOLI",
           "data": "2023-10-30"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2023-12-11"
     },
     {
       "nome": "Francesco",
@@ -519,7 +527,8 @@
           "tipo": "COLTIVARE_INTERESSE",
           "data": "2025-01-27"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-10-13"
     },
     {
       "nome": "Elisa",
@@ -542,7 +551,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-05-26"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-04-06"
     },
     {
       "nome": "Luigi",
@@ -585,7 +595,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-02-23"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-19"
     },
     {
       "nome": "Laura",
@@ -599,7 +610,8 @@
         "FARE_DISCEPOLI",
         "INIZIARE_CONVERSAZIONE"
       ],
-      "ultimaParte": []
+      "ultimaParte": [],
+      "ultimaAssistenza": "2023-02-20"
     },
     {
       "nome": "Sara",
@@ -617,8 +629,13 @@
         {
           "tipo": "COLTIVARE_INTERESSE",
           "data": "2025-12-15"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-04-13"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-23"
     },
     {
       "nome": "Anna",
@@ -645,7 +662,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-01-19"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-23"
     },
     {
       "nome": "Roberta",
@@ -705,7 +723,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2026-02-23"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-04-13"
     },
     {
       "nome": "Fortuna",
@@ -728,7 +747,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-12-15"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-16"
     },
     {
       "nome": "Alessandra",
@@ -755,7 +775,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-08-25"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-12-08"
     },
     {
       "nome": "Andrea",
@@ -784,7 +805,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-03-31"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-09"
     },
     {
       "nome": "Anna Lisa",
@@ -807,7 +829,8 @@
           "tipo": "FARE_DISCEPOLI",
           "data": "2024-07-15"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-09"
     },
     {
       "nome": "Davide",
@@ -840,7 +863,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-01-13"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-16"
     },
     {
       "nome": "Federico",
@@ -877,7 +901,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-03-03"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-12-22"
     },
     {
       "nome": "Greta",
@@ -927,7 +952,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-02-23"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-05"
     },
     {
       "nome": "Luigi",
@@ -971,7 +997,12 @@
       "canLeadPartTypeCodes": [
         "LETTURA_DELLA_BIBBIA"
       ],
-      "ultimaParte": []
+      "ultimaParte": [
+        {
+          "tipo": "LETTURA_DELLA_BIBBIA",
+          "data": "2026-04-13"
+        }
+      ]
     },
     {
       "nome": "Matteo",
@@ -1015,7 +1046,8 @@
       "sospeso": false,
       "puoAssistere": true,
       "canLeadPartTypeCodes": [],
-      "ultimaParte": []
+      "ultimaParte": [],
+      "ultimaAssistenza": "2026-01-26"
     },
     {
       "nome": "Andrea",
@@ -1084,8 +1116,13 @@
         {
           "tipo": "FARE_DISCEPOLI",
           "data": "2024-01-08"
+        },
+        {
+          "tipo": "INIZIARE_CONVERSAZIONE",
+          "data": "2026-04-13"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-09"
     },
     {
       "nome": "Misael",
@@ -1115,7 +1152,8 @@
       "sospeso": false,
       "puoAssistere": true,
       "canLeadPartTypeCodes": [],
-      "ultimaParte": []
+      "ultimaParte": [],
+      "ultimaAssistenza": "2025-12-01"
     },
     {
       "nome": "Valentina",
@@ -1142,7 +1180,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-03-02"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-26"
     },
     {
       "nome": "Vito",
@@ -1167,7 +1206,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-09-15"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-11-03"
     },
     {
       "nome": "Alessandro",
@@ -1188,7 +1228,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2026-02-09"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2024-05-27"
     },
     {
       "nome": "Stefania",
@@ -1252,10 +1293,15 @@
       ],
       "ultimaParte": [
         {
+          "tipo": "COLTIVARE_INTERESSE",
+          "data": "2026-04-13"
+        },
+        {
           "tipo": "DISCORSO",
           "data": "2025-11-10"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-12-01"
     },
     {
       "nome": "Marcella",
@@ -1282,7 +1328,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-03-09"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-02"
     },
     {
       "nome": "Anna Rita",
@@ -1305,7 +1352,8 @@
           "tipo": "FARE_DISCEPOLI",
           "data": "2026-02-16"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-12-08"
     },
     {
       "nome": "Mimina",
@@ -1328,7 +1376,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-03-16"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-23"
     },
     {
       "nome": "Lina",
@@ -1367,7 +1416,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-11-10"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-23"
     },
     {
       "nome": "Miriam",
@@ -1433,7 +1483,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-03-17"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-02"
     },
     {
       "nome": "Manuela",
@@ -1460,7 +1511,8 @@
       "canLeadPartTypeCodes": [
         "INIZIARE_CONVERSAZIONE"
       ],
-      "ultimaParte": []
+      "ultimaParte": [],
+      "ultimaAssistenza": "2022-11-07"
     },
     {
       "nome": "Cinzia",
@@ -1514,7 +1566,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-10-20"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-26"
     },
     {
       "nome": "Fabrizio",
@@ -1547,7 +1600,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-09-29"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-09-08"
     },
     {
       "nome": "Elisa",
@@ -1615,7 +1669,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2024-04-01"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2024-06-17"
     },
     {
       "nome": "Fabio",
@@ -1648,7 +1703,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-12-29"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-10-06"
     },
     {
       "nome": "Marzia",
@@ -1666,7 +1722,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-12-08"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-03-09"
     },
     {
       "nome": "Annarita",
@@ -1682,7 +1739,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2024-01-29"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2024-03-04"
     },
     {
       "nome": "Chemuel",
@@ -1715,7 +1773,8 @@
           "tipo": "LETTURA_DELLA_BIBBIA",
           "data": "2025-05-26"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-10-13"
     },
     {
       "nome": "Cristian",
@@ -1754,7 +1813,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-01-06"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-19"
     },
     {
       "nome": "Marisa",
@@ -1804,7 +1864,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-11-17"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-16"
     },
     {
       "nome": "Daniel",
@@ -1839,7 +1900,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-03-02"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-19"
     },
     {
       "nome": "Luca",
@@ -1936,7 +1998,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2025-11-17"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-02-16"
     },
     {
       "nome": "Maria  Assunta",
@@ -1963,7 +2026,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-02-16"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2026-01-05"
     },
     {
       "nome": "Tommaso",
@@ -1983,7 +2047,8 @@
           "tipo": "INIZIARE_CONVERSAZIONE",
           "data": "2026-02-09"
         }
-      ]
+      ],
+      "ultimaAssistenza": "2025-06-16"
     }
   ]
 }
