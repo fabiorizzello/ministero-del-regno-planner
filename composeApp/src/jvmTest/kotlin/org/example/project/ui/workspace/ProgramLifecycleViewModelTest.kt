@@ -22,6 +22,7 @@ class ProgramLifecycleViewModelTest {
         val futureId = ProgramMonthId("m2")
         val result = resolveSelectedProgramId(
             previousSelectedId = futureId,
+            previousProgram = null,
             currentProgram = program(currentId, 2026, 3),
             futurePrograms = listOf(program(futureId, 2026, 4)),
         )
@@ -33,6 +34,7 @@ class ProgramLifecycleViewModelTest {
         val currentId = ProgramMonthId("m1")
         val result = resolveSelectedProgramId(
             previousSelectedId = ProgramMonthId("gone"),
+            previousProgram = null,
             currentProgram = program(currentId, 2026, 3),
             futurePrograms = emptyList(),
         )
@@ -44,6 +46,7 @@ class ProgramLifecycleViewModelTest {
         val futureId = ProgramMonthId("m2")
         val result = resolveSelectedProgramId(
             previousSelectedId = null,
+            previousProgram = null,
             currentProgram = null,
             futurePrograms = listOf(program(futureId, 2026, 4)),
         )
@@ -54,10 +57,50 @@ class ProgramLifecycleViewModelTest {
     fun `resolveSelectedProgramId restituisce null se non ci sono programmi`() {
         val result = resolveSelectedProgramId(
             previousSelectedId = null,
+            previousProgram = null,
             currentProgram = null,
             futurePrograms = emptyList(),
         )
         assertNull(result)
+    }
+
+    @Test
+    fun `resolveSelectedProgramId non sceglie mai previous come default`() {
+        val previousId = ProgramMonthId("prev")
+        val currentId = ProgramMonthId("curr")
+        val result = resolveSelectedProgramId(
+            previousSelectedId = null,
+            previousProgram = program(previousId, 2026, 3),
+            currentProgram = program(currentId, 2026, 4),
+            futurePrograms = emptyList(),
+        )
+        assertEquals(currentId, result)
+    }
+
+    @Test
+    fun `resolveSelectedProgramId default a primo futuro se previous esiste ma corrente no`() {
+        val previousId = ProgramMonthId("prev")
+        val futureId = ProgramMonthId("future")
+        val result = resolveSelectedProgramId(
+            previousSelectedId = null,
+            previousProgram = program(previousId, 2026, 3),
+            currentProgram = null,
+            futurePrograms = listOf(program(futureId, 2026, 5)),
+        )
+        assertEquals(futureId, result)
+    }
+
+    @Test
+    fun `resolveSelectedProgramId preserva selezione previous se utente l'ha scelta`() {
+        val previousId = ProgramMonthId("prev")
+        val currentId = ProgramMonthId("curr")
+        val result = resolveSelectedProgramId(
+            previousSelectedId = previousId,
+            previousProgram = program(previousId, 2026, 3),
+            currentProgram = program(currentId, 2026, 4),
+            futurePrograms = emptyList(),
+        )
+        assertEquals(previousId, result)
     }
 
     // ── computeCreatableTargets ───────────────────────────────────────────────
@@ -99,6 +142,71 @@ class ProgramLifecycleViewModelTest {
         assertTrue(targets.isEmpty())
     }
 
+    // ── computePastCreatableTarget ────────────────────────────────────────────
+
+    @Test
+    fun `computePastCreatableTarget restituisce mese precedente quando vuoto`() {
+        val today = LocalDate.of(2026, 4, 13)
+        val target = computePastCreatableTarget(
+            today = today,
+            previousProgram = null,
+            currentProgram = null,
+            futurePrograms = emptyList(),
+        )
+        assertEquals(YearMonth.of(2026, 3), target)
+    }
+
+    @Test
+    fun `computePastCreatableTarget restituisce null se previousProgram esiste`() {
+        val today = LocalDate.of(2026, 4, 13)
+        val target = computePastCreatableTarget(
+            today = today,
+            previousProgram = program(ProgramMonthId("prev"), 2026, 3),
+            currentProgram = null,
+            futurePrograms = emptyList(),
+        )
+        assertNull(target)
+    }
+
+    @Test
+    fun `computePastCreatableTarget non e' bloccato dalla quota futuri`() {
+        val today = LocalDate.of(2026, 4, 13)
+        val target = computePastCreatableTarget(
+            today = today,
+            previousProgram = null,
+            currentProgram = program(ProgramMonthId("curr"), 2026, 4),
+            futurePrograms = listOf(
+                program(ProgramMonthId("f1"), 2026, 5),
+                program(ProgramMonthId("f2"), 2026, 6),
+            ),
+        )
+        assertEquals(YearMonth.of(2026, 3), target)
+    }
+
+    @Test
+    fun `applyProgramSnapshot popola pastCreatableTarget quando assente`() {
+        val state = ProgramLifecycleUiState(today = LocalDate.of(2026, 4, 13))
+        val snapshot = ProgramSelectionSnapshot(
+            previous = null,
+            current = program(ProgramMonthId("curr"), 2026, 4),
+            futures = emptyList(),
+        )
+        val result = applyProgramSnapshot(state, snapshot)
+        assertEquals(YearMonth.of(2026, 3), result.pastCreatableTarget)
+    }
+
+    @Test
+    fun `applyProgramSnapshot azzera pastCreatableTarget quando previous esiste`() {
+        val state = ProgramLifecycleUiState(today = LocalDate.of(2026, 4, 13))
+        val snapshot = ProgramSelectionSnapshot(
+            previous = program(ProgramMonthId("prev"), 2026, 3),
+            current = program(ProgramMonthId("curr"), 2026, 4),
+            futures = emptyList(),
+        )
+        val result = applyProgramSnapshot(state, snapshot)
+        assertNull(result.pastCreatableTarget)
+    }
+
     // ── applyProgramSnapshot ──────────────────────────────────────────────────
 
     @Test
@@ -110,6 +218,7 @@ class ProgramLifecycleViewModelTest {
             today = LocalDate.of(2026, 3, 6),
         )
         val snapshot = ProgramSelectionSnapshot(
+            previous = null,
             current = program(currentId, 2026, 3),
             futures = listOf(program(futureId, 2026, 4)),
         )
@@ -127,11 +236,55 @@ class ProgramLifecycleViewModelTest {
             selectedProgramAssignments = mapOf("x" to emptyList()),
             today = LocalDate.of(2026, 3, 6),
         )
-        val snapshot = ProgramSelectionSnapshot(current = null, futures = emptyList())
+        val snapshot = ProgramSelectionSnapshot(previous = null, current = null, futures = emptyList())
         val result = applyProgramSnapshot(state, snapshot)
         assertNull(result.selectedProgramId)
         assertTrue(result.selectedProgramWeeks.isEmpty())
         assertTrue(result.selectedProgramAssignments.isEmpty())
+    }
+
+    @Test
+    fun `applyProgramSnapshot popola previousProgram dallo snapshot`() {
+        val previousId = ProgramMonthId("prev")
+        val currentId = ProgramMonthId("curr")
+        val state = ProgramLifecycleUiState(today = LocalDate.of(2026, 4, 13))
+        val snapshot = ProgramSelectionSnapshot(
+            previous = program(previousId, 2026, 3),
+            current = program(currentId, 2026, 4),
+            futures = emptyList(),
+        )
+        val result = applyProgramSnapshot(state, snapshot)
+        assertEquals(previousId, result.previousProgram?.id)
+        assertEquals(currentId, result.currentProgram?.id)
+        assertEquals(currentId, result.selectedProgramId, "Default selection rimane il corrente")
+    }
+
+    @Test
+    fun `selectedProgram getter risolve il previousProgram quando selezionato`() {
+        val previousId = ProgramMonthId("prev")
+        val currentId = ProgramMonthId("curr")
+        val state = ProgramLifecycleUiState(
+            today = LocalDate.of(2026, 4, 13),
+            previousProgram = program(previousId, 2026, 3),
+            currentProgram = program(currentId, 2026, 4),
+            selectedProgramId = previousId,
+        )
+        assertEquals(previousId, state.selectedProgram?.id)
+        assertTrue(state.isSelectedProgramPast)
+        assertFalse(state.canDeleteSelectedProgram, "Past program non deve essere eliminabile")
+    }
+
+    @Test
+    fun `canDeleteSelectedProgram resta vero per il corrente`() {
+        val currentId = ProgramMonthId("curr")
+        val state = ProgramLifecycleUiState(
+            today = LocalDate.of(2026, 4, 13),
+            previousProgram = program(ProgramMonthId("prev"), 2026, 3),
+            currentProgram = program(currentId, 2026, 4),
+            selectedProgramId = currentId,
+        )
+        assertFalse(state.isSelectedProgramPast)
+        assertTrue(state.canDeleteSelectedProgram)
     }
 
     @Test
@@ -143,6 +296,7 @@ class ProgramLifecycleViewModelTest {
             today = LocalDate.of(2026, 3, 6),
         )
         val snapshot = ProgramSelectionSnapshot(
+            previous = null,
             current = program(id, 2026, 3),
             futures = emptyList(),
         )

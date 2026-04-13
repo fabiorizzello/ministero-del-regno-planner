@@ -494,6 +494,13 @@ FROM program_monthly
 WHERE end_date >= ?
 ORDER BY year, month;
 
+mostRecentPastProgram:
+SELECT id, year, month, start_date, end_date, template_applied_at, created_at
+FROM program_monthly
+WHERE end_date < ?
+ORDER BY end_date DESC
+LIMIT 1;
+
 findProgramByYearMonth:
 SELECT id, year, month, start_date, end_date, template_applied_at, created_at
 FROM program_monthly

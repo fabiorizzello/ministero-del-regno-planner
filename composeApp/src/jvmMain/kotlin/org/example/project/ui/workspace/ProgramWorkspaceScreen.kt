@@ -427,11 +427,14 @@ fun ProgramWorkspaceScreen() {
             else -> {
             val selectedProgram = remember(
                 lifecycleState.selectedProgramId,
+                lifecycleState.previousProgram,
                 lifecycleState.currentProgram,
                 lifecycleState.futurePrograms,
             ) {
                 val selectedId = lifecycleState.selectedProgramId
                 when (selectedId) {
+                    null -> lifecycleState.currentProgram ?: lifecycleState.futurePrograms.firstOrNull()
+                    lifecycleState.previousProgram?.id -> lifecycleState.previousProgram
                     lifecycleState.currentProgram?.id -> lifecycleState.currentProgram
                     else -> {
                         lifecycleState.futurePrograms.firstOrNull { it.id == selectedId }
@@ -500,9 +503,33 @@ fun ProgramWorkspaceScreen() {
                             ),
                             color = sketch.inkMuted,
                         )
+                        lifecycleState.pastCreatableTarget?.let { target ->
+                            CreaProgrammaRow(
+                                label = formatMonthYearLabel(target.monthValue, target.year),
+                                accent = sketch.accent,
+                                isCreating = lifecycleState.isCreatingProgram,
+                                onClick = {
+                                    lifecycleVM.createProgramForTarget(target.year, target.monthValue)
+                                },
+                            )
+                        }
+                        lifecycleState.previousProgram?.let { program ->
+                            ProgramMonthSelectorButton(
+                                label = formatMonthYearLabel(program.month, program.year),
+                                role = ProgramTimelineRole.PAST,
+                                selected = lifecycleState.selectedProgramId == program.id,
+                                accent = sketch.accent,
+                                indicator = null,
+                                onClick = {
+                                    lifecycleVM.selectProgram(program.id)
+                                    selectedWeekId = null
+                                },
+                            )
+                        }
                         lifecycleState.currentProgram?.let { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
+                                role = ProgramTimelineRole.CURRENT,
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 indicator = ProgramSidebarIndicator(
@@ -518,6 +545,7 @@ fun ProgramWorkspaceScreen() {
                         lifecycleState.futurePrograms.forEach { program ->
                             ProgramMonthSelectorButton(
                                 label = formatMonthYearLabel(program.month, program.year),
+                                role = ProgramTimelineRole.FUTURE,
                                 selected = lifecycleState.selectedProgramId == program.id,
                                 accent = sketch.accent,
                                 indicator = ProgramSidebarIndicator(
@@ -531,31 +559,14 @@ fun ProgramWorkspaceScreen() {
                             )
                         }
                         lifecycleState.creatableTargets.forEach { target ->
-                            val label = formatMonthYearLabel(target.monthValue, target.year)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .handCursorOnHover()
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .clickable(enabled = !lifecycleState.isCreatingProgram) {
-                                        lifecycleVM.createProgramForTarget(target.year, target.monthValue)
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    Icons.Filled.Add,
-                                    contentDescription = null,
-                                    tint = sketch.accent.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(12.dp),
-                                )
-                                Text(
-                                    if (lifecycleState.isCreatingProgram) "Creazione..." else "Crea $label",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = sketch.accent.copy(alpha = 0.7f),
-                                )
-                            }
+                            CreaProgrammaRow(
+                                label = formatMonthYearLabel(target.monthValue, target.year),
+                                accent = sketch.accent,
+                                isCreating = lifecycleState.isCreatingProgram,
+                                onClick = {
+                                    lifecycleVM.createProgramForTarget(target.year, target.monthValue)
+                                },
+                            )
                         }
                     }
 
@@ -1006,9 +1017,12 @@ internal fun buildDeleteProgramImpactMessage(impact: DeleteProgramImpact): Strin
         "Verranno rimosse ${impact.weeksCount} settimane e ${impact.assignmentsCount} assegnazioni."
 }
 
+internal enum class ProgramTimelineRole { PAST, CURRENT, FUTURE }
+
 @Composable
 private fun ProgramMonthSelectorButton(
     label: String,
+    role: ProgramTimelineRole,
     selected: Boolean,
     accent: Color,
     indicator: ProgramMonthStatusIndicator?,
@@ -1020,18 +1034,27 @@ private fun ProgramMonthSelectorButton(
     val shape = RoundedCornerShape(10.dp)
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
+    val isPast = role == ProgramTimelineRole.PAST
     val border = when {
+        selected && isPast -> sketch.inkMuted.copy(alpha = 0.55f)
         selected -> accent.copy(alpha = 0.58f)
         focused -> accent.copy(alpha = 0.65f)
         else -> sketch.lineSoft
     }
     val container = when {
+        selected && isPast -> sketch.surfaceMuted
         selected -> accent.copy(alpha = 0.14f)
         focused -> accent.copy(alpha = 0.1f)
         hovered -> sketch.surfaceMuted
+        isPast -> sketch.surfaceMuted.copy(alpha = 0.45f)
         else -> sketch.surface
     }
-    val content = if (selected) accent else sketch.inkSoft
+    val content = when {
+        selected && isPast -> sketch.ink.copy(alpha = 0.85f)
+        selected -> accent
+        isPast -> sketch.inkMuted
+        else -> sketch.inkSoft
+    }
 
     Surface(
         modifier = Modifier
@@ -1054,37 +1077,101 @@ private fun ProgramMonthSelectorButton(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                color = content.copy(alpha = if (enabled) 1f else 0.45f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            indicator?.let { currentIndicator ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(currentIndicator.color.copy(alpha = if (enabled) 1f else 0.45f)),
-                    )
-                    Text(
-                        text = currentIndicator.label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 10.sp,
-                        ),
-                        color = currentIndicator.color.copy(alpha = if (enabled) 0.92f else 0.45f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = label,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = content.copy(alpha = if (enabled) 1f else 0.45f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (isPast) {
+                    PassatoBadge()
+                }
+            }
+            if (!isPast) {
+                indicator?.let { currentIndicator ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(currentIndicator.color.copy(alpha = if (enabled) 1f else 0.45f)),
+                        )
+                        Text(
+                            text = currentIndicator.label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 10.sp,
+                            ),
+                            color = currentIndicator.color.copy(alpha = if (enabled) 0.92f else 0.45f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PassatoBadge() {
+    val sketch = MaterialTheme.workspaceSketch
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = sketch.inkMuted.copy(alpha = 0.18f),
+        border = BorderStroke(1.dp, sketch.inkMuted.copy(alpha = 0.35f)),
+    ) {
+        Text(
+            text = "Passato",
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 9.sp,
+                letterSpacing = 0.4.sp,
+            ),
+            color = sketch.inkMuted,
+        )
+    }
+}
+
+@Composable
+private fun CreaProgrammaRow(
+    label: String,
+    accent: Color,
+    isCreating: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .handCursorOnHover()
+            .clip(RoundedCornerShape(5.dp))
+            .clickable(enabled = !isCreating, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = null,
+            tint = accent.copy(alpha = 0.7f),
+            modifier = Modifier.size(12.dp),
+        )
+        Text(
+            if (isCreating) "Creazione..." else "Crea $label",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color = accent.copy(alpha = 0.7f),
+        )
     }
 }
 

@@ -189,6 +189,8 @@ private class RefreshProgramStore(
 
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> = listOf(program)
 
+    override suspend fun findMostRecentPast(referenceDate: LocalDate): ProgramMonth? = null
+
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = if (id == program.id) program else null
 
     context(tx: TransactionScope)

@@ -19,6 +19,12 @@ class SqlDelightProgramStore(
             .distinctBy { it.yearMonth }
     }
 
+    override suspend fun findMostRecentPast(referenceDate: LocalDate): ProgramMonth? {
+        return database.ministeroDatabaseQueries
+            .mostRecentPastProgram(referenceDate.toString(), ::mapProgramRow)
+            .executeAsOneOrNull()
+    }
+
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? {
         return database.ministeroDatabaseQueries
             .findProgramById(id.value, ::mapProgramRow)

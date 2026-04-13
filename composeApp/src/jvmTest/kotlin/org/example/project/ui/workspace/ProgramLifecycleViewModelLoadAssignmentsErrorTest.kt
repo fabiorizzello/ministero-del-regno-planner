@@ -39,6 +39,7 @@ class ProgramLifecycleViewModelLoadAssignmentsErrorTest {
         val caricaProgrammiAttivi = mockk<CaricaProgrammiAttiviUseCase>()
         coEvery { caricaProgrammiAttivi(any()) } returns Either.Right(
             ProgramSelectionSnapshot(
+                previous = null,
                 current = currentProgram,
                 futures = emptyList(),
             ),

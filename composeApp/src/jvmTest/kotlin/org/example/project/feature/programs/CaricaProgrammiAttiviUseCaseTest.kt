@@ -50,6 +50,43 @@ class CaricaProgrammiAttiviUseCaseTest {
 
         assertNull(snapshot.current)
         assertEquals(listOf("future-1"), snapshot.futures.map { it.id.value })
+        assertNull(snapshot.previous)
+    }
+
+    @Test
+    fun `returns most recent past program when present`() = runTest {
+        val referenceDate = LocalDate.of(2026, 4, 13)
+        val store = SnapshotStore(
+            programs = mutableListOf(
+                fixtureProgramMonth(YearMonth.of(2026, 1), id = "older-past"),
+                fixtureProgramMonth(YearMonth.of(2026, 3), id = "previous"),
+                fixtureProgramMonth(YearMonth.of(2026, 4), id = "current"),
+                fixtureProgramMonth(YearMonth.of(2026, 5), id = "future-1"),
+            ),
+        )
+        val useCase = CaricaProgrammiAttiviUseCase(store)
+
+        val snapshot = useCase(referenceDate).getOrElse { fail("Expected Right but got Left: $it") }
+
+        assertEquals("previous", snapshot.previous?.id?.value)
+        assertEquals("current", snapshot.current?.id?.value)
+        assertEquals(listOf("future-1"), snapshot.futures.map { it.id.value })
+    }
+
+    @Test
+    fun `returns null previous when no past programs exist`() = runTest {
+        val referenceDate = LocalDate.of(2026, 2, 12)
+        val store = SnapshotStore(
+            programs = mutableListOf(
+                fixtureProgramMonth(YearMonth.of(2026, 2), id = "current"),
+                fixtureProgramMonth(YearMonth.of(2026, 3), id = "future-1"),
+            ),
+        )
+        val useCase = CaricaProgrammiAttiviUseCase(store)
+
+        val snapshot = useCase(referenceDate).getOrElse { fail("Expected Right but got Left: $it") }
+
+        assertNull(snapshot.previous)
     }
 }
 
@@ -57,7 +94,10 @@ private class SnapshotStore(
     val programs: MutableList<ProgramMonth> = mutableListOf(),
 ) : ProgramStore {
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> =
-        programs.sortedBy { it.startDate }
+        programs.filter { it.endDate >= referenceDate }.sortedBy { it.startDate }
+
+    override suspend fun findMostRecentPast(referenceDate: LocalDate): ProgramMonth? =
+        programs.filter { it.endDate < referenceDate }.maxByOrNull { it.endDate }
 
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? =
         programs.firstOrNull { it.id == id }

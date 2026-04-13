@@ -119,7 +119,49 @@ class CreaProssimoProgrammaUseCaseTest {
         Unit
     }
 
-    // 8. Data inizio e fine programma calcolata correttamente (primo lunedì del mese → ultima domenica)
+    // 8. Mese precedente (febbraio 2026) consentito quando store vuoto
+    @Test
+    fun `previous month can be created when no past program exists`() = runTest {
+        val store = InMemoryProgramStore()
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
+
+        val result = useCase(2026, 2, referenceDate)
+
+        val created = assertIs<Either.Right<ProgramMonth>>(result).value
+        assertEquals(2026, created.year)
+        assertEquals(2, created.month)
+        Unit
+    }
+
+    // 9. Mese precedente già esistente → ProgrammaGiaEsistenteNelMese
+    @Test
+    fun `previous month already existing returns ProgrammaGiaEsistenteNelMese`() = runTest {
+        val store = InMemoryProgramStore(
+            programs = mutableListOf(fixtureProgramMonth(YearMonth.of(2026, 2))),
+        )
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
+
+        val result = useCase(2026, 2, referenceDate)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertIs<DomainError.ProgrammaGiaEsistenteNelMese>(left)
+        Unit
+    }
+
+    // 10. Due mesi indietro (gennaio 2026) → MeseFuoriFinestraCreazione
+    @Test
+    fun `two months back returns MeseFuoriFinestraCreazione`() = runTest {
+        val store = InMemoryProgramStore()
+        val useCase = CreaProssimoProgrammaUseCase(store, PassthroughTransactionRunner)
+
+        val result = useCase(2026, 1, referenceDate)
+
+        val left = assertIs<Either.Left<DomainError>>(result).value
+        assertEquals(DomainError.MeseFuoriFinestraCreazione, left)
+        Unit
+    }
+
+    // 11. Data inizio e fine programma calcolata correttamente (primo lunedì del mese → ultima domenica)
     @Test
     fun `created program has correct start and end dates`() = runTest {
         val store = InMemoryProgramStore()

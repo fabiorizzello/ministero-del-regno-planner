@@ -53,9 +53,11 @@ internal enum class ProgramSidebarStatus {
 internal data class ProgramLifecycleUiState(
     val today: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
+    val previousProgram: ProgramMonth? = null,
     val currentProgram: ProgramMonth? = null,
     val futurePrograms: List<ProgramMonth> = emptyList(),
     val programSidebarStates: Map<ProgramMonthId, ProgramSidebarStatus> = emptyMap(),
+    val pastCreatableTarget: YearMonth? = null,
     val creatableTargets: List<YearMonth> = emptyList(),
     val selectedProgramId: ProgramMonthId? = null,
     val selectedProgramWeeks: List<WeekPlan> = emptyList(),
@@ -70,13 +72,17 @@ internal data class ProgramLifecycleUiState(
     val canCreateProgram: Boolean get() = creatableTargets.isNotEmpty()
     val selectedProgram: ProgramMonth?
         get() = when (selectedProgramId) {
+            null -> null
             currentProgram?.id -> currentProgram
+            previousProgram?.id -> previousProgram
             else -> futurePrograms.firstOrNull { it.id == selectedProgramId }
         }
     val selectedFutureProgram: ProgramMonth?
         get() = futurePrograms.firstOrNull { it.id == selectedProgramId }
+    val isSelectedProgramPast: Boolean
+        get() = selectedProgramId != null && previousProgram?.id == selectedProgramId
     val canDeleteSelectedProgram: Boolean
-        get() = selectedProgram != null
+        get() = selectedProgram != null && !isSelectedProgramPast
 }
 
 internal class ProgramLifecycleViewModel(
@@ -232,6 +238,7 @@ internal class ProgramLifecycleViewModel(
                 },
                 ifRight = { snapshot ->
                     val programs = buildList {
+                        snapshot.previous?.let(::add)
                         snapshot.current?.let(::add)
                         addAll(snapshot.futures)
                     }
@@ -356,10 +363,12 @@ private fun buildProgramCreationFailureNotice(
 
 internal fun resolveSelectedProgramId(
     previousSelectedId: ProgramMonthId?,
+    previousProgram: ProgramMonth?,
     currentProgram: ProgramMonth?,
     futurePrograms: List<ProgramMonth>,
 ): ProgramMonthId? {
     val ids = buildSet {
+        previousProgram?.let { add(it.id) }
         currentProgram?.let { add(it.id) }
         futurePrograms.forEach { add(it.id) }
     }
@@ -387,6 +396,28 @@ internal fun computeCreatableTargets(
     }
 }
 
+internal fun computePastCreatableTarget(
+    today: LocalDate,
+    previousProgram: ProgramMonth?,
+    currentProgram: ProgramMonth?,
+    futurePrograms: List<ProgramMonth>,
+): YearMonth? {
+    val target = YearMonth.from(today).minusMonths(1)
+    val existingByMonth = buildSet {
+        previousProgram?.let { add(it.yearMonth) }
+        currentProgram?.let { add(it.yearMonth) }
+        futurePrograms.forEach { add(it.yearMonth) }
+    }
+    val futureMonths = futurePrograms.map { it.yearMonth }.toSet()
+    val error = ProgramMonthAggregate.validateCreationTarget(
+        target = target,
+        referenceDate = today,
+        existingByMonth = existingByMonth,
+        futureMonths = futureMonths,
+    )
+    return target.takeIf { error == null }
+}
+
 internal fun applyProgramSnapshot(
     state: ProgramLifecycleUiState,
     snapshot: ProgramSelectionSnapshot,
@@ -396,20 +427,31 @@ internal fun applyProgramSnapshot(
         currentProgram = snapshot.current,
         futurePrograms = snapshot.futures,
     )
+    val pastCreatableTarget = computePastCreatableTarget(
+        today = state.today,
+        previousProgram = snapshot.previous,
+        currentProgram = snapshot.current,
+        futurePrograms = snapshot.futures,
+    )
     val selectedProgramId = resolveSelectedProgramId(
         previousSelectedId = state.selectedProgramId,
+        previousProgram = snapshot.previous,
         currentProgram = snapshot.current,
         futurePrograms = snapshot.futures,
     )
     val clearWeeks = selectedProgramId == null
     return state.copy(
         isLoading = false,
+        previousProgram = snapshot.previous,
         currentProgram = snapshot.current,
         futurePrograms = snapshot.futures,
         programSidebarStates = state.programSidebarStates.filterKeys { programId ->
-            programId == snapshot.current?.id || snapshot.futures.any { it.id == programId }
+            programId == snapshot.previous?.id ||
+                programId == snapshot.current?.id ||
+                snapshot.futures.any { it.id == programId }
         },
         creatableTargets = creatableTargets,
+        pastCreatableTarget = pastCreatableTarget,
         selectedProgramId = selectedProgramId,
         selectedProgramWeeks = if (clearWeeks) emptyList() else state.selectedProgramWeeks,
         selectedProgramAssignments = if (clearWeeks) emptyMap() else state.selectedProgramAssignments,

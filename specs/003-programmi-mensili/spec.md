@@ -88,9 +88,10 @@ entrambi compaiano con il loro stato (PAST/CURRENT/FUTURE).
 **Acceptance Scenarios**:
 
 1. **Given** programmi esistenti, **When** si caricano i programmi attivi, **Then**
-   viene restituito un `ProgramSelectionSnapshot(current, futures)` dove `current` è
-   il programma con timelineStatus CURRENT (o null) e `futures` contiene i programmi
-   con status FUTURE ordinati cronologicamente (max 2).
+   viene restituito un `ProgramSelectionSnapshot(previous, current, futures)` dove
+   `previous` è il programma PAST più recente (o null), `current` è il programma con
+   timelineStatus CURRENT (o null) e `futures` contiene i programmi con status FUTURE
+   ordinati cronologicamente (max 2).
 2. **Given** un programma con data corrente nel range startDate-endDate, **Then** il
    suo timelineStatus è CURRENT.
 3. **Given** nessun programma corrente né futuro, **When** si carica lo snapshot,
@@ -183,8 +184,13 @@ degli schemi nuovi.
   non è più creabile.
 - Calcolo date: startDate = primo lunedì del mese; endDate = domenica successiva
   all'ultimo giorno del mese (può sforare nel mese successivo).
-- `CaricaProgrammiAttiviUseCase` restituisce `ProgramSelectionSnapshot(current, futures)`:
-  al massimo 1 programma CURRENT e fino a 2 FUTURE.
+- `CaricaProgrammiAttiviUseCase` restituisce
+  `ProgramSelectionSnapshot(previous, current, futures)`: al massimo 1 programma
+  PAST (mese precedente più recente, solo per visualizzazione/modifica), 1 CURRENT e
+  fino a 2 FUTURE.
+- Mese precedente: visibile in sidebar con badge "Passato"; selezionabile per
+  visualizzazione/modifica delle settimane; non eliminabile (cfr. FR-009);
+  creabile se assente tramite la stessa CTA "Crea <mese>" usata per gli altri mesi.
 - `AggiornaProgrammaDaSchemiUseCase`: applica solo alle settimane con `weekStartDate >=
   referenceDate` (non rielabora il passato). Usa `dryRun=true` per preview senza
   modifiche al DB. Assegnazioni preservate per chiave `(partTypeId, sortOrder)`.
@@ -228,8 +234,9 @@ degli schemi nuovi.
   L'eliminazione di un programma corrente o futuro MUST avvenire in transazione con
   cascade delete su tutti i WeekPlan, le WeeklyPart e le assegnazioni del programma.
 - **FR-010**: `CaricaProgrammiAttiviUseCase` MUST restituire un `ProgramSelectionSnapshot`
-  contenente al massimo un programma CURRENT (nullable) e una lista di programmi FUTURE
-  ordinata cronologicamente (dimensione 0..2).
+  contenente al massimo un programma PAST (mese precedente più recente, nullable),
+  un programma CURRENT (nullable) e una lista di programmi FUTURE ordinata
+  cronologicamente (dimensione 0..2).
 - **FR-011**: `AggiornaProgrammaDaSchemiUseCase` MUST supportare modalità `dryRun`
   che calcola `SchemaRefreshReport(weeksUpdated, assignmentsPreserved, assignmentsRemoved)`
   senza modificare il DB. In modalità non-dryRun MUST preservare le assegnazioni le cui
@@ -246,15 +253,19 @@ degli schemi nuovi.
   gli schemi importati comportano un delta reale rispetto ai template già applicati, e
   MUST apparire solo sui mesi futuri effettivamente impattati.
 - **FR-017**: Nel workspace UI, il sistema MUST mostrare CTA di creazione per tutti i
-  mesi creabili nella finestra "mese corrente .. +2 mesi", escludendo i mesi già
-  presenti.
+  mesi creabili nella finestra "mese precedente .. mese corrente +2 mesi", escludendo
+  i mesi già presenti. La CTA del mese precedente MUST essere posizionata in cima alla
+  lista programmi della sidebar; le CTA dei mesi corrente/futuri MUST restare sotto i
+  selettori di mese esistenti.
 - **FR-018**: Nel workspace UI, l'eliminazione di un programma corrente o futuro MUST
   richiedere una conferma esplicita con riepilogo dell'impatto (almeno conteggio
   settimane e assegnazioni che verranno eliminate).
 - **FR-019**: La creazione dei mesi MUST rispettare la contiguità cronologica dei mesi
-  mancanti. Se il mese corrente non esiste, il sistema MUST consentire come prima
-  creazione diretta solo `corrente+1`; la creazione di `corrente+2` senza `corrente+1`
-  MUST essere bloccata.
+  mancanti nella finestra forward. Se il mese corrente non esiste, il sistema MUST
+  consentire come prima creazione diretta solo `corrente+1`; la creazione di
+  `corrente+2` senza `corrente+1` MUST essere bloccata. Il mese precedente
+  (`corrente-1`) MUST essere creabile indipendentemente dalla presenza del mese
+  corrente o dei mesi futuri (non concorre alla quota `MAX_FUTURE_PROGRAMS = 2`).
 - **FR-020**: Dopo la creazione di `corrente+1` in assenza del mese corrente, il sistema
   MUST consentire la creazione successiva del mese corrente finché quel mese non è
   passato.
@@ -292,6 +303,16 @@ degli schemi nuovi.
 - **FR-031**: Nel workspace UI, le settimane passate modificabili MUST mostrare un
   indicatore visivo aggiuntivo di editabilità storica e i relativi dialog MUST mostrare
   un alert contestuale prima della conferma dell'azione.
+- **FR-032**: Nel workspace UI, il mese precedente più recente (se esistente) MUST
+  apparire nella sidebar dei programmi sopra il mese corrente, marcato con badge
+  "Passato"; MUST essere selezionabile per visualizzazione e modifica delle settimane,
+  e MUST essere reso visivamente distinguibile (tono attenuato, nessun pill di
+  completamento) ma rimanere navigabile come gli altri programmi.
+- **FR-033**: Il sistema MUST consentire la creazione del mese precedente
+  (`corrente-1`) tramite la stessa CTA "Crea <mese>" usata per gli altri mesi, a patto
+  che non esista già un programma per quel mese. La creazione del mese precedente
+  MUST essere indipendente dalla quota `MAX_FUTURE_PROGRAMS` e MUST essere consentita
+  anche quando i 2 slot futuri sono pieni.
 
 ## Cross-Feature Dependency
 
@@ -303,8 +324,9 @@ degli schemi nuovi.
 - **ProgramMonth**: id (UUID), year, month, startDate, endDate, templateAppliedAt
   (nullable), createdAt. Metodo: `timelineStatus(referenceDate)` → PAST/CURRENT/FUTURE.
 - **ProgramTimelineStatus**: PAST, CURRENT, FUTURE.
-- **ProgramSelectionSnapshot**: `current: ProgramMonth?`, `futures: List<ProgramMonth>`.
-  Returned da `CaricaProgrammiAttiviUseCase`. Al massimo un current e fino a 2 future.
+- **ProgramSelectionSnapshot**: `previous: ProgramMonth?`, `current: ProgramMonth?`,
+  `futures: List<ProgramMonth>`. Returned da `CaricaProgrammiAttiviUseCase`. Al massimo
+  un previous (mese precedente più recente), un current e fino a 2 future.
 - **SchemaRefreshReport**: `weeksUpdated: Int`, `assignmentsPreserved: Int`,
   `assignmentsRemoved: Int`. Returned da `AggiornaProgrammaDaSchemiUseCase`
   sia in dryRun che in esecuzione reale.
@@ -384,3 +406,19 @@ degli schemi nuovi.
   o se manca riscontro grafico immediato; altrimenti non mostrarlo.
 - Q: Policy notifiche errore rispetto ai toast success ridotti? → A: Errori sempre
   notificati (Option A), anche quando i toast success sono soppressi.
+
+### Session 2026-04-13
+
+- Q: Il mese precedente deve essere visibile/modificabile dal workspace? → A: Sì,
+  un solo mese precedente (il più recente) compare in cima alla sidebar dei
+  programmi con badge "Passato", selezionabile per visualizzazione e modifica delle
+  settimane (riusa l'editing storico già coperto da FR-030/FR-031); resta non
+  eliminabile.
+- Q: Deve essere possibile creare il mese precedente se assente? → A: Sì, con la
+  stessa CTA "Crea <mese>". La creazione del mese precedente è indipendente dalla
+  quota futuri (`MAX_FUTURE_PROGRAMS=2`) e dalla regola di contiguità forward.
+- Q: Quale rappresentazione DTO usare per il mese precedente? → A: Estendere
+  `ProgramSelectionSnapshot` con un campo `previous: ProgramMonth?`, popolato da una
+  query dedicata `findMostRecentPast(referenceDate)` sullo store. La validazione di
+  creazione mantiene un singolo punto di verità (`ProgramMonthAggregate.validateCreationTarget`)
+  con finestra estesa a `[ref-1, ref+2]`.

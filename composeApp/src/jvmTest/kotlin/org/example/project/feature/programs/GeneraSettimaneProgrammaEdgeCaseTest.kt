@@ -411,6 +411,7 @@ class GeneraSettimaneProgrammaEdgeCaseTest {
 /** A ProgramStore that always returns null for findById. */
 private class NullProgramStore : ProgramStore {
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> = emptyList()
+    override suspend fun findMostRecentPast(referenceDate: LocalDate): ProgramMonth? = null
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? = null
     context(tx: TransactionScope) override suspend fun save(program: ProgramMonth) {}
     context(tx: TransactionScope) override suspend fun delete(id: ProgramMonthId) {}

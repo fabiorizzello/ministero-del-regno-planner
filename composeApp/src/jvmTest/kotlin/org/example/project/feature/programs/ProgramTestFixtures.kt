@@ -14,6 +14,9 @@ internal class InMemoryProgramStore(
     override suspend fun listCurrentAndFuture(referenceDate: LocalDate): List<ProgramMonth> =
         programs.sortedBy { it.yearMonth }
 
+    override suspend fun findMostRecentPast(referenceDate: LocalDate): ProgramMonth? =
+        programs.filter { it.endDate < referenceDate }.maxByOrNull { it.endDate }
+
     override suspend fun findById(id: ProgramMonthId): ProgramMonth? =
         programs.firstOrNull { it.id == id }
 

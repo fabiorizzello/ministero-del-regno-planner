@@ -57,4 +57,65 @@ class ProgramMonthAggregateTest {
 
         assertNull(error)
     }
+
+    @Test
+    fun `validate creation target permette il mese precedente`() {
+        val referenceDate = LocalDate.of(2026, 4, 13)
+        val target = YearMonth.of(2026, 3)
+
+        val error = ProgramMonthAggregate.validateCreationTarget(
+            target = target,
+            referenceDate = referenceDate,
+            existingByMonth = emptySet(),
+            futureMonths = emptySet(),
+        )
+
+        assertNull(error)
+    }
+
+    @Test
+    fun `validate creation target blocca il mese precedente se gia esistente`() {
+        val referenceDate = LocalDate.of(2026, 4, 13)
+        val target = YearMonth.of(2026, 3)
+
+        val error = ProgramMonthAggregate.validateCreationTarget(
+            target = target,
+            referenceDate = referenceDate,
+            existingByMonth = setOf(target),
+            futureMonths = emptySet(),
+        )
+
+        assertEquals(DomainError.ProgrammaGiaEsistenteNelMese(month = 3, year = 2026), error)
+    }
+
+    @Test
+    fun `validate creation target rifiuta due mesi indietro come fuori finestra`() {
+        val referenceDate = LocalDate.of(2026, 4, 13)
+        val target = YearMonth.of(2026, 2)
+
+        val error = ProgramMonthAggregate.validateCreationTarget(
+            target = target,
+            referenceDate = referenceDate,
+            existingByMonth = emptySet(),
+            futureMonths = emptySet(),
+        )
+
+        assertEquals(DomainError.MeseFuoriFinestraCreazione, error)
+    }
+
+    @Test
+    fun `validate creation target permette mese precedente anche se quota futuri piena`() {
+        val referenceDate = LocalDate.of(2026, 4, 13)
+        val target = YearMonth.of(2026, 3)
+        val futures = setOf(YearMonth.of(2026, 5), YearMonth.of(2026, 6))
+
+        val error = ProgramMonthAggregate.validateCreationTarget(
+            target = target,
+            referenceDate = referenceDate,
+            existingByMonth = setOf(YearMonth.of(2026, 4)) + futures,
+            futureMonths = futures,
+        )
+
+        assertNull(error)
+    }
 }

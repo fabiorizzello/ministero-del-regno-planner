@@ -29,6 +29,7 @@ class ProgramLifecycleViewModelSelectionTest {
 
         val selected = resolveSelectedProgramId(
             previousSelectedId = future.id,
+            previousProgram = null,
             currentProgram = current,
             futurePrograms = listOf(future),
         )
@@ -43,6 +44,7 @@ class ProgramLifecycleViewModelSelectionTest {
 
         val selected = resolveSelectedProgramId(
             previousSelectedId = ProgramMonthId("deleted-id"),
+            previousProgram = null,
             currentProgram = current,
             futurePrograms = listOf(future),
         )
@@ -57,6 +59,7 @@ class ProgramLifecycleViewModelSelectionTest {
 
         val selected = resolveSelectedProgramId(
             previousSelectedId = null,
+            previousProgram = null,
             currentProgram = null,
             futurePrograms = listOf(future1, future2),
         )
@@ -82,6 +85,7 @@ class ProgramLifecycleViewModelSelectionTest {
         val updated = applyProgramSnapshot(
             state = initial,
             snapshot = ProgramSelectionSnapshot(
+                previous = null,
                 current = null,
                 futures = emptyList(),
             ),
