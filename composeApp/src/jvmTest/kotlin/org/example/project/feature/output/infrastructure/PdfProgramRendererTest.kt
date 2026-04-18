@@ -9,13 +9,12 @@ import org.example.project.feature.output.application.ProgramWeekPrintCardStatus
 import org.example.project.feature.output.application.ProgramWeekPrintSection
 import org.example.project.feature.output.application.ProgramWeekPrintSlot
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PdfProgramRendererTest {
 
     @Test
-    fun `monthly program pdf is rendered as a single page grid of cards`() {
+    fun `monthly program pdf is rendered week by week with parts and slots on separate lines`() {
         val renderer = PdfProgramRenderer()
         val tempDir = Files.createTempDirectory("monthly-program-pdf-test")
         val outputPath = tempDir.resolve("programma-2026-03.pdf")
@@ -30,14 +29,13 @@ class PdfProgramRendererTest {
             Loader.loadPDF(outputPath.toFile()).use { document ->
                 val text = PDFTextStripper().getText(document)
 
-                assertEquals(1, document.numberOfPages)
+                assertTrue(document.numberOfPages == 1)
                 assertTrue(text.contains("Programma marzo 2026"))
-                assertTrue(text.contains("Settimana"))
-                assertTrue(text.contains("marzo"))
-                assertTrue(text.contains("Visita iniziale"))
-                assertTrue(text.contains("Mario Rossi"))
-                assertTrue(text.contains("Studente"))
-                assertTrue(text.contains("Non assegnato"))
+                assertTrue(text.contains("Settimana 2 marzo - 8 marzo"))
+                assertTrue(text.contains("3. Visita iniziale"))
+                assertTrue(text.contains("Studente: Mario Rossi"))
+                assertTrue(text.contains("Assistente: Non assegnato"))
+                assertTrue(text.contains("Settimana 23 marzo - 29 marzo - Saltata"))
                 assertTrue(text.contains("Settimana saltata"))
             }
         } finally {

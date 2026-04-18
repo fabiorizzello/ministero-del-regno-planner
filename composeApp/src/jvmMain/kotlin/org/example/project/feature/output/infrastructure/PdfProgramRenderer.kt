@@ -20,7 +20,6 @@ import org.example.project.feature.output.application.ProgramWeekPrintSection
 import org.example.project.feature.output.application.ProgramWeekPrintSlot
 
 class PdfProgramRenderer : ProgramRenderer {
-    private val columnCount = 3
     private val weekDateFormatter = DateTimeFormatter.ofPattern("d MMMM", Locale.ITALIAN)
     private val fallbackRegular = PDType1Font(Standard14Fonts.FontName.HELVETICA)
     private val fallbackBold = PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD)
@@ -36,51 +35,87 @@ class PdfProgramRenderer : ProgramRenderer {
         PDDocument().use { document ->
             val fonts = loadFonts(document)
             val pageSize = PDRectangle.A4
-            val page = PDPage(pageSize)
+            val layout = LayoutMetrics.compactFor(
+                pageSize = pageSize,
+                sections = sections,
+            )
+            var page = PDPage(pageSize)
             document.addPage(page)
+            var content = PDPageContentStream(document, page)
+            var y = layout.pageTopY
 
-            PDPageContentStream(document, page).use { content ->
-                val margin = 16f
-                val contentWidth = pageSize.width - (margin * 2)
-                var y = pageSize.height - margin
+            try {
+                fun ensureSpace(requiredHeight: Float) {
+                    if (y - requiredHeight >= layout.bottomMargin) return
+                    content.close()
+                    page = PDPage(pageSize)
+                    document.addPage(page)
+                    content = PDPageContentStream(document, page)
+                    y = layout.pageTopY
+                }
 
-                drawTextLine(
-                    content = content,
-                    font = fonts.bold,
-                    fontSize = 13f,
-                    x = centeredX(fonts.bold, 13f, title, 0f, pageSize.width),
-                    y = y,
+                fun drawWrappedParagraph(
+                    text: String,
+                    font: PDFont,
+                    fontSize: Float,
+                    color: Color,
+                    indentX: Float = layout.contentX,
+                    extraSpacingAfter: Float = 0f,
+                ) {
+                    val lines = wrapText(
+                        font = font,
+                        fontSize = fontSize,
+                        text = text,
+                        maxWidth = layout.contentWidth - (indentX - layout.contentX),
+                    )
+                    if (lines.isEmpty()) {
+                        if (extraSpacingAfter > 0f) {
+                            ensureSpace(extraSpacingAfter)
+                            y -= extraSpacingAfter
+                        }
+                        return
+                    }
+                    val paragraphHeight = lines.size * layout.lineHeight(fontSize) + extraSpacingAfter
+                    ensureSpace(paragraphHeight)
+                    lines.forEach { line ->
+                        drawTextLine(
+                            content = content,
+                            font = font,
+                            fontSize = fontSize,
+                            x = indentX,
+                            y = y - fontSize,
+                            text = line,
+                            color = color,
+                        )
+                        y -= layout.lineHeight(fontSize)
+                    }
+                    y -= extraSpacingAfter
+                }
+
+                drawWrappedParagraph(
                     text = title,
+                    font = fonts.bold,
+                    fontSize = layout.titleFontSize,
                     color = primaryInk,
+                    extraSpacingAfter = layout.sectionGap,
                 )
 
-                y -= 16f
-
-                if (sections.isNotEmpty()) {
-                    val sectionGap = 4f
-                    val layout = createLayout(
-                        sections = sections,
-                        availableHeight = y - margin - sectionGap * (sections.size - 1).coerceAtLeast(0),
-                        contentWidth = contentWidth,
+                sections.forEachIndexed { index, section ->
+                    drawWeekSection(
+                        section = section,
+                        fonts = fonts,
+                        layout = layout,
+                        drawParagraph = { text, font, fontSize, color, indentX, extraSpacingAfter ->
+                            drawWrappedParagraph(text, font, fontSize, color, indentX, extraSpacingAfter)
+                        },
                     )
-
-                    sections.forEachIndexed { index, section ->
-                        val sectionHeight = sectionHeight(section, layout)
-                        drawWeekSection(
-                            content = content,
-                            section = section,
-                            x = margin,
-                            yTop = y,
-                            width = contentWidth,
-                            layout = layout,
-                            fonts = fonts,
-                        )
-                        y -= sectionHeight
-                        if (index < sections.lastIndex) {
-                            y -= sectionGap
-                        }
+                    if (index < sections.lastIndex) {
+                        ensureSpace(layout.sectionGap)
+                        y -= layout.sectionGap
                     }
                 }
+            } finally {
+                content.close()
             }
 
             val parentDir = outputPath.toFile().parentFile
@@ -91,207 +126,115 @@ class PdfProgramRenderer : ProgramRenderer {
         }
     }
 
-    private fun createLayout(
-        sections: List<ProgramWeekPrintSection>,
-        availableHeight: Float,
-        contentWidth: Float,
-    ): LayoutMetrics {
-        val totalUnits = sections.sumOf { sectionLayoutUnits(it).toDouble() }.toFloat().coerceAtLeast(1f)
-        val unit = (availableHeight / totalUnits).coerceAtLeast(4.6f)
-        val cardGap = (unit * 0.20f).coerceIn(4f, 7f)
-        val cardWidth = (contentWidth - cardGap * (columnCount - 1)) / columnCount
-        return LayoutMetrics(
-            columnCount = columnCount,
-            weekHeaderHeight = unit * 0.88f,
-            headerGap = unit * 0.26f,
-            rowGap = unit * 0.18f,
-            cardGap = cardGap,
-            cardWidth = cardWidth,
-            cardHeaderHeight = unit * 0.76f,
-            slotRowHeight = unit * 0.68f,
-            cardPaddingY = unit * 0.10f,
-            weekFontSize = (unit * 0.82f).coerceIn(8.5f, 11.0f),
-            titleFontSize = (unit * 0.68f).coerceIn(6.8f, 8.8f),
-            bodyFontSize = (unit * 0.62f).coerceIn(6.2f, 7.8f),
-            roleFontSize = (unit * 0.56f).coerceIn(5.8f, 6.8f),
-            roleColumnWidth = (cardWidth * 0.24f).coerceIn(28f, 40f),
-            roleGap = (unit * 0.16f).coerceIn(2f, 4f),
-        )
-    }
-
     private fun drawWeekSection(
-        content: PDPageContentStream,
         section: ProgramWeekPrintSection,
-        x: Float,
-        yTop: Float,
-        width: Float,
-        layout: LayoutMetrics,
         fonts: FontSet,
+        layout: LayoutMetrics,
+        drawParagraph: (
+            text: String,
+            font: PDFont,
+            fontSize: Float,
+            color: Color,
+            indentX: Float,
+            extraSpacingAfter: Float,
+        ) -> Unit,
     ) {
-        val weekTitle = "Settimana ${formatWeekRange(section.weekStartDate, section.weekEndDate)}"
-        drawTextLine(
-            content = content,
-            font = fonts.bold,
-            fontSize = layout.weekFontSize,
-            x = centeredX(fonts.bold, layout.weekFontSize, weekTitle, x, width),
-            y = yTop - layout.weekFontSize,
-            text = weekTitle,
-            color = primaryInk,
+        val weekTitle = buildString {
+            append("Settimana ")
+            append(formatWeekRange(section.weekStartDate, section.weekEndDate))
+            if (section.statusLabel.isNotBlank() && section.statusLabel != "Attiva") {
+                append(" - ")
+                append(section.statusLabel)
+            }
+        }
+        drawParagraph(
+            weekTitle,
+            fonts.bold,
+            layout.weekFontSize,
+            primaryInk,
+            layout.contentX,
+            layout.weekGap,
         )
 
-        var cursorY = yTop - layout.weekHeaderHeight - layout.headerGap
         if (section.cards.isEmpty()) {
-            val emptyLabel = section.emptyStateLabel ?: "Nessuna parte configurata"
-            drawTextLine(
-                content = content,
-                font = fonts.bold,
-                fontSize = layout.titleFontSize,
-                x = centeredX(fonts.bold, layout.titleFontSize, emptyLabel, x, width),
-                y = cursorY - layout.titleFontSize,
-                text = emptyLabel,
-                color = primaryInk,
+            drawParagraph(
+                section.emptyStateLabel ?: "Nessuna parte configurata",
+                fonts.regular,
+                layout.bodyFontSize,
+                primaryInk,
+                layout.itemIndentX,
+                0f,
             )
             return
         }
 
-        val rows = sectionRows(section, layout)
-        rows.forEachIndexed { rowIndex, rowCards ->
-            val rowHeight = rowHeight(rowCards, layout)
-            rowCards.forEachIndexed { cardIndex, card ->
-                drawPartBlock(
-                    content = content,
-                    card = card,
-                    x = x + cardIndex * (layout.cardWidth + layout.cardGap),
-                    yTop = cursorY,
-                    width = layout.cardWidth,
-                    layout = layout,
-                    fonts = fonts,
-                )
-            }
-            cursorY -= rowHeight
-            if (rowIndex < rows.lastIndex) {
-                cursorY -= layout.rowGap
+        section.cards.forEachIndexed { index, card ->
+            drawPartBlock(
+                card = card,
+                fonts = fonts,
+                layout = layout,
+                drawParagraph = drawParagraph,
+            )
+            if (index < section.cards.lastIndex) {
+                drawParagraph("", fonts.regular, layout.bodyFontSize, primaryInk, layout.contentX, layout.partGap)
             }
         }
     }
 
     private fun drawPartBlock(
-        content: PDPageContentStream,
         card: ProgramWeekPrintCard,
-        x: Float,
-        yTop: Float,
-        width: Float,
-        layout: LayoutMetrics,
         fonts: FontSet,
+        layout: LayoutMetrics,
+        drawParagraph: (
+            text: String,
+            font: PDFont,
+            fontSize: Float,
+            color: Color,
+            indentX: Float,
+            extraSpacingAfter: Float,
+        ) -> Unit,
     ) {
-        val title = "${card.displayNumber}. ${card.partLabel}"
-        drawTextLine(
-            content = content,
-            font = fonts.bold,
-            fontSize = layout.titleFontSize,
-            x = x,
-            y = yTop - layout.titleFontSize,
-            text = ellipsize(fonts.bold, layout.titleFontSize, title, width),
-            color = primaryInk,
+        drawParagraph(
+            "${card.displayNumber}. ${card.partLabel}",
+            fonts.bold,
+            layout.partFontSize,
+            primaryInk,
+            layout.itemIndentX,
+            layout.slotGap,
         )
-
-        card.slots.forEachIndexed { slotIndex, slot ->
-            val rowTop = yTop - layout.cardHeaderHeight - slotIndex * layout.slotRowHeight - layout.cardPaddingY
-            drawSlotRow(
-                content = content,
+        card.slots.forEach { slot ->
+            drawSlotLine(
                 slot = slot,
-                x = x,
-                yTop = rowTop,
-                width = width,
-                layout = layout,
                 fonts = fonts,
+                layout = layout,
+                drawParagraph = drawParagraph,
             )
         }
     }
 
-    private fun drawSlotRow(
-        content: PDPageContentStream,
+    private fun drawSlotLine(
         slot: ProgramWeekPrintSlot,
-        x: Float,
-        yTop: Float,
-        width: Float,
-        layout: LayoutMetrics,
         fonts: FontSet,
+        layout: LayoutMetrics,
+        drawParagraph: (
+            text: String,
+            font: PDFont,
+            fontSize: Float,
+            color: Color,
+            indentX: Float,
+            extraSpacingAfter: Float,
+        ) -> Unit,
     ) {
-        val roleX = x
-        val textX = roleX + layout.roleColumnWidth + layout.roleGap
-        val textWidth = width - layout.roleColumnWidth - layout.roleGap
-        val baselineY = yTop - (layout.slotRowHeight - layout.bodyFontSize) / 2f - 2f
-
-        if (slot.roleLabel != null) {
-            drawTextLine(
-                content = content,
-                font = fonts.bold,
-                fontSize = layout.roleFontSize,
-                x = roleX,
-                y = baselineY,
-                text = ellipsize(fonts.bold, layout.roleFontSize, "${slot.roleLabel}:", layout.roleColumnWidth),
-                color = mutedInk,
-            )
-        }
-
-        drawTextLine(
-            content = content,
-            font = fonts.regular,
-            fontSize = layout.bodyFontSize,
-            x = textX,
-            y = baselineY,
-            text = ellipsize(fonts.regular, layout.bodyFontSize, slot.assignedTo, textWidth),
-            color = primaryInk,
+        val label = slot.roleLabel?.takeIf { it.isNotBlank() } ?: "Assegnazione"
+        drawParagraph(
+            "$label: ${slot.assignedTo}",
+            fonts.regular,
+            layout.bodyFontSize,
+            if (slot.isAssigned) primaryInk else mutedInk,
+            layout.slotIndentX,
+            0f,
         )
     }
-
-    private fun rowHeight(
-        cards: List<ProgramWeekPrintCard>,
-        layout: LayoutMetrics,
-    ): Float {
-        val maxSlots = cards.maxOfOrNull { maxOf(it.slots.size, 1) } ?: 1
-        return layout.cardHeaderHeight + maxSlots * layout.slotRowHeight + layout.cardPaddingY
-    }
-
-    private fun sectionHeight(
-        section: ProgramWeekPrintSection,
-        layout: LayoutMetrics,
-    ): Float {
-        if (section.cards.isEmpty()) {
-            return layout.weekHeaderHeight + layout.headerGap + layout.slotRowHeight * 0.95f
-        }
-        val rows = sectionRows(section, layout)
-        return layout.weekHeaderHeight +
-            layout.headerGap +
-            rows.sumOf { rowHeight(it, layout).toDouble() }.toFloat() +
-            layout.rowGap * (rows.size - 1).coerceAtLeast(0)
-    }
-
-    private fun sectionLayoutUnits(section: ProgramWeekPrintSection): Float {
-        val weekHeaderUnits = 0.88f
-        val headerGapUnits = 0.18f
-        val cardHeaderUnits = 0.76f
-        val slotUnits = 0.68f
-        val paddingUnits = 0.10f
-        val rowGapUnits = 0.18f
-        if (section.cards.isEmpty()) {
-            return weekHeaderUnits + headerGapUnits + slotUnits * 0.95f
-        }
-        val rowCards = section.cards.chunked(columnCount)
-        return weekHeaderUnits +
-            headerGapUnits +
-            rowCards.sumOf { row ->
-                val maxSlots = row.maxOfOrNull { maxOf(it.slots.size, 1) } ?: 1
-                (cardHeaderUnits + slotUnits * maxSlots + paddingUnits).toDouble()
-            }.toFloat() +
-            rowGapUnits * (rowCards.size - 1).coerceAtLeast(0)
-    }
-
-    private fun sectionRows(
-        section: ProgramWeekPrintSection,
-        layout: LayoutMetrics,
-    ): List<List<ProgramWeekPrintCard>> = section.cards.chunked(layout.columnCount)
 
     private fun formatWeekRange(start: LocalDate, end: LocalDate): String {
         val startLabel = start.format(weekDateFormatter)
@@ -318,33 +261,66 @@ class PdfProgramRenderer : ProgramRenderer {
         content.endText()
     }
 
-    private fun ellipsize(
+    private fun wrapText(
         font: PDFont,
         fontSize: Float,
         text: String,
         maxWidth: Float,
-    ): String {
+    ): List<String> {
         val safeText = sanitizeForPdf(font, text)
-        if (safeText.isBlank() || maxWidth <= 0f) return ""
-        if (textWidth(font, fontSize, safeText) <= maxWidth) return safeText
+        if (safeText.isBlank() || maxWidth <= 0f) return emptyList()
 
-        val suffix = "..."
-        var candidate = safeText
-        while (candidate.isNotEmpty() && textWidth(font, fontSize, "$candidate$suffix") > maxWidth) {
-            candidate = candidate.dropLast(1).trimEnd()
+        val words = safeText.split(' ').filter { it.isNotBlank() }
+        if (words.isEmpty()) return emptyList()
+
+        val lines = mutableListOf<String>()
+        var currentLine = ""
+        words.forEach { word ->
+            val candidate = if (currentLine.isEmpty()) word else "$currentLine $word"
+            if (textWidth(font, fontSize, candidate) <= maxWidth) {
+                currentLine = candidate
+            } else {
+                if (currentLine.isNotEmpty()) {
+                    lines += currentLine
+                    currentLine = ""
+                    if (textWidth(font, fontSize, word) <= maxWidth) {
+                        currentLine = word
+                    } else {
+                        lines += splitLongWord(font, fontSize, word, maxWidth)
+                    }
+                } else {
+                    lines += splitLongWord(font, fontSize, word, maxWidth)
+                }
+            }
         }
-        return if (candidate.isBlank()) suffix else "$candidate$suffix"
+        if (currentLine.isNotEmpty()) {
+            lines += currentLine
+        }
+        return lines
     }
 
-    private fun centeredX(
+    private fun splitLongWord(
         font: PDFont,
         fontSize: Float,
-        text: String,
-        containerX: Float,
-        containerWidth: Float,
-    ): Float {
-        val tw = textWidth(font, fontSize, sanitizeForPdf(font, text))
-        return containerX + ((containerWidth - tw) / 2f).coerceAtLeast(0f)
+        word: String,
+        maxWidth: Float,
+    ): List<String> {
+        if (word.isBlank()) return emptyList()
+        val chunks = mutableListOf<String>()
+        var current = ""
+        word.forEach { ch ->
+            val candidate = current + ch
+            if (textWidth(font, fontSize, candidate) <= maxWidth || current.isEmpty()) {
+                current = candidate
+            } else {
+                chunks += current
+                current = ch.toString()
+            }
+        }
+        if (current.isNotEmpty()) {
+            chunks += current
+        }
+        return chunks
     }
 
     private fun textWidth(
@@ -429,22 +405,103 @@ class PdfProgramRenderer : ProgramRenderer {
     )
 
     private data class LayoutMetrics(
-        val columnCount: Int,
-        val weekHeaderHeight: Float,
-        val headerGap: Float,
-        val rowGap: Float,
-        val cardGap: Float,
-        val cardWidth: Float,
-        val cardHeaderHeight: Float,
-        val slotRowHeight: Float,
-        val cardPaddingY: Float,
-        val weekFontSize: Float,
+        val pageSize: PDRectangle,
+        val topMargin: Float,
+        val bottomMargin: Float,
+        val horizontalMargin: Float,
         val titleFontSize: Float,
+        val weekFontSize: Float,
+        val partFontSize: Float,
         val bodyFontSize: Float,
-        val roleFontSize: Float,
-        val roleColumnWidth: Float,
-        val roleGap: Float,
-    )
+        val sectionGap: Float,
+        val weekGap: Float,
+        val partGap: Float,
+        val slotGap: Float,
+        val itemIndent: Float,
+        val slotIndent: Float,
+        val lineSpacing: Float,
+    ) {
+        val pageTopY: Float = pageSize.height - topMargin
+        val contentX: Float = horizontalMargin
+        val contentWidth: Float = pageSize.width - (horizontalMargin * 2)
+        val itemIndentX: Float = contentX + itemIndent
+        val slotIndentX: Float = contentX + slotIndent
+
+        fun lineHeight(fontSize: Float): Float = fontSize + lineSpacing
+
+        companion object {
+            fun compactFor(
+                pageSize: PDRectangle,
+                sections: List<ProgramWeekPrintSection>,
+            ): LayoutMetrics {
+                val base = LayoutMetrics(
+                    pageSize = pageSize,
+                    topMargin = 22f,
+                    bottomMargin = 20f,
+                    horizontalMargin = 24f,
+                    titleFontSize = 13f,
+                    weekFontSize = 10f,
+                    partFontSize = 8.6f,
+                    bodyFontSize = 7.8f,
+                    sectionGap = 6f,
+                    weekGap = 2f,
+                    partGap = 2f,
+                    slotGap = 0.5f,
+                    itemIndent = 8f,
+                    slotIndent = 16f,
+                    lineSpacing = 2f,
+                )
+
+                val baseHeight = estimatedContentHeight(base, sections)
+                val availableHeight = pageSize.height - base.topMargin - base.bottomMargin
+                if (baseHeight <= availableHeight) return base
+
+                val rawScale = (availableHeight / baseHeight).coerceIn(0.74f, 1f)
+                return LayoutMetrics(
+                    pageSize = pageSize,
+                    topMargin = (base.topMargin * rawScale).coerceAtLeast(16f),
+                    bottomMargin = (base.bottomMargin * rawScale).coerceAtLeast(14f),
+                    horizontalMargin = (base.horizontalMargin * rawScale).coerceAtLeast(18f),
+                    titleFontSize = (base.titleFontSize * rawScale).coerceAtLeast(11f),
+                    weekFontSize = (base.weekFontSize * rawScale).coerceAtLeast(8.4f),
+                    partFontSize = (base.partFontSize * rawScale).coerceAtLeast(7.3f),
+                    bodyFontSize = (base.bodyFontSize * rawScale).coerceAtLeast(6.9f),
+                    sectionGap = (base.sectionGap * rawScale).coerceAtLeast(3f),
+                    weekGap = (base.weekGap * rawScale).coerceAtLeast(1f),
+                    partGap = (base.partGap * rawScale).coerceAtLeast(1f),
+                    slotGap = (base.slotGap * rawScale).coerceAtLeast(0f),
+                    itemIndent = (base.itemIndent * rawScale).coerceAtLeast(6f),
+                    slotIndent = (base.slotIndent * rawScale).coerceAtLeast(12f),
+                    lineSpacing = (base.lineSpacing * rawScale).coerceAtLeast(1f),
+                )
+            }
+
+            private fun estimatedContentHeight(
+                layout: LayoutMetrics,
+                sections: List<ProgramWeekPrintSection>,
+            ): Float {
+                var total = layout.lineHeight(layout.titleFontSize) + layout.sectionGap
+                sections.forEachIndexed { index, section ->
+                    total += layout.lineHeight(layout.weekFontSize) + layout.weekGap
+                    if (section.cards.isEmpty()) {
+                        total += layout.lineHeight(layout.bodyFontSize)
+                    } else {
+                        section.cards.forEachIndexed { cardIndex, card ->
+                            total += layout.lineHeight(layout.partFontSize) + layout.slotGap
+                            total += card.slots.size * layout.lineHeight(layout.bodyFontSize)
+                            if (cardIndex < section.cards.lastIndex) {
+                                total += layout.partGap
+                            }
+                        }
+                    }
+                    if (index < sections.lastIndex) {
+                        total += layout.sectionGap
+                    }
+                }
+                return total
+            }
+        }
+    }
 
     private data class FontSet(
         val regular: PDFont,
