@@ -14,11 +14,11 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviUse
 import org.example.project.feature.programs.application.SchemaRefreshMode
 import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
+import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
-import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeEitherOperation
@@ -51,7 +51,6 @@ internal class SchemaManagementViewModel(
     private val aggiornaSchemi: AggiornaSchemiUseCase,
     private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
     private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
-    private val schemaTemplateStore: SchemaTemplateStore,
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
     val state: StateFlow<SchemaManagementUiState> = _state.asStateFlow()
@@ -65,7 +64,6 @@ internal class SchemaManagementViewModel(
     fun refreshSchemasAndProgram(selectedProgramId: ProgramMonthId?, onProgramRefreshComplete: () -> Unit = {}) {
         if (_state.value.isRefreshingSchemas || _state.value.isRefreshingProgramFromSchemas) return
         scope.launch {
-            val before = captureSchemaFingerprint()
             _state.update { it.copy(isRefreshingSchemas = true) }
             when (val updateResult = aggiornaSchemi()) {
                 is Either.Left -> {
@@ -80,7 +78,6 @@ internal class SchemaManagementViewModel(
                 }
                 is Either.Right -> {
                     val result = updateResult.value
-                    val after = captureSchemaFingerprint()
                     val allPrograms = when (val programsResult = loadCurrentAndFuturePrograms()) {
                         is Either.Left -> {
                             _state.update {
@@ -97,12 +94,22 @@ internal class SchemaManagementViewModel(
                         }
                         is Either.Right -> programsResult.value
                     }
-                    val validProgramIds = allPrograms.map { program -> program.id }.toSet()
-                    val impactedProgramIds = calculateImpactedProgramIds(
-                        allPrograms = allPrograms,
-                        before = before,
-                        after = after,
-                    ).intersect(validProgramIds)
+                    val impactedProgramIds = when (val impacted = calculateImpactedProgramIds(allPrograms)) {
+                        is Either.Left -> {
+                            _state.update {
+                                it.copy(
+                                    isRefreshingSchemas = false,
+                                    notice = FeedbackBannerModel(
+                                        "Errore analisi impatto programmi: ${impacted.value.toMessage()}",
+                                        FeedbackBannerKind.ERROR,
+                                    ),
+                                )
+                            }
+                            onProgramRefreshComplete()
+                            return@launch
+                        }
+                        is Either.Right -> impacted.value
+                    }
                     _state.update { state ->
                         state.copy(
                             isRefreshingSchemas = false,
@@ -163,7 +170,7 @@ internal class SchemaManagementViewModel(
                             allChanges = fullPreview.value,
                             onlyUnassignedChanges = onlyUnassignedPreview.value,
                         )
-                        if (preview.allChanges.weeksUpdated == 0 && preview.onlyUnassignedChanges.weeksUpdated == 0) {
+                        if (!preview.hasEffectiveChanges()) {
                             onComplete()
                         } else {
                             pendingOnComplete = onComplete
@@ -256,13 +263,6 @@ internal class SchemaManagementViewModel(
         }
     }
 
-    private suspend fun captureSchemaFingerprint(): Map<LocalDate, List<String>> {
-        return schemaTemplateStore.listAll()
-            .associate { template ->
-                template.weekStartDate to template.partTypeIds.map { partTypeId -> partTypeId.value }
-            }
-    }
-
     private suspend fun loadCurrentAndFuturePrograms(): Either<DomainError, List<ProgramMonth>> {
         return caricaProgrammiAttivi(_state.value.today).map { snapshot ->
             buildList {
@@ -272,25 +272,26 @@ internal class SchemaManagementViewModel(
         }
     }
 
-}
+    private suspend fun calculateImpactedProgramIds(
+        allPrograms: List<ProgramMonth>,
+    ): Either<DomainError, Set<ProgramMonthId>> {
+        val referenceDate = schemaRefreshReferenceDate(_state.value.today)
+        val impactedProgramIds = linkedSetOf<ProgramMonthId>()
 
-internal fun calculateImpactedProgramIds(
-    allPrograms: List<ProgramMonth>,
-    before: Map<LocalDate, List<String>>,
-    after: Map<LocalDate, List<String>>,
-): Set<ProgramMonthId> {
-    val candidateWeeks = (before.keys + after.keys).filter { date -> before[date] != after[date] }.toSet()
-    if (candidateWeeks.isEmpty()) return emptySet()
-
-    return allPrograms
-        .filter { program ->
-            var weekStart = program.startDate
-            while (!weekStart.isAfter(program.endDate)) {
-                if (weekStart in candidateWeeks) return@filter true
-                weekStart = weekStart.plusWeeks(1)
+        for (program in allPrograms) {
+            when (val preview = aggiornaProgrammaDaSchemi(
+                programId = program.id,
+                referenceDate = referenceDate,
+                dryRun = true,
+                mode = SchemaRefreshMode.ALL,
+            )) {
+                is Either.Left -> return Either.Left(preview.value)
+                is Either.Right -> if (preview.value.hasEffectiveChanges()) {
+                    impactedProgramIds += program.id
+                }
             }
-            false
         }
-        .map { program -> program.id }
-        .toSet()
+
+        return Either.Right(impactedProgramIds)
+    }
 }

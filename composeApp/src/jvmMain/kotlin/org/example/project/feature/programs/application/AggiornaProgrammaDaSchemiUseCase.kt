@@ -43,6 +43,15 @@ data class SchemaRefreshPreview(
     val onlyUnassignedChanges: SchemaRefreshReport,
 )
 
+fun WeekRefreshDetail.hasEffectiveChanges(): Boolean =
+    partsAdded > 0 || partsRemoved > 0 || assignmentsRemoved > 0
+
+fun SchemaRefreshReport.hasEffectiveChanges(): Boolean =
+    weekDetails.any { detail -> detail.hasEffectiveChanges() }
+
+fun SchemaRefreshPreview.hasEffectiveChanges(): Boolean =
+    allChanges.hasEffectiveChanges() || onlyUnassignedChanges.hasEffectiveChanges()
+
 private data class WeekRefreshCandidate(
     val aggregate: WeekPlanAggregate,
     val orderedPartTypes: List<Pair<PartType, String?>>, // ordered by sort

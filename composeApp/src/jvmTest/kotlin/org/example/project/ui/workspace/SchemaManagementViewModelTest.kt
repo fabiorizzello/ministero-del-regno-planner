@@ -1,10 +1,13 @@
 package org.example.project.ui.workspace
 
+import org.example.project.feature.programs.application.SchemaRefreshPreview
+import org.example.project.feature.programs.application.SchemaRefreshReport
+import org.example.project.feature.programs.application.WeekRefreshDetail
+import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,21 +26,6 @@ class SchemaManagementViewModelTest {
         month = 3,
         startDate = LocalDate.of(2026, 3, 2),
         endDate = LocalDate.of(2026, 3, 29),
-        templateAppliedAt = templateAppliedAt,
-        createdAt = createdAt,
-    )
-
-    private fun fixtureProgramMonth(
-        yearMonth: YearMonth,
-        id: String = "program-${yearMonth.year}-${yearMonth.monthValue}",
-        templateAppliedAt: LocalDateTime? = null,
-        createdAt: LocalDateTime = LocalDateTime.of(yearMonth.year, yearMonth.monthValue, 1, 9, 0),
-    ) = ProgramMonth(
-        id = ProgramMonthId(id),
-        year = yearMonth.year,
-        month = yearMonth.monthValue,
-        startDate = yearMonth.atDay(1).with(java.time.temporal.TemporalAdjusters.firstInMonth(java.time.DayOfWeek.MONDAY)),
-        endDate = yearMonth.atEndOfMonth().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)),
         templateAppliedAt = templateAppliedAt,
         createdAt = createdAt,
     )
@@ -92,38 +80,64 @@ class SchemaManagementViewModelTest {
     }
 
     @Test
-    fun `impacted future ids include only months with changed template weeks`() {
-        val march = fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
-        val april = fixtureProgramMonth(YearMonth.of(2026, 4), id = "april")
-        val before = mapOf(
-            LocalDate.of(2026, 3, 2) to listOf("A", "B"),
-            LocalDate.of(2026, 4, 6) to listOf("A", "B"),
-        )
-        val after = mapOf(
-            LocalDate.of(2026, 3, 2) to listOf("A", "C"),
-            LocalDate.of(2026, 4, 6) to listOf("A", "B"),
+    fun `report with no part delta and no assignment removals has no effective changes`() {
+        val report = SchemaRefreshReport(
+            weeksUpdated = 1,
+            assignmentsPreserved = 2,
+            assignmentsRemoved = 0,
+            weekDetails = listOf(
+                WeekRefreshDetail(
+                    weekStartDate = LocalDate.of(2026, 3, 2),
+                    partsAdded = 0,
+                    partsRemoved = 0,
+                    partsKept = 2,
+                    assignmentsPreserved = 2,
+                    assignmentsRemoved = 0,
+                ),
+            ),
         )
 
-        val impacted = calculateImpactedProgramIds(
-            allPrograms = listOf(march, april),
-            before = before,
-            after = after,
-        )
-
-        assertEquals(setOf(ProgramMonthId("march")), impacted)
+        assertFalse(report.hasEffectiveChanges())
     }
 
     @Test
-    fun `no schema delta returns empty impacted ids`() {
-        val march = fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
-        val snapshot = mapOf(LocalDate.of(2026, 3, 2) to listOf("A", "B"))
-
-        val impacted = calculateImpactedProgramIds(
-            allPrograms = listOf(march),
-            before = snapshot,
-            after = snapshot,
+    fun `preview with effective change on any mode requires confirmation`() {
+        val unchanged = SchemaRefreshReport(
+            weeksUpdated = 1,
+            assignmentsPreserved = 2,
+            assignmentsRemoved = 0,
+            weekDetails = listOf(
+                WeekRefreshDetail(
+                    weekStartDate = LocalDate.of(2026, 3, 2),
+                    partsAdded = 0,
+                    partsRemoved = 0,
+                    partsKept = 2,
+                    assignmentsPreserved = 2,
+                    assignmentsRemoved = 0,
+                ),
+            ),
+        )
+        val changed = SchemaRefreshReport(
+            weeksUpdated = 1,
+            assignmentsPreserved = 1,
+            assignmentsRemoved = 1,
+            weekDetails = listOf(
+                WeekRefreshDetail(
+                    weekStartDate = LocalDate.of(2026, 3, 9),
+                    partsAdded = 1,
+                    partsRemoved = 1,
+                    partsKept = 1,
+                    assignmentsPreserved = 1,
+                    assignmentsRemoved = 1,
+                ),
+            ),
         )
 
-        assertTrue(impacted.isEmpty())
+        val preview = SchemaRefreshPreview(
+            allChanges = unchanged,
+            onlyUnassignedChanges = changed,
+        )
+
+        assertTrue(preview.hasEffectiveChanges())
     }
 }

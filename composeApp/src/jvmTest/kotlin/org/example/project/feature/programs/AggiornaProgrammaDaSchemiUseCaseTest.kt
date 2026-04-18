@@ -68,6 +68,31 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
     }
 
     @Test
+    fun `dry run with instantiated week already aligned reports no effective changes`() = runTest {
+        val fixture = refreshFixture(templatePartCodes = listOf("A", "B"))
+        val useCase = buildUseCase(fixture)
+
+        val result = useCase(
+            programId = fixture.program.id,
+            referenceDate = LocalDate.of(2026, 3, 1),
+            dryRun = true,
+        )
+
+        val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
+        assertEquals(1, report.weeksUpdated)
+        assertEquals(2, report.assignmentsPreserved)
+        assertEquals(0, report.assignmentsRemoved)
+        assertEquals(0, fixture.weekStore.saveCount)
+
+        val detail = report.weekDetails.single()
+        assertEquals(0, detail.partsAdded)
+        assertEquals(0, detail.partsRemoved)
+        assertEquals(2, detail.partsKept)
+        assertEquals(2, detail.assignmentsPreserved)
+        assertEquals(0, detail.assignmentsRemoved)
+    }
+
+    @Test
     fun `apply refresh preserves only matching assignments and updates timestamp`() = runTest {
         val fixture = refreshFixture()
         val useCase = buildUseCase(fixture)
@@ -157,11 +182,15 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         createdAt = createdAt,
     )
 
-    private fun refreshFixture(weekStatus: WeekPlanStatus = WeekPlanStatus.ACTIVE): RefreshFixture {
+    private fun refreshFixture(
+        weekStatus: WeekPlanStatus = WeekPlanStatus.ACTIVE,
+        templatePartCodes: List<String> = listOf("A", "C"),
+    ): RefreshFixture {
         val program = localFixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
         val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 1)
         val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 2)
         val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 3)
+        val partsByCode = listOf(partA, partB, partC).associateBy { it.code }
 
         val week = WeekPlan(
             id = WeekPlanId("week-1"),
@@ -193,7 +222,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             mapOf(
                 LocalDate.of(2026, 3, 2) to StoredSchemaWeekTemplate(
                     weekStartDate = LocalDate.of(2026, 3, 2),
-                    partTypeIds = listOf(partA.id, partC.id),
+                    partTypeIds = templatePartCodes.map { code -> partsByCode.getValue(code).id },
                 ),
             ),
         )

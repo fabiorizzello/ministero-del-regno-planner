@@ -41,7 +41,6 @@ val viewModelsModule = module {
             aggiornaSchemi = get(),
             aggiornaProgrammaDaSchemi = get(),
             caricaProgrammiAttivi = get(),
-            schemaTemplateStore = get(),
         )
     }
     factory {
