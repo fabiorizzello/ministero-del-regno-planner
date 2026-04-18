@@ -17,6 +17,11 @@ data class WeekPartContinuityKey(
     val slot: Int,
 )
 
+data class WeekPartLogicalKey(
+    val partTypeId: PartTypeId,
+    val occurrenceIndex: Int,
+)
+
 internal data class WeekPartOccurrence(
     val part: WeeklyPart,
     val occurrenceIndex: Int,
@@ -65,6 +70,19 @@ internal fun buildContinuityKeys(
                 )
             }
         }
+    }
+}
+
+internal fun List<Pair<PartType, String?>>.withLogicalKeys(): List<Pair<WeekPartLogicalKey, Pair<PartType, String?>>> {
+    val occurrencesByPartType = mutableMapOf<PartTypeId, Int>()
+    return map { definition ->
+        val partType = definition.first
+        val occurrenceIndex = occurrencesByPartType.getOrDefault(partType.id, 0)
+        occurrencesByPartType[partType.id] = occurrenceIndex + 1
+        WeekPartLogicalKey(
+            partTypeId = partType.id,
+            occurrenceIndex = occurrenceIndex,
+        ) to definition
     }
 }
 

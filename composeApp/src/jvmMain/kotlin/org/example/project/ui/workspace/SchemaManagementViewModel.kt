@@ -11,6 +11,8 @@ import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
+import org.example.project.feature.programs.application.SchemaRefreshMode
+import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -20,8 +22,10 @@ import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeEitherOperation
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.temporal.TemporalAdjusters
 
 internal fun isSchemaRefreshNeeded(lastSchemaImport: LocalDateTime?, selectedFutureProgram: ProgramMonth?): Boolean {
     if (selectedFutureProgram == null || lastSchemaImport == null) return false
@@ -35,9 +39,12 @@ internal data class SchemaManagementUiState(
     val isRefreshingProgramFromSchemas: Boolean = false,
     val impactedProgramIds: Set<ProgramMonthId> = emptySet(),
     val notice: FeedbackBannerModel? = null,
-    val pendingRefreshPreview: SchemaRefreshReport? = null,
+    val pendingRefreshPreview: SchemaRefreshPreview? = null,
     val pendingRefreshProgramId: ProgramMonthId? = null,
 )
+
+internal fun schemaRefreshReferenceDate(today: LocalDate): LocalDate =
+    today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
 internal class SchemaManagementViewModel(
     private val scope: CoroutineScope,
@@ -120,36 +127,73 @@ internal class SchemaManagementViewModel(
         programId: ProgramMonthId,
         onComplete: () -> Unit,
     ) {
-        when (val preview = aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = true)) {
+        val referenceDate = schemaRefreshReferenceDate(_state.value.today)
+        when (val fullPreview = aggiornaProgrammaDaSchemi(
+            programId = programId,
+            referenceDate = referenceDate,
+            dryRun = true,
+            mode = SchemaRefreshMode.ALL,
+        )) {
             is Either.Left -> {
                 _state.update {
-                    it.copy(notice = FeedbackBannerModel(preview.value.toMessage(), FeedbackBannerKind.ERROR))
+                    it.copy(notice = FeedbackBannerModel(fullPreview.value.toMessage(), FeedbackBannerKind.ERROR))
                 }
                 onComplete()
             }
             is Either.Right -> {
-                val report = preview.value
-                if (report.weeksUpdated == 0) {
-                    onComplete()
-                } else {
-                    pendingOnComplete = onComplete
-                    _state.update {
-                        it.copy(
-                            pendingRefreshPreview = report,
-                            pendingRefreshProgramId = programId,
+                when (val onlyUnassignedPreview = aggiornaProgrammaDaSchemi(
+                    programId = programId,
+                    referenceDate = referenceDate,
+                    dryRun = true,
+                    mode = SchemaRefreshMode.ONLY_UNASSIGNED,
+                )) {
+                    is Either.Left -> {
+                        _state.update {
+                            it.copy(
+                                notice = FeedbackBannerModel(
+                                    onlyUnassignedPreview.value.toMessage(),
+                                    FeedbackBannerKind.ERROR,
+                                ),
+                            )
+                        }
+                        onComplete()
+                    }
+                    is Either.Right -> {
+                        val preview = SchemaRefreshPreview(
+                            allChanges = fullPreview.value,
+                            onlyUnassignedChanges = onlyUnassignedPreview.value,
                         )
+                        if (preview.allChanges.weeksUpdated == 0 && preview.onlyUnassignedChanges.weeksUpdated == 0) {
+                            onComplete()
+                        } else {
+                            pendingOnComplete = onComplete
+                            _state.update {
+                                it.copy(
+                                    pendingRefreshPreview = preview,
+                                    pendingRefreshProgramId = programId,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    fun confirmProgramRefresh() {
+    fun confirmProgramRefreshAll() {
         val programId = _state.value.pendingRefreshProgramId ?: return
         val onComplete = pendingOnComplete ?: {}
         pendingOnComplete = null
         _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
-        scope.launch { applyProgramRefresh(programId, onComplete) }
+        scope.launch { applyProgramRefresh(programId, SchemaRefreshMode.ALL, onComplete) }
+    }
+
+    fun confirmProgramRefreshOnlyUnassigned() {
+        val programId = _state.value.pendingRefreshProgramId ?: return
+        val onComplete = pendingOnComplete ?: {}
+        pendingOnComplete = null
+        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        scope.launch { applyProgramRefresh(programId, SchemaRefreshMode.ONLY_UNASSIGNED, onComplete) }
     }
 
     fun dismissProgramRefreshPreview() {
@@ -159,14 +203,19 @@ internal class SchemaManagementViewModel(
         onComplete()
     }
 
-    private suspend fun applyProgramRefresh(programId: ProgramMonthId, onComplete: () -> Unit) {
+    private suspend fun applyProgramRefresh(
+        programId: ProgramMonthId,
+        mode: SchemaRefreshMode,
+        onComplete: () -> Unit,
+    ) {
+        val referenceDate = schemaRefreshReferenceDate(_state.value.today)
         _state.executeEitherOperation(
             loadingUpdate = { it.copy(isRefreshingProgramFromSchemas = true) },
             successUpdate = { state, report ->
                 state.copy(
                     isRefreshingProgramFromSchemas = false,
                     notice = FeedbackBannerModel(
-                        "Programma aggiornato: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
+                        buildProgramRefreshNotice(report, mode),
                         FeedbackBannerKind.SUCCESS,
                     ),
                     impactedProgramIds = state.impactedProgramIds - programId,
@@ -178,9 +227,24 @@ internal class SchemaManagementViewModel(
                     notice = FeedbackBannerModel(error.toMessage(), FeedbackBannerKind.ERROR),
                 )
             },
-            operation = { aggiornaProgrammaDaSchemi(programId, _state.value.today, dryRun = false) },
+            operation = {
+                aggiornaProgrammaDaSchemi(
+                    programId = programId,
+                    referenceDate = referenceDate,
+                    dryRun = false,
+                    mode = mode,
+                )
+            },
         )
         onComplete()
+    }
+
+    private fun buildProgramRefreshNotice(report: SchemaRefreshReport, mode: SchemaRefreshMode): String {
+        val prefix = when (mode) {
+            SchemaRefreshMode.ALL -> "Programma aggiornato"
+            SchemaRefreshMode.ONLY_UNASSIGNED -> "Programma aggiornato solo sulle parti non assegnate"
+        }
+        return "$prefix: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse"
     }
 
     private fun buildSchemaUpdateNotice(result: AggiornaSchemiResult): String {

@@ -8,6 +8,7 @@ import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
 import org.example.project.feature.programs.application.ProgramCreationContext
+import org.example.project.feature.programs.application.SchemaRefreshMode
 import org.example.project.feature.programs.application.ProgramStore
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.application.WeekRefreshDetail
@@ -90,6 +91,29 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
     }
 
     @Test
+    fun `only unassigned refresh preserves assigned removed parts`() = runTest {
+        val fixture = refreshFixture()
+        val useCase = buildUseCase(fixture)
+
+        val result = useCase(
+            programId = fixture.program.id,
+            referenceDate = LocalDate.of(2026, 3, 1),
+            dryRun = false,
+            mode = SchemaRefreshMode.ONLY_UNASSIGNED,
+        )
+
+        val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
+        assertEquals(1, report.weeksUpdated)
+        assertEquals(2, report.assignmentsPreserved)
+        assertEquals(0, report.assignmentsRemoved)
+
+        val savedAggregate = fixture.weekStore.currentAggregate
+        assertEquals(3, savedAggregate.weekPlan.parts.size)
+        assertEquals(listOf("A", "C", "B"), savedAggregate.weekPlan.parts.map { it.partType.code })
+        assertEquals(setOf("p1", "p2"), savedAggregate.assignments.map { it.personId.value }.toSet())
+    }
+
+    @Test
     fun `skipped weeks are not refreshed`() = runTest {
         val fixture = refreshFixture(weekStatus = WeekPlanStatus.SKIPPED)
         val useCase = buildUseCase(fixture)
@@ -118,8 +142,23 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
         )
     }
 
+    private fun localFixtureProgramMonth(
+        yearMonth: YearMonth,
+        id: String = "program-${yearMonth.year}-${yearMonth.monthValue}",
+        templateAppliedAt: LocalDateTime? = null,
+        createdAt: LocalDateTime = LocalDateTime.of(yearMonth.year, yearMonth.monthValue, 1, 9, 0),
+    ): ProgramMonth = ProgramMonth(
+        id = ProgramMonthId(id),
+        year = yearMonth.year,
+        month = yearMonth.monthValue,
+        startDate = yearMonth.atDay(1).with(java.time.temporal.TemporalAdjusters.firstInMonth(java.time.DayOfWeek.MONDAY)),
+        endDate = yearMonth.atEndOfMonth().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)),
+        templateAppliedAt = templateAppliedAt,
+        createdAt = createdAt,
+    )
+
     private fun refreshFixture(weekStatus: WeekPlanStatus = WeekPlanStatus.ACTIVE): RefreshFixture {
-        val program = fixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
+        val program = localFixtureProgramMonth(YearMonth.of(2026, 3), id = "program-refresh")
         val partA = PartType(PartTypeId("A"), "A", "Parte A", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 1)
         val partB = PartType(PartTypeId("B"), "B", "Parte B", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 2)
         val partC = PartType(PartTypeId("C"), "C", "Parte C", 1, SexRule.STESSO_SESSO, fixed = false, sortOrder = 3)

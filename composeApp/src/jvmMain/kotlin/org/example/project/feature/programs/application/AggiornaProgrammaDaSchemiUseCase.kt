@@ -17,6 +17,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
+enum class SchemaRefreshMode {
+    ALL,
+    ONLY_UNASSIGNED,
+}
+
 data class WeekRefreshDetail(
     val weekStartDate: LocalDate,
     val partsAdded: Int,
@@ -33,10 +38,19 @@ data class SchemaRefreshReport(
     val weekDetails: List<WeekRefreshDetail> = emptyList(),
 )
 
+data class SchemaRefreshPreview(
+    val allChanges: SchemaRefreshReport,
+    val onlyUnassignedChanges: SchemaRefreshReport,
+)
+
 private data class WeekRefreshCandidate(
     val aggregate: WeekPlanAggregate,
     val orderedPartTypes: List<Pair<PartType, String?>>, // ordered by sort
-    val assignmentSnapshot: Map<WeekPartContinuityKey, org.example.project.feature.assignments.domain.Assignment>,
+)
+
+private data class WeekRefreshComputation(
+    val refreshedAggregate: WeekPlanAggregate,
+    val detail: WeekRefreshDetail,
 )
 
 class AggiornaProgrammaDaSchemiUseCase(
@@ -50,6 +64,7 @@ class AggiornaProgrammaDaSchemiUseCase(
         programId: ProgramMonthId,
         referenceDate: LocalDate = LocalDate.now(),
         dryRun: Boolean = false,
+        mode: SchemaRefreshMode = SchemaRefreshMode.ALL,
     ): Either<DomainError, SchemaRefreshReport> = either {
         val program = programStore.findById(programId)
             ?: raise(DomainError.NotFound("Programma"))
@@ -75,42 +90,50 @@ class AggiornaProgrammaDaSchemiUseCase(
             refreshCandidates += WeekRefreshCandidate(
                 aggregate = weekAggregate,
                 orderedPartTypes = orderedPartTypes,
-                assignmentSnapshot = snapshotAssignmentsByContinuityKey(weekAggregate),
             )
         }
 
-        var assignmentsPreserved = 0
-        var assignmentsRemoved = 0
-        val weekDetails = mutableListOf<WeekRefreshDetail>()
-
-        for (candidate in refreshCandidates) {
-            val (preserved, removed) = calculateAssignmentDelta(
-                assignmentSnapshot = candidate.assignmentSnapshot,
-                orderedPartTypes = candidate.orderedPartTypes,
-            )
-            assignmentsPreserved += preserved
-            assignmentsRemoved += removed
+        val computations = refreshCandidates.map { candidate ->
+            val refreshedAggregate = when (mode) {
+                SchemaRefreshMode.ALL -> candidate.aggregate.replaceParts(candidate.orderedPartTypes) {
+                    WeeklyPartId(UUID.randomUUID().toString())
+                }
+                SchemaRefreshMode.ONLY_UNASSIGNED -> candidate.aggregate.replaceOnlyUnassignedParts(candidate.orderedPartTypes) {
+                    WeeklyPartId(UUID.randomUUID().toString())
+                }
+            }.bind()
 
             val oldKeys = candidate.aggregate.weekPlan.parts
-                .map { it.partType.id to it.sortOrder }.toSet()
-            val newKeys = candidate.orderedPartTypes.mapIndexed { index, (partType, _) ->
-                partType.id to index
-            }.toSet()
-            weekDetails += WeekRefreshDetail(
-                weekStartDate = candidate.aggregate.weekPlan.weekStartDate,
-                partsAdded = (newKeys - oldKeys).size,
-                partsRemoved = (oldKeys - newKeys).size,
-                partsKept = (oldKeys intersect newKeys).size,
-                assignmentsPreserved = preserved,
-                assignmentsRemoved = removed,
+                .map { it.partType.id to it.sortOrder }
+                .toSet()
+            val newKeys = refreshedAggregate.weekPlan.parts
+                .map { it.partType.id to it.sortOrder }
+                .toSet()
+            val assignmentsPreserved = refreshedAggregate.assignments.size
+            val assignmentsRemoved = candidate.aggregate.assignments.size - assignmentsPreserved
+
+            WeekRefreshComputation(
+                refreshedAggregate = refreshedAggregate,
+                detail = WeekRefreshDetail(
+                    weekStartDate = candidate.aggregate.weekPlan.weekStartDate,
+                    partsAdded = (newKeys - oldKeys).size,
+                    partsRemoved = (oldKeys - newKeys).size,
+                    partsKept = (oldKeys intersect newKeys).size,
+                    assignmentsPreserved = assignmentsPreserved,
+                    assignmentsRemoved = assignmentsRemoved,
+                ),
             )
         }
+
+        val assignmentsPreserved = computations.sumOf { it.detail.assignmentsPreserved }
+        val assignmentsRemoved = computations.sumOf { it.detail.assignmentsRemoved }
+        val weekDetails = computations.map { it.detail }
 
         if (!dryRun) {
             transactionRunner.runInTransactionEither {
                 either {
-                    for (candidate in refreshCandidates) {
-                        applyRefreshCandidate(candidate).bind()
+                    for (computation in computations) {
+                        applyRefreshCandidate(computation).bind()
                     }
                     programStore.updateTemplateAppliedAt(program.id, LocalDateTime.now())
                 }
@@ -127,19 +150,8 @@ class AggiornaProgrammaDaSchemiUseCase(
 
     context(tx: TransactionScope)
     private suspend fun applyRefreshCandidate(
-        candidate: WeekRefreshCandidate,
+        computation: WeekRefreshComputation,
     ): Either<DomainError, Unit> = either {
-        val refreshedAggregate = candidate.aggregate.replaceParts(candidate.orderedPartTypes) {
-            WeeklyPartId(UUID.randomUUID().toString())
-        }.bind()
-
-        weekPlanStore.saveAggregate(
-            refreshedAggregate.copy(
-                assignments = restoreAssignmentsByContinuityKey(
-                    snapshot = candidate.assignmentSnapshot,
-                    rebuiltParts = refreshedAggregate.weekPlan.parts,
-                ),
-            ),
-        )
+        weekPlanStore.saveAggregate(computation.refreshedAggregate)
     }
 }

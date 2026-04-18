@@ -7,8 +7,11 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.programs.application.WeekPartLogicalKey
+import org.example.project.feature.programs.application.orderedOccurrences
 import org.example.project.feature.programs.application.restoreAssignmentsByContinuityKey
 import org.example.project.feature.programs.application.snapshotAssignmentsByContinuityKey
+import org.example.project.feature.programs.application.withLogicalKeys
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
 
@@ -106,6 +109,64 @@ data class WeekPlanAggregate(
                 snapshot = assignmentSnapshot,
                 rebuiltParts = rebuilt,
             ),
+        ).right()
+    }
+
+    fun replaceOnlyUnassignedParts(
+        orderedPartTypes: List<Pair<PartType, String?>>,
+        partIdFactory: () -> WeeklyPartId,
+    ): Either<DomainError, WeekPlanAggregate> {
+        if (!weekPlan.canBeEditedManually()) return DomainError.SettimanaImmutabile.left()
+        if (orderedPartTypes.isEmpty()) {
+            return DomainError.OrdinePartiNonValido.left()
+        }
+
+        val assignedPartIds = assignments.map { it.weeklyPartId }.toSet()
+        val assignedOccurrences = weekPlan.parts.orderedOccurrences()
+            .filter { occurrence -> occurrence.part.id in assignedPartIds }
+        val assignedPartsByLogicalKey = assignedOccurrences.associateBy(
+            keySelector = { occurrence ->
+                WeekPartLogicalKey(
+                    partTypeId = occurrence.part.partType.id,
+                    occurrenceIndex = occurrence.occurrenceIndex,
+                )
+            },
+            valueTransform = { occurrence -> occurrence.part },
+        )
+
+        val consumedAssignedKeys = mutableSetOf<WeekPartLogicalKey>()
+        val rebuilt = buildList {
+            orderedPartTypes.withLogicalKeys().forEach { (logicalKey, definition) ->
+                val assignedPart = assignedPartsByLogicalKey[logicalKey]
+                if (assignedPart != null) {
+                    consumedAssignedKeys += logicalKey
+                    add(assignedPart)
+                } else {
+                    val (partType, revisionId) = definition
+                    add(
+                        WeeklyPart(
+                            id = partIdFactory(),
+                            partType = partType,
+                            partTypeRevisionId = revisionId,
+                            sortOrder = 0,
+                        ),
+                    )
+                }
+            }
+
+            assignedOccurrences
+                .filter { occurrence ->
+                    WeekPartLogicalKey(
+                        partTypeId = occurrence.part.partType.id,
+                        occurrenceIndex = occurrence.occurrenceIndex,
+                    ) !in consumedAssignedKeys
+                }
+                .forEach { occurrence -> add(occurrence.part) }
+        }.mapIndexed { index, part -> part.copy(sortOrder = index) }
+
+        return copy(
+            weekPlan = weekPlan.copy(parts = rebuilt),
+            assignments = assignments,
         ).right()
     }
 

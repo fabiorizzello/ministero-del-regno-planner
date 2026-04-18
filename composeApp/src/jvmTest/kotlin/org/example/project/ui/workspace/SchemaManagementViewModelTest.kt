@@ -27,6 +27,21 @@ class SchemaManagementViewModelTest {
         createdAt = createdAt,
     )
 
+    private fun fixtureProgramMonth(
+        yearMonth: YearMonth,
+        id: String = "program-${yearMonth.year}-${yearMonth.monthValue}",
+        templateAppliedAt: LocalDateTime? = null,
+        createdAt: LocalDateTime = LocalDateTime.of(yearMonth.year, yearMonth.monthValue, 1, 9, 0),
+    ) = ProgramMonth(
+        id = ProgramMonthId(id),
+        year = yearMonth.year,
+        month = yearMonth.monthValue,
+        startDate = yearMonth.atDay(1).with(java.time.temporal.TemporalAdjusters.firstInMonth(java.time.DayOfWeek.MONDAY)),
+        endDate = yearMonth.atEndOfMonth().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)),
+        templateAppliedAt = templateAppliedAt,
+        createdAt = createdAt,
+    )
+
     @Test
     fun `new program created after import does not need refresh`() {
         val program = programMonth(createdAt = importTime.plusHours(1))
@@ -69,9 +84,17 @@ class SchemaManagementViewModelTest {
     }
 
     @Test
+    fun `schema refresh reference date includes current week`() {
+        assertEquals(
+            LocalDate.of(2026, 3, 2),
+            schemaRefreshReferenceDate(LocalDate.of(2026, 3, 4)),
+        )
+    }
+
+    @Test
     fun `impacted future ids include only months with changed template weeks`() {
-        val march = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
-        val april = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 4), id = "april")
+        val march = fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
+        val april = fixtureProgramMonth(YearMonth.of(2026, 4), id = "april")
         val before = mapOf(
             LocalDate.of(2026, 3, 2) to listOf("A", "B"),
             LocalDate.of(2026, 4, 6) to listOf("A", "B"),
@@ -92,7 +115,7 @@ class SchemaManagementViewModelTest {
 
     @Test
     fun `no schema delta returns empty impacted ids`() {
-        val march = org.example.project.feature.programs.fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
+        val march = fixtureProgramMonth(YearMonth.of(2026, 3), id = "march")
         val snapshot = mapOf(LocalDate.of(2026, 3, 2) to listOf("A", "B"))
 
         val impacted = calculateImpactedProgramIds(

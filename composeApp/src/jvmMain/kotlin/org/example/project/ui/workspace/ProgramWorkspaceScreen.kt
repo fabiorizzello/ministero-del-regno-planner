@@ -65,6 +65,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.assignments.domain.AssignmentWithPerson
+import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
@@ -278,7 +279,8 @@ fun ProgramWorkspaceScreen() {
     schemaState.pendingRefreshPreview?.let { preview ->
         SchemaRefreshConfirmDialog(
             report = preview,
-            onConfirm = { schemaVM.confirmProgramRefresh() },
+            onConfirmAll = { schemaVM.confirmProgramRefreshAll() },
+            onConfirmOnlyUnassigned = { schemaVM.confirmProgramRefreshOnlyUnassigned() },
             onDismiss = { schemaVM.dismissProgramRefreshPreview() },
         )
     }
@@ -1443,8 +1445,9 @@ private fun DesktopInlineAction(
 
 @Composable
 private fun SchemaRefreshConfirmDialog(
-    report: SchemaRefreshReport,
-    onConfirm: () -> Unit,
+    report: SchemaRefreshPreview,
+    onConfirmAll: () -> Unit,
+    onConfirmOnlyUnassigned: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -1453,60 +1456,32 @@ private fun SchemaRefreshConfirmDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Schemi aggiornati. Il programma ha ${report.weeksUpdated} settimane con modifiche:",
+                    "Schemi aggiornati. Verranno toccate solo le settimane presenti e future.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                report.weekDetails.forEach { week ->
-                    Column(modifier = Modifier.padding(start = 8.dp)) {
-                        Text(
-                            week.weekStartDate.format(dateFormatter),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        val partChanges = buildList {
-                            if (week.partsAdded > 0) add("+${week.partsAdded} aggiunte")
-                            if (week.partsRemoved > 0) add("-${week.partsRemoved} rimosse")
-                            if (week.partsKept > 0 && week.partsAdded == 0 && week.partsRemoved == 0) {
-                                add("nessuna modifica alle parti")
-                            }
-                        }
-                        if (partChanges.isNotEmpty()) {
-                            Text(
-                                "Parti: ${partChanges.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        val assignmentSummary = buildList {
-                            if (week.assignmentsPreserved > 0) add("${week.assignmentsPreserved} preservate")
-                            if (week.assignmentsRemoved > 0) add("${week.assignmentsRemoved} da rimuovere")
-                        }
-                        if (assignmentSummary.isNotEmpty()) {
-                            Text(
-                                "Assegnazioni: ${assignmentSummary.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (week.assignmentsRemoved > 0) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                if (report.assignmentsRemoved > 0) {
-                    Text(
-                        "Totale: ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} da rimuovere",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+                SchemaRefreshReportSection(
+                    title = "Aggiorna tutto",
+                    report = report.allChanges,
+                    destructive = true,
+                )
+                SchemaRefreshReportSection(
+                    title = "Aggiorna solo non assegnati",
+                    report = report.onlyUnassignedChanges,
+                    destructive = false,
+                )
             }
         },
         confirmButton = {
-            DesktopInlineAction(
-                label = "Aggiorna programma",
-                onClick = onConfirm,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DesktopInlineAction(
+                    label = "Aggiorna tutto",
+                    onClick = onConfirmAll,
+                )
+                DesktopInlineAction(
+                    label = "Solo non assegnati",
+                    onClick = onConfirmOnlyUnassigned,
+                )
+            }
         },
         dismissButton = {
             DesktopInlineAction(
@@ -1515,4 +1490,66 @@ private fun SchemaRefreshConfirmDialog(
             )
         },
     )
+}
+
+@Composable
+private fun SchemaRefreshReportSection(
+    title: String,
+    report: SchemaRefreshReport,
+    destructive: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = "$title: ${report.weeksUpdated} settimane coinvolte",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = if (destructive && report.assignmentsRemoved > 0) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurface,
+        )
+        report.weekDetails.forEach { week ->
+            Column(modifier = Modifier.padding(start = 8.dp)) {
+                Text(
+                    week.weekStartDate.format(dateFormatter),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                val partChanges = buildList {
+                    if (week.partsAdded > 0) add("+${week.partsAdded} aggiunte")
+                    if (week.partsRemoved > 0) add("-${week.partsRemoved} rimosse")
+                    if (week.partsKept > 0 && week.partsAdded == 0 && week.partsRemoved == 0) {
+                        add("nessuna modifica alle parti")
+                    }
+                }
+                if (partChanges.isNotEmpty()) {
+                    Text(
+                        "Parti: ${partChanges.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                val assignmentSummary = buildList {
+                    if (week.assignmentsPreserved > 0) add("${week.assignmentsPreserved} preservate")
+                    if (week.assignmentsRemoved > 0) add("${week.assignmentsRemoved} da rimuovere")
+                }
+                if (assignmentSummary.isNotEmpty()) {
+                    Text(
+                        "Assegnazioni: ${assignmentSummary.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (destructive && week.assignmentsRemoved > 0) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        if (report.assignmentsPreserved > 0 || report.assignmentsRemoved > 0) {
+            Text(
+                "Totale: ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (destructive && report.assignmentsRemoved > 0) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
 }
