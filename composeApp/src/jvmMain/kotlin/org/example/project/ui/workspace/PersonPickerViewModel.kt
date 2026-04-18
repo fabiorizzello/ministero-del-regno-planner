@@ -57,6 +57,7 @@ internal class PersonPickerViewModel(
     val state: StateFlow<PersonPickerUiState> = _state.asStateFlow()
 
     private var pickerSuggestionsJob: Job? = null
+    private var pickerReloadVersion: Long = 0L
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
@@ -82,8 +83,8 @@ internal class PersonPickerViewModel(
         loadSuggestions()
     }
 
-    fun reloadSuggestions() {
-        if (_state.value.isPickerOpen) loadSuggestions()
+    fun reloadSuggestions(strictCooldownOverride: Boolean? = null) {
+        if (_state.value.isPickerOpen) loadSuggestions(strictCooldownOverride)
     }
 
     fun closePersonPicker() {
@@ -190,14 +191,20 @@ internal class PersonPickerViewModel(
         }
     }
 
-    private fun loadSuggestions() {
+    private fun loadSuggestions(strictCooldownOverride: Boolean? = null) {
         val pickerWeekStartDate = _state.value.pickerWeekStartDate ?: return
         val pickerWeeklyPartId = _state.value.pickerWeeklyPartId ?: return
         val pickerSlot = _state.value.pickerSlot ?: return
+        val requestVersion = ++pickerReloadVersion
 
         pickerSuggestionsJob?.cancel()
         pickerSuggestionsJob = scope.launch {
-            _state.update { it.copy(isPickerLoading = true) }
+            _state.update {
+                it.copy(
+                    isPickerLoading = true,
+                    pickerSuggestions = emptyList(),
+                )
+            }
             try {
                 // Already-assigned IDs are loaded internally by the use case from the repository.
                 // No need to pass them from the ViewModel (which could become stale).
@@ -205,17 +212,31 @@ internal class PersonPickerViewModel(
                     weekStartDate = pickerWeekStartDate,
                     weeklyPartId = pickerWeeklyPartId,
                     slot = pickerSlot,
+                    strictCooldownOverride = strictCooldownOverride,
                 )
-                _state.update { it.copy(pickerSuggestions = suggestions, isPickerLoading = false) }
+                _state.update { current ->
+                    if (requestVersion != pickerReloadVersion) {
+                        current
+                    } else {
+                        current.copy(
+                            pickerSuggestions = suggestions,
+                            isPickerLoading = false,
+                        )
+                    }
+                }
             } catch (error: Exception) {
                 _state.update {
-                    it.copy(
-                        isPickerLoading = false,
-                        notice = FeedbackBannerModel(
-                            "Errore nel caricamento suggerimenti: ${error.message}",
-                            FeedbackBannerKind.ERROR,
-                        ),
-                    )
+                    if (requestVersion != pickerReloadVersion) {
+                        it
+                    } else {
+                        it.copy(
+                            isPickerLoading = false,
+                            notice = FeedbackBannerModel(
+                                "Errore nel caricamento suggerimenti: ${error.message}",
+                                FeedbackBannerKind.ERROR,
+                            ),
+                        )
+                    }
                 }
             }
         }

@@ -5,14 +5,11 @@ import arrow.core.raise.either
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionScope
 import org.example.project.core.persistence.TransactionRunner
-import org.example.project.feature.assignments.domain.Assignment
-import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.SchemaTemplateStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.application.WeekPlanStore
 import org.example.project.feature.weeklyparts.domain.PartType
-import org.example.project.feature.weeklyparts.domain.PartTypeId
 import org.example.project.feature.weeklyparts.domain.WeekPlanAggregate
 import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
@@ -36,12 +33,10 @@ data class SchemaRefreshReport(
     val weekDetails: List<WeekRefreshDetail> = emptyList(),
 )
 
-private typealias AssignmentKey = Pair<PartTypeId, Int>
-
 private data class WeekRefreshCandidate(
     val aggregate: WeekPlanAggregate,
     val orderedPartTypes: List<Pair<PartType, String?>>, // ordered by sort
-    val assignmentSnapshot: Map<AssignmentKey, List<Assignment>>,
+    val assignmentSnapshot: Map<WeekPartContinuityKey, org.example.project.feature.assignments.domain.Assignment>,
 )
 
 class AggiornaProgrammaDaSchemiUseCase(
@@ -80,7 +75,7 @@ class AggiornaProgrammaDaSchemiUseCase(
             refreshCandidates += WeekRefreshCandidate(
                 aggregate = weekAggregate,
                 orderedPartTypes = orderedPartTypes,
-                assignmentSnapshot = snapshotAssignmentsByKey(weekAggregate),
+                assignmentSnapshot = snapshotAssignmentsByContinuityKey(weekAggregate),
             )
         }
 
@@ -130,29 +125,6 @@ class AggiornaProgrammaDaSchemiUseCase(
         )
     }
 
-    private fun snapshotAssignmentsByKey(aggregate: WeekPlanAggregate): Map<AssignmentKey, List<Assignment>> {
-        val partsById = aggregate.weekPlan.parts.associateBy { part -> part.id }
-        val assignmentsByKey = mutableMapOf<AssignmentKey, MutableList<Assignment>>()
-        aggregate.assignments.forEach { assignment ->
-            val part = partsById[assignment.weeklyPartId] ?: return@forEach
-            val key = part.partType.id to part.sortOrder
-            assignmentsByKey.getOrPut(key) { mutableListOf() }.add(assignment)
-        }
-        return assignmentsByKey.mapValues { (_, assignments) -> assignments.toList() }
-    }
-
-    private fun calculateAssignmentDelta(
-        assignmentSnapshot: Map<AssignmentKey, List<Assignment>>,
-        orderedPartTypes: List<Pair<PartType, String?>>,
-    ): Pair<Int, Int> {
-        var preserved = 0
-        orderedPartTypes.forEachIndexed { sortOrder, (partType, _) ->
-            preserved += assignmentSnapshot[partType.id to sortOrder]?.size ?: 0
-        }
-        val total = assignmentSnapshot.values.sumOf { assignments -> assignments.size }
-        return preserved to (total - preserved)
-    }
-
     context(tx: TransactionScope)
     private suspend fun applyRefreshCandidate(
         candidate: WeekRefreshCandidate,
@@ -161,25 +133,13 @@ class AggiornaProgrammaDaSchemiUseCase(
             WeeklyPartId(UUID.randomUUID().toString())
         }.bind()
 
-        val restoredAssignments = buildList {
-            refreshedAggregate.weekPlan.parts.forEach { newPart ->
-                val key = newPart.partType.id to newPart.sortOrder
-                val assignmentsToRestore = candidate.assignmentSnapshot[key].orEmpty()
-                assignmentsToRestore.forEach { old ->
-                    add(
-                        Assignment.of(
-                            id = AssignmentId(UUID.randomUUID().toString()),
-                            weeklyPartId = newPart.id,
-                            personId = old.personId,
-                            slot = old.slot,
-                        ).bind(),
-                    )
-                }
-            }
-        }
-
         weekPlanStore.saveAggregate(
-            refreshedAggregate.copy(assignments = restoredAssignments),
+            refreshedAggregate.copy(
+                assignments = restoreAssignmentsByContinuityKey(
+                    snapshot = candidate.assignmentSnapshot,
+                    rebuiltParts = refreshedAggregate.weekPlan.parts,
+                ),
+            ),
         )
     }
 }

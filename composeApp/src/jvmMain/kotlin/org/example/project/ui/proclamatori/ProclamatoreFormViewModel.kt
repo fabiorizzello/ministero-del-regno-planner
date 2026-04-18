@@ -75,13 +75,19 @@ internal data class ProclamatoreFormUiState(
         }
     }
 
-    fun canSubmitForm(route: ProclamatoriRoute): Boolean {
+    fun hasUnsavedChanges(route: ProclamatoriRoute): Boolean {
         val nomeTrim = nome.trim()
         val cognomeTrim = cognome.trim()
-        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
         val hasEligibilityChanges = currentLeadEligibilityByPartType() != initialLeadEligibilityByPartType
-        val hasFormChanges = when (route) {
-            ProclamatoriRoute.Nuovo -> requiredFieldsValid || sesso != Sesso.M
+        return when (route) {
+            ProclamatoriRoute.Nuovo -> {
+                nomeTrim.isNotBlank() ||
+                    cognomeTrim.isNotBlank() ||
+                    sesso != Sesso.M ||
+                    sospeso ||
+                    puoAssistere ||
+                    hasEligibilityChanges
+            }
             is ProclamatoriRoute.Modifica -> {
                 nomeTrim != initialNome.trim() ||
                     cognomeTrim != initialCognome.trim() ||
@@ -92,9 +98,15 @@ internal data class ProclamatoreFormUiState(
             }
             ProclamatoriRoute.Elenco -> false
         }
+    }
+
+    fun canSubmitForm(route: ProclamatoriRoute): Boolean {
+        val nomeTrim = nome.trim()
+        val cognomeTrim = cognome.trim()
+        val requiredFieldsValid = nomeTrim.isNotBlank() && cognomeTrim.isNotBlank()
         return route != ProclamatoriRoute.Elenco &&
             requiredFieldsValid &&
-            hasFormChanges &&
+            hasUnsavedChanges(route) &&
             duplicateError == null &&
             !isCheckingDuplicate &&
             !isLoading

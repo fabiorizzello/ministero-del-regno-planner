@@ -162,7 +162,9 @@ internal class PartEditorViewModel(
                 loadingUpdate = { it },
                 successUpdate = { state, _ ->
                     succeeded = true
-                    state.copy(notice = null)
+                    state.copy(
+                        notice = FeedbackBannerModel("Settimana riattivata", FeedbackBannerKind.SUCCESS),
+                    )
                 },
                 errorUpdate = { state, error ->
                     state.copy(notice = FeedbackBannerModel("Errore riattivazione: ${error.toMessage()}", FeedbackBannerKind.ERROR))
@@ -180,7 +182,9 @@ internal class PartEditorViewModel(
                 loadingUpdate = { it },
                 successUpdate = { state, _ ->
                     succeeded = true
-                    state.copy(notice = null)
+                    state.copy(
+                        notice = FeedbackBannerModel("Settimana saltata", FeedbackBannerKind.SUCCESS),
+                    )
                 },
                 errorUpdate = { state, error ->
                     state.copy(notice = FeedbackBannerModel("Errore salto settimana: ${error.toMessage()}", FeedbackBannerKind.ERROR))

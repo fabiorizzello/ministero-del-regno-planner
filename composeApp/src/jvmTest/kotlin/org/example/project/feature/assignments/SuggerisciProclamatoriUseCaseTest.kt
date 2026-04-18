@@ -761,6 +761,75 @@ class SuggerisciProclamatoriUseCaseTest {
         assertEquals(personEligible.id, result.first().proclamatore.id)
         assertTrue(result.none { it.proclamatore.id == personNotEligible.id })
     }
+
+    @Test
+    fun `a parita' di score l'ordinamento resta alfabetico e stabile`() = runTest {
+        val personAlpi = person(id = "p-a", nome = "Mario", cognome = "Alpi", sesso = Sesso.M)
+        val personBianchi = person(id = "p-b", nome = "Luca", cognome = "Bianchi", sesso = Sesso.M)
+
+        val suggestions = listOf(
+            SuggestedProclamatore(
+                proclamatore = personBianchi,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+            ),
+            SuggestedProclamatore(
+                proclamatore = personAlpi,
+                lastGlobalWeeks = 10,
+                lastForPartTypeWeeks = 5,
+                lastConductorWeeks = null,
+            ),
+        )
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(suggestions),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(listOf(personAlpi.id, personBianchi.id), result.map { it.proclamatore.id })
+    }
+
+    @Test
+    fun `cooldown annotation espone settimane rimanenti quando strict cooldown e' disattivato`() = runTest {
+        val personInCooldown = person(id = "p-cooldown", nome = "Carlo", cognome = "Verdi", sesso = Sesso.M)
+
+        val useCase = SuggerisciProclamatoriUseCase(
+            weekPlanStore = weekPlanQueries,
+            assignmentStore = StaticAssignmentRanking(
+                listOf(
+                    SuggestedProclamatore(
+                        proclamatore = personInCooldown,
+                        lastGlobalWeeks = 1,
+                        lastForPartTypeWeeks = 1,
+                        lastConductorWeeks = null,
+                    ),
+                ),
+            ),
+            assignmentRepository = EmptyAssignmentsRepository,
+            eligibilityStore = StaticEligibilityStore(eligible = emptySet()),
+            assignmentSettingsStore = FixedSettingsStore(AssignmentSettings(strictCooldown = false, assistCooldownWeeks = 3)),
+        )
+
+        val result = useCase(
+            weekStartDate = weekStart,
+            weeklyPartId = weeklyPartId,
+            slot = 2,
+        )
+
+        assertEquals(1, result.size)
+        assertTrue(result.single().inCooldown)
+        assertEquals(2, result.single().cooldownRemainingWeeks)
+    }
 }
 
 // ---------------------------------------------------------------------------

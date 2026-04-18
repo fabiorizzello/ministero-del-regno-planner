@@ -7,6 +7,8 @@ import org.example.project.core.domain.DomainError
 import org.example.project.feature.assignments.domain.Assignment
 import org.example.project.feature.assignments.domain.AssignmentId
 import org.example.project.feature.people.domain.ProclamatoreId
+import org.example.project.feature.programs.application.restoreAssignmentsByContinuityKey
+import org.example.project.feature.programs.application.snapshotAssignmentsByContinuityKey
 import org.example.project.feature.programs.domain.ProgramMonthId
 import java.time.LocalDate
 
@@ -97,9 +99,13 @@ data class WeekPlanAggregate(
                 sortOrder = index,
             )
         }
+        val assignmentSnapshot = snapshotAssignmentsByContinuityKey(this)
         return copy(
             weekPlan = weekPlan.copy(parts = rebuilt),
-            assignments = emptyList(),
+            assignments = restoreAssignmentsByContinuityKey(
+                snapshot = assignmentSnapshot,
+                rebuiltParts = rebuilt,
+            ),
         ).right()
     }
 

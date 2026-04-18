@@ -3,6 +3,9 @@ package org.example.project.ui.workspace
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.weeklyparts.domain.WeekPlan
+import org.example.project.feature.weeklyparts.domain.WeekPlanId
+import org.example.project.feature.weeklyparts.domain.WeekPlanStatus
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -285,6 +288,36 @@ class ProgramLifecycleViewModelTest {
         )
         assertFalse(state.isSelectedProgramPast)
         assertTrue(state.canDeleteSelectedProgram)
+    }
+
+    @Test
+    fun `resolveWeekActionUiState keeps Salta settimana available for past active weeks`() {
+        val week = WeekPlan(
+            id = WeekPlanId("past-week"),
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            parts = emptyList(),
+            status = WeekPlanStatus.ACTIVE,
+        )
+
+        val actions = resolveWeekActionUiState(week)
+
+        assertTrue(actions.canSkipWeek)
+        assertFalse(actions.canReactivateWeek)
+    }
+
+    @Test
+    fun `resolveWeekActionUiState swaps to reactivate when week is skipped`() {
+        val week = WeekPlan(
+            id = WeekPlanId("skipped-week"),
+            weekStartDate = LocalDate.of(2026, 3, 9),
+            parts = emptyList(),
+            status = WeekPlanStatus.SKIPPED,
+        )
+
+        val actions = resolveWeekActionUiState(week)
+
+        assertFalse(actions.canSkipWeek)
+        assertTrue(actions.canReactivateWeek)
     }
 
     @Test

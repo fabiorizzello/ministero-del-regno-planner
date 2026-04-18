@@ -96,6 +96,18 @@ private data class PendingAssignmentRemoval(
     val isHistoricalEdit: Boolean,
 )
 
+internal data class WeekActionUiState(
+    val canSkipWeek: Boolean,
+    val canReactivateWeek: Boolean,
+)
+
+internal fun resolveWeekActionUiState(
+    week: org.example.project.feature.weeklyparts.domain.WeekPlan,
+): WeekActionUiState = WeekActionUiState(
+    canSkipWeek = week.canBeEditedManually(),
+    canReactivateWeek = week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED,
+)
+
 private fun org.example.project.feature.weeklyparts.domain.WeekPlan.sidebarStatus(
     currentMonday: java.time.LocalDate,
     assignedSlots: Int,
@@ -196,7 +208,7 @@ fun ProgramWorkspaceScreen() {
                 onSearchChange = { personPickerVM.setPickerSearchTerm(it) },
                 onStrictCooldownChange = {
                     assignmentVM.setStrictCooldown(it)
-                    personPickerVM.reloadSuggestions()
+                    personPickerVM.reloadSuggestions(strictCooldownOverride = it)
                 },
                 onAssign = { personPickerVM.confirmAssignment(it, onSuccess = reloadData) },
                 onDismiss = { personPickerVM.closePersonPicker() },
@@ -663,7 +675,7 @@ fun ProgramWorkspaceScreen() {
                         val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
                         val isCurrent = selectedWeek.weekStartDate == currentMonday
                         val canMutate = selectedWeek.canBeEditedManually()
-                        val canSkipWeek = selectedWeek.canBeMutated(currentMonday)
+                        val canSkipWeek = resolveWeekActionUiState(selectedWeek).canSkipWeek
                         val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
                         val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
 

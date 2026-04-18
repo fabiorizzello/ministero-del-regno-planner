@@ -472,7 +472,8 @@ class PartEditorViewModelTest {
         advanceUntilIdle()
 
         assertTrue(successCalled)
-        assertNull(vm.state.value.notice)
+        assertEquals(FeedbackBannerKind.SUCCESS, vm.state.value.notice?.kind)
+        assertTrue(vm.state.value.notice?.message?.contains("riattivata") == true)
         coVerify { impostaStato(week.id, WeekPlanStatus.ACTIVE, any()) }
         Unit
     }
@@ -512,7 +513,8 @@ class PartEditorViewModelTest {
         advanceUntilIdle()
 
         assertTrue(successCalled)
-        assertNull(vm.state.value.notice)
+        assertEquals(FeedbackBannerKind.SUCCESS, vm.state.value.notice?.kind)
+        assertTrue(vm.state.value.notice?.message?.contains("saltata") == true)
         coVerify { impostaStato(week.id, WeekPlanStatus.SKIPPED, any()) }
         Unit
     }

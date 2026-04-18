@@ -438,6 +438,124 @@ class WeekPlanAggregateTest {
         assertEquals(DomainError.OrdinePartiNonValido, left)
     }
 
+    @Test
+    fun `replaceParts preserves matching assignments when a new part is appended`() {
+        val repeatedType = partType(id = "repeat")
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = LocalDate.of(2026, 3, 9),
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("part-a"), partType = repeatedType, sortOrder = 0),
+                ),
+            ),
+            assignments = listOf(
+                Assignment(
+                    id = AssignmentId("a1"),
+                    weeklyPartId = WeeklyPartId("part-a"),
+                    personId = ProclamatoreId("p1"),
+                    slot = 1,
+                ),
+            ),
+        )
+
+        var counter = 0
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(
+            aggregate.replaceParts(
+                orderedPartTypes = listOf(repeatedType to null, partType(id = "new") to null),
+                partIdFactory = { WeeklyPartId("gen-${counter++}") },
+            ),
+        ).value
+
+        assertEquals(1, updated.assignments.size)
+        assertEquals(ProclamatoreId("p1"), updated.assignments.single().personId)
+        assertEquals(WeeklyPartId("gen-0"), updated.assignments.single().weeklyPartId)
+    }
+
+    @Test
+    fun `replaceParts removes only assignments tied to removed continuity keys`() {
+        val repeatedType = partType(id = "repeat")
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = LocalDate.of(2026, 3, 9),
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("part-a"), partType = repeatedType, sortOrder = 0),
+                    WeeklyPart(id = WeeklyPartId("part-b"), partType = repeatedType, sortOrder = 1),
+                ),
+            ),
+            assignments = listOf(
+                Assignment(
+                    id = AssignmentId("a1"),
+                    weeklyPartId = WeeklyPartId("part-a"),
+                    personId = ProclamatoreId("p1"),
+                    slot = 1,
+                ),
+                Assignment(
+                    id = AssignmentId("a2"),
+                    weeklyPartId = WeeklyPartId("part-b"),
+                    personId = ProclamatoreId("p2"),
+                    slot = 1,
+                ),
+            ),
+        )
+
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(
+            aggregate.replaceParts(
+                orderedPartTypes = listOf(repeatedType to null),
+                partIdFactory = { WeeklyPartId("kept") },
+            ),
+        ).value
+
+        assertEquals(1, updated.assignments.size)
+        assertEquals(ProclamatoreId("p1"), updated.assignments.single().personId)
+        assertEquals(WeeklyPartId("kept"), updated.assignments.single().weeklyPartId)
+    }
+
+    @Test
+    fun `replaceParts preserves assignments when identical parts are reordered`() {
+        val typeA = partType(id = "type-a")
+        val typeB = partType(id = "type-b")
+        val aggregate = WeekPlanAggregate(
+            weekPlan = WeekPlan(
+                id = WeekPlanId("w1"),
+                weekStartDate = LocalDate.of(2026, 3, 9),
+                parts = listOf(
+                    WeeklyPart(id = WeeklyPartId("part-a"), partType = typeA, sortOrder = 0),
+                    WeeklyPart(id = WeeklyPartId("part-b"), partType = typeB, sortOrder = 1),
+                ),
+            ),
+            assignments = listOf(
+                Assignment(
+                    id = AssignmentId("a1"),
+                    weeklyPartId = WeeklyPartId("part-a"),
+                    personId = ProclamatoreId("p1"),
+                    slot = 1,
+                ),
+                Assignment(
+                    id = AssignmentId("a2"),
+                    weeklyPartId = WeeklyPartId("part-b"),
+                    personId = ProclamatoreId("p2"),
+                    slot = 1,
+                ),
+            ),
+        )
+
+        var counter = 0
+        val updated = assertIs<Either.Right<WeekPlanAggregate>>(
+            aggregate.replaceParts(
+                orderedPartTypes = listOf(typeB to null, typeA to null),
+                partIdFactory = { WeeklyPartId("gen-${counter++}") },
+            ),
+        ).value
+
+        assertEquals(2, updated.assignments.size)
+        assertEquals(
+            setOf(ProclamatoreId("p1"), ProclamatoreId("p2")),
+            updated.assignments.map { it.personId }.toSet(),
+        )
+    }
+
     // --- WeekPlan.of() smart constructor error path tests ---
 
     @Test

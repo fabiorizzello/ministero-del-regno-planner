@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -73,6 +74,7 @@ import java.time.temporal.ChronoUnit
 /** Maximum length for nome and cognome fields */
 private const val NAME_MAX_LENGTH = 100
 private val IDENTITY_COLUMN_WIDTH = 360.dp
+private val ELIGIBILITY_COLUMN_MIN_WIDTH = 420.dp
 private val DELAY_COLUMN_WIDTH = 120.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,9 +101,11 @@ internal fun ProclamatoriFormContentForm(
     duplicateError: String?,
     isCheckingDuplicate: Boolean,
     canSubmitForm: Boolean,
+    canGoToNext: Boolean,
     isLoading: Boolean,
     formError: String?,
     onSubmit: () -> Unit,
+    onNext: (() -> Unit)?,
     onCancel: () -> Unit,
     onDelete: (() -> Unit)? = null,
     showTitle: Boolean = true,
@@ -292,7 +296,9 @@ internal fun ProclamatoriFormContentForm(
 
                 // ── RIGHT: idoneità ─────────────────────────────────────────
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .widthIn(min = ELIGIBILITY_COLUMN_MIN_WIDTH)
+                        .weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("Idoneità", style = MaterialTheme.typography.titleSmall)
@@ -356,6 +362,13 @@ internal fun ProclamatoriFormContentForm(
                         onClick = onCancel,
                         enabled = !isLoading,
                     ) { Text("Annulla") }
+                }
+                if (onNext != null) {
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = canGoToNext && !isLoading),
+                        onClick = onNext,
+                        enabled = canGoToNext && !isLoading,
+                    ) { Text("Successivo") }
                 }
                 if (!isNew && onDelete != null) {
                     Spacer(Modifier.weight(1f))

@@ -22,6 +22,8 @@ import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeEitherOperationWithNotice
+import org.example.project.ui.search.FuzzySearchCandidate
+import org.example.project.ui.search.rankPeopleByQuery
 
 internal data class SchemaUpdateAnomalyUi(
     val id: String,
@@ -55,9 +57,15 @@ internal data class ProclamatoriListUiState(
     val schemaUpdateAnomalies: List<SchemaUpdateAnomalyUi> = emptyList(),
     val isDismissingSchemaAnomalies: Boolean = false,
     val capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi> = emptyMap(),
+    val scrollResetToken: Int = 0,
 ) {
     val sortedItems: List<Proclamatore> get() = allItems.applySort(sort)
 }
+
+private data class ProclamatoriNavigationTarget(
+    val id: ProclamatoreId,
+    val pageIndex: Int,
+)
 
 internal class ProclamatoriListViewModel(
     private val scope: CoroutineScope,
@@ -112,16 +120,45 @@ internal class ProclamatoriListViewModel(
     }
 
     fun goToPreviousPage() {
-        _uiState.update { it.copy(pageIndex = (it.pageIndex - 1).coerceAtLeast(0)) }
+        _uiState.update {
+            it.copy(
+                pageIndex = (it.pageIndex - 1).coerceAtLeast(0),
+                scrollResetToken = it.scrollResetToken + 1,
+            )
+        }
         scope.launch { refreshCurrentPageCapabilitySummaries() }
     }
 
     fun goToNextPage() {
         _uiState.update { state ->
             val totalPages = if (state.allItems.isEmpty()) 1 else ((state.allItems.size - 1) / state.pageSize) + 1
-            state.copy(pageIndex = (state.pageIndex + 1).coerceAtMost(totalPages - 1))
+            state.copy(
+                pageIndex = (state.pageIndex + 1).coerceAtMost(totalPages - 1),
+                scrollResetToken = state.scrollResetToken + 1,
+            )
         }
         scope.launch { refreshCurrentPageCapabilitySummaries() }
+    }
+
+    fun hasNextItem(currentId: ProclamatoreId): Boolean {
+        return resolveNextTarget(_uiState.value, currentId) != null
+    }
+
+    fun openNextItem(currentId: ProclamatoreId, onResolved: (ProclamatoreId?) -> Unit) {
+        scope.launch {
+            val target = resolveNextTarget(_uiState.value, currentId)
+            revealNavigationTarget(target)
+            onResolved(target?.id)
+        }
+    }
+
+    fun refreshAndOpenNextItem(currentId: ProclamatoreId, onResolved: (ProclamatoreId?) -> Unit) {
+        scope.launch {
+            refreshListInternal(showLoading = false)
+            val target = resolveNextTarget(_uiState.value, currentId)
+            revealNavigationTarget(target)
+            onResolved(target?.id)
+        }
     }
 
     fun toggleSelectPage(pageIds: List<ProclamatoreId>, checked: Boolean) {
@@ -254,7 +291,8 @@ internal class ProclamatoriListViewModel(
     private suspend fun refreshListInternal(resetPage: Boolean = false, showLoading: Boolean = true) {
         if (showLoading) _uiState.update { it.copy(isLoading = true) }
         val state = _uiState.value
-        val allItems = cerca(state.searchTerm)
+        val sourceItems = cerca(null)
+        val allItems = filterPeopleForSearch(sourceItems, state.searchTerm)
         val validIds = allItems.map { it.id }.toSet()
         val selected = state.selectedIds.filterTo(mutableSetOf()) { it in validIds }
         var nextPageIndex = if (resetPage) 0 else state.pageIndex
@@ -267,6 +305,7 @@ internal class ProclamatoriListViewModel(
                 selectedIds = selected,
                 pageIndex = nextPageIndex,
                 isLoading = false,
+                scrollResetToken = if (resetPage) it.scrollResetToken + 1 else it.scrollResetToken,
             )
         }
         refreshCurrentPageCapabilitySummaries()
@@ -338,4 +377,50 @@ internal class ProclamatoriListViewModel(
 
         _uiState.update { it.copy(capabilitySummaryById = summaries) }
     }
+
+    private fun resolveNextTarget(
+        state: ProclamatoriListUiState,
+        currentId: ProclamatoreId,
+    ): ProclamatoriNavigationTarget? {
+        val currentIndex = state.sortedItems.indexOfFirst { it.id == currentId }
+        if (currentIndex < 0) return null
+        val nextIndex = currentIndex + 1
+        val nextItem = state.sortedItems.getOrNull(nextIndex) ?: return null
+        return ProclamatoriNavigationTarget(
+            id = nextItem.id,
+            pageIndex = nextIndex / state.pageSize,
+        )
+    }
+
+    private suspend fun revealNavigationTarget(target: ProclamatoriNavigationTarget?) {
+        if (target == null) return
+        val currentState = _uiState.value
+        if (currentState.pageIndex != target.pageIndex) {
+            _uiState.update {
+                it.copy(
+                    pageIndex = target.pageIndex,
+                    scrollResetToken = it.scrollResetToken + 1,
+                )
+            }
+        }
+        refreshCurrentPageCapabilitySummaries()
+    }
+}
+
+internal fun filterPeopleForSearch(
+    items: List<Proclamatore>,
+    searchTerm: String,
+): List<Proclamatore> {
+    if (searchTerm.isBlank()) return items
+    val peopleById = items.associateBy { it.id }
+    return rankPeopleByQuery(
+        query = searchTerm,
+        candidates = items.map { person ->
+            FuzzySearchCandidate(
+                value = person.id,
+                firstName = person.nome,
+                lastName = person.cognome,
+            )
+        },
+    ).mapNotNull { peopleById[it] }
 }

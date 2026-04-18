@@ -67,6 +67,12 @@ fun ProclamatoriScreen() {
         uiPreferencesStore.saveStudentsViewMode(viewMode.name)
     }
 
+    LaunchedEffect(listState.scrollResetToken, viewMode) {
+        if (viewMode == ProclamatoriListViewMode.TABLE) {
+            tableListState.scrollToItem(0)
+        }
+    }
+
     listState.deleteCandidate?.let { candidate ->
         ConfirmDeleteDialogComponent(
             title = "Rimuovi studente",
@@ -129,14 +135,18 @@ fun ProclamatoriScreen() {
     }
 
     var route by remember { mutableStateOf<ProclamatoriRoute>(ProclamatoriRoute.Elenco) }
+    var showUnsavedNextConfirm by remember { mutableStateOf(false) }
     val currentEditId = (route as? ProclamatoriRoute.Modifica)?.id
     val isFormRoute = route != ProclamatoriRoute.Elenco
 
     val canSubmitForm = formState.canSubmitForm(route)
+    val hasUnsavedChanges = formState.hasUnsavedChanges(route)
+    val canGoToNext = currentEditId?.let(listVm::hasNextItem) == true
 
     fun goToListManual() {
         listVm.dismissNotice()
         listVm.clearSelection()
+        showUnsavedNextConfirm = false
         formVm.clearForm()
         route = ProclamatoriRoute.Elenco
     }
@@ -144,6 +154,7 @@ fun ProclamatoriScreen() {
     fun goToNuovo() {
         listVm.dismissNotice()
         listVm.clearSelection()
+        showUnsavedNextConfirm = false
         route = ProclamatoriRoute.Nuovo
         formVm.prepareForNew()
     }
@@ -155,9 +166,57 @@ fun ProclamatoriScreen() {
             onSuccess = { notice ->
                 listVm.setNotice(notice)
                 listVm.refreshList()
+                showUnsavedNextConfirm = false
                 route = ProclamatoriRoute.Elenco
             },
         )
+    }
+
+    fun openEdit(id: ProclamatoreId) {
+        formVm.loadForEdit(
+            id = id,
+            onNotFound = { listVm.setNotice(errorNotice("Studente non trovato")) },
+            onSuccess = {
+                showUnsavedNextConfirm = false
+                route = ProclamatoriRoute.Modifica(id)
+            },
+        )
+    }
+
+    fun openNextStudent() {
+        val editId = currentEditId ?: return
+        listVm.openNextItem(editId) { nextId ->
+            if (nextId != null) {
+                openEdit(nextId)
+            }
+        }
+    }
+
+    fun saveAndOpenNextStudent() {
+        val editId = currentEditId ?: return
+        formVm.submitForm(
+            route = route,
+            currentEditId = currentEditId,
+            onSuccess = { notice ->
+                listVm.setNotice(notice)
+                listVm.refreshAndOpenNextItem(editId) { nextId ->
+                    if (nextId != null) {
+                        openEdit(nextId)
+                    } else {
+                        showUnsavedNextConfirm = false
+                        route = ProclamatoriRoute.Elenco
+                    }
+                }
+            },
+        )
+    }
+
+    fun onNextRequested() {
+        if (hasUnsavedChanges) {
+            showUnsavedNextConfirm = true
+        } else {
+            openNextStudent()
+        }
     }
 
     LaunchedEffect(route, formState.nome, formState.cognome, currentEditId) {
@@ -166,6 +225,9 @@ fun ProclamatoriScreen() {
 
     LaunchedEffect(route) {
         rootFocusRequester.requestFocus()
+        if (route == ProclamatoriRoute.Elenco) {
+            searchFocusRequester.requestFocus()
+        }
     }
 
     Column(
@@ -185,6 +247,7 @@ fun ProclamatoriScreen() {
                         true
                     }
                     event.key == Key.Escape && isFormRoute -> {
+                        showUnsavedNextConfirm = false
                         goToListManual()
                         true
                     }
@@ -225,13 +288,7 @@ fun ProclamatoriScreen() {
                     onClearSelection = { listVm.clearSelection() },
                     onGoNuovo = { goToNuovo() },
                     onDismissSchemaAnomalies = { listVm.dismissSchemaUpdateAnomalies() },
-                    onEdit = { id ->
-                        formVm.loadForEdit(
-                            id = id,
-                            onNotFound = { listVm.setNotice(errorNotice("Studente non trovato")) },
-                            onSuccess = { route = ProclamatoriRoute.Modifica(id) },
-                        )
-                    },
+                    onEdit = { id -> openEdit(id) },
                     onDelete = { candidate -> listVm.requestDeleteCandidate(candidate) },
                     onPreviousPage = { listVm.goToPreviousPage() },
                     onNextPage = { listVm.goToNextPage() },
@@ -249,6 +306,17 @@ fun ProclamatoriScreen() {
     }
 
     if (isFormRoute) {
+        if (showUnsavedNextConfirm) {
+            ConfirmUnsavedNextDialogComponent(
+                isLoading = formState.isLoading,
+                onSaveAndContinue = { saveAndOpenNextStudent() },
+                onDiscardAndContinue = {
+                    showUnsavedNextConfirm = false
+                    openNextStudent()
+                },
+                onDismiss = { showUnsavedNextConfirm = false },
+            )
+        }
         ProclamatoriFormDialogComponent(
             route = route,
             nome = formState.nome,
@@ -273,9 +341,11 @@ fun ProclamatoriScreen() {
             duplicateError = formState.duplicateError,
             isCheckingDuplicate = formState.isCheckingDuplicate,
             canSubmitForm = canSubmitForm,
+            canGoToNext = canGoToNext,
             isLoading = formState.isLoading,
             formError = formState.formError,
             onSubmit = { submitAndNavigate() },
+            onNext = if (currentEditId != null) ({ onNextRequested() }) else null,
             onCancel = { goToListManual() },
             onDismiss = { goToListManual() },
             onDelete = currentEditId?.let { editId ->

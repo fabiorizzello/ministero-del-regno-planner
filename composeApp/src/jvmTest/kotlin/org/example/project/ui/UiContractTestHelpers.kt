@@ -9,4 +9,8 @@ object UiContractTags {
     const val ADMIN_PART_TYPES_SECTION = "admin-section-tipi-parte"
     const val ADMIN_WEEKLY_SCHEMAS_SECTION = "admin-section-schemi-settimanali"
     const val PROGRAM_SETTINGS_BLOCK = "program-assignment-settings"
+    const val PICKER_LOADING = "picker-loading"
+    const val PICKER_EMPTY_STATE = "picker-empty-state"
+    const val STUDENTI_EMPTY_STATE = "studenti-empty-state"
+    const val STUDENTI_CARD_ACTION_BAR = "studenti-card-action-bar"
 }

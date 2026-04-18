@@ -48,7 +48,7 @@ class PersonPickerViewModelTest {
     fun `openPersonPicker sets picker fields and loads suggestions`() = runTest {
         val suggestions = listOf(makeSuggestion("person-1", "Mario", "Rossi"))
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns suggestions
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns suggestions
 
         val vm = makeViewModel(scope = this, suggerisci = suggerisci)
         vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
@@ -69,7 +69,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `openPersonPicker resets search term from previous session`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
 
         val vm = makeViewModel(scope = this, suggerisci = suggerisci)
         vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
@@ -88,7 +88,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `openPersonPicker shows error notice when suggestions fail`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } throws RuntimeException("DB error")
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } throws RuntimeException("DB error")
 
         val vm = makeViewModel(scope = this, suggerisci = suggerisci)
         vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
@@ -108,7 +108,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `closePersonPicker resets all picker state`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns listOf(
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns listOf(
             makeSuggestion("p1", "Mario", "Rossi"),
         )
 
@@ -142,7 +142,7 @@ class PersonPickerViewModelTest {
             makeSuggestion("p1", "Mario", "Rossi"),
             makeSuggestion("p2", "Luigi", "Verdi"),
         )
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returnsMany listOf(
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returnsMany listOf(
             firstSuggestions,
             secondSuggestions,
         )
@@ -156,8 +156,87 @@ class PersonPickerViewModelTest {
         advanceUntilIdle()
 
         assertEquals(secondSuggestions, vm.state.value.pickerSuggestions)
-        coVerify(exactly = 2) { suggerisci(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 2) { suggerisci(any(), any(), any(), any(), any(), any(), any()) }
         Unit
+    }
+
+    @Test
+    fun `reloadSuggestions preserves current search term while refreshing suggestions`() = runTest {
+        val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returnsMany listOf(
+            listOf(makeSuggestion("p1", "Mario", "Rossi")),
+            listOf(makeSuggestion("p2", "Luigi", "Verdi")),
+        )
+
+        val vm = makeViewModel(scope = this, suggerisci = suggerisci)
+        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
+        advanceUntilIdle()
+
+        vm.setPickerSearchTerm("mari")
+        vm.reloadSuggestions()
+        advanceUntilIdle()
+
+        assertEquals("mari", vm.state.value.pickerSearchTerm)
+        assertEquals(ProclamatoreId("p2"), vm.state.value.pickerSuggestions.single().proclamatore.id)
+    }
+
+    @Test
+    fun `reloadSuggestions passes strict cooldown override immediately`() = runTest {
+        val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returnsMany listOf(
+            listOf(makeSuggestion("p1", "Mario", "Rossi")),
+            listOf(makeSuggestion("p2", "Luigi", "Verdi")),
+        )
+
+        val vm = makeViewModel(scope = this, suggerisci = suggerisci)
+        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
+        advanceUntilIdle()
+
+        vm.reloadSuggestions(strictCooldownOverride = false)
+        advanceUntilIdle()
+
+        coVerify {
+            suggerisci(
+                weekStartDate = weekStartDate,
+                weeklyPartId = weeklyPartId,
+                slot = slot,
+                additionalExcludedIds = any(),
+                rankingCache = any(),
+                eligibilityCache = any(),
+                strictCooldownOverride = false,
+            )
+        }
+    }
+
+    @Test
+    fun `reloadSuggestions keeps only the latest completed result when requests overlap`() = runTest {
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val firstSuggestions = listOf(makeSuggestion("p1", "Mario", "Rossi"))
+        val secondSuggestions = listOf(makeSuggestion("p2", "Luigi", "Verdi"))
+        var invocation = 0
+        val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } coAnswers {
+            invocation += 1
+            if (invocation == 1) {
+                firstStarted.complete(Unit)
+                releaseFirst.await()
+                firstSuggestions
+            } else {
+                secondSuggestions
+            }
+        }
+
+        val vm = makeViewModel(scope = this, suggerisci = suggerisci)
+        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
+        firstStarted.await()
+        vm.reloadSuggestions()
+        advanceUntilIdle()
+        releaseFirst.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(secondSuggestions, vm.state.value.pickerSuggestions)
+        assertFalse(vm.state.value.isPickerLoading)
     }
 
     // ── confirmAssignment — no delivery warning ───────────────────────────────
@@ -165,7 +244,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignment assigns person and closes picker when no previous delivery`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns null
         val assegna = mockk<AssegnaPersonaUseCase>()
@@ -194,7 +273,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignment shows error when verificaConsegna throws`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } throws RuntimeException("connection error")
 
@@ -220,7 +299,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignment shows delivery warning when previous delivery exists`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns "Mario Rossi"
 
@@ -245,7 +324,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignmentAfterWarning cancels delivery and assigns`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns "Mario Rossi"
         val annullaConsegna = mockk<AnnullaConsegnaUseCase>()
@@ -284,7 +363,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignmentAfterWarning shows error when annullaConsegna fails`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns "Mario Rossi"
         val annullaConsegna = mockk<AnnullaConsegnaUseCase>()
@@ -335,7 +414,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `dismissDeliveryWarning clears the warning`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns "Mario Rossi"
 
@@ -362,7 +441,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `confirmAssignment ignores second call while assigning`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         val verificaConsegna = mockk<VerificaConsegnaPreAssegnazioneUseCase>()
         coEvery { verificaConsegna(any(), any()) } returns null
         val blocker = CompletableDeferred<Either<DomainError, Unit>>()
@@ -443,7 +522,7 @@ class PersonPickerViewModelTest {
     @Test
     fun `dismissNotice clears notice`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
-        coEvery { suggerisci(any(), any(), any(), any(), any(), any()) } throws RuntimeException("fail")
+        coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } throws RuntimeException("fail")
 
         val vm = makeViewModel(scope = this, suggerisci = suggerisci)
         vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)

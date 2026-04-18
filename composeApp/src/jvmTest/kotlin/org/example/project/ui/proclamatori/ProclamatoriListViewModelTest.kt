@@ -152,9 +152,10 @@ class ProclamatoriListViewModelTest {
     @Test
     fun `setSearchTerm aggiorna il termine e riesegue la ricerca dopo debounce`() = runTest {
         val cerca = mockk<CercaProclamatoriUseCase>()
-        coEvery { cerca(null) } returns emptyList()
-        coEvery { cerca("") } returns emptyList()
-        coEvery { cerca("Mar") } returns listOf(makeProclamatore("1", "Mario", "Rossi"))
+        coEvery { cerca(null) } returns listOf(
+            makeProclamatore("1", "Mario", "Rossi"),
+            makeProclamatore("2", "Luigi", "Verdi"),
+        )
 
         val vm = makeViewModel(scope = this, cerca = cerca)
         vm.onScreenEntered()
@@ -171,6 +172,7 @@ class ProclamatoriListViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, vm.uiState.value.allItems.size)
+        assertEquals("Mario", vm.uiState.value.allItems.single().nome)
     }
 
     @Test

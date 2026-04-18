@@ -78,6 +78,51 @@ internal fun ConfirmDeleteDialogComponent(
     }
 }
 
+@Composable
+internal fun ConfirmUnsavedNextDialogComponent(
+    isLoading: Boolean,
+    onSaveAndContinue: () -> Unit,
+    onDiscardAndContinue: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DisableSelection {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Modifiche non salvate") },
+            text = {
+                Text("Vuoi salvare prima di aprire lo studente successivo?")
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        onClick = onDiscardAndContinue,
+                        enabled = !isLoading,
+                    ) {
+                        Text("Scarta e continua")
+                    }
+                    TextButton(
+                        modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                        onClick = onSaveAndContinue,
+                        enabled = !isLoading,
+                    ) {
+                        Text("Salva e continua")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                    onClick = onDismiss,
+                    enabled = !isLoading,
+                ) {
+                    Text("Annulla")
+                }
+            },
+        )
+    }
+}
+
 /**
  * Dialog wrapper for the Proclamatore form.
  *
@@ -108,9 +153,11 @@ internal fun ProclamatoriFormDialogComponent(
     duplicateError: String?,
     isCheckingDuplicate: Boolean,
     canSubmitForm: Boolean,
+    canGoToNext: Boolean,
     isLoading: Boolean,
     formError: String?,
     onSubmit: () -> Unit,
+    onNext: (() -> Unit)?,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
     onDelete: (() -> Unit)? = null,
@@ -126,7 +173,7 @@ internal fun ProclamatoriFormDialogComponent(
             shadowElevation = 0.dp,
             modifier = Modifier
                 .padding(spacing.lg)
-                .widthIn(min = 720.dp, max = 1100.dp)
+                .widthIn(min = 820.dp, max = 1200.dp)
                 .fillMaxWidth(0.9f),
         ) {
             Column(
@@ -177,9 +224,11 @@ internal fun ProclamatoriFormDialogComponent(
                     duplicateError = duplicateError,
                     isCheckingDuplicate = isCheckingDuplicate,
                     canSubmitForm = canSubmitForm,
+                    canGoToNext = canGoToNext,
                     isLoading = isLoading,
                     formError = formError,
                     onSubmit = onSubmit,
+                    onNext = onNext,
                     onCancel = onCancel,
                     onDelete = onDelete,
                     showTitle = false,

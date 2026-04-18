@@ -32,10 +32,12 @@ class SuggerisciProclamatoriUseCase(
         additionalExcludedIds: Set<ProclamatoreId> = emptySet(),
         rankingCache: SuggestionRankingCache? = null,
         eligibilityCache: Map<PartTypeId, Set<ProclamatoreId>>? = null,
+        strictCooldownOverride: Boolean? = null,
     ): List<SuggestedProclamatore> {
         val plan = weekPlanStore.findByDate(weekStartDate) ?: return emptyList()
         val part = plan.parts.find { it.id == weeklyPartId } ?: return emptyList()
         val settings = assignmentSettingsStore.load()
+        val strictCooldown = strictCooldownOverride ?: settings.strictCooldown
 
         val suggestions = assignmentStore.suggestedProclamatori(
             partTypeId = part.partType.id,
@@ -91,7 +93,7 @@ class SuggerisciProclamatoriUseCase(
             }
             .filter { (_, allowed) -> allowed }
             .map { (suggestion, _) -> suggestion to weightedScore(suggestion, part.partType.id, slot) }
-            .filter { (suggestion, _) -> !settings.strictCooldown || !suggestion.inCooldown }
+            .filter { (suggestion, _) -> !strictCooldown || !suggestion.inCooldown }
 
         return eligible
             .sortedWith(

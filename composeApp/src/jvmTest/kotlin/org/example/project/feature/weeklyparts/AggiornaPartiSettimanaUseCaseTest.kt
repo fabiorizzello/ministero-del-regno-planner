@@ -5,6 +5,9 @@ import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
+import org.example.project.feature.assignments.domain.Assignment
+import org.example.project.feature.assignments.domain.AssignmentId
+import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.weeklyparts.application.AggiornaPartiSettimanaUseCase
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -134,6 +137,73 @@ class AggiornaPartiSettimanaUseCaseTest {
         assertEquals(DomainError.OrdinePartiNonValido, left)
         Unit
     }
+
+    @Test
+    fun `use case preserves matching assignments when appending a new weekly part`() = runTest {
+        val keptType = makePartType("pt-1", "LETTURA", fixed = false)
+        val newType = makePartType("pt-2", "DISCORSO", fixed = false)
+        val existingAssignment = Assignment(
+            id = AssignmentId("a-1"),
+            weeklyPartId = WeeklyPartId("part-0"),
+            personId = ProclamatoreId("person-1"),
+            slot = 1,
+        )
+
+        val store = AggiornaPartiWeekPlanStore(
+            weekDate = weekDate,
+            initialPartTypes = listOf(keptType),
+            initialAssignments = listOf(existingAssignment),
+        )
+        val partTypeStore = InMemoryPartTypeStore(listOf(keptType, newType))
+        val useCase = AggiornaPartiSettimanaUseCase(
+            weekPlanStore = store,
+            partTypeStore = partTypeStore,
+            transactionRunner = PassthroughTransactionRunner,
+        )
+
+        val result = useCase(store.weekPlanId, listOf(keptType.id, newType.id))
+
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(1, store.savedAggregate!!.assignments.size)
+        assertEquals(ProclamatoreId("person-1"), store.savedAggregate!!.assignments.single().personId)
+    }
+
+    @Test
+    fun `use case drops only assignments whose weekly part is removed`() = runTest {
+        val repeatedType = makePartType("pt-1", "LETTURA", fixed = false)
+        val assignments = listOf(
+            Assignment(
+                id = AssignmentId("a-1"),
+                weeklyPartId = WeeklyPartId("part-0"),
+                personId = ProclamatoreId("person-1"),
+                slot = 1,
+            ),
+            Assignment(
+                id = AssignmentId("a-2"),
+                weeklyPartId = WeeklyPartId("part-1"),
+                personId = ProclamatoreId("person-2"),
+                slot = 1,
+            ),
+        )
+
+        val store = AggiornaPartiWeekPlanStore(
+            weekDate = weekDate,
+            initialPartTypes = listOf(repeatedType, repeatedType),
+            initialAssignments = assignments,
+        )
+        val partTypeStore = InMemoryPartTypeStore(listOf(repeatedType))
+        val useCase = AggiornaPartiSettimanaUseCase(
+            weekPlanStore = store,
+            partTypeStore = partTypeStore,
+            transactionRunner = PassthroughTransactionRunner,
+        )
+
+        val result = useCase(store.weekPlanId, listOf(repeatedType.id))
+
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(1, store.savedAggregate!!.assignments.size)
+        assertEquals(ProclamatoreId("person-1"), store.savedAggregate!!.assignments.single().personId)
+    }
 }
 
 // ---- fakes ----
@@ -151,6 +221,7 @@ private fun makePartType(id: String, code: String, fixed: Boolean) = PartType(
 private class AggiornaPartiWeekPlanStore(
     weekDate: LocalDate,
     initialPartTypes: List<PartType>,
+    initialAssignments: List<Assignment> = emptyList(),
 ) : TestWeekPlanStore() {
 
     val weekPlanId = WeekPlanId("w-test")
@@ -161,7 +232,7 @@ private class AggiornaPartiWeekPlanStore(
     }
     private var aggregate = WeekPlanAggregate(
         weekPlan = WeekPlan(id = weekPlanId, weekStartDate = weekDate, parts = initialParts),
-        assignments = emptyList(),
+        assignments = initialAssignments,
     )
 
     override suspend fun loadAggregateById(weekPlanId: WeekPlanId): WeekPlanAggregate? =

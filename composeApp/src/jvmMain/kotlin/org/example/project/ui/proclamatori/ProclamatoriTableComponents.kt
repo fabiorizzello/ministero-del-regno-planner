@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,6 +81,7 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -321,6 +323,7 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     sort = sort,
                     isLoading = isLoading,
                     tableListState = tableListState,
+                    hasActiveSearch = state.searchTerm.isNotBlank(),
                     capabilitySummaryById = state.capabilitySummaryById,
                     events = events,
                 )
@@ -331,6 +334,8 @@ internal fun ColumnScope.ProclamatoriElencoContent(
                     hasSelection = hasSelection,
                     isLoading = isLoading,
                     cardsScrollState = cardsScrollState,
+                    scrollResetToken = state.scrollResetToken,
+                    hasActiveSearch = state.searchTerm.isNotBlank(),
                     capabilitySummaryById = state.capabilitySummaryById,
                     events = events,
                 )
@@ -475,6 +480,7 @@ private fun ColumnScope.TableContent(
     sort: ProclamatoriSort,
     isLoading: Boolean,
     tableListState: LazyListState,
+    hasActiveSearch: Boolean,
     capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi>,
     events: ProclamatoriElencoEvents,
 ) {
@@ -500,7 +506,7 @@ private fun ColumnScope.TableContent(
             onSortChange = events.onSortChange,
         )
         Text(
-            text = "Capability",
+            text = "Idoneita'",
             modifier = Modifier.weight(2f),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.workspaceSketch.inkMuted,
@@ -527,7 +533,7 @@ private fun ColumnScope.TableContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Nessun studente",
+                            studentiEmptyStateLabel(hasActiveSearch = hasActiveSearch),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -563,9 +569,14 @@ private fun ColumnScope.CardsContent(
     hasSelection: Boolean,
     isLoading: Boolean,
     cardsScrollState: ScrollState,
+    scrollResetToken: Int,
+    hasActiveSearch: Boolean,
     capabilitySummaryById: Map<ProclamatoreId, ProclamatoreCapabilitySummaryUi>,
     events: ProclamatoriElencoEvents,
 ) {
+    LaunchedEffect(scrollResetToken) {
+        cardsScrollState.scrollTo(0)
+    }
     Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = true)) {
         if (pageItems.isEmpty()) {
             Box(
@@ -573,7 +584,7 @@ private fun ColumnScope.CardsContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "Nessun studente",
+                    studentiEmptyStateLabel(hasActiveSearch = hasActiveSearch),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -912,7 +923,9 @@ private fun ProclamatoriCompactCard(
 
             if (!batchMode) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = studentCardActionBarMinHeight()),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -939,6 +952,15 @@ private fun ProclamatoriCompactCard(
         }
     }
 }
+
+internal fun studentiEmptyStateLabel(hasActiveSearch: Boolean): String =
+    if (hasActiveSearch) {
+        "Nessun risultato per questa ricerca"
+    } else {
+        "Nessuno studente disponibile"
+    }
+
+internal fun studentCardActionBarMinHeight() = 36.dp
 
 @Composable
 internal fun ProclamatoreAvatar(nome: String, cognome: String, sesso: Sesso) {
@@ -996,7 +1018,7 @@ private fun CapabilitySummaryChips(
     val sketch = MaterialTheme.workspaceSketch
     if (!canAssist && leadLabels.isEmpty()) {
         Text(
-            text = "Nessuna capability",
+            text = "Nessuna idoneita'",
             style = MaterialTheme.typography.labelSmall,
             color = sketch.inkMuted,
         )
@@ -1054,7 +1076,7 @@ private fun formatCapabilitySummaryText(
         if (canAssist) add("Assistente")
         addAll(leadLabels)
     }
-    return items.joinToString(" · ").ifBlank { "Nessuna capability" }
+    return items.joinToString(" · ").ifBlank { "Nessuna idoneita'" }
 }
 
 @Composable

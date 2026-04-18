@@ -111,9 +111,11 @@ import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import javax.imageio.ImageIO
 import java.time.LocalDate
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -137,6 +139,8 @@ import org.example.project.ui.theme.workspaceSketch
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+private val assignmentTicketDragLogger = KotlinLogging.logger("AssignmentTicketDragAndDrop")
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -871,18 +875,18 @@ private fun AssignmentTicketCard(
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val line = ticket.assignments.firstOrNull()
+    val dragTransferData = remember(ticket.imagePath) { buildAssignmentTicketDragData(ticket.imagePath) }
 
     Surface(
         modifier = modifier
             .handCursorOnHover()
             .hoverable(interactionSource)
-            .dragAndDropSource {
-                DragAndDropTransferData(
-                    transferable = DragAndDropTransferable(
-                        FileListTransferable(listOf(ticket.imagePath.toFile())),
-                    ),
-                    supportedActions = listOf(DragAndDropTransferAction.Copy),
-                )
+            .let { baseModifier ->
+                if (dragTransferData != null) {
+                    baseModifier.dragAndDropSource { dragTransferData }
+                } else {
+                    baseModifier
+                }
             },
         shape = RoundedCornerShape(14.dp),
         color = if (hovered) sketch.surface else sketch.surfaceMuted,
@@ -1105,19 +1109,59 @@ private fun loadAssignmentTicketPreview(
     }
 }.getOrNull()
 
+@OptIn(ExperimentalComposeUiApi::class)
+internal fun buildAssignmentTicketDragData(path: Path): DragAndDropTransferData? {
+    val transferable = buildAssignmentTicketTransferable(path) ?: return null
+    return DragAndDropTransferData(
+        transferable = DragAndDropTransferable(transferable),
+        supportedActions = listOf(DragAndDropTransferAction.Copy),
+    )
+}
+
+internal fun buildAssignmentTicketTransferable(path: Path): Transferable? = runCatching {
+    val normalizedPath = path.toAbsolutePath().normalize()
+    if (!Files.isRegularFile(normalizedPath)) {
+        assignmentTicketDragLogger.warn { "Drag&drop biglietto disabilitato: file non trovato $normalizedPath" }
+        return null
+    }
+    FileListTransferable(listOf(normalizedPath.toFile()))
+}.onFailure { error ->
+    assignmentTicketDragLogger.error(error) {
+        "Impossibile inizializzare il drag&drop del biglietto ${path.toAbsolutePath()}"
+    }
+}.getOrNull()
 
 private class FileListTransferable(
     private val files: List<File>,
 ) : Transferable {
-    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.javaFileListFlavor)
+    private val existingFiles = files
+        .map { it.absoluteFile }
+        .filter { it.isFile }
 
-    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor
+    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(
+        DataFlavor.javaFileListFlavor,
+        DataFlavor.stringFlavor,
+    )
+
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor || flavor == DataFlavor.stringFlavor
 
     override fun getTransferData(flavor: DataFlavor): Any {
-        if (!isDataFlavorSupported(flavor)) {
-            throw UnsupportedFlavorException(flavor)
+        return runCatching {
+            when (flavor) {
+                DataFlavor.javaFileListFlavor -> existingFiles
+                DataFlavor.stringFlavor -> existingFiles.joinToString(separator = System.lineSeparator()) { it.absolutePath }
+                else -> throw UnsupportedFlavorException(flavor)
+            }
+        }.onFailure { error ->
+            assignmentTicketDragLogger.error(error) {
+                "Errore durante il drop del biglietto verso il target esterno"
+            }
+        }.getOrElse {
+            when (flavor) {
+                DataFlavor.stringFlavor -> ""
+                else -> emptyList<File>()
+            }
         }
-        return files
     }
 }
 

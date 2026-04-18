@@ -45,6 +45,8 @@ import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.people.domain.Sesso
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.ui.search.FuzzySearchCandidate
+import org.example.project.ui.search.rankPeopleByQuery
 import org.example.project.ui.components.SexRuleChip
 import org.example.project.ui.components.handCursorOnHover
 import org.example.project.ui.theme.spacing
@@ -388,16 +390,7 @@ fun PersonPickerDialog(
     // Client-side filtering, memoized. Suggestions arrive pre-sorted by rank from the use case.
     // sexMismatch candidates are partitioned to the end for clarity.
     val (normalSorted, mismatchSorted) = remember(suggestions, searchTerm) {
-        val filtered = if (searchTerm.isBlank()) {
-            suggestions
-        } else {
-            val lowerTerm = searchTerm.lowercase()
-            suggestions.filter { s ->
-                s.proclamatore.nome.lowercase().contains(lowerTerm) ||
-                    s.proclamatore.cognome.lowercase().contains(lowerTerm)
-            }
-        }
-        filtered.partition { !it.sexMismatch }
+        filterPickerSuggestions(suggestions, searchTerm).partition { !it.sexMismatch }
     }
 
     Dialog(
@@ -510,7 +503,7 @@ fun PersonPickerDialog(
                     ),
                 )
 
-                // Current assignee + strict cooldown toggle
+                // Current assignee + strict rest toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -549,7 +542,7 @@ fun PersonPickerDialog(
                         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                     ) {
                         Text(
-                            "Nascondi in cooldown",
+                            "Nascondi in riposo",
                             style = MaterialTheme.typography.bodySmall,
                             color = sketch.inkSoft,
                         )
@@ -587,7 +580,7 @@ fun PersonPickerDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "Verifica: idoneità alla parte, cooldown strict nelle Impostazioni.",
+                            text = "Verifica i criteri della parte o il filtro di riposo nelle impostazioni.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                         )
@@ -697,7 +690,7 @@ private fun SuggestionHeaderRow() {
             style = MaterialTheme.typography.labelMedium,
         )
         Text(
-            text = "Cooldown",
+            text = "Riposo",
             modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
             style = MaterialTheme.typography.labelMedium,
         )
@@ -718,7 +711,7 @@ private fun SuggestionRow(
     val isHovered by rowInteractionSource.collectIsHoveredAsState()
 
     // Two-step confirm: first click arms the button, second click fires onAssign.
-    // Applies only when the person is in cooldown (which implies strictCooldown=false,
+    // Applies only when the person is in rest (which implies strictCooldown=false,
     // since the use case filters them out otherwise).
     var awaitingCooldownConfirm by remember { mutableStateOf(false) }
 
@@ -789,7 +782,7 @@ private fun SuggestionRow(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        // Cooldown column — warning icon + amber text when overriding cooldown
+        // Rest column — warning icon + amber text when overriding rest
         Row(
             modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
             verticalAlignment = Alignment.CenterVertically,
@@ -815,7 +808,7 @@ private fun SuggestionRow(
                 )
             }
         }
-        // Button — two-step confirm when overriding cooldown
+        // Button — two-step confirm when overriding rest
         val buttonColor = if (suggestion.inCooldown) sketch.warn else MaterialTheme.colorScheme.primary
         val buttonLabel = when {
             isAssigning -> "..."
@@ -893,5 +886,23 @@ private fun SuggestionSexAvatar(
             maxLines = 1,
         )
     }
+}
+
+internal fun filterPickerSuggestions(
+    suggestions: List<SuggestedProclamatore>,
+    searchTerm: String,
+): List<SuggestedProclamatore> {
+    if (searchTerm.isBlank()) return suggestions
+    val suggestionsById = suggestions.associateBy { it.proclamatore.id }
+    return rankPeopleByQuery(
+        query = searchTerm,
+        candidates = suggestions.map { suggestion ->
+            FuzzySearchCandidate(
+                value = suggestion.proclamatore.id,
+                firstName = suggestion.proclamatore.nome,
+                lastName = suggestion.proclamatore.cognome,
+            )
+        },
+    ).mapNotNull { suggestionsById[it] }
 }
 

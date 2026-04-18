@@ -80,7 +80,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `setting SKIPPED on a past week returns SettimanaImmutabile`() = runTest {
+    fun `setting SKIPPED on a past week succeeds to keep skip action available`() = runTest {
         val aggregate = aggregateForDate(pastMonday, WeekPlanStatus.ACTIVE)
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
@@ -90,9 +90,8 @@ class ImpostaStatoSettimanaUseCaseTest {
 
         val result = useCase(aggregate.weekPlan.id, WeekPlanStatus.SKIPPED, referenceDate = referenceDate)
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.SettimanaImmutabile, left)
-        Unit
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(WeekPlanStatus.SKIPPED, store.currentAggregate!!.weekPlan.status)
     }
 
     @Test
@@ -111,7 +110,7 @@ class ImpostaStatoSettimanaUseCaseTest {
     }
 
     @Test
-    fun `setting ACTIVE on a past SKIPPED week returns SettimanaImmutabile (R15-003 regression)`() = runTest {
+    fun `setting ACTIVE on a past SKIPPED week succeeds to keep context actionable`() = runTest {
         val aggregate = aggregateForDate(pastMonday, WeekPlanStatus.SKIPPED)
         val store = SingleIdWeekStore(aggregate)
         val useCase = ImpostaStatoSettimanaUseCase(
@@ -121,9 +120,8 @@ class ImpostaStatoSettimanaUseCaseTest {
 
         val result = useCase(aggregate.weekPlan.id, WeekPlanStatus.ACTIVE, referenceDate = referenceDate)
 
-        val left = assertIs<Either.Left<DomainError>>(result).value
-        assertEquals(DomainError.SettimanaImmutabile, left)
-        assertEquals(WeekPlanStatus.SKIPPED, store.currentAggregate!!.weekPlan.status)
+        assertIs<Either.Right<Unit>>(result)
+        assertEquals(WeekPlanStatus.ACTIVE, store.currentAggregate!!.weekPlan.status)
     }
 
     @Test
