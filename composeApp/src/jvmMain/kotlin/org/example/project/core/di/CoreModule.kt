@@ -3,7 +3,9 @@ package org.example.project.core.di
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import java.util.prefs.Preferences
+import org.example.project.core.config.PathsResolver
 import org.example.project.core.config.UiPreferencesStore
+import org.example.project.core.config.UserConfigStore
 import org.example.project.core.config.UpdateSettingsStore
 import org.example.project.core.config.WindowSettingsStore
 import org.example.project.core.persistence.DatabaseProvider
@@ -21,6 +23,12 @@ val coreModule = module {
     single { WindowSettingsStore(get()) }
     single { UiPreferencesStore(get()) }
     single { UpdateSettingsStore(get()) }
+    single {
+        UserConfigStore(
+            file = PathsResolver.userConfigFile(),
+            defaultDatabaseFile = PathsResolver.defaultDatabaseFile(),
+        )
+    }
 
     single { DatabaseProvider.database() }
     single<TransactionRunner> { SqlDelightTransactionRunner(get()) }

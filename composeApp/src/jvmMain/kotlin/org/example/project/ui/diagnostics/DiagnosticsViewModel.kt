@@ -6,8 +6,10 @@ import java.awt.datatransfer.StringSelection
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.time.Instant
 import java.time.LocalDate
@@ -31,8 +33,11 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.AppVersion
+import org.example.project.core.config.AppRelauncher
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
+import org.example.project.core.config.PathsResolver
+import org.example.project.core.config.UserConfigStore
 import org.example.project.feature.people.application.CercaProclamatoriUseCase
 import org.example.project.feature.diagnostics.application.ContaStoricoUseCase
 import org.example.project.feature.diagnostics.application.EliminaStoricoUseCase
@@ -74,6 +79,7 @@ internal data class DiagnosticsUiState(
     val isCleaning: Boolean = false,
     val isExporting: Boolean = false,
     val isImportingSeed: Boolean = false,
+    val isApplyingDataSourceChange: Boolean = false,
     val canImportSeed: Boolean = false,
     val showCleanupConfirmDialog: Boolean = false,
     val notice: FeedbackBannerModel? = null,
@@ -85,6 +91,7 @@ internal class DiagnosticsViewModel(
     private val contaStorico: ContaStoricoUseCase,
     private val eliminaStorico: EliminaStoricoUseCase,
     private val importaSeedApplicazione: ImportaSeedApplicazioneDaJsonUseCase,
+    private val userConfigStore: UserConfigStore,
 ) {
     private val _state = MutableStateFlow(initialState())
     val state: StateFlow<DiagnosticsUiState> = _state.asStateFlow()
@@ -228,6 +235,75 @@ internal class DiagnosticsViewModel(
     fun openDataFolder() = openPath(AppRuntime.paths().dbFile.parent, "Apertura cartella dati non riuscita")
 
     fun openExportsFolder() = openPath(AppRuntime.paths().exportsDir, "Apertura cartella export non riuscita")
+
+    fun moveDataToNewFolder() {
+        val current = _state.value
+        if (current.isApplyingDataSourceChange || current.isCleaning || current.isExporting || current.isImportingSeed) return
+        scope.launch {
+            _state.update { it.copy(isApplyingDataSourceChange = true) }
+            val currentDbFile = AppRuntime.paths().dbFile
+            val selectedDirectory = selectDirectoryForDatabaseMove(currentDbFile.parent.toFile())
+            if (selectedDirectory == null) {
+                _state.update { it.copy(isApplyingDataSourceChange = false) }
+                return@launch
+            }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    moveDatabaseToFile(selectedDirectory.toPath().resolve(currentDbFile.fileName.toString()))
+                }
+            }.onSuccess {
+                AppRelauncher.relaunch().onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isApplyingDataSourceChange = false,
+                            notice = errorNotice("Dati spostati ma riavvio automatico non riuscito: ${error.message}"),
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isApplyingDataSourceChange = false,
+                        notice = errorNotice("Spostamento dati non completato: ${error.message}"),
+                    )
+                }
+            }
+        }
+    }
+
+    fun selectDataFile() {
+        val current = _state.value
+        if (current.isApplyingDataSourceChange || current.isCleaning || current.isExporting || current.isImportingSeed) return
+        scope.launch {
+            _state.update { it.copy(isApplyingDataSourceChange = true) }
+            val selectedFile = selectDatabaseFile(AppRuntime.paths().dbFile.parent.toFile())
+            if (selectedFile == null) {
+                _state.update { it.copy(isApplyingDataSourceChange = false) }
+                return@launch
+            }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configureDatabaseFile(selectedFile.toPath())
+                }
+            }.onSuccess {
+                AppRelauncher.relaunch().onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isApplyingDataSourceChange = false,
+                            notice = errorNotice("Sorgente dati salvata ma riavvio automatico non riuscito: ${error.message}"),
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isApplyingDataSourceChange = false,
+                        notice = errorNotice("Selezione sorgente dati non completata: ${error.message}"),
+                    )
+                }
+            }
+        }
+    }
 
     fun dismissNotice() {
         _state.update { it.copy(notice = null) }
@@ -439,6 +515,40 @@ internal class DiagnosticsViewModel(
         appendLine("Stato import seed: ${if (state.isImportingSeed) "in corso" else "idle"}")
         appendLine("Stato export: ${if (state.isExporting) "in corso" else "idle"}")
         appendLine("Stato pulizia: ${if (state.isCleaning) "in corso" else "idle"}")
+        appendLine("Cambio sorgente dati: ${if (state.isApplyingDataSourceChange) "in corso" else "idle"}")
+    }
+
+    private fun moveDatabaseToFile(targetDbFile: Path) {
+        val currentDbFile = AppRuntime.paths().dbFile.toAbsolutePath().normalize()
+        val normalizedTargetDbFile = targetDbFile.toAbsolutePath().normalize()
+        if (normalizedTargetDbFile == currentDbFile) {
+            throw IOException("Il database usa gia questa cartella")
+        }
+        if (Files.exists(normalizedTargetDbFile)) {
+            throw IOException("Nel percorso selezionato esiste gia ${normalizedTargetDbFile.fileName}")
+        }
+
+        Files.createDirectories(normalizedTargetDbFile.parent)
+        copyDatabaseFileSet(currentDbFile, normalizedTargetDbFile)
+        saveConfiguredDatabase(normalizedTargetDbFile)
+    }
+
+    private fun configureDatabaseFile(selectedFile: Path) {
+        val normalizedSelectedFile = selectedFile.toAbsolutePath().normalize()
+        if (!Files.exists(normalizedSelectedFile) || !Files.isRegularFile(normalizedSelectedFile)) {
+            throw IOException("File selezionato non valido")
+        }
+        val currentDbFile = AppRuntime.paths().dbFile.toAbsolutePath().normalize()
+        if (normalizedSelectedFile == currentDbFile) {
+            throw IOException("Il file selezionato e gia la sorgente dati corrente")
+        }
+        saveConfiguredDatabase(normalizedSelectedFile)
+    }
+
+    private fun saveConfiguredDatabase(dbFile: Path) {
+        userConfigStore.saveDatabaseFile(dbFile.takeUnless {
+            it == PathsResolver.defaultDatabaseFile().toAbsolutePath().normalize()
+        })
     }
 }
 
@@ -505,4 +615,21 @@ private fun directorySize(path: Path): Long {
                 .sum()
         }
     }.getOrDefault(0L)
+}
+
+private fun copyDatabaseFileSet(sourceDbFile: Path, targetDbFile: Path) {
+    if (!Files.exists(sourceDbFile) || !Files.isRegularFile(sourceDbFile)) {
+        throw IOException("Database corrente non disponibile")
+    }
+    copyFile(sourceDbFile, targetDbFile)
+    listOf("-wal", "-shm", "-journal").forEach { suffix ->
+        val source = Path.of("$sourceDbFile$suffix")
+        if (Files.exists(source) && Files.isRegularFile(source)) {
+            copyFile(source, Path.of("$targetDbFile$suffix"))
+        }
+    }
+}
+
+private fun copyFile(source: Path, target: Path) {
+    Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES)
 }

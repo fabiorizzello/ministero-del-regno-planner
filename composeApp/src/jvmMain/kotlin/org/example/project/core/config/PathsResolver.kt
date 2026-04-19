@@ -8,16 +8,28 @@ import java.nio.file.Paths
 
 object PathsResolver {
     private const val APP_DIR_NAME = "EfficaciNelMinistero"
+    private const val USER_CONFIG_FILE_NAME = "user-config.json"
     private val logger = KotlinLogging.logger {}
     private const val DB_FILE_NAME = "ministero.sqlite"
 
     fun resolve(): AppPaths {
         val rootDir = resolveRootDir()
+        createDir(rootDir)
         val logsDir = rootDir.resolve("logs")
         val exportsDir = rootDir.resolve("exports")
-        val dbFile = rootDir.resolve("data").resolve(DB_FILE_NAME)
+        val defaultDbFile = defaultDatabaseFile(rootDir)
+        val configStore = UserConfigStore(userConfigFile(rootDir), defaultDbFile)
+        val configuredDbFile = runCatching {
+            configStore.load().databaseFilePath
+                ?.takeIf { it.isNotBlank() }
+                ?.let(Paths::get)
+                ?.toAbsolutePath()
+                ?.normalize()
+        }.onFailure { error ->
+            logger.warn(error) { "Configurazione utente non valida, uso il database predefinito" }
+        }.getOrNull()
+        val dbFile = configuredDbFile ?: defaultDbFile
 
-        createDir(rootDir)
         createDir(logsDir)
         createDir(exportsDir)
         createDir(dbFile.parent)
@@ -50,4 +62,12 @@ object PathsResolver {
         }
         return userHome.resolve(".$APP_DIR_NAME")
     }
+
+    fun resolveRootDirPath(): Path = resolveRootDir()
+
+    fun defaultDatabaseFile(rootDir: Path = resolveRootDir()): Path =
+        rootDir.resolve("data").resolve(DB_FILE_NAME)
+
+    fun userConfigFile(rootDir: Path = resolveRootDir()): Path =
+        rootDir.resolve(USER_CONFIG_FILE_NAME)
 }

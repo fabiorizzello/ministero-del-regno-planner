@@ -97,6 +97,7 @@ val viewModelsModule = module {
             contaStorico = get<ContaStoricoUseCase>(),
             eliminaStorico = get<EliminaStoricoUseCase>(),
             importaSeedApplicazione = get<ImportaSeedApplicazioneDaJsonUseCase>(),
+            userConfigStore = get(),
         )
     }
     factory {

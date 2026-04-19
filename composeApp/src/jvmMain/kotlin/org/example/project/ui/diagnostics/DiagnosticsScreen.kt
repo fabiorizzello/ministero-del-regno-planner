@@ -79,6 +79,7 @@ import org.example.project.ui.theme.workspaceSketch
 import org.koin.core.context.GlobalContext
 
 private val DiagnosticsActionMinWidth = 168.dp
+private val DiagnosticsCompactActionMinWidth = 132.dp
 private val DiagnosticsSingleActionMaxWidth = 360.dp
 
 @Composable
@@ -166,6 +167,28 @@ fun DiagnosticsScreen() {
                     path = state.dbPath,
                     actionLabel = "Apri cartella dati",
                     onActionClick = { viewModel.openDataFolder() },
+                )
+                DiagnosticsCompactTwoActionsRow(
+                    first = { modifier ->
+                        DiagnosticsCompactActionButton(
+                            label = "Sposta dati",
+                            icon = Icons.Filled.FolderOpen,
+                            onClick = { viewModel.moveDataToNewFolder() },
+                            enabled = !state.isApplyingDataSourceChange && !state.isCleaning && !state.isExporting && !state.isImportingSeed,
+                            tooltip = "Copia il database nella cartella scelta, aggiorna user-config e riavvia l'app",
+                            modifier = modifier,
+                        )
+                    },
+                    second = { modifier ->
+                        DiagnosticsCompactActionButton(
+                            label = "Seleziona dati",
+                            icon = Icons.Filled.FileOpen,
+                            onClick = { viewModel.selectDataFile() },
+                            enabled = !state.isApplyingDataSourceChange && !state.isCleaning && !state.isExporting && !state.isImportingSeed,
+                            tooltip = "Salva un file SQLite esistente come sorgente dati in user-config e riavvia l'app",
+                            modifier = modifier,
+                        )
+                    },
                 )
                 DiagnosticsPathRow(
                     label = "Log",
@@ -497,6 +520,23 @@ private fun DiagnosticsTwoActionsRow(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DiagnosticsCompactTwoActionsRow(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        first(Modifier.widthIn(min = DiagnosticsCompactActionMinWidth))
+        second(Modifier.widthIn(min = DiagnosticsCompactActionMinWidth))
+    }
+}
+
 @Composable
 private fun DiagnosticsRetentionChip(
     option: DiagnosticsRetentionOption,
@@ -776,6 +816,41 @@ private fun DiagnosticsCompactPathActionButton(
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
         )
+    }
+}
+
+@Composable
+private fun DiagnosticsCompactActionButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    tooltip: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    DiagnosticsTooltipWrap(tooltip) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier
+                .height(30.dp)
+                .wrapContentWidth()
+                .handCursorOnHover(enabled = enabled),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+            elevation = diagnosticsFlatButtonElevation(),
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
+        }
     }
 }
 
