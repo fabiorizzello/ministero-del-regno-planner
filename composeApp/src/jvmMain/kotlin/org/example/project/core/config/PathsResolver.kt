@@ -7,7 +7,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 object PathsResolver {
-    private const val APP_DIR_NAME = "EfficaciNelMinistero"
+    private const val APP_DIR_NAME = "ScuolaDiMinisterData"
     private const val USER_CONFIG_FILE_NAME = "user-config.json"
     private val logger = KotlinLogging.logger {}
     private const val DB_FILE_NAME = "ministero.sqlite"
@@ -19,6 +19,10 @@ object PathsResolver {
         val exportsDir = rootDir.resolve("exports")
         val defaultDbFile = defaultDatabaseFile(rootDir)
         val configStore = UserConfigStore(userConfigFile(rootDir), defaultDbFile)
+        runCatching { configStore.cleanupPendingDatabaseFiles() }
+            .onFailure { error ->
+                logger.warn(error) { "Cleanup database precedente non riuscito, ritento al prossimo avvio" }
+            }
         val configuredDbFile = runCatching {
             configStore.load().databaseFilePath
                 ?.takeIf { it.isNotBlank() }

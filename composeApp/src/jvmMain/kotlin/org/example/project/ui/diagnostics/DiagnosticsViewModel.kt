@@ -241,17 +241,19 @@ internal class DiagnosticsViewModel(
         if (current.isApplyingDataSourceChange || current.isCleaning || current.isExporting || current.isImportingSeed) return
         scope.launch {
             _state.update { it.copy(isApplyingDataSourceChange = true) }
-            val currentDbFile = AppRuntime.paths().dbFile
-            val selectedDirectory = selectDirectoryForDatabaseMove(currentDbFile.parent.toFile())
-            if (selectedDirectory == null) {
-                _state.update { it.copy(isApplyingDataSourceChange = false) }
-                return@launch
-            }
             runCatching {
+                val currentDbFile = AppRuntime.paths().dbFile
+                val selectedDirectory = selectDirectoryForDatabaseMove(currentDbFile.parent.toFile())
+                if (selectedDirectory == null) {
+                    _state.update { it.copy(isApplyingDataSourceChange = false) }
+                    return@runCatching false
+                }
                 withContext(Dispatchers.IO) {
                     moveDatabaseToFile(selectedDirectory.toPath().resolve(currentDbFile.fileName.toString()))
                 }
-            }.onSuccess {
+                true
+            }.onSuccess { moved ->
+                if (!moved) return@onSuccess
                 AppRelauncher.relaunch().onFailure { error ->
                     _state.update {
                         it.copy(
@@ -276,16 +278,18 @@ internal class DiagnosticsViewModel(
         if (current.isApplyingDataSourceChange || current.isCleaning || current.isExporting || current.isImportingSeed) return
         scope.launch {
             _state.update { it.copy(isApplyingDataSourceChange = true) }
-            val selectedFile = selectDatabaseFile(AppRuntime.paths().dbFile.parent.toFile())
-            if (selectedFile == null) {
-                _state.update { it.copy(isApplyingDataSourceChange = false) }
-                return@launch
-            }
             runCatching {
+                val selectedFile = selectDatabaseFile(AppRuntime.paths().dbFile.parent.toFile())
+                if (selectedFile == null) {
+                    _state.update { it.copy(isApplyingDataSourceChange = false) }
+                    return@runCatching false
+                }
                 withContext(Dispatchers.IO) {
                     configureDatabaseFile(selectedFile.toPath())
                 }
-            }.onSuccess {
+                true
+            }.onSuccess { selected ->
+                if (!selected) return@onSuccess
                 AppRelauncher.relaunch().onFailure { error ->
                     _state.update {
                         it.copy(
@@ -530,7 +534,7 @@ internal class DiagnosticsViewModel(
 
         Files.createDirectories(normalizedTargetDbFile.parent)
         copyDatabaseFileSet(currentDbFile, normalizedTargetDbFile)
-        saveConfiguredDatabase(normalizedTargetDbFile)
+        saveConfiguredDatabase(normalizedTargetDbFile, previousDbFileToCleanup = currentDbFile)
     }
 
     private fun configureDatabaseFile(selectedFile: Path) {
@@ -542,13 +546,16 @@ internal class DiagnosticsViewModel(
         if (normalizedSelectedFile == currentDbFile) {
             throw IOException("Il file selezionato e gia la sorgente dati corrente")
         }
-        saveConfiguredDatabase(normalizedSelectedFile)
+        saveConfiguredDatabase(normalizedSelectedFile, previousDbFileToCleanup = currentDbFile)
     }
 
-    private fun saveConfiguredDatabase(dbFile: Path) {
+    private fun saveConfiguredDatabase(
+        dbFile: Path,
+        previousDbFileToCleanup: Path? = null,
+    ) {
         userConfigStore.saveDatabaseFile(dbFile.takeUnless {
             it == PathsResolver.defaultDatabaseFile().toAbsolutePath().normalize()
-        })
+        }, pendingCleanupPath = previousDbFileToCleanup)
     }
 }
 

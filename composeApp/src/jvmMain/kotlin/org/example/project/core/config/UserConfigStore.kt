@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class UserConfig(
     val databaseFilePath: String? = null,
+    val pendingDatabaseCleanupPath: String? = null,
 )
 
 class UserConfigStore(
@@ -31,15 +32,48 @@ class UserConfigStore(
         }
     }
 
-    fun saveDatabaseFile(path: Path?) {
+    fun saveDatabaseFile(path: Path?, pendingCleanupPath: Path? = null) {
         val normalizedDefault = defaultDatabaseFile.toAbsolutePath().normalize()
         val normalizedPath = path?.toAbsolutePath()?.normalize()
+        val normalizedCleanupPath = pendingCleanupPath?.toAbsolutePath()?.normalize()
         val config = UserConfig(
             databaseFilePath = normalizedPath
                 ?.takeUnless { it == normalizedDefault }
                 ?.toString(),
+            pendingDatabaseCleanupPath = normalizedCleanupPath
+                ?.takeUnless { it == normalizedPath }
+                ?.toString(),
         )
+        save(config)
+    }
+
+    fun cleanupPendingDatabaseFiles() {
+        val config = load()
+        val pendingCleanupPath = config.pendingDatabaseCleanupPath
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Path::of)
+            ?.toAbsolutePath()
+            ?.normalize()
+            ?: return
+
+        deleteDatabaseFileSet(pendingCleanupPath)
+        save(config.copy(pendingDatabaseCleanupPath = null))
+    }
+
+    private fun save(config: UserConfig) {
         Files.createDirectories(file.parent)
         Files.writeString(file, json.encodeToString(config))
+    }
+
+    private fun deleteDatabaseFileSet(dbFile: Path) {
+        deleteIfExists(dbFile)
+        listOf("-wal", "-shm", "-journal").forEach { suffix ->
+            deleteIfExists(Path.of("$dbFile$suffix"))
+        }
+    }
+
+    private fun deleteIfExists(path: Path) {
+        runCatching { Files.deleteIfExists(path) }
+            .getOrElse { throw IOException("Impossibile eliminare il database precedente: $path", it) }
     }
 }
