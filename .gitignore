@@ -47,3 +47,5 @@ __pycache__/
 *.pyc
 
 SeedDataWorkspace
+.playwright-mcp/
+downloads/
