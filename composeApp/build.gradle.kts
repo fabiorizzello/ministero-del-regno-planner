@@ -127,6 +127,7 @@ sqldelight {
             packageName.set("org.example.project.db")
             dialect(libs.sqldelight.dialect.sqlite338)
             verifyMigrations.set(true)
+            schemaOutputDirectory.set(file("src/commonMain/sqldelight/databases"))
         }
     }
 }
