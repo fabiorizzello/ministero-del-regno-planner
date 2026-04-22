@@ -7,19 +7,12 @@ import kotlinx.coroutines.test.runTest
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
 import org.example.project.core.persistence.TransactionScope
-import org.example.project.feature.people.application.EligibilityCleanupCandidate
-import org.example.project.feature.people.application.EligibilityStore
-import org.example.project.feature.people.application.LeadEligibility
-import org.example.project.feature.people.domain.ProclamatoreId
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
 import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
 import org.example.project.feature.schemas.application.RemoteSchemaCatalog
 import org.example.project.feature.schemas.application.RemoteWeekSchemaTemplate
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
 import org.example.project.feature.schemas.application.SchemaTemplateStore
-import org.example.project.feature.schemas.application.SchemaUpdateAnomaly
-import org.example.project.feature.schemas.application.SchemaUpdateAnomalyDraft
-import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.schemas.application.StoredSchemaWeekTemplate
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import org.example.project.feature.weeklyparts.domain.PartType
@@ -51,7 +44,6 @@ class AggiornaSchemiUseCaseTransactionTest {
         val remote = FakeSchemaCatalogRemoteSource(
             RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = listOf(partType),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-02",
@@ -62,10 +54,8 @@ class AggiornaSchemiUseCaseTransactionTest {
         )
         val useCase = AggiornaSchemiUseCase(
             remoteSource = remote,
-            partTypeStore = InMemoryPartTypeStore(),
-            eligibilityStore = NoopEligibilityStore(),
+            partTypeStore = InMemoryPartTypeStore(listOf(partType)),
             schemaTemplateStore = InMemorySchemaTemplateStore(),
-            schemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore(),
             transactionRunner = txRunner,
             settings = settings,
         )
@@ -79,7 +69,7 @@ class AggiornaSchemiUseCaseTransactionTest {
     }
 
     @Test
-    fun `rolls back part types and templates when replaceAll fails mid-transaction`() = runTest {
+    fun `rolls back templates when replaceAll fails mid-transaction`() = runTest {
         val existingPartType = PartType(
             id = PartTypeId("pt-existing"),
             code = "ESISTENTE",
@@ -89,34 +79,24 @@ class AggiornaSchemiUseCaseTransactionTest {
             fixed = false,
             sortOrder = 0,
         )
-        val importedPartType = PartType(
-            id = PartTypeId("pt-imported"),
-            code = "NUOVO",
-            label = "Nuovo",
-            peopleCount = 1,
-            sexRule = SexRule.STESSO_SESSO,
-            fixed = false,
-            sortOrder = 0,
-        )
         val existingTemplate = StoredSchemaWeekTemplate(
             weekStartDate = LocalDate.of(2026, 3, 2),
             partTypeIds = listOf(existingPartType.id),
         )
-        val partTypeStore = RollbackAwarePartTypeStore(listOf(existingPartType))
+        val partTypeStore = InMemoryPartTypeStore(listOf(existingPartType))
         val templateStore = RollbackAwareSchemaTemplateStore(
             initialTemplates = listOf(existingTemplate),
             failOnReplace = true,
         )
         val settings = RollbackAwareSettings()
-        val txRunner = SnapshotTransactionRunner(partTypeStore, templateStore, settings)
+        val txRunner = SnapshotTransactionRunner(templateStore, settings)
         val remote = FakeSchemaCatalogRemoteSource(
             RemoteSchemaCatalog(
                 version = "v2",
-                partTypes = listOf(importedPartType),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-09",
-                        partTypeCodes = listOf(importedPartType.code),
+                        partTypeCodes = listOf(existingPartType.code),
                     ),
                 ),
             ),
@@ -124,9 +104,7 @@ class AggiornaSchemiUseCaseTransactionTest {
         val useCase = AggiornaSchemiUseCase(
             remoteSource = remote,
             partTypeStore = partTypeStore,
-            eligibilityStore = NoopEligibilityStore(),
             schemaTemplateStore = templateStore,
-            schemaUpdateAnomalyStore = NoopSchemaUpdateAnomalyStore(),
             transactionRunner = txRunner,
             settings = settings,
         )
@@ -134,7 +112,6 @@ class AggiornaSchemiUseCaseTransactionTest {
         val result = useCase()
 
         assertIs<Either.Left<*>>(result)
-        assertEquals(listOf(existingPartType.code), partTypeStore.all().map { it.code })
         assertEquals(listOf(existingTemplate.weekStartDate), templateStore.listAll().map { it.weekStartDate })
         assertTrue(settings.getStringOrNull("last_schema_import_at") == null)
         Unit
@@ -181,8 +158,10 @@ private class FakeSchemaCatalogRemoteSource(
     override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = Either.Right(catalog)
 }
 
-private class InMemoryPartTypeStore : PartTypeStore {
-    private val byCode = linkedMapOf<String, PartType>()
+private class InMemoryPartTypeStore(initial: List<PartType> = emptyList()) : PartTypeStore {
+    private val byCode = linkedMapOf<String, PartType>().apply {
+        initial.forEach { put(it.code, it) }
+    }
 
     override suspend fun all(): List<PartType> = byCode.values.toList()
 
@@ -217,26 +196,6 @@ private class InMemorySchemaTemplateStore : SchemaTemplateStore {
     override suspend fun isEmpty(): Boolean = templates.isEmpty()
 }
 
-private class NoopEligibilityStore : EligibilityStore {
-    context(tx: TransactionScope) override suspend fun setCanAssist(personId: ProclamatoreId, canAssist: Boolean) {}
-    context(tx: TransactionScope) override suspend fun setCanLead(personId: ProclamatoreId, partTypeId: PartTypeId, canLead: Boolean) {}
-    override suspend fun listLeadEligibility(personId: ProclamatoreId): List<LeadEligibility> = emptyList()
-    override suspend fun listLeadEligibilityCandidatesForPartTypes(partTypeIds: Set<PartTypeId>): List<EligibilityCleanupCandidate> =
-        emptyList()
-
-    override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> = emptyMap()
-    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
-    override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
-}
-
-private class NoopSchemaUpdateAnomalyStore : SchemaUpdateAnomalyStore {
-    context(tx: TransactionScope)
-    override suspend fun append(items: List<SchemaUpdateAnomalyDraft>) {}
-    override suspend fun listOpen(): List<SchemaUpdateAnomaly> = emptyList()
-    context(tx: TransactionScope)
-    override suspend fun dismissAllOpen() {}
-}
-
 private interface SnapshotParticipant {
     fun snapshot()
     fun rollback()
@@ -255,37 +214,6 @@ private class SnapshotTransactionRunner(
             participants.forEach { it.rollback() }
             throw error
         }
-    }
-}
-
-private class RollbackAwarePartTypeStore(
-    initial: List<PartType>,
-) : PartTypeStore, SnapshotParticipant {
-    private val byCode = linkedMapOf<String, PartType>()
-    private var snapshotByCode: Map<String, PartType> = emptyMap()
-
-    init {
-        initial.forEach { byCode[it.code] = it }
-    }
-
-    override fun snapshot() {
-        snapshotByCode = LinkedHashMap(byCode)
-    }
-
-    override fun rollback() {
-        byCode.clear()
-        byCode.putAll(snapshotByCode)
-    }
-
-    override suspend fun all(): List<PartType> = byCode.values.toList()
-
-    override suspend fun findByCode(code: String): PartType? = byCode[code]
-
-    override suspend fun findFixed(): PartType? = byCode.values.firstOrNull { it.fixed }
-
-    context(tx: TransactionScope)
-    override suspend fun upsertAll(partTypes: List<PartType>) {
-        partTypes.forEach { byCode[it.code] = it }
     }
 }
 

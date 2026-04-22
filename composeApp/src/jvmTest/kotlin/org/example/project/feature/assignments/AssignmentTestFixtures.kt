@@ -69,7 +69,6 @@ internal class StaticEligibilityStore(
         eligible.filter { it.partTypeId in partTypeIds }
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
         eligible.groupBy({ it.partTypeId }, { it.personId }).mapValues { (_, ids) -> ids.toSet() }
-    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
 }
 
@@ -85,7 +84,6 @@ internal class SingleCandidateEligibilityStore(
         if (partTypeId in partTypeIds) listOf(EligibilityCleanupCandidate(personId, partTypeId)) else emptyList()
     override suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>> =
         mapOf(partTypeId to setOf(personId))
-    context(tx: TransactionScope) override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {}
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> = emptyList()
 }
 

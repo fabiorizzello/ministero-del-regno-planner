@@ -17,6 +17,7 @@ object PathsResolver {
         createDir(rootDir)
         val logsDir = rootDir.resolve("logs")
         val exportsDir = rootDir.resolve("exports")
+        val jwpubCacheDir = rootDir.resolve("cache").resolve("GuidaAdunanza")
         val defaultDbFile = defaultDatabaseFile(rootDir)
         val configStore = UserConfigStore(userConfigFile(rootDir), defaultDbFile)
         runCatching { configStore.cleanupPendingDatabaseFiles() }
@@ -36,6 +37,7 @@ object PathsResolver {
 
         createDir(logsDir)
         createDir(exportsDir)
+        createDir(jwpubCacheDir)
         createDir(dbFile.parent)
 
         return AppPaths(
@@ -43,6 +45,7 @@ object PathsResolver {
             dbFile = dbFile,
             logsDir = logsDir,
             exportsDir = exportsDir,
+            jwpubCacheDir = jwpubCacheDir,
         )
     }
 

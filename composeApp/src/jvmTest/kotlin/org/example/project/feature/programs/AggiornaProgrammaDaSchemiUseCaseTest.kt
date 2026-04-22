@@ -47,6 +47,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
+            mode = SchemaRefreshMode.ALL,
         )
 
         val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
@@ -76,6 +77,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
+            mode = SchemaRefreshMode.ALL,
         )
 
         val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
@@ -101,6 +103,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = false,
+            mode = SchemaRefreshMode.ALL,
         )
 
         val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value
@@ -147,6 +150,7 @@ class AggiornaProgrammaDaSchemiUseCaseTest {
             programId = fixture.program.id,
             referenceDate = LocalDate.of(2026, 3, 1),
             dryRun = true,
+            mode = SchemaRefreshMode.ALL,
         )
 
         val report = assertIs<Either.Right<SchemaRefreshReport>>(result).value

@@ -59,6 +59,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.sqlite.driver)
             implementation(libs.sqldelight.coroutines.extensions)
+            implementation(libs.sqlite.jdbc)
             implementation(libs.slf4j.api)
             implementation(libs.logback.classic)
             implementation(libs.koin.core)
@@ -137,16 +138,6 @@ tasks.register<JavaExec>("seedHistoricalDemoData") {
     group = "application"
     javaLauncher.set(jetbrainsRuntimeLauncher)
     mainClass.set("org.example.project.core.cli.SeedHistoricalDemoDataKt")
-    classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
-        kotlin.jvm().compilations["main"].output.allOutputs
-    workingDir = rootProject.projectDir
-}
-
-tasks.register<JavaExec>("generateWolEfficaciCatalog") {
-    description = "Genera un catalogo schemi JSON dal selettore settimane WOL (sezione EFFICACI NEL MINISTERO)"
-    group = "application"
-    javaLauncher.set(jetbrainsRuntimeLauncher)
-    mainClass.set("org.example.project.core.cli.GenerateWolEfficaciCatalogKt")
     classpath = kotlin.jvm().compilations["main"].runtimeDependencyFiles +
         kotlin.jvm().compilations["main"].output.allOutputs
     workingDir = rootProject.projectDir

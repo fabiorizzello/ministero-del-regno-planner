@@ -1,19 +1,34 @@
 package org.example.project.ui.workspace
 
+import arrow.core.Either
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiOperation
+import org.example.project.feature.programs.application.CaricaProgrammiAttiviOperation
+import org.example.project.feature.programs.application.ProgramSelectionSnapshot
 import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.application.WeekRefreshDetail
 import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.schemas.application.AggiornaSchemiOperation
+import org.example.project.feature.schemas.application.AggiornaSchemiResult
+import org.example.project.feature.schemas.application.SkippedPart
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SchemaManagementViewModelTest {
+
+    // ---- Existing pure-function tests preserved ----
 
     private val importTime = LocalDateTime.of(2026, 2, 15, 10, 0)
 
@@ -139,5 +154,117 @@ class SchemaManagementViewModelTest {
         )
 
         assertTrue(preview.hasEffectiveChanges())
+    }
+
+    // ---- Task 19 ViewModel tests — fun interface ports, no stub-store scaffolding ----
+
+    private fun fakeAggiornaSchemi(result: AggiornaSchemiResult): AggiornaSchemiOperation =
+        AggiornaSchemiOperation { Either.Right(result) }
+
+    private val fakeAggiornaProgramma: AggiornaProgrammaDaSchemiOperation =
+        AggiornaProgrammaDaSchemiOperation { _, _, _, _ ->
+            Either.Right(SchemaRefreshReport(0, 0, 0, emptyList()))
+        }
+
+    private val fakeCaricaProgrammiAttivi: CaricaProgrammiAttiviOperation =
+        CaricaProgrammiAttiviOperation { _ ->
+            Either.Right(ProgramSelectionSnapshot(previous = null, current = null, futures = emptyList()))
+        }
+
+    private val sampleSkipped = SkippedPart(
+        weekStartDate = "2026-03-02",
+        mepsDocumentId = 123L,
+        label = "Parte sconosciuta",
+        detailLine = null,
+    )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `result with unknown parts and no program selected opens result dialog`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = TestScope(dispatcher)
+        val vm = SchemaManagementViewModel(
+            scope = scope,
+            aggiornaSchemi = fakeAggiornaSchemi(
+                AggiornaSchemiResult(
+                    version = "v1",
+                    weekTemplatesImported = 0,
+                    skippedUnknownParts = listOf(sampleSkipped),
+                    downloadedIssues = emptyList(),
+                ),
+            ),
+            aggiornaProgrammaDaSchemi = fakeAggiornaProgramma,
+            caricaProgrammiAttivi = fakeCaricaProgrammiAttivi,
+        )
+
+        vm.refreshSchemasAndProgram(selectedProgramId = null)
+        scope.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue(state.showRefreshResultDialog)
+        assertEquals(1, state.pendingUnknownParts.size)
+        assertTrue(state.pendingDownloadedIssues.isEmpty())
+        assertNull(state.pendingRefreshPreview)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `nothing to report does not open dialog`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = TestScope(dispatcher)
+        val vm = SchemaManagementViewModel(
+            scope = scope,
+            aggiornaSchemi = fakeAggiornaSchemi(
+                AggiornaSchemiResult(
+                    version = "v1",
+                    weekTemplatesImported = 0,
+                    skippedUnknownParts = emptyList(),
+                    downloadedIssues = emptyList(),
+                ),
+            ),
+            aggiornaProgrammaDaSchemi = fakeAggiornaProgramma,
+            caricaProgrammiAttivi = fakeCaricaProgrammiAttivi,
+        )
+
+        vm.refreshSchemasAndProgram(selectedProgramId = null)
+        scope.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.showRefreshResultDialog)
+        assertTrue(state.pendingUnknownParts.isEmpty())
+        assertTrue(state.pendingDownloadedIssues.isEmpty())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `dismiss refresh result dialog clears state`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = TestScope(dispatcher)
+        val vm = SchemaManagementViewModel(
+            scope = scope,
+            aggiornaSchemi = fakeAggiornaSchemi(
+                AggiornaSchemiResult(
+                    version = "v1",
+                    weekTemplatesImported = 0,
+                    skippedUnknownParts = listOf(sampleSkipped),
+                    downloadedIssues = listOf("issue-a"),
+                ),
+            ),
+            aggiornaProgrammaDaSchemi = fakeAggiornaProgramma,
+            caricaProgrammiAttivi = fakeCaricaProgrammiAttivi,
+        )
+
+        vm.refreshSchemasAndProgram(selectedProgramId = null)
+        scope.advanceUntilIdle()
+        assertTrue(vm.state.value.showRefreshResultDialog)
+
+        vm.dismissRefreshResultDialog()
+
+        val state = vm.state.value
+        assertFalse(state.showRefreshResultDialog)
+        assertTrue(state.pendingUnknownParts.isEmpty())
+        assertTrue(state.pendingDownloadedIssues.isEmpty())
+        assertNull(state.pendingRefreshPreview)
+        assertNull(state.pendingRefreshProgramId)
     }
 }

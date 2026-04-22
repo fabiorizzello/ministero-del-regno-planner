@@ -281,6 +281,87 @@ deleteProclaimerById:
 DELETE FROM person
 WHERE id = ?;
 
+-- Canonical part_type seed. Idempotent: INSERT ... ON CONFLICT(code) DO UPDATE
+-- realigns labels/metadata and reactivates any deactivated row. Invoked from
+-- DatabaseProvider on every app boot so fresh installs (which run Schema.create
+-- only, without migrations) get the 7 canonical Meeting Workbook part types.
+seedPartTypeLetturaDellaBibbia:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'LETTURA_DELLA_BIBBIA', 'Lettura Biblica', 1, 'UOMO', 1, 0)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeIniziareConversazione:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'INIZIARE_CONVERSAZIONE', 'Iniziare una conversazione', 2, 'STESSO_SESSO', 0, 1)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeColtivareInteresse:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'COLTIVARE_INTERESSE', 'Coltivare l' || char(39) || 'interesse', 2, 'STESSO_SESSO', 0, 2)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeFareDiscepoli:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'FARE_DISCEPOLI', 'Fare discepoli', 2, 'STESSO_SESSO', 0, 3)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeDiscorso:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'DISCORSO', 'Discorso', 1, 'UOMO', 0, 4)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeSpiegareCioCheSiCrede:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'SPIEGARE_CIO_CHE_SI_CREDE', 'Spiegare quello in cui si crede - Dimostrazione', 2, 'STESSO_SESSO', 0, 5)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+seedPartTypeSpiegareCioCheSiCredeDiscorso:
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO', 'Spiegare quello in cui si crede - Discorso', 1, 'UOMO', 0, 6)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
 -- Part type queries
 allPartTypes:
 SELECT id, code, label, people_count, sex_rule, fixed, sort_order
@@ -693,10 +774,6 @@ SELECT person_id, part_type_id
 FROM person_part_type_eligibility
 WHERE can_lead = 1
   AND part_type_id IN ?;
-
-deleteLeadEligibilityByPartTypes:
-DELETE FROM person_part_type_eligibility
-WHERE part_type_id IN ?;
 
 updatePersonCanAssist:
 UPDATE person
