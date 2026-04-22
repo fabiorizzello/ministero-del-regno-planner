@@ -2,6 +2,7 @@ package org.example.project.feature.weeklyparts
 
 import arrow.core.Either
 import kotlinx.coroutines.test.runTest
+import org.example.project.core.CountingTransactionRunner
 import org.example.project.core.domain.DomainError
 import org.example.project.core.PassthroughTransactionRunner
 import org.example.project.core.persistence.TransactionScope
@@ -18,15 +19,14 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 
 class RimuoviParteUseCaseTest {
 
     private val weekDate = LocalDate.of(2026, 3, 2) // Monday
 
-    // 1. Happy path: parte rimovibile → Either.Right, aggregate salvato senza la parte
+    // 1. Happy path: parte rimovibile → Either.Right, aggregate salvato senza la parte, eseguito in transazione
     @Test
-    fun `happy path removes part and saves aggregate without it`() = runTest {
+    fun `happy path removes part and saves aggregate without it inside a transaction`() = runTest {
         val removable = makePartType("pt-1", "LETTURA", fixed = false)
         val store = RimuoviParteTestWeekPlanStore(
             weekDate = weekDate,
@@ -34,7 +34,8 @@ class RimuoviParteUseCaseTest {
                 WeeklyPart(id = WeeklyPartId("part-1"), partType = removable, sortOrder = 0),
             ),
         )
-        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = PassthroughTransactionRunner)
+        val txRunner = CountingTransactionRunner()
+        val useCase = RimuoviParteUseCase(weekPlanStore = store, transactionRunner = txRunner)
 
         val result = useCase(
             weekStartDate = weekDate,
@@ -44,6 +45,7 @@ class RimuoviParteUseCaseTest {
         assertIs<Either.Right<Unit>>(result)
         val saved = store.savedAggregate!!
         assertEquals(0, saved.weekPlan.parts.size)
+        assertEquals(1, txRunner.calls)
         Unit
     }
 
