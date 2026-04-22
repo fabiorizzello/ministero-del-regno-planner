@@ -38,6 +38,7 @@ sealed interface DomainError {
     data class SettimanaSenzaTemplateENessunaParteFissa(val weekStartDate: LocalDate) : DomainError
     data class CatalogoSchemiIncoerente(val weekStartDate: String) : DomainError
     data class DataSchemaNonValida(val rawValue: String) : DomainError
+    data class CatalogoJwPubCorrotto(val details: String) : DomainError
 }
 
 fun DomainError.toMessage(): String = when (this) {
@@ -76,4 +77,5 @@ fun DomainError.toMessage(): String = when (this) {
     is DomainError.SettimanaSenzaTemplateENessunaParteFissa -> "Nessun template e nessuna parte fissa per $weekStartDate"
     is DomainError.CatalogoSchemiIncoerente -> "Schema settimana $weekStartDate contiene partTypeCode non presenti nel catalogo"
     is DomainError.DataSchemaNonValida -> "Data schema non valida: $rawValue"
+    is DomainError.CatalogoJwPubCorrotto -> "Catalogo JW non leggibile: $details"
 }
