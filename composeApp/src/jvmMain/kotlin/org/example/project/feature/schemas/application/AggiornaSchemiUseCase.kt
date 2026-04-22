@@ -12,6 +12,8 @@ import java.time.LocalDateTime
 data class AggiornaSchemiResult(
     val version: String?,
     val weekTemplatesImported: Int,
+    val weekTemplatesChanged: Int = 0,
+    val weekTemplatesUnchanged: Int = 0,
     val skippedUnknownParts: List<SkippedPart> = emptyList(),
     val downloadedIssues: List<String> = emptyList(),
 )
@@ -37,7 +39,7 @@ class AggiornaSchemiUseCase(
     override suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
         val catalog = remoteSource.fetchCatalog().bind()
 
-        // partTypes are frozen via DB migration — just validate that week templates
+        // partTypes are frozen via DB migration - just validate that week templates
         // reference known codes.
         val availableCodes = partTypeStore.all().map { it.code }.toSet()
         val invalidWeek = catalog.weeks.firstOrNull { week ->
@@ -53,20 +55,26 @@ class AggiornaSchemiUseCase(
                 .getOrNull() ?: raise(DomainError.DataSchemaNonValida(remoteWeek.weekStartDate))
         }
 
+        val existingTemplates = schemaTemplateStore.listAll()
+        val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
+            val partTypeIds = remoteWeek.partTypeCodes.map { code ->
+                // All codes were validated against availableCodes above.
+                // If findByCode returns null here it is a programming error.
+                partTypeStore.findByCode(code)?.id
+                    ?: error("PartType con codice $code non trovato - stato impossibile")
+            }
+            StoredSchemaWeekTemplate(
+                weekStartDate = weekStartDate,
+                partTypeIds = partTypeIds,
+            )
+        }
+        val changeSummary = summarizeTemplateChanges(
+            existing = existingTemplates,
+            incoming = storedTemplates,
+        )
+
         transactionRunner.runInTransactionEither {
             Either.Right(run {
-                val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
-                    val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                        // All codes were validated against availableCodes above.
-                        // If findByCode returns null here it is a programming error.
-                        partTypeStore.findByCode(code)?.id
-                            ?: error("PartType con codice $code non trovato — stato impossibile")
-                    }
-                    StoredSchemaWeekTemplate(
-                        weekStartDate = weekStartDate,
-                        partTypeIds = partTypeIds,
-                    )
-                }
                 // Guard: an empty remote catalog (e.g. transient JW CDN 404 cascade,
                 // or start-of-year before any fascicolo is published) must NOT wipe
                 // stored week templates. The import simply succeeds as a no-op.
@@ -81,8 +89,48 @@ class AggiornaSchemiUseCase(
         AggiornaSchemiResult(
             version = catalog.version,
             weekTemplatesImported = catalog.weeks.size,
+            weekTemplatesChanged = changeSummary.changed,
+            weekTemplatesUnchanged = changeSummary.unchanged,
             skippedUnknownParts = catalog.skippedUnknownParts,
             downloadedIssues = catalog.downloadedIssues,
         )
     }
+}
+
+private data class TemplateChangeSummary(
+    val changed: Int,
+    val unchanged: Int,
+)
+
+private fun summarizeTemplateChanges(
+    existing: List<StoredSchemaWeekTemplate>,
+    incoming: List<StoredSchemaWeekTemplate>,
+): TemplateChangeSummary {
+    if (incoming.isEmpty()) {
+        return TemplateChangeSummary(
+            changed = 0,
+            unchanged = existing.size,
+        )
+    }
+    val existingByWeek = existing.associateBy { it.weekStartDate }
+    val incomingByWeek = incoming.associateBy { it.weekStartDate }
+    val allWeekDates = existingByWeek.keys + incomingByWeek.keys
+
+    var changed = 0
+    var unchanged = 0
+    for (weekDate in allWeekDates) {
+        val existingTemplate = existingByWeek[weekDate]
+        val incomingTemplate = incomingByWeek[weekDate]
+        if (existingTemplate != null && incomingTemplate != null &&
+            existingTemplate.partTypeIds == incomingTemplate.partTypeIds
+        ) {
+            unchanged++
+        } else {
+            changed++
+        }
+    }
+    return TemplateChangeSummary(
+        changed = changed,
+        unchanged = unchanged,
+    )
 }

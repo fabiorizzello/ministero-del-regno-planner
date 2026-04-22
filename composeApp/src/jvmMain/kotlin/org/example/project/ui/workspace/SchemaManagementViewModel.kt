@@ -14,6 +14,7 @@ import org.example.project.feature.programs.application.CaricaProgrammiAttiviOpe
 import org.example.project.feature.programs.application.SchemaRefreshMode
 import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
+import org.example.project.feature.programs.application.WeekRefreshDetail
 import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
@@ -298,15 +299,41 @@ internal class SchemaManagementViewModel(
     }
 
     private fun buildProgramRefreshNotice(report: SchemaRefreshReport, mode: SchemaRefreshMode): String {
+        val weeksChanged = report.changedWeeksCount()
+        val partsAdded = report.partsAddedCount()
+        val partsRemoved = report.partsRemovedCount()
+        if (weeksChanged == 0) {
+            return when (mode) {
+                SchemaRefreshMode.ALL -> "Programma gia' allineato agli schemi. Nessuna settimana modificata."
+                SchemaRefreshMode.ONLY_UNASSIGNED ->
+                    "Programma gia' allineato sulle parti non assegnate. Nessuna settimana modificata."
+            }
+        }
         val prefix = when (mode) {
             SchemaRefreshMode.ALL -> "Programma aggiornato"
             SchemaRefreshMode.ONLY_UNASSIGNED -> "Programma aggiornato solo sulle parti non assegnate"
         }
-        return "$prefix: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse"
+        return buildString {
+            append(prefix)
+            append(": ")
+            append("$weeksChanged settimane modificate")
+            append(", $partsAdded parti aggiunte")
+            append(", $partsRemoved parti rimosse")
+            append(", ${report.assignmentsPreserved} assegnazioni preservate")
+            append(", ${report.assignmentsRemoved} rimosse")
+        }
     }
 
     private fun buildSchemaUpdateNotice(result: AggiornaSchemiResult): String =
-        "Schemi aggiornati: ${result.weekTemplatesImported} settimane"
+        when {
+            result.weekTemplatesChanged == 0 && result.weekTemplatesImported == 0 ->
+                "Catalogo schemi invariato. Nessuna settimana nuova e nessuna modifica."
+            result.weekTemplatesChanged == 0 ->
+                "Catalogo schemi gia' allineato: ${result.weekTemplatesImported} settimane verificate, nulla cambiato."
+            else ->
+                "Catalogo schemi aggiornato: ${result.weekTemplatesChanged} settimane cambiate, " +
+                    "${result.weekTemplatesUnchanged} gia' allineate."
+        }
 
     private suspend fun loadCurrentAndFuturePrograms(): Either<DomainError, List<ProgramMonth>> {
         return caricaProgrammiAttivi(_state.value.today).map { snapshot ->
@@ -340,3 +367,12 @@ internal class SchemaManagementViewModel(
         return Either.Right(impactedProgramIds)
     }
 }
+
+private fun SchemaRefreshReport.changedWeeksCount(): Int =
+    weekDetails.count { it.hasEffectiveChanges() }
+
+private fun SchemaRefreshReport.partsAddedCount(): Int =
+    weekDetails.sumOf(WeekRefreshDetail::partsAdded)
+
+private fun SchemaRefreshReport.partsRemovedCount(): Int =
+    weekDetails.sumOf(WeekRefreshDetail::partsRemoved)

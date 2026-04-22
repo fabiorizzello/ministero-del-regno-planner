@@ -205,6 +205,7 @@ class SchemaManagementViewModelTest {
         assertEquals(1, state.pendingUnknownParts.size)
         assertTrue(state.pendingDownloadedIssues.isEmpty())
         assertNull(state.pendingRefreshPreview)
+        assertEquals("Catalogo schemi invariato. Nessuna settimana nuova e nessuna modifica.", state.notice?.message)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -233,6 +234,7 @@ class SchemaManagementViewModelTest {
         assertFalse(state.showRefreshResultDialog)
         assertTrue(state.pendingUnknownParts.isEmpty())
         assertTrue(state.pendingDownloadedIssues.isEmpty())
+        assertEquals("Catalogo schemi invariato. Nessuna settimana nuova e nessuna modifica.", state.notice?.message)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -266,5 +268,34 @@ class SchemaManagementViewModelTest {
         assertTrue(state.pendingDownloadedIssues.isEmpty())
         assertNull(state.pendingRefreshPreview)
         assertNull(state.pendingRefreshProgramId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `already aligned catalog reports verified weeks with no changes`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = TestScope(dispatcher)
+        val vm = SchemaManagementViewModel(
+            scope = scope,
+            aggiornaSchemi = fakeAggiornaSchemi(
+                AggiornaSchemiResult(
+                    version = "v2",
+                    weekTemplatesImported = 4,
+                    weekTemplatesChanged = 0,
+                    weekTemplatesUnchanged = 4,
+                    skippedUnknownParts = emptyList(),
+                    downloadedIssues = emptyList(),
+                ),
+            ),
+            aggiornaProgrammaDaSchemi = fakeAggiornaProgramma,
+            caricaProgrammiAttivi = fakeCaricaProgrammiAttivi,
+        )
+
+        vm.refreshSchemasAndProgram(selectedProgramId = null)
+        scope.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.showRefreshResultDialog)
+        assertEquals("Catalogo schemi gia' allineato: 4 settimane verificate, nulla cambiato.", state.notice?.message)
     }
 }

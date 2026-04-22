@@ -50,6 +50,8 @@ class AggiornaSchemiUseCaseTest {
 
         val right = assertIs<Either.Right<AggiornaSchemiResult>>(result).value
         assertEquals(1, right.weekTemplatesImported)
+        assertEquals(1, right.weekTemplatesChanged)
+        assertEquals(0, right.weekTemplatesUnchanged)
         assertEquals(1, templateStore.templates.size)
         assertEquals(LocalDate.of(2026, 3, 2), templateStore.templates.single().weekStartDate)
         Unit
@@ -185,10 +187,44 @@ class AggiornaSchemiUseCaseTest {
 
         val right = assertIs<Either.Right<AggiornaSchemiResult>>(result).value
         assertEquals(0, right.weekTemplatesImported)
+        assertEquals(0, right.weekTemplatesChanged)
+        assertEquals(1, right.weekTemplatesUnchanged)
         // Crucially: the pre-existing template is untouched.
         assertEquals(1, templateStore.templates.size)
         assertEquals(LocalDate.of(2026, 3, 2), templateStore.templates.single().weekStartDate)
         Unit
+    }
+
+    @Test
+    fun `already aligned catalog reports unchanged weeks instead of fake updates`() = runTest {
+        val pt = makePartType("pt-1", "LETTURA")
+        val templateStore = InMemorySchemaTemplateStore2().apply {
+            templates = listOf(
+                StoredSchemaWeekTemplate(
+                    weekStartDate = LocalDate.of(2026, 3, 2),
+                    partTypeIds = listOf(pt.id),
+                ),
+            )
+        }
+        val useCase = buildUseCase(
+            partTypeStore = PrePopulatedPartTypeStore(listOf(pt)),
+            templateStore = templateStore,
+            catalog = RemoteSchemaCatalog(
+                version = "v2",
+                weeks = listOf(
+                    RemoteWeekSchemaTemplate(
+                        weekStartDate = "2026-03-02",
+                        partTypeCodes = listOf(pt.code),
+                    ),
+                ),
+            ),
+        )
+
+        val result = assertIs<Either.Right<AggiornaSchemiResult>>(useCase()).value
+
+        assertEquals(1, result.weekTemplatesImported)
+        assertEquals(0, result.weekTemplatesChanged)
+        assertEquals(1, result.weekTemplatesUnchanged)
     }
 
     @Test
