@@ -28,6 +28,5 @@ interface EligibilityStore {
      */
     suspend fun preloadLeadEligibilityByPartType(partTypeIds: Set<PartTypeId>): Map<PartTypeId, Set<ProclamatoreId>>
 
-    context(tx: TransactionScope) suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>)
     suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate>
 }

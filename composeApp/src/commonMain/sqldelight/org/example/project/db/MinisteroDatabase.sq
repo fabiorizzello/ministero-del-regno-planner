@@ -775,10 +775,6 @@ FROM person_part_type_eligibility
 WHERE can_lead = 1
   AND part_type_id IN ?;
 
-deleteLeadEligibilityByPartTypes:
-DELETE FROM person_part_type_eligibility
-WHERE part_type_id IN ?;
-
 updatePersonCanAssist:
 UPDATE person
 SET can_assist = ?

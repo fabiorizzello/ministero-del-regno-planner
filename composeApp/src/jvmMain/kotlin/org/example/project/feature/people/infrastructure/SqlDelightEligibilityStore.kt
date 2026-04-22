@@ -68,12 +68,6 @@ class SqlDelightEligibilityStore(
             .mapValues { (_, ids) -> ids.toSet() }
     }
 
-    context(tx: TransactionScope)
-    override suspend fun deleteLeadEligibilityForPartTypes(partTypeIds: Set<PartTypeId>) {
-        if (partTypeIds.isEmpty()) return
-        database.ministeroDatabaseQueries.deleteLeadEligibilityByPartTypes(partTypeIds.map { it.value })
-    }
-
     override suspend fun listFutureAssignmentWeeks(personId: ProclamatoreId, fromDate: LocalDate): List<LocalDate> {
         return database.ministeroDatabaseQueries
             .futureAssignmentWeeksForPersonFromDate(personId.value, fromDate.toString())
