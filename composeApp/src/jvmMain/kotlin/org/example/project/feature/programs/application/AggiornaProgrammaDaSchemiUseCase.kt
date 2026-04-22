@@ -62,14 +62,14 @@ private data class WeekRefreshComputation(
     val detail: WeekRefreshDetail,
 )
 
-class AggiornaProgrammaDaSchemiUseCase(
+open class AggiornaProgrammaDaSchemiUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanStore,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val partTypeStore: PartTypeStore,
     private val transactionRunner: TransactionRunner,
 ) {
-    suspend operator fun invoke(
+    open suspend operator fun invoke(
         programId: ProgramMonthId,
         referenceDate: LocalDate = LocalDate.now(),
         dryRun: Boolean = false,
