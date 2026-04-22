@@ -9,16 +9,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
-import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
-import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
+import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiOperation
+import org.example.project.feature.programs.application.CaricaProgrammiAttiviOperation
 import org.example.project.feature.programs.application.SchemaRefreshMode
 import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.schemas.application.AggiornaSchemiOperation
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
-import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
 import org.example.project.feature.schemas.application.SkippedPart
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -52,9 +52,9 @@ internal fun schemaRefreshReferenceDate(today: LocalDate): LocalDate =
 
 internal class SchemaManagementViewModel(
     private val scope: CoroutineScope,
-    private val aggiornaSchemi: AggiornaSchemiUseCase,
-    private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
-    private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
+    private val aggiornaSchemi: AggiornaSchemiOperation,
+    private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiOperation,
+    private val caricaProgrammiAttivi: CaricaProgrammiAttiviOperation,
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
     val state: StateFlow<SchemaManagementUiState> = _state.asStateFlow()

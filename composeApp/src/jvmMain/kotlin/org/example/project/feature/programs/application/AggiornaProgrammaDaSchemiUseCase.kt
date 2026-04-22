@@ -62,18 +62,27 @@ private data class WeekRefreshComputation(
     val detail: WeekRefreshDetail,
 )
 
-open class AggiornaProgrammaDaSchemiUseCase(
+fun interface AggiornaProgrammaDaSchemiOperation {
+    suspend operator fun invoke(
+        programId: ProgramMonthId,
+        referenceDate: LocalDate,
+        dryRun: Boolean,
+        mode: SchemaRefreshMode,
+    ): Either<DomainError, SchemaRefreshReport>
+}
+
+class AggiornaProgrammaDaSchemiUseCase(
     private val programStore: ProgramStore,
     private val weekPlanStore: WeekPlanStore,
     private val schemaTemplateStore: SchemaTemplateStore,
     private val partTypeStore: PartTypeStore,
     private val transactionRunner: TransactionRunner,
-) {
-    open suspend operator fun invoke(
+) : AggiornaProgrammaDaSchemiOperation {
+    override suspend operator fun invoke(
         programId: ProgramMonthId,
-        referenceDate: LocalDate = LocalDate.now(),
-        dryRun: Boolean = false,
-        mode: SchemaRefreshMode = SchemaRefreshMode.ALL,
+        referenceDate: LocalDate,
+        dryRun: Boolean,
+        mode: SchemaRefreshMode,
     ): Either<DomainError, SchemaRefreshReport> = either {
         val program = programStore.findById(programId)
             ?: raise(DomainError.NotFound("Programma"))

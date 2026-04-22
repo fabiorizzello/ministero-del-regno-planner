@@ -19,7 +19,11 @@ data class AggiornaSchemiResult(
     val downloadedIssues: List<String> = emptyList(),
 )
 
-open class AggiornaSchemiUseCase(
+fun interface AggiornaSchemiOperation {
+    suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult>
+}
+
+class AggiornaSchemiUseCase(
     private val remoteSource: SchemaCatalogRemoteSource,
     private val partTypeStore: PartTypeStore,
     private val eligibilityStore: EligibilityStore,
@@ -27,8 +31,8 @@ open class AggiornaSchemiUseCase(
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val transactionRunner: TransactionRunner,
     private val settings: Settings,
-) {
-    open suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
+) : AggiornaSchemiOperation {
+    override suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
         val catalog = remoteSource.fetchCatalog().bind()
 
         val availableCodes = catalog.partTypes.map { it.code }.toSet()
