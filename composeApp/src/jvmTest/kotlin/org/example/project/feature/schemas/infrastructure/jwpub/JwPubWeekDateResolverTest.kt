@@ -34,10 +34,17 @@ class JwPubWeekDateResolverTest {
         )
     }
 
-    @Test fun `cross year range returns start date in publication year`() {
+    @Test fun `cross year range returns start date in previous calendar year`() {
         assertEquals(
             LocalDate.of(2026, 12, 28),
-            JwPubWeekDateResolver.resolve("28 dicembre – 3 gennaio", 2026),
+            JwPubWeekDateResolver.resolve("28 dicembre – 3 gennaio", 2027),
+        )
+    }
+
+    @Test fun `same publication year for non cross year range`() {
+        assertEquals(
+            LocalDate.of(2027, 2, 1),
+            JwPubWeekDateResolver.resolve("1-7 febbraio", 2027),
         )
     }
 

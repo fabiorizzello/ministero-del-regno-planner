@@ -33,6 +33,11 @@ object JwPubWeekDateResolver {
             MONTHS[rawStartMonth]
                 ?: throw UnparseableDateException("Unknown start month: $rawStartMonth")
         }
-        return LocalDate.of(publicationYear, startMonth, startDay)
+        // Cross-year weeks (December -> January) belong to the issue published
+        // for the following calendar year; the actual start date is in the
+        // previous calendar year. This is the only cross-year case in the mwb
+        // publishing cadence.
+        val startYear = if (startMonth == 12 && endMonth == 1) publicationYear - 1 else publicationYear
+        return LocalDate.of(startYear, startMonth, startDay)
     }
 }

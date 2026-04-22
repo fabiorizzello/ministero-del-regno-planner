@@ -32,6 +32,18 @@ class JwPubSchemaCatalogDataSource(
     private val decryptor = JwPubContentDecryptor()
     private val htmlParser = JwPubHtmlPartsParser()
 
+    /**
+     * Pipeline: discover candidate issues for the current year → for each, resolve
+     * media links via JW CDN → download (or reuse cached) jwpub → parse weeks →
+     * collect into a single [RemoteSchemaCatalog].
+     *
+     * 404 semantics: while no fascicolo has been obtained yet, a 404 skips to the next
+     * candidate issue (the year may just not have started publishing yet). After one or
+     * more fascicoli have been obtained, the first 404 terminates discovery — JW
+     * publishes bimesters sequentially, so a gap implies we've reached the end of
+     * currently-published content. If the CDN has a transient 404 gap, a later manual
+     * refresh will pick up the missed issue once it's re-available.
+     */
     override suspend fun fetchCatalog(): Either<DomainError, RemoteSchemaCatalog> = either {
         val today = clock.instant().atZone(ZoneOffset.UTC).toLocalDate()
         val issues = MeetingWorkbookIssueDiscovery.candidatesForYear(
@@ -48,7 +60,11 @@ class JwPubSchemaCatalogDataSource(
         for (issue in issues) {
             val mediaInfo = mediaClient.fetchMediaLinks("mwb", issue, language).bind()
             if (mediaInfo == null) {
-                if (!hadAnyFascicolo) continue
+                if (!hadAnyFascicolo) {
+                    logger.info { "Issue $issue not yet published (404), probing next" }
+                    continue
+                }
+                logger.info { "Issue $issue returned 404 after ≥1 successful fascicolo; stopping discovery" }
                 break
             }
             hadAnyFascicolo = true
