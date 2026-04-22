@@ -233,6 +233,44 @@ class MigrationV1ToV2Test {
     }
 
     @Test
+    fun `fresh install bootstrap seeds 7 canonical part types via queries`() {
+        // Replicates DatabaseProvider.createDatabase() bootstrap path: Schema.create()
+        // only (no migrations) + seed queries. Reproduces the reviewer's empirical
+        // finding that Schema.create alone leaves part_type empty.
+        val driver = JdbcSqliteDriver(url = JdbcSqliteDriver.IN_MEMORY)
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+        MinisteroDatabase.Schema.create(driver).value
+
+        // Sanity: before the seed, the table is empty (the bug condition).
+        assertEquals(0, queryPartTypeCount(driver))
+
+        val db = MinisteroDatabase(driver)
+        with(db.ministeroDatabaseQueries) {
+            seedPartTypeLetturaDellaBibbia()
+            seedPartTypeIniziareConversazione()
+            seedPartTypeColtivareInteresse()
+            seedPartTypeFareDiscepoli()
+            seedPartTypeDiscorso()
+            seedPartTypeSpiegareCioCheSiCrede()
+            seedPartTypeSpiegareCioCheSiCredeDiscorso()
+        }
+
+        assertEquals(7, queryPartTypeCount(driver))
+        val expectedCodes = listOf(
+            "LETTURA_DELLA_BIBBIA",
+            "INIZIARE_CONVERSAZIONE",
+            "COLTIVARE_INTERESSE",
+            "FARE_DISCEPOLI",
+            "DISCORSO",
+            "SPIEGARE_CIO_CHE_SI_CREDE",
+            "SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO",
+        )
+        expectedCodes.forEach { code ->
+            assertNotNull(queryPartType(driver, code), "expected $code to be seeded")
+        }
+    }
+
+    @Test
     fun `is idempotent when migrate is applied twice`() {
         val driver = freshDriverAtV1()
         seedPartType(driver, "pt-discorso", "DISCORSO", "Discorso", 1, "UOMO", 6)
