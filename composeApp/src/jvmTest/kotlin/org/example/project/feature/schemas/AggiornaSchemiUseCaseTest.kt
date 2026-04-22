@@ -168,6 +168,38 @@ class AggiornaSchemiUseCaseTest {
         Unit
     }
 
+    // Regression: transient JW CDN failure returning empty weeks must NOT wipe
+    // stored templates. Import succeeds as a no-op; user retries later.
+    @Test
+    fun `empty remote catalog does not clobber existing templates`() = runTest {
+        val pt = makePartType("pt-1", "LETTURA")
+        val templateStore = InMemorySchemaTemplateStore2()
+        val existing = StoredSchemaWeekTemplate(
+            weekStartDate = LocalDate.of(2026, 3, 2),
+            partTypeIds = listOf(pt.id),
+        )
+        templateStore.templates = listOf(existing)
+
+        val useCase = buildUseCase(
+            partTypeStore = PrePopulatedPartTypeStore(listOf(pt)),
+            templateStore = templateStore,
+            catalog = RemoteSchemaCatalog(
+                version = "v1",
+                partTypes = emptyList(),
+                weeks = emptyList(), // simulate JW CDN returning nothing
+            ),
+        )
+
+        val result = useCase()
+
+        val right = assertIs<Either.Right<AggiornaSchemiResult>>(result).value
+        assertEquals(0, right.weekTemplatesImported)
+        // Crucially: the pre-existing template is untouched.
+        assertEquals(1, templateStore.templates.size)
+        assertEquals(LocalDate.of(2026, 3, 2), templateStore.templates.single().weekStartDate)
+        Unit
+    }
+
     @Test
     fun `propagates skippedUnknownParts and downloadedIssues from source`() = runTest {
         val pt = makePartType("pt-1", "LETTURA")

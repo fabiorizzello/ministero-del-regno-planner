@@ -69,7 +69,12 @@ class AggiornaSchemiUseCase(
                         partTypeIds = partTypeIds,
                     )
                 }
-                schemaTemplateStore.replaceAll(storedTemplates)
+                // Guard: an empty remote catalog (e.g. transient JW CDN 404 cascade,
+                // or start-of-year before any fascicolo is published) must NOT wipe
+                // stored week templates. The import simply succeeds as a no-op.
+                if (storedTemplates.isNotEmpty()) {
+                    schemaTemplateStore.replaceAll(storedTemplates)
+                }
             })
         }.bind()
 
