@@ -1,28 +1,81 @@
 -- Migration 1 -> 2
--- Aggiunge il tipo parte SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO, aggiorna la
--- label di SPIEGARE_CIO_CHE_SI_CREDE e copia l'idoneita dei conduttori di
--- DISCORSO sul nuovo tipo.
---
--- Le istruzioni sono condizionate alla presenza di righe gia seminate in
--- part_type: su installazioni appena create il catalogo arrivera dal
--- flusso "Aggiorna schemi" e non c'e nulla da migrare.
+-- Seed (upsert) canonical Meeting Workbook partTypes. Idempotent:
+-- INSERT ... ON CONFLICT(code) DO UPDATE ensures fresh installs get the 7
+-- canonical types, and existing installs get their labels/metadata realigned
+-- to the canonical state. `active = 1` on UPDATE re-activates any row that
+-- may have been deactivated by a prior deactivateMissingCodes call.
+-- Also copies conductor eligibility from DISCORSO to the new
+-- SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO for existing users.
 
-UPDATE part_type
-SET label = 'Spiegare quello in cui si crede - Dimostrazione'
-WHERE code = 'SPIEGARE_CIO_CHE_SI_CREDE';
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'LETTURA_DELLA_BIBBIA', 'Lettura Biblica', 1, 'UOMO', 1, 0)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
 
-INSERT OR IGNORE INTO part_type(id, code, label, people_count, sex_rule, fixed, active, sort_order, current_revision_id)
-SELECT
-    lower(hex(randomblob(16))),
-    'SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO',
-    'Spiegare quello in cui si crede - Discorso',
-    1,
-    'UOMO',
-    0,
-    1,
-    (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM part_type),
-    NULL
-WHERE EXISTS (SELECT 1 FROM part_type WHERE code = 'SPIEGARE_CIO_CHE_SI_CREDE');
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'INIZIARE_CONVERSAZIONE', 'Iniziare una conversazione', 2, 'STESSO_SESSO', 0, 1)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'COLTIVARE_INTERESSE', 'Coltivare l' || char(39) || 'interesse', 2, 'STESSO_SESSO', 0, 2)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'FARE_DISCEPOLI', 'Fare discepoli', 2, 'STESSO_SESSO', 0, 3)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'DISCORSO', 'Discorso', 1, 'UOMO', 0, 4)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'SPIEGARE_CIO_CHE_SI_CREDE', 'Spiegare quello in cui si crede - Dimostrazione', 2, 'STESSO_SESSO', 0, 5)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO', 'Spiegare quello in cui si crede - Discorso', 1, 'UOMO', 0, 6)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;
 
 INSERT OR IGNORE INTO person_part_type_eligibility(id, person_id, part_type_id, can_lead)
 SELECT

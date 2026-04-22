@@ -61,7 +61,6 @@ class JwPubSchemaCatalogDataSourceTest {
             httpClient = HttpClient(engine),
             cacheDir = tempFolder.root.toPath(),
             clock = Clock.fixed(Instant.parse("2026-01-05T09:00:00Z"), ZoneOffset.UTC),
-            staticPartTypes = StaticPartTypesFixture.all(),
         )
 
         val result = source.fetchCatalog()
@@ -74,7 +73,7 @@ class JwPubSchemaCatalogDataSourceTest {
             catalog.weeks.first().partTypeCodes.contains("LETTURA_DELLA_BIBBIA"),
             "Expected LETTURA_DELLA_BIBBIA in first week",
         )
-        assertEquals(7, catalog.partTypes.size)
-        assertTrue(catalog.partTypes.any { it.code == "LETTURA_DELLA_BIBBIA" })
+        // partTypes are seeded via DB migration, no longer carried in the remote catalog
+        assertTrue(catalog.partTypes.isEmpty())
     }
 }

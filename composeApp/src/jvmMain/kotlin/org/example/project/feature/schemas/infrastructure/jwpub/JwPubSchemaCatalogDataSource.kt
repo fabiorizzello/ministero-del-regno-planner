@@ -9,7 +9,6 @@ import org.example.project.feature.schemas.application.RemoteSchemaCatalog
 import org.example.project.feature.schemas.application.RemoteWeekSchemaTemplate
 import org.example.project.feature.schemas.application.SchemaCatalogRemoteSource
 import org.example.project.feature.schemas.application.SkippedPart
-import org.example.project.feature.weeklyparts.domain.PartType
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
@@ -19,7 +18,6 @@ class JwPubSchemaCatalogDataSource(
     httpClient: HttpClient,
     private val cacheDir: Path,
     private val clock: Clock = Clock.systemUTC(),
-    private val staticPartTypes: List<PartType>,
     private val language: String = "I",
 ) : SchemaCatalogRemoteSource {
 
@@ -88,7 +86,7 @@ class JwPubSchemaCatalogDataSource(
 
         RemoteSchemaCatalog(
             version = latestVersion,
-            partTypes = staticPartTypes,
+            partTypes = emptyList(),
             weeks = allWeeks.sortedBy { it.weekStartDate },
             skippedUnknownParts = skippedUnknownParts,
             downloadedIssues = downloadedIssues,

@@ -11,7 +11,6 @@ import org.example.project.feature.schemas.application.SchemaUpdateAnomalyStore
 import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaTemplateStore
 import org.example.project.feature.schemas.infrastructure.SqlDelightSchemaUpdateAnomalyStore
 import org.example.project.feature.schemas.infrastructure.jwpub.JwPubSchemaCatalogDataSource
-import org.example.project.feature.schemas.infrastructure.jwpub.StaticMeetingWorkbookPartTypes
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -23,10 +22,9 @@ val schemasModule = module {
         JwPubSchemaCatalogDataSource(
             httpClient = get(),
             cacheDir = get<AppPaths>().jwpubCacheDir,
-            staticPartTypes = StaticMeetingWorkbookPartTypes.all(),
         )
     }
-    factory { AggiornaSchemiUseCase(get(), get(), get(), get(), get(), get(), get()) } bind AggiornaSchemiOperation::class
+    factory { AggiornaSchemiUseCase(get(), get(), get(), get(), get()) } bind AggiornaSchemiOperation::class
     factory { ArchivaAnomalieSchemaUseCase(get(), get()) }
     factory { CaricaCatalogoSchemiSettimanaliUseCase(get(), get()) }
 }

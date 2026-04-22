@@ -5,7 +5,6 @@ import arrow.core.raise.either
 import com.russhwolf.settings.Settings
 import org.example.project.core.domain.DomainError
 import org.example.project.core.persistence.TransactionRunner
-import org.example.project.feature.people.application.EligibilityStore
 import org.example.project.feature.weeklyparts.application.PartTypeStore
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -23,31 +22,32 @@ fun interface AggiornaSchemiOperation {
     suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult>
 }
 
+/**
+ * PartTypes are frozen via SQLDelight migration (see `1.sqm`): the 7 canonical
+ * Meeting Workbook part types are seeded/upserted at schema migration time and
+ * are no longer touched by this use case. "Aggiorna catalogo" only downloads
+ * remote week templates, validates they reference known partType codes, and
+ * replaces the stored week templates atomically.
+ */
 class AggiornaSchemiUseCase(
     private val remoteSource: SchemaCatalogRemoteSource,
     private val partTypeStore: PartTypeStore,
-    private val eligibilityStore: EligibilityStore,
     private val schemaTemplateStore: SchemaTemplateStore,
-    private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val transactionRunner: TransactionRunner,
     private val settings: Settings,
 ) : AggiornaSchemiOperation {
     override suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
         val catalog = remoteSource.fetchCatalog().bind()
 
-        val availableCodes = catalog.partTypes.map { it.code }.toSet()
+        // partTypes are frozen via DB migration — just validate that week templates
+        // reference known codes.
+        val availableCodes = partTypeStore.all().map { it.code }.toSet()
         val invalidWeek = catalog.weeks.firstOrNull { week ->
             week.partTypeCodes.any { it !in availableCodes }
         }
         if (invalidWeek != null) {
             raise(DomainError.CatalogoSchemiIncoerente(invalidWeek.weekStartDate))
         }
-
-        val missingPartTypes = partTypeStore.all().filter { it.code !in availableCodes }
-        val missingPartTypeIds = missingPartTypes.map { it.id }.toSet()
-
-        val eligibilityCleanupCandidates = eligibilityStore
-            .listLeadEligibilityCandidatesForPartTypes(missingPartTypeIds)
 
         // Validate dates before entering the transaction so errors surface as DomainError.
         val weekStartDates = catalog.weeks.map { remoteWeek ->
@@ -57,32 +57,12 @@ class AggiornaSchemiUseCase(
 
         transactionRunner.runInTransactionEither {
             Either.Right(run {
-                if (eligibilityCleanupCandidates.isNotEmpty()) {
-                    eligibilityStore.deleteLeadEligibilityForPartTypes(missingPartTypeIds)
-                    schemaUpdateAnomalyStore.append(
-                        eligibilityCleanupCandidates.map { candidate ->
-                            SchemaUpdateAnomalyDraft(
-                                personId = candidate.personId,
-                                partTypeId = candidate.partTypeId,
-                                reason = "Idoneita conduzione rimossa dopo aggiornamento schemi",
-                                schemaVersion = catalog.version,
-                                createdAt = LocalDateTime.now().toString(),
-                            )
-                        },
-                    )
-                }
-
-                partTypeStore.upsertAll(catalog.partTypes)
-                partTypeStore.deactivateMissingCodes(availableCodes)
-
                 val storedTemplates = catalog.weeks.zip(weekStartDates).map { (remoteWeek, weekStartDate) ->
                     val partTypeIds = remoteWeek.partTypeCodes.map { code ->
-                        // All codes were validated against availableCodes above and upserted just above.
-                        // If findByCode returns null here it is a programming error (upsertAll did not
-                        // persist the code). error() escapes the lambda, TransactionRunner catches it
-                        // and triggers rollback before re-throwing.
+                        // All codes were validated against availableCodes above.
+                        // If findByCode returns null here it is a programming error.
                         partTypeStore.findByCode(code)?.id
-                            ?: error("PartType con codice $code non trovato dopo upsertAll — stato impossibile")
+                            ?: error("PartType con codice $code non trovato — stato impossibile")
                     }
                     StoredSchemaWeekTemplate(
                         weekStartDate = weekStartDate,
@@ -97,9 +77,9 @@ class AggiornaSchemiUseCase(
 
         AggiornaSchemiResult(
             version = catalog.version,
-            partTypesImported = catalog.partTypes.size,
+            partTypesImported = 0, // partTypes are no longer imported via catalog — seeded via migration
             weekTemplatesImported = catalog.weeks.size,
-            eligibilityAnomalies = eligibilityCleanupCandidates.size,
+            eligibilityAnomalies = 0, // anomalies flow removed
             skippedUnknownParts = catalog.skippedUnknownParts,
             downloadedIssues = catalog.downloadedIssues,
         )
