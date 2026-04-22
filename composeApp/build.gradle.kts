@@ -59,6 +59,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.sqlite.driver)
             implementation(libs.sqldelight.coroutines.extensions)
+            implementation(libs.sqlite.jdbc)
             implementation(libs.slf4j.api)
             implementation(libs.logback.classic)
             implementation(libs.koin.core)

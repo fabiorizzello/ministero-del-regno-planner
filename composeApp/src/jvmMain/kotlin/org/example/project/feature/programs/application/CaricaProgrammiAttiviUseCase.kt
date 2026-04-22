@@ -13,10 +13,14 @@ data class ProgramSelectionSnapshot(
     val futures: List<ProgramMonth>,
 )
 
+fun interface CaricaProgrammiAttiviOperation {
+    suspend operator fun invoke(referenceDate: LocalDate): Either<DomainError, ProgramSelectionSnapshot>
+}
+
 class CaricaProgrammiAttiviUseCase(
     private val programStore: ProgramStore,
-) {
-    suspend operator fun invoke(referenceDate: LocalDate): Either<DomainError, ProgramSelectionSnapshot> =
+) : CaricaProgrammiAttiviOperation {
+    override suspend operator fun invoke(referenceDate: LocalDate): Either<DomainError, ProgramSelectionSnapshot> =
         Either.catch {
             val programs = programStore.listCurrentAndFuture(referenceDate)
             val current = programs.firstOrNull { it.timelineStatus(referenceDate) == ProgramTimelineStatus.CURRENT }

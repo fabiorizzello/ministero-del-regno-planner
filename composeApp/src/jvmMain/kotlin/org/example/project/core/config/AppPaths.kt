@@ -7,4 +7,5 @@ data class AppPaths(
     val dbFile: Path,
     val logsDir: Path,
     val exportsDir: Path,
+    val jwpubCacheDir: Path,
 )

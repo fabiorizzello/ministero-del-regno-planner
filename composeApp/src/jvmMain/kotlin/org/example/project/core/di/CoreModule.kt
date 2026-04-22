@@ -3,6 +3,8 @@ package org.example.project.core.di
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import java.util.prefs.Preferences
+import org.example.project.core.config.AppPaths
+import org.example.project.core.config.AppRuntime
 import org.example.project.core.config.PathsResolver
 import org.example.project.core.config.UiPreferencesStore
 import org.example.project.core.config.UserConfigStore
@@ -20,6 +22,7 @@ val coreModule = module {
         val node = Preferences.userRoot().node("org/example/project/efficaci_nel_ministero")
         PreferencesSettings(node)
     }
+    single<AppPaths> { AppRuntime.paths() }
     single { WindowSettingsStore(get()) }
     single { UiPreferencesStore(get()) }
     single { UpdateSettingsStore(get()) }

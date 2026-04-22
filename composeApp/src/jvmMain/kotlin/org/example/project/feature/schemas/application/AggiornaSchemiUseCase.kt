@@ -15,7 +15,13 @@ data class AggiornaSchemiResult(
     val partTypesImported: Int,
     val weekTemplatesImported: Int,
     val eligibilityAnomalies: Int,
+    val skippedUnknownParts: List<SkippedPart> = emptyList(),
+    val downloadedIssues: List<String> = emptyList(),
 )
+
+fun interface AggiornaSchemiOperation {
+    suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult>
+}
 
 class AggiornaSchemiUseCase(
     private val remoteSource: SchemaCatalogRemoteSource,
@@ -25,8 +31,8 @@ class AggiornaSchemiUseCase(
     private val schemaUpdateAnomalyStore: SchemaUpdateAnomalyStore,
     private val transactionRunner: TransactionRunner,
     private val settings: Settings,
-) {
-    suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
+) : AggiornaSchemiOperation {
+    override suspend operator fun invoke(): Either<DomainError, AggiornaSchemiResult> = either {
         val catalog = remoteSource.fetchCatalog().bind()
 
         val availableCodes = catalog.partTypes.map { it.code }.toSet()
@@ -94,6 +100,8 @@ class AggiornaSchemiUseCase(
             partTypesImported = catalog.partTypes.size,
             weekTemplatesImported = catalog.weeks.size,
             eligibilityAnomalies = eligibilityCleanupCandidates.size,
+            skippedUnknownParts = catalog.skippedUnknownParts,
+            downloadedIssues = catalog.downloadedIssues,
         )
     }
 }

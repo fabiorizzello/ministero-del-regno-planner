@@ -284,12 +284,14 @@ class AggiornaApplicazioneTest {
         val dataDir = root.resolve("data").createDirectories()
         val logsDir = root.resolve("logs").createDirectories()
         val exportsDir = root.resolve("exports").createDirectories()
+        val jwpubCacheDir = root.resolve("cache").resolve("GuidaAdunanza").createDirectories()
         AppRuntime.initialize(
             AppPaths(
                 rootDir = root,
                 dbFile = dataDir.resolve("ministero.sqlite"),
                 logsDir = logsDir,
                 exportsDir = exportsDir,
+                jwpubCacheDir = jwpubCacheDir,
             ),
         )
     }

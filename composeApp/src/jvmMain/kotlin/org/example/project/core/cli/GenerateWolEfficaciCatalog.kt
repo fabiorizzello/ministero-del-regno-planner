@@ -9,7 +9,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.example.project.core.config.RemoteConfig
 import org.jsoup.Jsoup
 import java.io.File
 import java.net.URI
@@ -24,6 +23,9 @@ import java.time.ZoneOffset
 import java.util.Locale
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.system.exitProcess
+
+private const val DEFAULT_BASE_CATALOG_URL =
+    "https://raw.githubusercontent.com/fabiorizzello/efficaci-nel-ministero-data/main/schemas-catalog.json"
 
 private val prettyJson = Json {
     prettyPrint = true
@@ -102,7 +104,7 @@ fun main(args: Array<String>) {
 private data class CliConfig(
     val meetingsRootUrl: String = DEFAULT_MEETINGS_ROOT_URL,
     val outputPath: String = DEFAULT_OUTPUT_PATH,
-    val baseCatalogUrl: String = RemoteConfig.SCHEMAS_CATALOG_URL,
+    val baseCatalogUrl: String = DEFAULT_BASE_CATALOG_URL,
     val maxWeeks: Int = DEFAULT_MAX_WEEKS,
     val cooldownMinMs: Long = DEFAULT_COOLDOWN_MIN_MS,
     val cooldownMaxMs: Long = DEFAULT_COOLDOWN_MAX_MS,

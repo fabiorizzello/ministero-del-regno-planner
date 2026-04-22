@@ -234,6 +234,38 @@ class AggiornaSchemiUseCaseTest {
         assertEquals(2, right.eligibilityAnomalies)
         Unit
     }
+
+    @Test
+    fun `propagates skippedUnknownParts and downloadedIssues from source`() = runTest {
+        val pt = makePartType("pt-1", "LETTURA")
+        val templateStore = InMemorySchemaTemplateStore2()
+        val partTypeStore = InMemoryPartTypeStore2()
+        val useCase = buildUseCase(
+            partTypeStore = partTypeStore,
+            templateStore = templateStore,
+            catalog = RemoteSchemaCatalog(
+                version = "v1",
+                partTypes = listOf(pt),
+                weeks = emptyList(),
+                skippedUnknownParts = listOf(
+                    org.example.project.feature.schemas.application.SkippedPart(
+                        weekStartDate = "2026-03-02",
+                        mepsDocumentId = 123L,
+                        label = "Parte sconosciuta",
+                        detailLine = null,
+                    ),
+                ),
+                downloadedIssues = listOf("202603"),
+            ),
+        )
+
+        val result = assertIs<Either.Right<AggiornaSchemiResult>>(useCase()).value
+
+        assertEquals(1, result.skippedUnknownParts.size)
+        assertEquals("Parte sconosciuta", result.skippedUnknownParts.first().label)
+        assertEquals(listOf("202603"), result.downloadedIssues)
+        Unit
+    }
 }
 
 // ---- helpers ----

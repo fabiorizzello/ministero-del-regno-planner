@@ -9,16 +9,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
-import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiUseCase
-import org.example.project.feature.programs.application.CaricaProgrammiAttiviUseCase
+import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiOperation
+import org.example.project.feature.programs.application.CaricaProgrammiAttiviOperation
 import org.example.project.feature.programs.application.SchemaRefreshMode
 import org.example.project.feature.programs.application.SchemaRefreshPreview
 import org.example.project.feature.programs.application.SchemaRefreshReport
 import org.example.project.feature.programs.application.hasEffectiveChanges
 import org.example.project.feature.programs.domain.ProgramMonth
 import org.example.project.feature.programs.domain.ProgramMonthId
+import org.example.project.feature.schemas.application.AggiornaSchemiOperation
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
-import org.example.project.feature.schemas.application.AggiornaSchemiUseCase
+import org.example.project.feature.schemas.application.SkippedPart
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
 import org.example.project.ui.components.executeEitherOperation
@@ -41,6 +42,9 @@ internal data class SchemaManagementUiState(
     val notice: FeedbackBannerModel? = null,
     val pendingRefreshPreview: SchemaRefreshPreview? = null,
     val pendingRefreshProgramId: ProgramMonthId? = null,
+    val pendingUnknownParts: List<SkippedPart> = emptyList(),
+    val pendingDownloadedIssues: List<String> = emptyList(),
+    val showRefreshResultDialog: Boolean = false,
 )
 
 internal fun schemaRefreshReferenceDate(today: LocalDate): LocalDate =
@@ -48,9 +52,9 @@ internal fun schemaRefreshReferenceDate(today: LocalDate): LocalDate =
 
 internal class SchemaManagementViewModel(
     private val scope: CoroutineScope,
-    private val aggiornaSchemi: AggiornaSchemiUseCase,
-    private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiUseCase,
-    private val caricaProgrammiAttivi: CaricaProgrammiAttiviUseCase,
+    private val aggiornaSchemi: AggiornaSchemiOperation,
+    private val aggiornaProgrammaDaSchemi: AggiornaProgrammaDaSchemiOperation,
+    private val caricaProgrammiAttivi: CaricaProgrammiAttiviOperation,
 ) {
     private val _state = MutableStateFlow(SchemaManagementUiState())
     val state: StateFlow<SchemaManagementUiState> = _state.asStateFlow()
@@ -118,10 +122,15 @@ internal class SchemaManagementViewModel(
                                 buildSchemaUpdateNotice(result),
                                 FeedbackBannerKind.SUCCESS,
                             ),
+                            pendingUnknownParts = result.skippedUnknownParts,
+                            pendingDownloadedIssues = result.downloadedIssues,
                         )
                     }
                     if (selectedProgramId != null) {
                         requestProgramRefreshPreview(selectedProgramId, onProgramRefreshComplete)
+                    } else if (result.skippedUnknownParts.isNotEmpty() || result.downloadedIssues.isNotEmpty()) {
+                        pendingOnComplete = onProgramRefreshComplete
+                        _state.update { it.copy(showRefreshResultDialog = true) }
                     } else {
                         onProgramRefreshComplete()
                     }
@@ -170,16 +179,19 @@ internal class SchemaManagementViewModel(
                             allChanges = fullPreview.value,
                             onlyUnassignedChanges = onlyUnassignedPreview.value,
                         )
-                        if (!preview.hasEffectiveChanges()) {
+                        val hasReport = _state.value.pendingUnknownParts.isNotEmpty() ||
+                            _state.value.pendingDownloadedIssues.isNotEmpty()
+                        if (!preview.hasEffectiveChanges() && !hasReport) {
                             onComplete()
-                        } else {
-                            pendingOnComplete = onComplete
-                            _state.update {
-                                it.copy(
-                                    pendingRefreshPreview = preview,
-                                    pendingRefreshProgramId = programId,
-                                )
-                            }
+                            return
+                        }
+                        pendingOnComplete = onComplete
+                        _state.update {
+                            it.copy(
+                                pendingRefreshPreview = if (preview.hasEffectiveChanges()) preview else null,
+                                pendingRefreshProgramId = programId,
+                                showRefreshResultDialog = true,
+                            )
                         }
                     }
                 }
@@ -191,7 +203,15 @@ internal class SchemaManagementViewModel(
         val programId = _state.value.pendingRefreshProgramId ?: return
         val onComplete = pendingOnComplete ?: {}
         pendingOnComplete = null
-        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        _state.update {
+            it.copy(
+                pendingRefreshPreview = null,
+                pendingRefreshProgramId = null,
+                pendingUnknownParts = emptyList(),
+                pendingDownloadedIssues = emptyList(),
+                showRefreshResultDialog = false,
+            )
+        }
         scope.launch { applyProgramRefresh(programId, SchemaRefreshMode.ALL, onComplete) }
     }
 
@@ -199,14 +219,45 @@ internal class SchemaManagementViewModel(
         val programId = _state.value.pendingRefreshProgramId ?: return
         val onComplete = pendingOnComplete ?: {}
         pendingOnComplete = null
-        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        _state.update {
+            it.copy(
+                pendingRefreshPreview = null,
+                pendingRefreshProgramId = null,
+                pendingUnknownParts = emptyList(),
+                pendingDownloadedIssues = emptyList(),
+                showRefreshResultDialog = false,
+            )
+        }
         scope.launch { applyProgramRefresh(programId, SchemaRefreshMode.ONLY_UNASSIGNED, onComplete) }
+    }
+
+    fun dismissRefreshResultDialog() {
+        val onComplete = pendingOnComplete ?: {}
+        pendingOnComplete = null
+        _state.update {
+            it.copy(
+                pendingRefreshPreview = null,
+                pendingRefreshProgramId = null,
+                pendingUnknownParts = emptyList(),
+                pendingDownloadedIssues = emptyList(),
+                showRefreshResultDialog = false,
+            )
+        }
+        onComplete()
     }
 
     fun dismissProgramRefreshPreview() {
         val onComplete = pendingOnComplete ?: {}
         pendingOnComplete = null
-        _state.update { it.copy(pendingRefreshPreview = null, pendingRefreshProgramId = null) }
+        _state.update {
+            it.copy(
+                pendingRefreshPreview = null,
+                pendingRefreshProgramId = null,
+                pendingUnknownParts = emptyList(),
+                pendingDownloadedIssues = emptyList(),
+                showRefreshResultDialog = false,
+            )
+        }
         onComplete()
     }
 
