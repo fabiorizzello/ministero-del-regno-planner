@@ -23,6 +23,29 @@ class JwPubContentDecryptor {
         return KeyIv(key = combined.copyOfRange(0, 16), iv = combined.copyOfRange(16, 32))
     }
 
+    fun decryptAndInflate(encryptedContent: ByteArray, keyIv: KeyIv): String {
+        val cipher = javax.crypto.Cipher.getInstance("AES/CBC/PKCS5Padding")
+        val keySpec = javax.crypto.spec.SecretKeySpec(keyIv.key, "AES")
+        val ivSpec = javax.crypto.spec.IvParameterSpec(keyIv.iv)
+        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, keySpec, ivSpec)
+        val compressed = cipher.doFinal(encryptedContent)
+
+        val inflater = java.util.zip.Inflater()
+        inflater.setInput(compressed)
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(4096)
+        try {
+            while (!inflater.finished()) {
+                val count = inflater.inflate(buffer)
+                if (count == 0) break
+                output.write(buffer, 0, count)
+            }
+        } finally {
+            inflater.end()
+        }
+        return output.toString(Charsets.UTF_8)
+    }
+
     companion object {
         // Public constant from sws2apps/meeting-schedules-parser (MIT).
         private val XOR_KEY: ByteArray = hexToBytes(
