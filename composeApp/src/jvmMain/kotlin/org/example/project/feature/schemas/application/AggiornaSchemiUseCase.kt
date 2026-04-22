@@ -15,6 +15,8 @@ data class AggiornaSchemiResult(
     val partTypesImported: Int,
     val weekTemplatesImported: Int,
     val eligibilityAnomalies: Int,
+    val skippedUnknownParts: List<SkippedPart> = emptyList(),
+    val downloadedIssues: List<String> = emptyList(),
 )
 
 class AggiornaSchemiUseCase(
@@ -94,6 +96,8 @@ class AggiornaSchemiUseCase(
             partTypesImported = catalog.partTypes.size,
             weekTemplatesImported = catalog.weeks.size,
             eligibilityAnomalies = eligibilityCleanupCandidates.size,
+            skippedUnknownParts = catalog.skippedUnknownParts,
+            downloadedIssues = catalog.downloadedIssues,
         )
     }
 }
