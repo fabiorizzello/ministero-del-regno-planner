@@ -33,11 +33,6 @@ object JwPubWeekDateResolver {
             MONTHS[rawStartMonth]
                 ?: throw UnparseableDateException("Unknown start month: $rawStartMonth")
         }
-        val startYear = if (startMonth == 12 && endMonth == 1) {
-            publicationYear
-        } else {
-            publicationYear
-        }
-        return LocalDate.of(startYear, startMonth, startDay)
+        return LocalDate.of(publicationYear, startMonth, startDay)
     }
 }
