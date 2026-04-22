@@ -86,7 +86,6 @@ class JwPubSchemaCatalogDataSource(
 
         RemoteSchemaCatalog(
             version = latestVersion,
-            partTypes = emptyList(),
             weeks = allWeeks.sortedBy { it.weekStartDate },
             skippedUnknownParts = skippedUnknownParts,
             downloadedIssues = downloadedIssues,

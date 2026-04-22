@@ -37,7 +37,6 @@ class AggiornaSchemiUseCaseTest {
             templateStore = templateStore,
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-02",
@@ -50,8 +49,6 @@ class AggiornaSchemiUseCaseTest {
         val result = useCase()
 
         val right = assertIs<Either.Right<AggiornaSchemiResult>>(result).value
-        // partTypes are no longer imported via the catalog — seeded via migration
-        assertEquals(0, right.partTypesImported)
         assertEquals(1, right.weekTemplatesImported)
         assertEquals(1, templateStore.templates.size)
         assertEquals(LocalDate.of(2026, 3, 2), templateStore.templates.single().weekStartDate)
@@ -66,7 +63,6 @@ class AggiornaSchemiUseCaseTest {
             partTypeStore = PrePopulatedPartTypeStore(listOf(pt)),
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-02",
@@ -97,7 +93,6 @@ class AggiornaSchemiUseCaseTest {
             templateStore = templateStore,
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate("2026-03-02", listOf(pt1.code)),
                 ),
@@ -110,7 +105,6 @@ class AggiornaSchemiUseCaseTest {
             templateStore = templateStore,
             catalog = RemoteSchemaCatalog(
                 version = "v2",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate("2026-03-09", listOf(pt2.code)),
                 ),
@@ -131,7 +125,6 @@ class AggiornaSchemiUseCaseTest {
             partTypeStore = PrePopulatedPartTypeStore(listOf(pt)),
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "NOT-A-DATE",
@@ -156,7 +149,6 @@ class AggiornaSchemiUseCaseTest {
             partTypeStore = PrePopulatedPartTypeStore(listOf(pt)),
             catalog = RemoteSchemaCatalog(
                 version = "schema-2026-01",
-                partTypes = emptyList(),
                 weeks = listOf(RemoteWeekSchemaTemplate("2026-03-02", listOf(pt.code))),
             ),
         )
@@ -185,7 +177,6 @@ class AggiornaSchemiUseCaseTest {
             templateStore = templateStore,
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = emptyList(), // simulate JW CDN returning nothing
             ),
         )
@@ -210,7 +201,6 @@ class AggiornaSchemiUseCaseTest {
             templateStore = templateStore,
             catalog = RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = emptyList(),
                 skippedUnknownParts = listOf(
                     org.example.project.feature.schemas.application.SkippedPart(

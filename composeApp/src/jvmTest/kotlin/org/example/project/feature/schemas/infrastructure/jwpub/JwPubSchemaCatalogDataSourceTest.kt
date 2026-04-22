@@ -73,7 +73,5 @@ class JwPubSchemaCatalogDataSourceTest {
             catalog.weeks.first().partTypeCodes.contains("LETTURA_DELLA_BIBBIA"),
             "Expected LETTURA_DELLA_BIBBIA in first week",
         )
-        // partTypes are seeded via DB migration, no longer carried in the remote catalog
-        assertTrue(catalog.partTypes.isEmpty())
     }
 }

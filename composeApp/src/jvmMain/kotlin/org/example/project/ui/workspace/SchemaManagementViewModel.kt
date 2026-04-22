@@ -305,14 +305,8 @@ internal class SchemaManagementViewModel(
         return "$prefix: ${report.weeksUpdated} settimane, ${report.assignmentsPreserved} preservate, ${report.assignmentsRemoved} rimosse"
     }
 
-    private fun buildSchemaUpdateNotice(result: AggiornaSchemiResult): String {
-        val base = "Schemi aggiornati: ${result.partTypesImported} tipi, ${result.weekTemplatesImported} settimane"
-        return if (result.eligibilityAnomalies > 0) {
-            "$base. Alcuni studenti potrebbero richiedere una verifica manuale."
-        } else {
-            base
-        }
-    }
+    private fun buildSchemaUpdateNotice(result: AggiornaSchemiResult): String =
+        "Schemi aggiornati: ${result.weekTemplatesImported} settimane"
 
     private suspend fun loadCurrentAndFuturePrograms(): Either<DomainError, List<ProgramMonth>> {
         return caricaProgrammiAttivi(_state.value.today).map { snapshot ->

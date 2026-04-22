@@ -188,9 +188,7 @@ class SchemaManagementViewModelTest {
             aggiornaSchemi = fakeAggiornaSchemi(
                 AggiornaSchemiResult(
                     version = "v1",
-                    partTypesImported = 0,
                     weekTemplatesImported = 0,
-                    eligibilityAnomalies = 0,
                     skippedUnknownParts = listOf(sampleSkipped),
                     downloadedIssues = emptyList(),
                 ),
@@ -219,9 +217,7 @@ class SchemaManagementViewModelTest {
             aggiornaSchemi = fakeAggiornaSchemi(
                 AggiornaSchemiResult(
                     version = "v1",
-                    partTypesImported = 0,
                     weekTemplatesImported = 0,
-                    eligibilityAnomalies = 0,
                     skippedUnknownParts = emptyList(),
                     downloadedIssues = emptyList(),
                 ),
@@ -249,9 +245,7 @@ class SchemaManagementViewModelTest {
             aggiornaSchemi = fakeAggiornaSchemi(
                 AggiornaSchemiResult(
                     version = "v1",
-                    partTypesImported = 0,
                     weekTemplatesImported = 0,
-                    eligibilityAnomalies = 0,
                     skippedUnknownParts = listOf(sampleSkipped),
                     downloadedIssues = listOf("issue-a"),
                 ),

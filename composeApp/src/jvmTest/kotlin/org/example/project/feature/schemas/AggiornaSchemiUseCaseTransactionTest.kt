@@ -44,7 +44,6 @@ class AggiornaSchemiUseCaseTransactionTest {
         val remote = FakeSchemaCatalogRemoteSource(
             RemoteSchemaCatalog(
                 version = "v1",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-02",
@@ -94,7 +93,6 @@ class AggiornaSchemiUseCaseTransactionTest {
         val remote = FakeSchemaCatalogRemoteSource(
             RemoteSchemaCatalog(
                 version = "v2",
-                partTypes = emptyList(),
                 weeks = listOf(
                     RemoteWeekSchemaTemplate(
                         weekStartDate = "2026-03-09",

@@ -11,9 +11,7 @@ import java.time.LocalDateTime
 
 data class AggiornaSchemiResult(
     val version: String?,
-    val partTypesImported: Int,
     val weekTemplatesImported: Int,
-    val eligibilityAnomalies: Int,
     val skippedUnknownParts: List<SkippedPart> = emptyList(),
     val downloadedIssues: List<String> = emptyList(),
 )
@@ -82,9 +80,7 @@ class AggiornaSchemiUseCase(
 
         AggiornaSchemiResult(
             version = catalog.version,
-            partTypesImported = 0, // partTypes are no longer imported via catalog — seeded via migration
             weekTemplatesImported = catalog.weeks.size,
-            eligibilityAnomalies = 0, // anomalies flow removed
             skippedUnknownParts = catalog.skippedUnknownParts,
             downloadedIssues = catalog.downloadedIssues,
         )
