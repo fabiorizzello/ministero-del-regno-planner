@@ -2386,16 +2386,16 @@ whether the new dialog fully supersedes it. Recommendation: **remove** the
 old block — `SchemaRefreshResultDialog` replaces `SchemaRefreshConfirmDialog`
 for all cases.
 
-**Step 3: Manual visual check**
+**Step 3: Build-only check (user runs the visual check)**
 
-Run:
+Run (Claude / subagent MUST NOT launch the app):
 
 ```bash
-./gradlew :composeApp:run
+./gradlew :composeApp:compileKotlinJvm
 ```
 
-Click `Aggiorna catalogo` — verify dialog renders correctly. Toggle dark
-mode.
+Expected: BUILD SUCCESSFUL. The user will launch `./gradlew :composeApp:run`
+manually to verify the dialog renders correctly (light + dark).
 
 **Step 4: Commit**
 
@@ -2517,7 +2517,12 @@ git commit -m "refactor(schemas): remove GitHub-based catalog data source"
 
 ## Task 23: Golden path manual verification
 
-**Steps:**
+**Important:** All steps in this task are performed **manually by the user**,
+not by Claude or any subagent. Claude / subagents MUST NOT execute
+`:composeApp:run` or run the packaged jar. Build, test, and package
+commands are allowed; launching the app is not.
+
+**Steps (user-executed):**
 
 1. Start the app in dev:
    ```bash
