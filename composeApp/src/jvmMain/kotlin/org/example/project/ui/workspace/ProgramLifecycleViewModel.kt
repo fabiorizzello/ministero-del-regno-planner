@@ -354,7 +354,7 @@ private fun buildProgramCreationFailureNotice(
             "Schemi non aggiornati per la settimana del $formattedDate. Aggiorna schemi e riprova."
         }
         is DomainError.CatalogoSchemiIncoerente -> {
-            "Catalogo schemi incoerente per la settimana ${error.weekStartDate}. Aggiorna schemi e riprova."
+            error.toMessage()
         }
         DomainError.CatalogoTipiNonDisponibile -> {
             "Catalogo parti non disponibile. Aggiorna schemi e riprova."

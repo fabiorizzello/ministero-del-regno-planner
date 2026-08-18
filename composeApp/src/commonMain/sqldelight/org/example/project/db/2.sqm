@@ -1,0 +1,14 @@
+-- Migration 2 -> 3
+-- Adds the new Meeting Workbook part "Cosa direste?" as a one-brother part
+-- with an eligibility checkbox independent from DISCORSO. No eligibility rows
+-- are created: the new checkbox starts unchecked for every existing person.
+
+INSERT INTO part_type(id, code, label, people_count, sex_rule, fixed, sort_order)
+VALUES (lower(hex(randomblob(16))), 'COSA_DIRESTE', 'Cosa direste?', 1, 'UOMO', 0, 7)
+ON CONFLICT(code) DO UPDATE SET
+    label = excluded.label,
+    people_count = excluded.people_count,
+    sex_rule = excluded.sex_rule,
+    fixed = excluded.fixed,
+    sort_order = excluded.sort_order,
+    active = 1;

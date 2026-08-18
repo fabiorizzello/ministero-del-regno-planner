@@ -36,7 +36,10 @@ sealed interface DomainError {
     data class ImportContenutoNonValido(val details: String) : DomainError
     data object ImportConflittoProgrammaEsistente : DomainError
     data class SettimanaSenzaTemplateENessunaParteFissa(val weekStartDate: LocalDate) : DomainError
-    data class CatalogoSchemiIncoerente(val weekStartDate: String) : DomainError
+    data class CatalogoSchemiIncoerente(
+        val weekStartDate: String,
+        val missingPartTypeCodes: Set<String>,
+    ) : DomainError
     data class DataSchemaNonValida(val rawValue: String) : DomainError
     data class CatalogoJwPubCorrotto(val details: String) : DomainError
 }
@@ -75,7 +78,9 @@ fun DomainError.toMessage(): String = when (this) {
     is DomainError.ImportContenutoNonValido -> details
     DomainError.ImportConflittoProgrammaEsistente -> "Import non consentito: esiste già un programma che include la data dell'assegnazione storica"
     is DomainError.SettimanaSenzaTemplateENessunaParteFissa -> "Nessun template e nessuna parte fissa per $weekStartDate"
-    is DomainError.CatalogoSchemiIncoerente -> "Schema settimana $weekStartDate contiene partTypeCode non presenti nel catalogo"
+    is DomainError.CatalogoSchemiIncoerente ->
+        "Il catalogo contiene nuove parti non ancora registrate nell'applicazione. " +
+            "E' necessario un intervento di manutenzione da parte dello sviluppatore."
     is DomainError.DataSchemaNonValida -> "Data schema non valida: $rawValue"
     is DomainError.CatalogoJwPubCorrotto -> "Catalogo JW non leggibile: $details"
 }

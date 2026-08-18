@@ -23,7 +23,7 @@ fun interface AggiornaSchemiOperation {
 }
 
 /**
- * PartTypes are frozen via SQLDelight migration (see `1.sqm`): the 7 canonical
+ * PartTypes are frozen via SQLDelight migrations: the 8 canonical
  * Meeting Workbook part types are seeded/upserted at schema migration time and
  * are no longer touched by this use case. "Aggiorna catalogo" only downloads
  * remote week templates, validates they reference known partType codes, and
@@ -42,11 +42,18 @@ class AggiornaSchemiUseCase(
         // partTypes are frozen via DB migration - just validate that week templates
         // reference known codes.
         val availableCodes = partTypeStore.all().map { it.code }.toSet()
-        val invalidWeek = catalog.weeks.firstOrNull { week ->
-            week.partTypeCodes.any { it !in availableCodes }
+        val invalidWeek = catalog.weeks.firstNotNullOfOrNull { week ->
+            val missingCodes = week.partTypeCodes.filterNot(availableCodes::contains).toSet()
+            if (missingCodes.isEmpty()) null else week to missingCodes
         }
         if (invalidWeek != null) {
-            raise(DomainError.CatalogoSchemiIncoerente(invalidWeek.weekStartDate))
+            val (week, missingCodes) = invalidWeek
+            raise(
+                DomainError.CatalogoSchemiIncoerente(
+                    weekStartDate = week.weekStartDate,
+                    missingPartTypeCodes = missingCodes,
+                ),
+            )
         }
 
         // Validate dates before entering the transaction so errors surface as DomainError.

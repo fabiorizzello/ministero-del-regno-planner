@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.example.project.core.domain.DomainError
 import org.example.project.feature.programs.application.AggiornaProgrammaDaSchemiOperation
 import org.example.project.feature.programs.application.CaricaProgrammiAttiviOperation
 import org.example.project.feature.programs.application.ProgramSelectionSnapshot
@@ -18,6 +19,7 @@ import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.schemas.application.AggiornaSchemiOperation
 import org.example.project.feature.schemas.application.AggiornaSchemiResult
 import org.example.project.feature.schemas.application.SkippedPart
+import org.example.project.ui.components.FeedbackBannerKind
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.Test
@@ -161,6 +163,9 @@ class SchemaManagementViewModelTest {
     private fun fakeAggiornaSchemi(result: AggiornaSchemiResult): AggiornaSchemiOperation =
         AggiornaSchemiOperation { Either.Right(result) }
 
+    private fun failingAggiornaSchemi(error: DomainError): AggiornaSchemiOperation =
+        AggiornaSchemiOperation { Either.Left(error) }
+
     private val fakeAggiornaProgramma: AggiornaProgrammaDaSchemiOperation =
         AggiornaProgrammaDaSchemiOperation { _, _, _, _ ->
             Either.Right(SchemaRefreshReport(0, 0, 0, emptyList()))
@@ -177,6 +182,35 @@ class SchemaManagementViewModelTest {
         label = "Parte sconosciuta",
         detailLine = null,
     )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `unsupported catalog parts show a generic developer maintenance message`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val scope = TestScope(dispatcher)
+        val vm = SchemaManagementViewModel(
+            scope = scope,
+            aggiornaSchemi = failingAggiornaSchemi(
+                DomainError.CatalogoSchemiIncoerente(
+                    weekStartDate = "2026-09-21",
+                    missingPartTypeCodes = setOf("COSA_DIRESTE"),
+                ),
+            ),
+            aggiornaProgrammaDaSchemi = fakeAggiornaProgramma,
+            caricaProgrammiAttivi = fakeCaricaProgrammiAttivi,
+        )
+
+        vm.refreshSchemasAndProgram(selectedProgramId = null)
+        scope.advanceUntilIdle()
+
+        val notice = vm.state.value.notice
+        assertEquals(FeedbackBannerKind.ERROR, notice?.kind)
+        assertEquals(
+            "Il catalogo contiene nuove parti non ancora registrate nell'applicazione. " +
+                "E' necessario un intervento di manutenzione da parte dello sviluppatore.",
+            notice?.message,
+        )
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test

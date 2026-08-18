@@ -17,6 +17,7 @@ object PartTypeLabelResolver {
         "coltivare l interesse" to "COLTIVARE_INTERESSE",
         "fare discepoli" to "FARE_DISCEPOLI",
         "discorso" to "DISCORSO",
+        "cosa direste" to "COSA_DIRESTE",
     )
 
     private val NON_EFFICACI_SUBSTRINGS = listOf(

@@ -233,7 +233,7 @@ class MigrationV1ToV2Test {
     }
 
     @Test
-    fun `fresh install bootstrap seeds 7 canonical part types via queries`() {
+    fun `fresh install bootstrap seeds 8 canonical part types via queries`() {
         // Replicates DatabaseProvider.createDatabase() bootstrap path: Schema.create()
         // only (no migrations) + seed queries. Reproduces the reviewer's empirical
         // finding that Schema.create alone leaves part_type empty.
@@ -253,9 +253,10 @@ class MigrationV1ToV2Test {
             seedPartTypeDiscorso()
             seedPartTypeSpiegareCioCheSiCrede()
             seedPartTypeSpiegareCioCheSiCredeDiscorso()
+            seedPartTypeCosaDireste()
         }
 
-        assertEquals(7, queryPartTypeCount(driver))
+        assertEquals(8, queryPartTypeCount(driver))
         val expectedCodes = listOf(
             "LETTURA_DELLA_BIBBIA",
             "INIZIARE_CONVERSAZIONE",
@@ -264,6 +265,7 @@ class MigrationV1ToV2Test {
             "DISCORSO",
             "SPIEGARE_CIO_CHE_SI_CREDE",
             "SPIEGARE_CIO_CHE_SI_CREDE_DISCORSO",
+            "COSA_DIRESTE",
         )
         expectedCodes.forEach { code ->
             assertNotNull(queryPartType(driver, code), "expected $code to be seeded")

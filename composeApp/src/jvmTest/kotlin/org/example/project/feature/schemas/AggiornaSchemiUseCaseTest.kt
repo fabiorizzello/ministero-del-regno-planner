@@ -77,7 +77,8 @@ class AggiornaSchemiUseCaseTest {
         val result = useCase()
 
         val left = assertIs<Either.Left<DomainError>>(result).value
-        assertIs<DomainError.CatalogoSchemiIncoerente>(left)
+        val error = assertIs<DomainError.CatalogoSchemiIncoerente>(left)
+        assertEquals(setOf("UNKNOWN_CODE"), error.missingPartTypeCodes)
         Unit
     }
 

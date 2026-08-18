@@ -28,4 +28,18 @@ class DomainErrorToMessageTest {
             DomainError.SettimanaSenzaTemplateENessunaParteFissa(LocalDate.of(2026, 3, 2)).toMessage(),
         )
     }
+
+    @Test
+    fun `unknown catalog parts explain that developer maintenance is required`() {
+        val error = DomainError.CatalogoSchemiIncoerente(
+            weekStartDate = "2026-09-21",
+            missingPartTypeCodes = setOf("COSA_DIRESTE", "NUOVA_PARTE"),
+        )
+
+        assertEquals(
+            "Il catalogo contiene nuove parti non ancora registrate nell'applicazione. " +
+                "E' necessario un intervento di manutenzione da parte dello sviluppatore.",
+            error.toMessage(),
+        )
+    }
 }

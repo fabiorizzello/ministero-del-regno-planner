@@ -39,6 +39,7 @@ object DatabaseProvider {
             seedPartTypeDiscorso()
             seedPartTypeSpiegareCioCheSiCrede()
             seedPartTypeSpiegareCioCheSiCredeDiscorso()
+            seedPartTypeCosaDireste()
         }
     }
 }

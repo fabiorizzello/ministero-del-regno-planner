@@ -31,6 +31,14 @@ class PartTypeLabelResolverTest {
         assertEquals(PartTypeLabelResolver.ResolveOutcome.Mapped("DISCORSO"), r)
     }
 
+    @Test fun `cosa direste maps to its own part type`() {
+        val r = PartTypeLabelResolver.resolve(
+            "6. Cosa direste?",
+            "(6 min) Trattazione. DI CASA IN CASA. Esamina brevemente lmd lezione 2 punto 5.",
+        )
+        assertEquals(PartTypeLabelResolver.ResolveOutcome.Mapped("COSA_DIRESTE"), r)
+    }
+
     @Test fun `spiegare with discorso detail maps to discorso variant`() {
         val r = PartTypeLabelResolver.resolve(
             "6. Spiegare quello in cui si crede",
