@@ -1,5 +1,6 @@
 package org.example.project.feature.schemas.infrastructure.jwpub
 
+import java.time.DateTimeException
 import java.time.LocalDate
 import java.util.Locale
 
@@ -13,31 +14,41 @@ object JwPubWeekDateResolver {
         "settembre" to 9, "ottobre" to 10, "novembre" to 11, "dicembre" to 12,
     )
 
-    // Accept `-`, en-dash, em-dash as range separator, with optional
-    // surrounding whitespace. "º" ordinal is ignored.
-    private val RANGE_REGEX = Regex(
-        "^\\s*(\\d{1,2})º?\\s*(?:([a-zA-Zàèéìòù]+)\\s*)?[\\-–—]\\s*(\\d{1,2})º?\\s*([a-zA-Zàèéìòù]+)\\s*$",
-    )
+    // JW may use a dash or plain whitespace between two complete dates.
+    // Both dates may include their year; the ordinal mark is ignored.
+    private val RANGE_REGEX =
+        """^\s*(\d{1,2})(?:\u00BA)?\s*(?:(\p{L}+)(?:\s+(\d{4}))?)?\s*(?:[-\u2013\u2014]|\s+)\s*(\d{1,2})(?:\u00BA)?\s*(\p{L}+)(?:\s+(\d{4}))?\s*$"""
+            .toRegex()
 
     fun resolve(title: String, publicationYear: Int): LocalDate {
         val normalized = title.lowercase(Locale.ROOT).trim()
         val match = RANGE_REGEX.matchEntire(normalized)
-            ?: throw UnparseableDateException("Title not in expected range format: $title")
+            ?: throw UnparseableDateException(
+                "Titolo della settimana in un formato non riconosciuto: $title",
+            )
         val startDay = match.groupValues[1].toInt()
         val rawStartMonth = match.groupValues[2]
-        val endMonth = MONTHS[match.groupValues[4]]
-            ?: throw UnparseableDateException("Unknown end month: ${match.groupValues[4]}")
+        val explicitStartYear = match.groupValues[3].toIntOrNull()
+        val endMonth = MONTHS[match.groupValues[5]]
+            ?: throw UnparseableDateException(
+                "Mese finale non riconosciuto: ${match.groupValues[5]}",
+            )
+        val endYear = match.groupValues[6].toIntOrNull()
+            ?: explicitStartYear
+            ?: publicationYear
         val startMonth = if (rawStartMonth.isBlank()) {
-            endMonth  // same month range
+            endMonth
         } else {
             MONTHS[rawStartMonth]
-                ?: throw UnparseableDateException("Unknown start month: $rawStartMonth")
+                ?: throw UnparseableDateException("Mese iniziale non riconosciuto: $rawStartMonth")
         }
-        // Cross-year weeks (December -> January) belong to the issue published
-        // for the following calendar year; the actual start date is in the
-        // previous calendar year. This is the only cross-year case in the mwb
-        // publishing cadence.
-        val startYear = if (startMonth == 12 && endMonth == 1) publicationYear - 1 else publicationYear
-        return LocalDate.of(startYear, startMonth, startDay)
+        val startYear = explicitStartYear
+            ?: if (startMonth == 12 && endMonth == 1) endYear - 1 else endYear
+
+        return try {
+            LocalDate.of(startYear, startMonth, startDay)
+        } catch (_: DateTimeException) {
+            throw UnparseableDateException("Data della settimana non valida: $title")
+        }
     }
 }
