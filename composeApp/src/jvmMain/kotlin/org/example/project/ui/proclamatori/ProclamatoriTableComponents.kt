@@ -75,6 +75,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -83,6 +86,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -145,266 +150,311 @@ internal fun ColumnScope.ProclamatoriElencoContent(
     val spacing = MaterialTheme.spacing
     val cardsScrollState = rememberScrollState()
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("Studenti", style = MaterialTheme.typography.headlineMedium)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ViewModeSwitch(
-                viewMode = viewMode,
-                onViewModeChange = onViewModeChange,
-            )
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                    positioning = TooltipAnchorPosition.Above,
-                ),
-                tooltip = { PlainTooltip { Text("Ctrl+F per cercare") } },
-                state = rememberTooltipState(),
+    BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+        val compact = maxWidth < 700.dp
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                CompactSearchInput(
-                    value = searchTerm,
-                    onValueChange = events.onSearchTermChange,
-                    onReset = events.onResetSearch,
-                    modifier = Modifier.width(220.dp),
-                    focusRequester = searchFocusRequester,
-                )
+                Text("Studenti", style = MaterialTheme.typography.headlineMedium)
+                FlowRow(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (!compact) ViewModeSwitch(
+                        viewMode = viewMode,
+                        onViewModeChange = onViewModeChange,
+                    )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            positioning = TooltipAnchorPosition.Above,
+                        ),
+                        tooltip = { PlainTooltip { Text("Ctrl+F per cercare") } },
+                        state = rememberTooltipState(),
+                    ) {
+                        CompactSearchInput(
+                            value = searchTerm,
+                            onValueChange = events.onSearchTermChange,
+                            onReset = events.onResetSearch,
+                            modifier = Modifier.width(220.dp),
+                            focusRequester = searchFocusRequester,
+                        )
+                    }
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            positioning = TooltipAnchorPosition.Above,
+                        ),
+                        tooltip = { PlainTooltip { Text("Ctrl+N per aggiungere") } },
+                        state = rememberTooltipState(),
+                    ) {
+                        Button(
+                            modifier = Modifier.handCursorOnHover(enabled = !isLoading),
+                            onClick = events.onGoNuovo,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(8.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                hoveredElevation = 0.dp,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text("Nuovo")
+                        }
+                    }
+                }
             }
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                    positioning = TooltipAnchorPosition.Above,
-                ),
-                tooltip = { PlainTooltip { Text("Ctrl+N per aggiungere") } },
-                state = rememberTooltipState(),
-            ) {
-                Button(
-                    modifier = Modifier.handCursorOnHover(enabled = !isLoading),
-                    onClick = events.onGoNuovo,
-                    enabled = !isLoading,
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp,
-                        hoveredElevation = 0.dp,
+
+            FeedbackBanner(
+                model = notice,
+                onDismissRequest = events.onDismissNotice,
+            )
+
+            if (state.schemaUpdateAnomalies.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(spacing.cardRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
                     ),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text("Nuovo")
-                }
-            }
-        }
-    }
-
-    FeedbackBanner(
-        model = notice,
-        onDismissRequest = events.onDismissNotice,
-    )
-
-    if (state.schemaUpdateAnomalies.isNotEmpty()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(spacing.cardRadius),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-            ),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(spacing.md),
-                verticalArrangement = Arrangement.spacedBy(spacing.xs),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Anomalie idoneita da aggiornamento schemi",
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    OutlinedButton(
-                        onClick = events.onDismissSchemaAnomalies,
-                        enabled = !state.isDismissingSchemaAnomalies,
-                        modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp,
-                            hoveredElevation = 0.dp,
-                        ),
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
                     ) {
-                        Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
-                    }
-                }
-                state.schemaUpdateAnomalies.forEach { anomaly ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            anomaly.personLabel,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1.5f),
-                        )
-                        Text(
-                            anomaly.partTypeLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1.5f),
-                        )
-                        Text(
-                            anomaly.reason,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.workspaceSketch.warn,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(2f),
-                        )
-                        anomaly.schemaVersion?.let {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                "v$it",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                "Anomalie idoneita da aggiornamento schemi",
+                                style = MaterialTheme.typography.titleSmall,
                             )
+                            OutlinedButton(
+                                onClick = events.onDismissSchemaAnomalies,
+                                enabled = !state.isDismissingSchemaAnomalies,
+                                modifier = Modifier.handCursorOnHover(enabled = !state.isDismissingSchemaAnomalies),
+                                elevation = ButtonDefaults.buttonElevation(
+                                    defaultElevation = 0.dp,
+                                    pressedElevation = 0.dp,
+                                    hoveredElevation = 0.dp,
+                                ),
+                            ) {
+                                Text(if (state.isDismissingSchemaAnomalies) "Archiviazione..." else "Archivia pannello")
+                            }
                         }
-                        Text(
-                            formatAnomalyDate(anomaly.createdAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        state.schemaUpdateAnomalies.forEach { anomaly ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    anomaly.personLabel,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1.5f),
+                                )
+                                Text(
+                                    anomaly.partTypeLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1.5f),
+                                )
+                                Text(
+                                    anomaly.reason,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.workspaceSketch.warn,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(2f),
+                                )
+                                anomaly.schemaVersion?.let {
+                                    Text(
+                                        "v$it",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(
+                                    formatAnomalyDate(anomaly.createdAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
 
-    val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
-    val pageItems = sortedItems.drop(pageIndex * pageSize).take(pageSize)
-    val pageItemIds = pageItems.map { it.id }
-    val hasSelection = selectedIds.isNotEmpty()
-    val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
+            val totalPages = if (allItems.isEmpty()) 1 else ((allItems.size - 1) / pageSize) + 1
+            val pageItems = sortedItems.drop(pageIndex * pageSize).take(pageSize)
+            val pageItemIds = pageItems.map { it.id }
+            val hasSelection = selectedIds.isNotEmpty()
+            val allPageSelected = pageItemIds.isNotEmpty() && pageItemIds.all { it in selectedIds }
 
-    AnimatedVisibility(
-        visible = hasSelection,
-        enter = fadeIn() + slideInVertically(),
-        exit = fadeOut() + slideOutVertically(),
-    ) {
-        ProclamatoriiBulkBar(
-            count = selectedIds.size,
-            enabled = !isLoading,
-            onDelete = events.onRequestDeleteSelected,
-            onClear = events.onClearSelection,
-        )
-    }
+            if (compact || viewMode == ProclamatoriListViewMode.CARDS) {
+                FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    var sortMenuOpen by remember { mutableStateOf(false) }
+                    val sortLabels = mapOf(
+                        ProclamatoriSortField.COGNOME to "Cognome",
+                        ProclamatoriSortField.NOME to "Nome",
+                        ProclamatoriSortField.SESSO to "Sesso",
+                        ProclamatoriSortField.SOSPESO to "Stato",
+                    )
+                    Box {
+                        TextButton(onClick = { sortMenuOpen = true }) {
+                            Text("Ordina: ${sortLabels.getValue(sort.field)}")
+                            Icon(
+                                if (sort.direction == SortDirection.ASC) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                                contentDescription = if (sort.direction == SortDirection.ASC) "Crescente" else "Decrescente",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                            sortLabels.forEach { (field, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        events.onSortChange(toggleSort(sort, field))
+                                        sortMenuOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    TextButton(
+                        enabled = !isLoading && pageItemIds.isNotEmpty(),
+                        onClick = { events.onToggleSelectPage(pageItemIds, !allPageSelected) },
+                    ) { Text(if (allPageSelected) "Deseleziona pagina" else "Seleziona pagina") }
+                }
+            }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
-        shape = RoundedCornerShape(spacing.cardRadius),
-        border = BorderStroke(1.dp, MaterialTheme.workspaceSketch.cardBorder),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.workspaceSketch.cardSurface),
-    ) {
-        Column(modifier = Modifier.fillMaxHeight()) {
-            if (viewMode == ProclamatoriListViewMode.TABLE) {
-                TableContent(
-                    pageItems = pageItems,
-                    selectedIds = selectedIds,
-                    hasSelection = hasSelection,
-                    allPageSelected = allPageSelected,
-                    pageItemIds = pageItemIds,
-                    sort = sort,
-                    isLoading = isLoading,
-                    tableListState = tableListState,
-                    hasActiveSearch = state.searchTerm.isNotBlank(),
-                    capabilitySummaryById = state.capabilitySummaryById,
-                    events = events,
-                )
-            } else {
-                CardsContent(
-                    pageItems = pageItems,
-                    selectedIds = selectedIds,
-                    hasSelection = hasSelection,
-                    isLoading = isLoading,
-                    cardsScrollState = cardsScrollState,
-                    scrollResetToken = state.scrollResetToken,
-                    hasActiveSearch = state.searchTerm.isNotBlank(),
-                    capabilitySummaryById = state.capabilitySummaryById,
-                    events = events,
+            AnimatedVisibility(
+                visible = hasSelection,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically(),
+            ) {
+                ProclamatoriiBulkBar(
+                    count = selectedIds.size,
+                    enabled = !isLoading,
+                    onDelete = events.onRequestDeleteSelected,
+                    onClear = events.onClearSelection,
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Card(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = true),
+                shape = RoundedCornerShape(spacing.cardRadius),
+                border = BorderStroke(1.dp, MaterialTheme.workspaceSketch.cardBorder),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.workspaceSketch.cardSurface),
             ) {
-                Text(
-                    if (sortedItems.size == allItems.size) {
-                        val totalLabel = if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
-                        "$totalLabel · $pageSize per pagina"
+                Column(modifier = Modifier.fillMaxHeight()) {
+                    if (!compact && viewMode == ProclamatoriListViewMode.TABLE) {
+                        TableContent(
+                            pageItems = pageItems,
+                            selectedIds = selectedIds,
+                            hasSelection = hasSelection,
+                            allPageSelected = allPageSelected,
+                            pageItemIds = pageItemIds,
+                            sort = sort,
+                            isLoading = isLoading,
+                            tableListState = tableListState,
+                            hasActiveSearch = state.searchTerm.isNotBlank(),
+                            capabilitySummaryById = state.capabilitySummaryById,
+                            events = events,
+                        )
                     } else {
-                        "${sortedItems.size} di ${allItems.size} studenti · $pageSize per pagina"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (totalPages > 1) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
+                        CardsContent(
+                            pageItems = pageItems,
+                            selectedIds = selectedIds,
+                            hasSelection = hasSelection,
+                            isLoading = isLoading,
+                            cardsScrollState = cardsScrollState,
+                            scrollResetToken = state.scrollResetToken,
+                            hasActiveSearch = state.searchTerm.isNotBlank(),
+                            capabilitySummaryById = state.capabilitySummaryById,
+                            events = events,
+                        )
+                    }
+
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        OutlinedButton(
-                            modifier = Modifier
-                                .handCursorOnHover(enabled = !isLoading && pageIndex > 0)
-                                .height(28.dp),
-                            onClick = events.onPreviousPage,
-                            enabled = !isLoading && pageIndex > 0,
-                            contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 0.dp,
-                                pressedElevation = 0.dp,
-                                hoveredElevation = 0.dp,
-                            ),
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Pagina precedente",
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(spacing.xs))
-                            Text("Prec", style = MaterialTheme.typography.labelSmall)
-                        }
-                        Text("${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(
-                            modifier = Modifier
-                                .handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1)
-                                .height(28.dp),
-                            onClick = events.onNextPage,
-                            enabled = !isLoading && pageIndex < totalPages - 1,
-                            contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 0.dp,
-                                pressedElevation = 0.dp,
-                                hoveredElevation = 0.dp,
-                            ),
-                        ) {
-                            Text("Succ", style = MaterialTheme.typography.labelSmall)
-                            Spacer(Modifier.width(spacing.xs))
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Pagina successiva",
-                                modifier = Modifier.size(14.dp),
-                            )
+                        Text(
+                            if (sortedItems.size == allItems.size) {
+                                val totalLabel = if (allItems.size == 1) "1 studente" else "${allItems.size} studenti"
+                                "$totalLabel · $pageSize per pagina"
+                            } else {
+                                "${sortedItems.size} di ${allItems.size} studenti · $pageSize per pagina"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (totalPages > 1) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(spacing.md),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                OutlinedButton(
+                                    modifier = Modifier
+                                        .handCursorOnHover(enabled = !isLoading && pageIndex > 0)
+                                        .height(28.dp),
+                                    onClick = events.onPreviousPage,
+                                    enabled = !isLoading && pageIndex > 0,
+                                    contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = 0.dp,
+                                        pressedElevation = 0.dp,
+                                        hoveredElevation = 0.dp,
+                                    ),
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Pagina precedente",
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Spacer(Modifier.width(spacing.xs))
+                                    Text("Prec", style = MaterialTheme.typography.labelSmall)
+                                }
+                                Text("${pageIndex + 1} / $totalPages", style = MaterialTheme.typography.bodySmall)
+                                OutlinedButton(
+                                    modifier = Modifier
+                                        .handCursorOnHover(enabled = !isLoading && pageIndex < totalPages - 1)
+                                        .height(28.dp),
+                                    onClick = events.onNextPage,
+                                    enabled = !isLoading && pageIndex < totalPages - 1,
+                                    contentPadding = PaddingValues(horizontal = spacing.lg, vertical = 0.dp),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = 0.dp,
+                                        pressedElevation = 0.dp,
+                                        hoveredElevation = 0.dp,
+                                    ),
+                                ) {
+                                    Text("Succ", style = MaterialTheme.typography.labelSmall)
+                                    Spacer(Modifier.width(spacing.xs))
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Pagina successiva",
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                }
+                            }
                         }
                     }
                 }

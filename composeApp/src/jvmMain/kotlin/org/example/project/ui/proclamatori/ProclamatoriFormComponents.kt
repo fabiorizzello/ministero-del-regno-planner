@@ -15,8 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -137,9 +139,10 @@ internal fun ProclamatoriFormContentForm(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             // ── Two-column layout: identity (left) + idoneità (right) ────────
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
                 // ── LEFT: identity ──────────────────────────────────────────
                 Column(
@@ -329,10 +332,10 @@ internal fun ProclamatoriFormContentForm(
             }
 
             // ── Buttons ──────────────────────────────────────────────────────
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 TooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
@@ -433,7 +436,7 @@ private fun FormStudentAvatar(
 }
 
 @Composable
-private fun EligibilityTable(
+internal fun EligibilityTable(
     options: List<LeadEligibilityOptionUi>,
     onToggle: (PartTypeId, Boolean) -> Unit,
     puoAssistere: Boolean,
@@ -455,84 +458,90 @@ private fun EligibilityTable(
         noneSelected -> ToggleableState.Off
         else -> ToggleableState.Indeterminate
     }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(tableShape)
-            .border(BorderStroke(1.dp, sketch.lineSoft), tableShape),
-    ) {
-        // ── Header row (click to toggle all) ─────────────────────────────
-        Row(
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compactHistory = maxWidth < 480.dp
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(sketch.tableHeaderSurface)
-                .clickable { onSetAllEligibilityChange(headerState != ToggleableState.On) }
-                .handCursorOnHover()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .clip(tableShape)
+                .border(BorderStroke(1.dp, sketch.lineSoft), tableShape),
         ) {
-            TriStateCheckbox(
-                state = headerState,
-                onClick = null,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = sketch.accent,
-                    uncheckedColor = sketch.inkMuted.copy(alpha = 0.75f),
-                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                "Parte",
-                modifier = Modifier.weight(1.4f),
-                style = MaterialTheme.typography.labelMedium,
-                color = sketch.inkMuted,
-            )
-            if (showHistoryColumns) {
+            // ── Header row (click to toggle all) ─────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(sketch.tableHeaderSurface)
+                    .clickable { onSetAllEligibilityChange(headerState != ToggleableState.On) }
+                    .handCursorOnHover()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TriStateCheckbox(
+                    state = headerState,
+                    onClick = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = sketch.accent,
+                        uncheckedColor = sketch.inkMuted.copy(alpha = 0.75f),
+                        checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(
-                    "Ultima assegnazione",
-                    modifier = Modifier.weight(1f),
+                    "Parte",
+                    modifier = Modifier.weight(1.4f),
                     style = MaterialTheme.typography.labelMedium,
                     color = sketch.inkMuted,
                 )
-                Text(
-                    "Ritardo",
-                    modifier = Modifier.width(DELAY_COLUMN_WIDTH),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = sketch.inkMuted,
+                if (showHistoryColumns && !compactHistory) {
+                    Text(
+                        "Ultima assegnazione",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = sketch.inkMuted,
+                    )
+                    Text(
+                        "Ritardo",
+                        modifier = Modifier.width(DELAY_COLUMN_WIDTH),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = sketch.inkMuted,
+                    )
+                }
+            }
+
+            // ── Assistente row (always first, always selectable) ─────────────
+            EligibilityTableRow(
+                label = "Assistente",
+                checked = puoAssistere,
+                enabled = true,
+                lastAssignedOn = lastAssistantAssignmentDate,
+                showHistoryColumns = showHistoryColumns,
+                compactHistory = compactHistory,
+                today = today,
+                onClick = { onPuoAssistereChange(!puoAssistere) },
+            )
+
+            // ── Lead role rows ───────────────────────────────────────────────
+            options.forEach { option ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(sketch.lineSoft),
+                )
+                EligibilityTableRow(
+                    label = option.label,
+                    checked = option.checked,
+                    enabled = option.canSelect,
+                    lastAssignedOn = option.lastAssignedOn,
+                    showHistoryColumns = showHistoryColumns,
+                    compactHistory = compactHistory,
+                    today = today,
+                    onClick = { onToggle(option.partTypeId, !option.checked) },
                 )
             }
         }
 
-        // ── Assistente row (always first, always selectable) ─────────────
-        EligibilityTableRow(
-            label = "Assistente",
-            checked = puoAssistere,
-            enabled = true,
-            lastAssignedOn = lastAssistantAssignmentDate,
-            showHistoryColumns = showHistoryColumns,
-            today = today,
-            onClick = { onPuoAssistereChange(!puoAssistere) },
-        )
-
-        // ── Lead role rows ───────────────────────────────────────────────
-        options.forEach { option ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(sketch.lineSoft),
-            )
-            EligibilityTableRow(
-                label = option.label,
-                checked = option.checked,
-                enabled = option.canSelect,
-                lastAssignedOn = option.lastAssignedOn,
-                showHistoryColumns = showHistoryColumns,
-                today = today,
-                onClick = { onToggle(option.partTypeId, !option.checked) },
-            )
-        }
     }
 }
 
@@ -543,6 +552,7 @@ private fun EligibilityTableRow(
     enabled: Boolean,
     lastAssignedOn: LocalDate?,
     showHistoryColumns: Boolean,
+    compactHistory: Boolean,
     today: LocalDate,
     onClick: () -> Unit,
 ) {
@@ -569,15 +579,27 @@ private fun EligibilityTableRow(
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(12.dp))
-        Text(
-            text = label,
-            modifier = Modifier.weight(1.4f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) sketch.ink else sketch.inkMuted,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (showHistoryColumns) {
+        Column(Modifier.weight(1.4f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (enabled) sketch.ink else sketch.inkMuted,
+            )
+            if (showHistoryColumns && compactHistory) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "Ultima: ${lastAssignedOn?.format(shortDateFormatter) ?: "Mai"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = sketch.inkSoft,
+                    )
+                    DelayPill(spec = computeDelayPill(lastAssignedOn, today))
+                }
+            }
+        }
+        if (showHistoryColumns && !compactHistory) {
             Text(
                 text = lastAssignedOn?.format(shortDateFormatter) ?: "—",
                 modifier = Modifier.weight(1f),

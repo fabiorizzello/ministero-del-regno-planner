@@ -8,6 +8,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -45,6 +47,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,6 +70,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -495,328 +514,362 @@ fun ProgramWorkspaceScreen() {
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            ) {
-                // ── Left sidebar ──────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .width(210.dp)
-                        .fillMaxHeight()
-                        .background(sketch.panelLeft),
-                ) {
-                    // Programs (months) section
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val compact = maxWidth < 1100.dp
+                val drawerState = rememberDrawerState(DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                var showActions by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(compact) {
+                    if (!compact) drawerState.close()
+                }
+                val programsPanel: @Composable () -> Unit = {
                     Column(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                            .background(sketch.panelLeft),
                     ) {
-                        Text(
-                            "PROGRAMMI",
-                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
-                                letterSpacing = 0.7.sp,
-                            ),
-                            color = sketch.inkMuted,
-                        )
-                        lifecycleState.pastCreatableTarget?.let { target ->
-                            CreaProgrammaRow(
-                                label = formatMonthYearLabel(target.monthValue, target.year),
-                                accent = sketch.accent,
-                                isCreating = lifecycleState.isCreatingProgram,
-                                onClick = {
-                                    lifecycleVM.createProgramForTarget(target.year, target.monthValue)
-                                },
-                            )
-                        }
-                        lifecycleState.previousProgram?.let { program ->
-                            ProgramMonthSelectorButton(
-                                label = formatMonthYearLabel(program.month, program.year),
-                                role = ProgramTimelineRole.PAST,
-                                selected = lifecycleState.selectedProgramId == program.id,
-                                accent = sketch.accent,
-                                indicator = null,
-                                onClick = {
-                                    lifecycleVM.selectProgram(program.id)
-                                    selectedWeekId = null
-                                },
-                            )
-                        }
-                        lifecycleState.currentProgram?.let { program ->
-                            ProgramMonthSelectorButton(
-                                label = formatMonthYearLabel(program.month, program.year),
-                                role = ProgramTimelineRole.CURRENT,
-                                selected = lifecycleState.selectedProgramId == program.id,
-                                accent = sketch.accent,
-                                indicator = ProgramSidebarIndicator(
-                                    sidebarStatus = lifecycleState.programSidebarStates[program.id],
-                                    isSchemaImpacted = program.id in schemaState.impactedProgramIds,
-                                ),
-                                onClick = {
-                                    lifecycleVM.selectProgram(program.id)
-                                    selectedWeekId = null
-                                },
-                            )
-                        }
-                        lifecycleState.futurePrograms.forEach { program ->
-                            ProgramMonthSelectorButton(
-                                label = formatMonthYearLabel(program.month, program.year),
-                                role = ProgramTimelineRole.FUTURE,
-                                selected = lifecycleState.selectedProgramId == program.id,
-                                accent = sketch.accent,
-                                indicator = ProgramSidebarIndicator(
-                                    sidebarStatus = lifecycleState.programSidebarStates[program.id],
-                                    isSchemaImpacted = program.id in schemaState.impactedProgramIds,
-                                ),
-                                onClick = {
-                                    lifecycleVM.selectProgram(program.id)
-                                    selectedWeekId = null
-                                },
-                            )
-                        }
-                        lifecycleState.creatableTargets.forEach { target ->
-                            CreaProgrammaRow(
-                                label = formatMonthYearLabel(target.monthValue, target.year),
-                                accent = sketch.accent,
-                                isCreating = lifecycleState.isCreatingProgram,
-                                onClick = {
-                                    lifecycleVM.createProgramForTarget(target.year, target.monthValue)
-                                },
-                            )
-                        }
-                    }
-
-                    // Divider
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
-
-                    // Week list
-                    LazyColumn(
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        item {
+                        // Programs (months) section
+                        Column(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
                             Text(
-                                selectedProgram?.let {
-                                    formatMonthYearLabel(it.month, it.year).uppercase()
-                                } ?: "SETTIMANE",
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                                "PROGRAMMI",
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 10.sp,
-                                    letterSpacing = 0.6.sp,
+                                    letterSpacing = 0.7.sp,
                                 ),
                                 color = sketch.inkMuted,
                             )
+                            lifecycleState.pastCreatableTarget?.let { target ->
+                                CreaProgrammaRow(
+                                    label = formatMonthYearLabel(target.monthValue, target.year),
+                                    accent = sketch.accent,
+                                    isCreating = lifecycleState.isCreatingProgram,
+                                    onClick = {
+                                        lifecycleVM.createProgramForTarget(target.year, target.monthValue)
+                                    },
+                                )
+                            }
+                            lifecycleState.previousProgram?.let { program ->
+                                ProgramMonthSelectorButton(
+                                    label = formatMonthYearLabel(program.month, program.year),
+                                    role = ProgramTimelineRole.PAST,
+                                    selected = lifecycleState.selectedProgramId == program.id,
+                                    accent = sketch.accent,
+                                    indicator = null,
+                                    onClick = {
+                                        lifecycleVM.selectProgram(program.id)
+                                        selectedWeekId = null
+                                    },
+                                )
+                            }
+                            lifecycleState.currentProgram?.let { program ->
+                                ProgramMonthSelectorButton(
+                                    label = formatMonthYearLabel(program.month, program.year),
+                                    role = ProgramTimelineRole.CURRENT,
+                                    selected = lifecycleState.selectedProgramId == program.id,
+                                    accent = sketch.accent,
+                                    indicator = ProgramSidebarIndicator(
+                                        sidebarStatus = lifecycleState.programSidebarStates[program.id],
+                                        isSchemaImpacted = program.id in schemaState.impactedProgramIds,
+                                    ),
+                                    onClick = {
+                                        lifecycleVM.selectProgram(program.id)
+                                        selectedWeekId = null
+                                    },
+                                )
+                            }
+                            lifecycleState.futurePrograms.forEach { program ->
+                                ProgramMonthSelectorButton(
+                                    label = formatMonthYearLabel(program.month, program.year),
+                                    role = ProgramTimelineRole.FUTURE,
+                                    selected = lifecycleState.selectedProgramId == program.id,
+                                    accent = sketch.accent,
+                                    indicator = ProgramSidebarIndicator(
+                                        sidebarStatus = lifecycleState.programSidebarStates[program.id],
+                                        isSchemaImpacted = program.id in schemaState.impactedProgramIds,
+                                    ),
+                                    onClick = {
+                                        lifecycleVM.selectProgram(program.id)
+                                        selectedWeekId = null
+                                    },
+                                )
+                            }
+                            lifecycleState.creatableTargets.forEach { target ->
+                                CreaProgrammaRow(
+                                    label = formatMonthYearLabel(target.monthValue, target.year),
+                                    accent = sketch.accent,
+                                    isCreating = lifecycleState.isCreatingProgram,
+                                    onClick = {
+                                        lifecycleVM.createProgramForTarget(target.year, target.monthValue)
+                                    },
+                                )
+                            }
                         }
-                        items(lifecycleState.selectedProgramWeeks, key = { it.id.value }) { week ->
-                            val weekAssignedSlots = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
-                            val weekTotalSlots = week.parts.sumOf { it.partType.peopleCount }
-                            val weekStatus = week.sidebarStatus(currentMonday, weekAssignedSlots, weekTotalSlots)
-                            val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
-                            WeekSidebarItem(
-                                label = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6)),
-                                status = weekStatus,
-                                fraction = fraction,
-                                selected = effectiveSelectedWeekId == week.id.value,
-                                onClick = { selectedWeekId = week.id.value },
+
+                        // Divider
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
+
+                        // Week list
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            item {
+                                Text(
+                                    selectedProgram?.let {
+                                        formatMonthYearLabel(it.month, it.year).uppercase()
+                                    } ?: "SETTIMANE",
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 0.6.sp,
+                                    ),
+                                    color = sketch.inkMuted,
+                                )
+                            }
+                            items(lifecycleState.selectedProgramWeeks, key = { it.id.value }) { week ->
+                                val weekAssignedSlots = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                val weekTotalSlots = week.parts.sumOf { it.partType.peopleCount }
+                                val weekStatus = week.sidebarStatus(currentMonday, weekAssignedSlots, weekTotalSlots)
+                                val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
+                                WeekSidebarItem(
+                                    label = formatWeekRangeLabel(week.weekStartDate, week.weekStartDate.plusDays(6)),
+                                    status = weekStatus,
+                                    fraction = fraction,
+                                    selected = effectiveSelectedWeekId == week.id.value,
+                                    onClick = {
+                                        selectedWeekId = week.id.value
+                                        scope.launch { drawerState.close() }
+                                    },
+                                )
+                            }
+                        }
+
+                        // Week status legend
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            SidebarLegendRow(label = "Completa", color = sketch.ok)
+                            SidebarLegendRow(label = "Parziale", color = sketch.warn)
+                            SidebarLegendRow(label = "Vuota", color = sketch.lineSoft)
+                        }
+
+                        // Footer
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            SidebarFooterButton(
+                                label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
+                                    "Aggiornamento..." else "Aggiorna schemi",
+                                icon = Icons.Filled.Refresh,
+                                tooltip = "Scarica gli schemi aggiornati e riallinea il programma selezionato",
+                                onClick = {
+                                    schemaVM.refreshSchemasAndProgram(
+                                        selectedProgramId = lifecycleState.selectedProgramId,
+                                        onProgramRefreshComplete = reloadData,
+                                    )
+                                },
+                                enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
                             )
                         }
-                    }
-
-                    // Week status legend
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        SidebarLegendRow(label = "Completa", color = sketch.ok)
-                        SidebarLegendRow(label = "Parziale", color = sketch.warn)
-                        SidebarLegendRow(label = "Vuota", color = sketch.lineSoft)
-                    }
-
-                    // Footer
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.6f)))
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        SidebarFooterButton(
-                            label = if (schemaState.isRefreshingSchemas || schemaState.isRefreshingProgramFromSchemas)
-                                "Aggiornamento..." else "Aggiorna schemi",
-                            icon = Icons.Filled.Refresh,
-                            tooltip = "Scarica gli schemi aggiornati e riallinea il programma selezionato",
-                            onClick = {
-                                schemaVM.refreshSchemasAndProgram(
-                                    selectedProgramId = lifecycleState.selectedProgramId,
-                                    onProgramRefreshComplete = reloadData,
-                                )
-                            },
-                            enabled = !schemaState.isRefreshingSchemas && !schemaState.isRefreshingProgramFromSchemas,
-                        )
                     }
                 }
-                // Sidebar / center divider
-                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
-
-                // ── Center — week detail ──────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(sketch.panelMid),
-                ) {
-                    if (selectedWeek == null) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                "Seleziona una settimana dalla sidebar",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = sketch.inkMuted,
-                            )
-                        }
-                    } else {
-                        val weekAssignments = lifecycleState.selectedProgramAssignments[selectedWeek.id.value] ?: emptyList()
-                        val weekTotalSlots = selectedWeek.parts.sumOf { it.partType.peopleCount }
-                        val weekAssignedSlots = weekAssignments.size
-                        val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
-                        val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
-                        val isCurrent = selectedWeek.weekStartDate == currentMonday
-                        val canMutate = selectedWeek.canBeEditedManually()
-                        val canSkipWeek = resolveWeekActionUiState(selectedWeek).canSkipWeek
-                        val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
-                        val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
-
-                        if (pendingSkipWeek) {
-                            val skipHasAssignments = weekAssignments.isNotEmpty()
-                            AlertDialog(
-                                onDismissRequest = { pendingSkipWeek = false },
-                                title = { Text("Salta settimana") },
-                                text = {
-                                    if (skipHasAssignments) {
-                                        Text("La settimana $weekLabel ha ${weekAssignments.size} assegnazioni che verranno cancellate. Continuare?")
-                                    } else {
-                                        Text("La settimana $weekLabel verrà esclusa dal programma. Continuare?")
-                                    }
-                                },
-                                confirmButton = {
-                                    DesktopInlineAction(
-                                        label = "Salta",
-                                        onClick = {
-                                            pendingSkipWeek = false
-                                            if (skipHasAssignments) {
-                                                assignmentVM.confirmClearWeekAssignments(
-                                                    weekStartDate = selectedWeek.weekStartDate,
-                                                    onSuccess = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
-                                                )
-                                            } else {
-                                                partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
-                                            }
+                val weekPanel: @Composable () -> Unit = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(sketch.panelMid),
+                    ) {
+                        if (selectedWeek == null) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Text(
+                                        if (lifecycleState.selectedProgramId == null) "Nessun programma selezionato"
+                                        else "Nessuna settimana selezionata",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = sketch.ink,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    Text(
+                                        if (lifecycleState.selectedProgramId == null) {
+                                            "Seleziona un mese nel pannello Programmi per visualizzare le settimane. " +
+                                                "Se il programma non esiste ancora, crealo usando il pulsante + accanto al mese."
+                                        } else {
+                                            "Seleziona una settimana nel pannello Programmi per visualizzare le parti e le assegnazioni."
                                         },
-                                        destructive = true,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = sketch.inkSoft,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     )
-                                },
-                                dismissButton = {
-                                    DesktopInlineAction(
-                                        label = "Annulla",
-                                        onClick = { pendingSkipWeek = false },
-                                    )
-                                },
-                            )
-                        }
-
-                        WeekDetailHeader(
-                            weekLabel = weekLabel,
-                            monthLabel = monthLabel,
-                            isPast = selectedWeek.weekStartDate < currentMonday,
-                            isCurrent = isCurrent,
-                            isSkipped = isSkipped,
-                            canMutate = canMutate,
-                            canSkipWeek = canSkipWeek,
-                            onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
-                            onSkipWeek = { pendingSkipWeek = true },
-                            onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
-                        )
-
-                        if (!isSkipped && weekTotalSlots > 0) {
-                            WeekCoverageStrip(
-                                assigned = weekAssignedSlots,
-                                total = weekTotalSlots,
-                                fraction = fraction,
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                        ) {
-                            when {
-                                isSkipped -> {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        Text(
-                                            "Settimana saltata",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = sketch.inkSoft,
-                                        )
-                                        Text(
-                                            "Questa settimana è stata esclusa dal programma.\nClicca 'Riattiva' per ripristinarla.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = sketch.inkMuted,
-                                        )
+                                    if (compact) {
+                                        TextButton(onClick = {
+                                            showActions = false
+                                            scope.launch { drawerState.open() }
+                                        }) { Text("Apri Programmi") }
                                     }
                                 }
-                                selectedWeek.parts.isEmpty() -> {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(
-                                            "Nessuna parte configurata per questa settimana",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = sketch.inkMuted,
-                                        )
-                                    }
-                                }
-                                else -> {
-                                    val assignmentsByPart = weekAssignments.groupBy { it.weeklyPartId }
-                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        selectedWeek.parts.chunked(2).forEach { rowParts ->
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(IntrinsicSize.Min),
-                                            ) {
-                                                rowParts.forEach { part ->
-                                                    val partAssignments = assignmentsByPart[part.id] ?: emptyList()
-                                                    PartAssignmentCard(
-                                                        part = part,
-                                                        assignments = partAssignments,
-                                                        displayNumber = part.sortOrder + org.example.project.ui.components.DISPLAY_NUMBER_OFFSET,
-                                                        readOnly = !canMutate,
-                                                        showSexRuleChip = false,
-                                                        onAssignSlot = { slot ->
-                                                            personPickerVM.openPersonPicker(
-                                                                weekStartDate = selectedWeek.weekStartDate,
-                                                                weeklyPartId = part.id,
-                                                                slot = slot,
-                                                                weekPlanId = selectedWeek.id,
-                                                            )
-                                                        },
-                                                        onRemoveAssignment = { assignmentId ->
-                                                            val assignment = assignmentsById[assignmentId.value]
-                                                            if (assignment != null && !assignmentState.skipRemoveConfirm) {
-                                                                pendingAssignmentRemoval = PendingAssignmentRemoval(
-                                                                    assignment = assignment,
-                                                                    isHistoricalEdit = selectedWeek.weekStartDate < currentMonday,
-                                                                )
-                                                            } else {
-                                                                personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
-                                                            }
-                                                        },
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .fillMaxHeight(),
+                            }
+                        } else {
+                            val weekAssignments = lifecycleState.selectedProgramAssignments[selectedWeek.id.value] ?: emptyList()
+                            val weekTotalSlots = selectedWeek.parts.sumOf { it.partType.peopleCount }
+                            val weekAssignedSlots = weekAssignments.size
+                            val fraction = if (weekTotalSlots > 0) weekAssignedSlots.toFloat() / weekTotalSlots else 0f
+                            val isSkipped = selectedWeek.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED
+                            val isCurrent = selectedWeek.weekStartDate == currentMonday
+                            val canMutate = selectedWeek.canBeEditedManually()
+                            val canSkipWeek = resolveWeekActionUiState(selectedWeek).canSkipWeek
+                            val weekLabel = formatWeekRangeLabel(selectedWeek.weekStartDate, selectedWeek.weekStartDate.plusDays(6))
+                            val monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: ""
+
+                            if (pendingSkipWeek) {
+                                val skipHasAssignments = weekAssignments.isNotEmpty()
+                                AlertDialog(
+                                    onDismissRequest = { pendingSkipWeek = false },
+                                    title = { Text("Salta settimana") },
+                                    text = {
+                                        if (skipHasAssignments) {
+                                            Text("La settimana $weekLabel ha ${weekAssignments.size} assegnazioni che verranno cancellate. Continuare?")
+                                        } else {
+                                            Text("La settimana $weekLabel verrà esclusa dal programma. Continuare?")
+                                        }
+                                    },
+                                    confirmButton = {
+                                        DesktopInlineAction(
+                                            label = "Salta",
+                                            onClick = {
+                                                pendingSkipWeek = false
+                                                if (skipHasAssignments) {
+                                                    assignmentVM.confirmClearWeekAssignments(
+                                                        weekStartDate = selectedWeek.weekStartDate,
+                                                        onSuccess = { partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData) },
                                                     )
+                                                } else {
+                                                    partEditorVM.skipWeek(selectedWeek, onSuccess = reloadData)
                                                 }
-                                                if (rowParts.size == 1) Spacer(Modifier.weight(1f))
+                                            },
+                                            destructive = true,
+                                        )
+                                    },
+                                    dismissButton = {
+                                        DesktopInlineAction(
+                                            label = "Annulla",
+                                            onClick = { pendingSkipWeek = false },
+                                        )
+                                    },
+                                )
+                            }
+
+                            WeekDetailHeader(
+                                weekLabel = weekLabel,
+                                monthLabel = monthLabel,
+                                isPast = selectedWeek.weekStartDate < currentMonday,
+                                isCurrent = isCurrent,
+                                isSkipped = isSkipped,
+                                canMutate = canMutate,
+                                canSkipWeek = canSkipWeek,
+                                onOpenPartEditor = { partEditorVM.openPartEditor(selectedWeek) },
+                                onSkipWeek = { pendingSkipWeek = true },
+                                onReactivate = { partEditorVM.reactivateWeek(selectedWeek, onSuccess = reloadData) },
+                            )
+
+                            if (!isSkipped && weekTotalSlots > 0) {
+                                WeekCoverageStrip(
+                                    assigned = weekAssignedSlots,
+                                    total = weekTotalSlots,
+                                    fraction = fraction,
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                            ) {
+                                when {
+                                    isSkipped -> {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        ) {
+                                            Text(
+                                                "Settimana saltata",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = sketch.inkSoft,
+                                            )
+                                            Text(
+                                                "Questa settimana è stata esclusa dal programma.\nClicca 'Riattiva' per ripristinarla.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = sketch.inkMuted,
+                                            )
+                                        }
+                                    }
+                                    selectedWeek.parts.isEmpty() -> {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                "Nessuna parte configurata per questa settimana",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = sketch.inkMuted,
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        val assignmentsByPart = weekAssignments.groupBy { it.weeklyPartId }
+                                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                                            val cardColumns = if (maxWidth < 600.dp) 1 else 2
+                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                selectedWeek.parts.chunked(cardColumns).forEach { rowParts ->
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(IntrinsicSize.Min),
+                                                    ) {
+                                                        rowParts.forEach { part ->
+                                                            val partAssignments = assignmentsByPart[part.id] ?: emptyList()
+                                                            PartAssignmentCard(
+                                                                part = part,
+                                                                assignments = partAssignments,
+                                                                displayNumber = part.sortOrder + org.example.project.ui.components.DISPLAY_NUMBER_OFFSET,
+                                                                readOnly = !canMutate,
+                                                                showSexRuleChip = false,
+                                                                onAssignSlot = { slot ->
+                                                                    personPickerVM.openPersonPicker(
+                                                                        weekStartDate = selectedWeek.weekStartDate,
+                                                                        weeklyPartId = part.id,
+                                                                        slot = slot,
+                                                                        weekPlanId = selectedWeek.id,
+                                                                    )
+                                                                },
+                                                                onRemoveAssignment = { assignmentId ->
+                                                                    val assignment = assignmentsById[assignmentId.value]
+                                                                    if (assignment != null && !assignmentState.skipRemoveConfirm) {
+                                                                        pendingAssignmentRemoval = PendingAssignmentRemoval(
+                                                                            assignment = assignment,
+                                                                            isHistoricalEdit = selectedWeek.weekStartDate < currentMonday,
+                                                                        )
+                                                                    } else {
+                                                                        personPickerVM.removeAssignment(assignmentId, onSuccess = reloadData)
+                                                                    }
+                                                                },
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .fillMaxHeight(),
+                                                            )
+                                                        }
+                                                        if (rowParts.size < cardColumns) Spacer(Modifier.weight(1f))
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -825,165 +878,232 @@ fun ProgramWorkspaceScreen() {
                         }
                     }
                 }
-                // Center / right panel divider
-                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
-
-                // ── Right panel ────────────────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .width(296.dp)
-                        .fillMaxHeight()
-                        .background(sketch.panelRight),
-                ) {
-                    // Scrollable content
+                val actionsPanel: @Composable () -> Unit = {
                     Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                            .background(sketch.panelRight),
                     ) {
-                        // Quick actions row
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            if (lifecycleState.selectedProgramId != null) {
-                                if (!lifecycleState.isSelectedProgramPast) {
+                        // Scrollable content
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            // Quick actions row
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (lifecycleState.selectedProgramId != null) {
+                                    if (!lifecycleState.isSelectedProgramPast) {
+                                        ProgramRightPanelButton(
+                                            label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
+                                            icon = Icons.Filled.PlayArrow,
+                                            isPrimary = true,
+                                            enabled = !assignmentState.isAutoAssigning,
+                                            tooltip = "Distribuisce automaticamente le assegnazioni del mese selezionato",
+                                            onClick = {
+                                                lifecycleState.selectedProgramId?.let { programId ->
+                                                    assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
                                     ProgramRightPanelButton(
-                                        label = if (assignmentState.isAutoAssigning) "..." else "Autoassegna",
-                                        icon = Icons.Filled.PlayArrow,
-                                        isPrimary = true,
-                                        enabled = !assignmentState.isAutoAssigning,
-                                        tooltip = "Distribuisce automaticamente le assegnazioni del mese selezionato",
+                                        label = if (assignmentState.isLoadingAssignmentTickets) "Generazione biglietti..." else "Biglietti assegnazioni",
+                                        icon = Icons.Filled.Image,
+                                        isPrimary = false,
+                                        enabled = !assignmentState.isLoadingAssignmentTickets,
+                                        tooltip = "Genera e apre i biglietti immagine per le assegnazioni del mese",
                                         onClick = {
                                             lifecycleState.selectedProgramId?.let { programId ->
-                                                assignmentVM.autoAssignSelectedProgram(programId, currentMonday, onSuccess = reloadData)
+                                                assignmentVM.openAssignmentTickets(programId)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    assignmentState.deliverySnapshot?.let { snapshot ->
+                                        DeliveryBadge(
+                                            snapshot = snapshot,
+                                            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp),
+                                        )
+                                    }
+                                    ProgramRightPanelButton(
+                                        label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
+                                        icon = Icons.Filled.PictureAsPdf,
+                                        isPrimary = false,
+                                        iconColor = MaterialTheme.workspaceSketch.bad,
+                                        enabled = !assignmentState.isPrintingProgram,
+                                        tooltip = "Genera il PDF del programma mensile attuale",
+                                        onClick = {
+                                            lifecycleState.selectedProgramId?.let { programId ->
+                                                assignmentVM.printSelectedProgram(programId)
                                             }
                                         },
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
-                                ProgramRightPanelButton(
-                                    label = if (assignmentState.isLoadingAssignmentTickets) "Generazione biglietti..." else "Biglietti assegnazioni",
-                                    icon = Icons.Filled.Image,
-                                    isPrimary = false,
-                                    enabled = !assignmentState.isLoadingAssignmentTickets,
-                                    tooltip = "Genera e apre i biglietti immagine per le assegnazioni del mese",
-                                    onClick = {
-                                        lifecycleState.selectedProgramId?.let { programId ->
-                                            assignmentVM.openAssignmentTickets(programId)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
+                            }
+
+                            // Coverage card (month level)
+                            if (selectedProgram != null) {
+                                var completeWeeks = 0
+                                var partialWeeks = 0
+                                var emptyWeeks = 0
+                                lifecycleState.selectedProgramWeeks.forEach { week ->
+                                    if (week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED) return@forEach
+                                    val assigned = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
+                                    val total = week.parts.sumOf { it.partType.peopleCount }
+                                    when {
+                                        assigned >= total && total > 0 -> completeWeeks++
+                                        assigned > 0 -> partialWeeks++
+                                        else -> emptyWeeks++
+                                    }
+                                }
+                                ProgramCoverageCard(
+                                    programLabel = formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
+                                    assigned = totalAssignments,
+                                    total = totalSlots,
+                                    completeWeeks = completeWeeks,
+                                    partialWeeks = partialWeeks,
+                                    emptyWeeks = emptyWeeks,
                                 )
-                                assignmentState.deliverySnapshot?.let { snapshot ->
-                                    DeliveryBadge(
-                                        snapshot = snapshot,
-                                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp),
+                            }
+
+                            // Settings (collapsible, closed by default)
+                            var settingsOpen by remember { mutableStateOf(false) }
+                            RightPanelCollapsibleSection(
+                                title = "IMPOSTAZIONI",
+                                open = settingsOpen,
+                                onToggle = { settingsOpen = !settingsOpen },
+                            ) {
+                                Box(modifier = Modifier.testTag("program-assignment-settings")) {
+                                    ProgramInlineAssignmentSettings(
+                                        state = assignmentState.assignmentSettings,
+                                        skipRemoveConfirm = assignmentState.skipRemoveConfirm,
+                                        onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
+                                        onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
+                                        onAssistCooldownChange = assignmentVM::setAssistCooldownWeeks,
+                                        onSave = assignmentVM::saveAssignmentSettings,
                                     )
                                 }
-                                ProgramRightPanelButton(
-                                    label = if (assignmentState.isPrintingProgram) "Generazione PDF programma..." else "Stampa PDF programma",
-                                    icon = Icons.Filled.PictureAsPdf,
-                                    isPrimary = false,
-                                    iconColor = MaterialTheme.workspaceSketch.bad,
-                                    enabled = !assignmentState.isPrintingProgram,
-                                    tooltip = "Genera il PDF del programma mensile attuale",
+                            }
+
+                            // Issues panel
+                            if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
+                                ProgramIssuesPanel(issues = assignmentState.autoAssignUnresolved)
+                            }
+                        }
+
+                        // Danger zone (pinned to bottom)
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
+                        Column(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                "AZIONI IRREVERSIBILI",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.6.sp,
+                                ),
+                                color = sketch.bad.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+                            )
+                            if (hasFutureWeeks) {
+                                ProgramDangerButton(
+                                    label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni future",
+                                    icon = Icons.Filled.ClearAll,
+                                    enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
+                                    tooltip = "Rimuove tutte le assegnazioni future dal mese selezionato",
                                     onClick = {
                                         lifecycleState.selectedProgramId?.let { programId ->
-                                            assignmentVM.printSelectedProgram(programId)
+                                            assignmentVM.requestClearAssignments(programId, fromFutureDate)
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
-                        }
-
-                        // Coverage card (month level)
-                        if (selectedProgram != null) {
-                            var completeWeeks = 0
-                            var partialWeeks = 0
-                            var emptyWeeks = 0
-                            lifecycleState.selectedProgramWeeks.forEach { week ->
-                                if (week.status == org.example.project.feature.weeklyparts.domain.WeekPlanStatus.SKIPPED) return@forEach
-                                val assigned = lifecycleState.selectedProgramAssignments[week.id.value]?.size ?: 0
-                                val total = week.parts.sumOf { it.partType.peopleCount }
-                                when {
-                                    assigned >= total && total > 0 -> completeWeeks++
-                                    assigned > 0 -> partialWeeks++
-                                    else -> emptyWeeks++
-                                }
-                            }
-                            ProgramCoverageCard(
-                                programLabel = formatMonthYearLabel(selectedProgram.month, selectedProgram.year),
-                                assigned = totalAssignments,
-                                total = totalSlots,
-                                completeWeeks = completeWeeks,
-                                partialWeeks = partialWeeks,
-                                emptyWeeks = emptyWeeks,
-                            )
-                        }
-
-                        // Settings (collapsible, closed by default)
-                        var settingsOpen by remember { mutableStateOf(false) }
-                        RightPanelCollapsibleSection(
-                            title = "IMPOSTAZIONI",
-                            open = settingsOpen,
-                            onToggle = { settingsOpen = !settingsOpen },
-                        ) {
-                            Box(modifier = Modifier.testTag("program-assignment-settings")) {
-                                ProgramInlineAssignmentSettings(
-                                    state = assignmentState.assignmentSettings,
-                                    skipRemoveConfirm = assignmentState.skipRemoveConfirm,
-                                    onSkipRemoveConfirmChange = assignmentVM::setSkipRemoveConfirm,
-                                    onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
-                                    onAssistCooldownChange = assignmentVM::setAssistCooldownWeeks,
-                                    onSave = assignmentVM::saveAssignmentSettings,
+                            if (lifecycleState.canDeleteSelectedProgram) {
+                                ProgramDangerButton(
+                                    label = if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese",
+                                    icon = Icons.Filled.Delete,
+                                    enabled = !lifecycleState.isDeletingSelectedProgram,
+                                    tooltip = "Elimina il mese selezionato con settimane e assegnazioni collegate",
+                                    onClick = { lifecycleVM.requestDeleteSelectedProgram() },
                                 )
                             }
-                        }
-
-                        // Issues panel
-                        if (assignmentState.autoAssignUnresolved.isNotEmpty()) {
-                            ProgramIssuesPanel(issues = assignmentState.autoAssignUnresolved)
                         }
                     }
-
-                    // Danger zone (pinned to bottom)
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft.copy(alpha = 0.5f)))
-                    Column(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            "AZIONI IRREVERSIBILI",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                                fontSize = 9.sp,
-                                letterSpacing = 0.6.sp,
-                            ),
-                            color = sketch.bad.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
-                        )
-                        if (hasFutureWeeks) {
-                            ProgramDangerButton(
-                                label = if (assignmentState.isClearingAssignments) "Svuotamento..." else "Svuota assegnazioni future",
-                                icon = Icons.Filled.ClearAll,
-                                enabled = lifecycleState.selectedProgramId != null && !assignmentState.isClearingAssignments,
-                                tooltip = "Rimuove tutte le assegnazioni future dal mese selezionato",
-                                onClick = {
-                                    lifecycleState.selectedProgramId?.let { programId ->
-                                        assignmentVM.requestClearAssignments(programId, fromFutureDate)
-                                    }
-                                },
-                            )
+                }
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    gesturesEnabled = compact && drawerState.isOpen,
+                    modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                        if (drawerState.isOpen && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                            scope.launch { drawerState.close() }
+                            true
+                        } else false
+                    },
+                    drawerContent = {
+                        if (compact) ModalDrawerSheet(Modifier.width(360.dp).fillMaxHeight()) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    if (showActions) "Azioni programma" else "Programmi e settimane",
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                IconButton(onClick = { scope.launch { drawerState.close() } }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Chiudi pannello")
+                                }
+                            }
+                            Box(Modifier.weight(1f)) {
+                                if (showActions) actionsPanel() else programsPanel()
+                            }
                         }
-                        if (lifecycleState.canDeleteSelectedProgram) {
-                            ProgramDangerButton(
-                                label = if (lifecycleState.isDeletingSelectedProgram) "Eliminazione..." else "Elimina mese",
-                                icon = Icons.Filled.Delete,
-                                enabled = !lifecycleState.isDeletingSelectedProgram,
-                                tooltip = "Elimina il mese selezionato con settimane e assegnazioni collegate",
-                                onClick = { lifecycleVM.requestDeleteSelectedProgram() },
-                            )
+                    },
+                ) {
+                    Column(Modifier.fillMaxSize()) {
+                        if (compact) {
+                            FlowRow(
+                                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                TextButton(onClick = {
+                                    showActions = false
+                                    scope.launch { drawerState.open() }
+                                }) { Text("Programmi") }
+                                val weeks = lifecycleState.selectedProgramWeeks
+                                val weekIndex = weeks.indexOfFirst { it.id.value == effectiveSelectedWeekId }
+                                IconButton(
+                                    enabled = weekIndex > 0,
+                                    onClick = { selectedWeekId = weeks[weekIndex - 1].id.value },
+                                ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Settimana precedente") }
+                                IconButton(
+                                    enabled = weekIndex >= 0 && weekIndex < weeks.lastIndex,
+                                    onClick = { selectedWeekId = weeks[weekIndex + 1].id.value },
+                                ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Settimana successiva") }
+                                TextButton(onClick = {
+                                    showActions = true
+                                    scope.launch { drawerState.open() }
+                                }) { Text("Azioni") }
+                            }
+                        }
+                        Row(Modifier.weight(1f).fillMaxWidth()) {
+                            if (!compact) {
+                                Box(Modifier.width(210.dp)) { programsPanel() }
+                                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
+                            }
+                            Box(Modifier.weight(1f)) { weekPanel() }
+                            if (!compact) {
+                                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
+                                Box(Modifier.width(296.dp)) { actionsPanel() }
+                            }
                         }
                     }
                 }
@@ -991,13 +1111,11 @@ fun ProgramWorkspaceScreen() {
 
             // Status bar
             if (selectedProgram != null) {
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(24.dp)
                         .background(sketch.panelLeft)
                         .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(

@@ -12,7 +12,7 @@ data class WindowSettings(
     val positionYDp: Int = POSITION_UNSET,
 ) {
     companion object {
-        const val MIN_WIDTH_DP = 1200
+        const val MIN_WIDTH_DP = 1
         const val MIN_HEIGHT_DP = 760
         const val MAX_WIDTH_DP = 4000
         const val MAX_HEIGHT_DP = 2400

@@ -11,6 +11,8 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -207,12 +209,14 @@ fun DecoratedWindowScope.AppScreen(
                     radius = 1500f,
                 )
 
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(workspaceTokens.windowRadius))
                         .background(windowBackdrop),
                 ) {
+                    val compactToolbar = maxWidth < 1200.dp
+                    val showWindowTitle = maxWidth >= 600.dp
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         shape = RoundedCornerShape(workspaceTokens.windowRadius),
@@ -221,6 +225,170 @@ fun DecoratedWindowScope.AppScreen(
                         shadowElevation = 12.dp,
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
+                            val navigationButtons: @Composable () -> Unit = {
+                                visiblePrimaryNavigationSections(navigationSections).forEach { section ->
+                                    TopBarSectionButton(
+                                        selected = currentSection == section,
+                                        onClick = { navigateToSection(section) },
+                                        section = section,
+                                        tooltip = "Apri ${section.label}",
+                                        tag = when (section) {
+                                            AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
+                                            AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
+                                            AppSection.EQUITA -> TAG_SECTION_EQUITA
+                                            AppSection.DIAGNOSTICS -> TAG_SECTION_DIAGNOSTICA
+                                        },
+                                    )
+                                }
+                            }
+                            val toolbarActions: @Composable () -> Unit = {
+                                ThemeModeToggle(
+                                    darkTheme = isDarkTheme,
+                                    onCheckedChange = { checked ->
+                                        themeModeName = if (checked) ThemeMode.DARK.name else ThemeMode.LIGHT.name
+                                    },
+                                )
+                                ToolbarIconAction(
+                                    onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
+                                    icon = Icons.Filled.AdminPanelSettings,
+                                    contentDescription = "Strumenti amministrativi",
+                                    tooltip = ADMIN_TOOLBAR_TOOLTIP,
+                                    modifier = Modifier.alpha(
+                                        if (isAdminToolbarSelected(currentSection)) 0.75f else 0.35f
+                                    ),
+                                )
+                                Box {
+                                    UpdateToolbarAction(
+                                        state = updateState,
+                                        onClick = { isUpdateMenuExpanded = true },
+                                    )
+                                    DropdownMenu(
+                                        expanded = isUpdateMenuExpanded,
+                                        onDismissRequest = { isUpdateMenuExpanded = false },
+                                        properties = PopupProperties(focusable = true),
+                                        shape = RoundedCornerShape(12.dp),
+                                        containerColor = sketch.menuSurface,
+                                        border = BorderStroke(1.dp, sketch.menuBorder),
+                                        shadowElevation = 8.dp,
+                                    ) {
+                                            UpdateCenterMenu(
+                                                state = updateState,
+                                                onCheckUpdates = updateViewModel::checkUpdates,
+                                                onStartUpdate = updateViewModel::startUpdate,
+                                                onRestart = {
+                                                    updateViewModel.restartToInstall {
+                                                        isUpdateMenuExpanded = false
+                                                        onRestartRequested()
+                                                    }
+                                                },
+                                            )
+                                    }
+                                }
+                                Box {
+                                    ToolbarIconAction(
+                                        onClick = {
+                                            draftUiScale = uiScale
+                                            isSizeMenuExpanded = true
+                                        },
+                                        icon = Icons.Filled.FormatSize,
+                                        contentDescription = "Dimensione testo",
+                                        tooltip = "Regola la scala dell'interfaccia",
+                                    )
+                                    DropdownMenu(
+                                        expanded = isSizeMenuExpanded,
+                                        onDismissRequest = {
+                                            applyUiScale(draftUiScale)
+                                            isSizeMenuExpanded = false
+                                        },
+                                        properties = PopupProperties(focusable = true),
+                                        shape = RoundedCornerShape(12.dp),
+                                        containerColor = sketch.menuSurface,
+                                        border = BorderStroke(1.dp, sketch.menuBorder),
+                                        shadowElevation = 8.dp,
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .width(320.dp)
+                                                .padding(spacing.md),
+                                            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                                        ) {
+                                            val draftPercentage = draftUiScale.toUiScalePercentage()
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text("Dimensione testo", style = MaterialTheme.typography.titleSmall)
+                                                Surface(
+                                                    shape = RoundedCornerShape(999.dp),
+                                                    color = sketch.accentSoft,
+                                                    border = BorderStroke(1.dp, sketch.accent.copy(alpha = 0.52f)),
+                                                ) {
+                                                    Text(
+                                                        "${draftPercentage}%",
+                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = sketch.accent,
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                "Regola la scala dell'interfaccia",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = sketch.inkMuted,
+                                            )
+                                            Slider(
+                                                value = draftUiScale,
+                                                onValueChange = { draftUiScale = snapUiScale(it) },
+                                                onValueChangeFinished = { applyUiScale(draftUiScale) },
+                                                valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
+                                                steps = UI_SCALE_SLIDER_STEPS,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors = SliderDefaults.colors(
+                                                    thumbColor = sketch.accent,
+                                                    activeTrackColor = sketch.accent,
+                                                    inactiveTrackColor = sketch.lineSoft,
+                                                    activeTickColor = sketch.surface,
+                                                    inactiveTickColor = sketch.inkMuted.copy(alpha = 0.35f),
+                                                ),
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                            ) {
+                                                UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
+                                                    val presetScale = preset.toUiScale()
+                                                    ScaleMenuButton(
+                                                        onClick = { applyUiScale(presetScale) },
+                                                        enabled = draftPercentage != preset,
+                                                        selected = draftPercentage == preset,
+                                                        label = "${preset}%",
+                                                        tooltip = "Imposta la scala al ${preset}%",
+                                                        modifier = Modifier.weight(1f),
+                                                    )
+                                                }
+                                            }
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                            ) {
+                                                ScaleMenuButton(
+                                                    onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                    enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
+                                                    label = "-${UI_SCALE_STEP_PERCENT}%",
+                                                    tooltip = "Riduci la scala di ${UI_SCALE_STEP_PERCENT} punti",
+                                                )
+                                                ScaleMenuButton(
+                                                    onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
+                                                    enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
+                                                    label = "+${UI_SCALE_STEP_PERCENT}%",
+                                                    tooltip = "Aumenta la scala di ${UI_SCALE_STEP_PERCENT} punti",
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             TitleBar(
                                 modifier = Modifier
                                     .height(48.dp)
@@ -248,190 +416,42 @@ fun DecoratedWindowScope.AppScreen(
                                             color = sketch.toolbarSelectedInk,
                                         )
                                     }
-                                    Text(
+                                    if (showWindowTitle) Text(
                                         text = "Scuola di ministero",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = sketch.toolbarInk,
                                     )
                                 }
 
-                                Row(
+                                if (!compactToolbar) Row(
                                     modifier = Modifier.align(Alignment.CenterHorizontally),
                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    visiblePrimaryNavigationSections(navigationSections).forEach { section ->
-                                        TopBarSectionButton(
-                                            selected = currentSection == section,
-                                            onClick = { navigateToSection(section) },
-                                            section = section,
-                                            tooltip = "Apri ${section.label}",
-                                            tag = when (section) {
-                                                AppSection.PLANNING -> TAG_SECTION_PROGRAMMA
-                                                AppSection.PROCLAMATORI -> TAG_SECTION_PROCLAMATORI
-                                                AppSection.EQUITA -> TAG_SECTION_EQUITA
-                                                AppSection.DIAGNOSTICS -> TAG_SECTION_DIAGNOSTICA
-                                            },
-                                        )
-                                    }
+                                    navigationButtons()
                                 }
 
-                                Row(
+                                if (!compactToolbar) Row(
                                     modifier = Modifier
                                         .align(Alignment.End)
                                         .padding(end = spacing.sm),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                                 ) {
-                                    ThemeModeToggle(
-                                        darkTheme = isDarkTheme,
-                                        onCheckedChange = { checked ->
-                                            themeModeName = if (checked) ThemeMode.DARK.name else ThemeMode.LIGHT.name
-                                        },
-                                    )
-                                    ToolbarIconAction(
-                                        onClick = { navigateToSection(AppSection.DIAGNOSTICS) },
-                                        icon = Icons.Filled.AdminPanelSettings,
-                                        contentDescription = "Strumenti amministrativi",
-                                        tooltip = ADMIN_TOOLBAR_TOOLTIP,
-                                        modifier = Modifier.alpha(
-                                            if (isAdminToolbarSelected(currentSection)) 0.75f else 0.35f
-                                        ),
-                                    )
-                                    Box {
-                                        UpdateToolbarAction(
-                                            state = updateState,
-                                            onClick = { isUpdateMenuExpanded = true },
-                                        )
-                                        DropdownMenu(
-                                            expanded = isUpdateMenuExpanded,
-                                            onDismissRequest = { isUpdateMenuExpanded = false },
-                                            properties = PopupProperties(focusable = true),
-                                            shape = RoundedCornerShape(12.dp),
-                                            containerColor = sketch.menuSurface,
-                                            border = BorderStroke(1.dp, sketch.menuBorder),
-                                            shadowElevation = 8.dp,
-                                        ) {
-                                                UpdateCenterMenu(
-                                                    state = updateState,
-                                                    onCheckUpdates = updateViewModel::checkUpdates,
-                                                    onStartUpdate = updateViewModel::startUpdate,
-                                                    onRestart = {
-                                                        updateViewModel.restartToInstall {
-                                                            isUpdateMenuExpanded = false
-                                                            onRestartRequested()
-                                                        }
-                                                    },
-                                                )
-                                        }
-                                    }
-                                    Box {
-                                        ToolbarIconAction(
-                                            onClick = {
-                                                draftUiScale = uiScale
-                                                isSizeMenuExpanded = true
-                                            },
-                                            icon = Icons.Filled.FormatSize,
-                                            contentDescription = "Dimensione testo",
-                                            tooltip = "Regola la scala dell'interfaccia",
-                                        )
-                                        DropdownMenu(
-                                            expanded = isSizeMenuExpanded,
-                                            onDismissRequest = {
-                                                applyUiScale(draftUiScale)
-                                                isSizeMenuExpanded = false
-                                            },
-                                            properties = PopupProperties(focusable = true),
-                                            shape = RoundedCornerShape(12.dp),
-                                            containerColor = sketch.menuSurface,
-                                            border = BorderStroke(1.dp, sketch.menuBorder),
-                                            shadowElevation = 8.dp,
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .width(320.dp)
-                                                    .padding(spacing.md),
-                                                verticalArrangement = Arrangement.spacedBy(spacing.sm),
-                                            ) {
-                                                val draftPercentage = draftUiScale.toUiScalePercentage()
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                ) {
-                                                    Text("Dimensione testo", style = MaterialTheme.typography.titleSmall)
-                                                    Surface(
-                                                        shape = RoundedCornerShape(999.dp),
-                                                        color = sketch.accentSoft,
-                                                        border = BorderStroke(1.dp, sketch.accent.copy(alpha = 0.52f)),
-                                                    ) {
-                                                        Text(
-                                                            "${draftPercentage}%",
-                                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
-                                                            style = MaterialTheme.typography.labelMedium,
-                                                            color = sketch.accent,
-                                                        )
-                                                    }
-                                                }
-                                                Text(
-                                                    "Regola la scala dell'interfaccia",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = sketch.inkMuted,
-                                                )
-                                                Slider(
-                                                    value = draftUiScale,
-                                                    onValueChange = { draftUiScale = snapUiScale(it) },
-                                                    onValueChangeFinished = { applyUiScale(draftUiScale) },
-                                                    valueRange = UI_SCALE_MIN..UI_SCALE_MAX,
-                                                    steps = UI_SCALE_SLIDER_STEPS,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    colors = SliderDefaults.colors(
-                                                        thumbColor = sketch.accent,
-                                                        activeTrackColor = sketch.accent,
-                                                        inactiveTrackColor = sketch.lineSoft,
-                                                        activeTickColor = sketch.surface,
-                                                        inactiveTickColor = sketch.inkMuted.copy(alpha = 0.35f),
-                                                    ),
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                                                ) {
-                                                    UI_SCALE_PRESET_PERCENTAGES.forEach { preset ->
-                                                        val presetScale = preset.toUiScale()
-                                                        ScaleMenuButton(
-                                                            onClick = { applyUiScale(presetScale) },
-                                                            enabled = draftPercentage != preset,
-                                                            selected = draftPercentage == preset,
-                                                            label = "${preset}%",
-                                                            tooltip = "Imposta la scala al ${preset}%",
-                                                            modifier = Modifier.weight(1f),
-                                                        )
-                                                    }
-                                                }
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                ) {
-                                                    ScaleMenuButton(
-                                                        onClick = { applyUiScale((draftPercentage - UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage > UI_SCALE_MIN.toUiScalePercentage(),
-                                                        label = "-${UI_SCALE_STEP_PERCENT}%",
-                                                        tooltip = "Riduci la scala di ${UI_SCALE_STEP_PERCENT} punti",
-                                                    )
-                                                    ScaleMenuButton(
-                                                        onClick = { applyUiScale((draftPercentage + UI_SCALE_STEP_PERCENT).toUiScale()) },
-                                                        enabled = draftPercentage < UI_SCALE_MAX.toUiScalePercentage(),
-                                                        label = "+${UI_SCALE_STEP_PERCENT}%",
-                                                        tooltip = "Aumenta la scala di ${UI_SCALE_STEP_PERCENT} punti",
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
+                                    toolbarActions()
                                 }
                             }
 
+                            if (compactToolbar) {
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                                ) {
+                                    navigationButtons()
+                                    toolbarActions()
+                                }
+                            }
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                             ) {

@@ -504,10 +504,10 @@ fun PersonPickerDialog(
                 )
 
                 // Current assignee + strict rest toggle
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
                 ) {
                     // Current assignee chip (or empty spacer)
                     if (currentAssigneeName != null) {
@@ -587,7 +587,9 @@ fun PersonPickerDialog(
                     }
                 } else {
                     // Header row
-                    SuggestionHeaderRow()
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth >= 700.dp) SuggestionHeaderRow()
+                    }
 
                     HorizontalDivider()
 
@@ -721,143 +723,148 @@ private fun SuggestionRow(
         else -> backgroundColor
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .handCursorOnHover()
-            .hoverable(interactionSource = rowInteractionSource)
-            .background(rowBackgroundColor)
-            .padding(horizontal = spacing.lg, vertical = spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 700.dp
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .handCursorOnHover()
+                .hoverable(interactionSource = rowInteractionSource)
+                .background(rowBackgroundColor)
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
+            maxItemsInEachRow = if (compact) 1 else Int.MAX_VALUE,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SuggestionSexAvatar(
-                nome = suggestion.proclamatore.nome,
-                cognome = suggestion.proclamatore.cognome,
-                sesso = suggestion.proclamatore.sesso,
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SuggestionSexAvatar(
+                    nome = suggestion.proclamatore.nome,
+                    cognome = suggestion.proclamatore.cognome,
+                    sesso = suggestion.proclamatore.sesso,
+                )
+                Text(
+                    text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = if (compact) 3 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (suggestion.sexMismatch) {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 6.dp)
+                            .background(sketch.warn.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                            .border(1.dp, sketch.warn.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    ) {
+                        Text(
+                            "sesso ≠",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = sketch.warn,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+            Text(
+                text = (if (compact) "Prima/Dopo (globale): " else "") + formatRecencyLabel(
+                    beforeWeeks = suggestion.lastGlobalBeforeWeeks,
+                    afterWeeks = suggestion.lastGlobalAfterWeeks,
+                ),
+                modifier = if (compact) Modifier.fillMaxWidth() else Modifier.width(WEEKS_COLUMN_WIDTH),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "${suggestion.proclamatore.nome} ${suggestion.proclamatore.cognome}",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                text = (if (compact) "Prima/Dopo (parte): " else "") + formatRecencyLabel(
+                    beforeWeeks = suggestion.lastForPartTypeBeforeWeeks,
+                    afterWeeks = suggestion.lastForPartTypeAfterWeeks,
+                ),
+                modifier = if (compact) Modifier.fillMaxWidth() else Modifier.width(WEEKS_COLUMN_WIDTH),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (suggestion.sexMismatch) {
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
-                        .background(sketch.warn.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                        .border(1.dp, sketch.warn.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                ) {
+            // Rest column — warning icon + amber text when overriding rest
+            Row(
+                modifier = if (compact) Modifier.fillMaxWidth() else Modifier.width(COOLDOWN_COLUMN_WIDTH),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                if (suggestion.inCooldown) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = sketch.warn,
+                    )
                     Text(
-                        "sesso ≠",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = (if (compact) "Riposo: " else "") + "${suggestion.cooldownRemainingWeeks} sett.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = sketch.warn,
-                        fontWeight = FontWeight.SemiBold,
+                    )
+                } else {
+                    Text(
+                        text = "-",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // Button — two-step confirm when overriding rest
+            val buttonColor = if (suggestion.inCooldown) sketch.warn else MaterialTheme.colorScheme.primary
+            val buttonLabel = when {
+                isAssigning -> "..."
+                suggestion.inCooldown && awaitingCooldownConfirm -> "Conferma"
+                else -> "Assegna"
+            }
+            val buttonIcon = if (suggestion.inCooldown && awaitingCooldownConfirm) Icons.Filled.Warning else Icons.Filled.Add
+            val buttonAction: () -> Unit = if (suggestion.inCooldown && !awaitingCooldownConfirm) {
+                { awaitingCooldownConfirm = true }
+            } else {
+                onAssign
+            }
+            val buttonShape = RoundedCornerShape(6.dp)
+            Surface(
+                modifier = Modifier
+                    .width(BUTTON_COLUMN_WIDTH)
+                    .height(36.dp)
+                    .clip(buttonShape)
+                    .handCursorOnHover(enabled = !isAssigning)
+                    .clickable(enabled = !isAssigning, onClick = buttonAction),
+                shape = buttonShape,
+                color = buttonColor.copy(alpha = if (isAssigning) 0.35f else 0.92f),
+                border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.9f)),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = spacing.sm),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        buttonIcon,
+                        contentDescription = buttonLabel,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color.White,
+                    )
+                    Spacer(Modifier.width(MaterialTheme.spacing.xs))
+                    Text(
+                        text = buttonLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
         }
-        Text(
-            text = formatRecencyLabel(
-                beforeWeeks = suggestion.lastGlobalBeforeWeeks,
-                afterWeeks = suggestion.lastGlobalAfterWeeks,
-            ),
-            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = formatRecencyLabel(
-                beforeWeeks = suggestion.lastForPartTypeBeforeWeeks,
-                afterWeeks = suggestion.lastForPartTypeAfterWeeks,
-            ),
-            modifier = Modifier.width(WEEKS_COLUMN_WIDTH),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // Rest column — warning icon + amber text when overriding rest
-        Row(
-            modifier = Modifier.width(COOLDOWN_COLUMN_WIDTH),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            if (suggestion.inCooldown) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = sketch.warn,
-                )
-                Text(
-                    text = "${suggestion.cooldownRemainingWeeks} sett.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = sketch.warn,
-                )
-            } else {
-                Text(
-                    text = "-",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        // Button — two-step confirm when overriding rest
-        val buttonColor = if (suggestion.inCooldown) sketch.warn else MaterialTheme.colorScheme.primary
-        val buttonLabel = when {
-            isAssigning -> "..."
-            suggestion.inCooldown && awaitingCooldownConfirm -> "Conferma"
-            else -> "Assegna"
-        }
-        val buttonIcon = if (suggestion.inCooldown && awaitingCooldownConfirm) Icons.Filled.Warning else Icons.Filled.Add
-        val buttonAction: () -> Unit = if (suggestion.inCooldown && !awaitingCooldownConfirm) {
-            { awaitingCooldownConfirm = true }
-        } else {
-            onAssign
-        }
-        val buttonShape = RoundedCornerShape(6.dp)
-        Surface(
-            modifier = Modifier
-                .width(BUTTON_COLUMN_WIDTH)
-                .height(36.dp)
-                .clip(buttonShape)
-                .handCursorOnHover(enabled = !isAssigning)
-                .clickable(enabled = !isAssigning, onClick = buttonAction),
-            shape = buttonShape,
-            color = buttonColor.copy(alpha = if (isAssigning) 0.35f else 0.92f),
-            border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.9f)),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = spacing.sm),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    buttonIcon,
-                    contentDescription = buttonLabel,
-                    modifier = Modifier.size(14.dp),
-                    tint = Color.White,
-                )
-                Spacer(Modifier.width(MaterialTheme.spacing.xs))
-                Text(
-                    text = buttonLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
+
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -77,28 +78,25 @@ internal fun EquitaSummaryCard(
         modifier = modifier,
     ) {
         if (riepilogo.dimenticatiDaTroppo.isNotEmpty() || righe.isNotEmpty()) {
-            Row(
+            FlowRow(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.md),
-                verticalAlignment = Alignment.Top,
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.md),
             ) {
                 if (riepilogo.dimenticatiDaTroppo.isNotEmpty()) {
                     EquitaForgottenNotice(
                         riepilogo = riepilogo,
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
+                            .widthIn(min = 300.dp).weight(1f),
                     )
                 } else {
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.widthIn(min = 300.dp).weight(1f))
                 }
                 EquitaPriorityPanels(
                     righe = righe,
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
+                        .widthIn(min = 300.dp).weight(1f),
                 )
             }
         }
@@ -174,7 +172,7 @@ internal fun EquitaList(
 ) {
     val spacing = MaterialTheme.spacing
     val listState = rememberLazyListState()
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxSize(),
@@ -188,10 +186,11 @@ internal fun EquitaList(
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
             stickyHeader(key = "equita-columns") {
-                EquitaColumnHeader()
+                EquitaColumnHeader(compact = maxWidth < 600.dp)
             }
             items(righe, key = { it.proclamatore.id.value }) { row ->
                 EquitaRow(
+                    compact = maxWidth < 600.dp,
                     row = row,
                     maxTotale = riepilogo.maxTotale.coerceAtLeast(1),
                     medianaTotale = riepilogo.medianaTotale,
@@ -209,6 +208,7 @@ internal fun EquitaList(
 
 @Composable
 private fun EquitaRow(
+    compact: Boolean,
     row: EquitaProclamatore,
     maxTotale: Int,
     medianaTotale: Int,
@@ -285,7 +285,7 @@ private fun EquitaRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            EquitaBulletCell(
+            if (!compact) EquitaBulletCell(
                 total = row.totaleInFinestra,
                 maxTotal = maxTotale,
                 medianTotal = medianaTotale,
@@ -498,7 +498,7 @@ private fun EquitaPriorityNotice(
 }
 
 @Composable
-private fun EquitaColumnHeader() {
+private fun EquitaColumnHeader(compact: Boolean) {
     val sketch = MaterialTheme.workspaceSketch
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -518,7 +518,7 @@ private fun EquitaColumnHeader() {
                 color = sketch.inkSoft,
                 modifier = Modifier.weight(1f),
             )
-            Text(
+            if (!compact) Text(
                 text = "Carico vs med.",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = sketch.inkSoft,

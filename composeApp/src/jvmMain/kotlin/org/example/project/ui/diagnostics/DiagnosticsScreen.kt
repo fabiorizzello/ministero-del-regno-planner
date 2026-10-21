@@ -382,7 +382,7 @@ fun DiagnosticsScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.sm), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     DiagnosticsRetentionOption.entries.forEach { option ->
                         DiagnosticsRetentionChip(
                             option = option,

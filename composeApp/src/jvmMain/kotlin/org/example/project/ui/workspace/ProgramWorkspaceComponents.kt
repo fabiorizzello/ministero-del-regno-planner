@@ -1520,72 +1520,77 @@ internal fun WeekDetailHeader(
     onReactivate: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
-    Column(modifier = Modifier.background(sketch.panelLeft)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        weekLabel,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            letterSpacing = (-0.3).sp,
-                        ),
-                        color = sketch.ink,
-                    )
+    BoxWithConstraints {
+        val compact = maxWidth < 700.dp
+        Column(modifier = Modifier.background(sketch.panelLeft)) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                maxItemsInEachRow = if (compact) 1 else 2,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            weekLabel,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                letterSpacing = (-0.3).sp,
+                            ),
+                            color = sketch.ink,
+                        )
+                        when {
+                            isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
+                            isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
+                            isPast -> {
+                                WeekDetailBadge("PASSATA", sketch.inkMuted)
+                                if (canMutate) {
+                                    WeekDetailBadge("MODIFICABILE", sketch.warn)
+                                }
+                            }
+                        }
+                    }
+                    Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     when {
-                        isCurrent -> WeekDetailBadge("CORRENTE", sketch.accent)
-                        isSkipped -> WeekDetailBadge("SALTATA", sketch.inkMuted)
-                        isPast -> {
-                            WeekDetailBadge("PASSATA", sketch.inkMuted)
-                            if (canMutate) {
-                                WeekDetailBadge("MODIFICABILE", sketch.warn)
+                        isSkipped -> WeekHdrButton(
+                            label = "Riattiva",
+                            icon = Icons.Filled.PlayCircle,
+                            fg = sketch.ok,
+                            border = sketch.ok.copy(alpha = 0.45f),
+                            onClick = onReactivate,
+                        )
+                        canMutate -> {
+                            WeekHdrButton(
+                                label = "Modifica parti",
+                                icon = Icons.Filled.Edit,
+                                fg = sketch.inkSoft,
+                                border = sketch.lineSoft,
+                                onClick = onOpenPartEditor,
+                            )
+                            if (canSkipWeek) {
+                                WeekHdrButton(
+                                    label = "Salta settimana",
+                                    icon = Icons.Filled.Block,
+                                    fg = sketch.inkSoft,
+                                    border = sketch.lineSoft,
+                                    onClick = onSkipWeek,
+                                )
                             }
                         }
                     }
                 }
-                Text(monthLabel, style = MaterialTheme.typography.bodySmall, color = sketch.inkMuted)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                when {
-                    isSkipped -> WeekHdrButton(
-                        label = "Riattiva",
-                        icon = Icons.Filled.PlayCircle,
-                        fg = sketch.ok,
-                        border = sketch.ok.copy(alpha = 0.45f),
-                        onClick = onReactivate,
-                    )
-                    canMutate -> {
-                        WeekHdrButton(
-                            label = "Modifica parti",
-                            icon = Icons.Filled.Edit,
-                            fg = sketch.inkSoft,
-                            border = sketch.lineSoft,
-                            onClick = onOpenPartEditor,
-                        )
-                        if (canSkipWeek) {
-                            WeekHdrButton(
-                                label = "Salta settimana",
-                                icon = Icons.Filled.Block,
-                                fg = sketch.inkSoft,
-                                border = sketch.lineSoft,
-                                onClick = onSkipWeek,
-                            )
-                        }
-                    }
-                }
-            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft))
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(sketch.lineSoft))
+
     }
 }
 

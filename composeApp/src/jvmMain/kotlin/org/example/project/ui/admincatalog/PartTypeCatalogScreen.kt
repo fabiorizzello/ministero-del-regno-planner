@@ -1,5 +1,7 @@
 package org.example.project.ui.admincatalog
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -99,8 +101,13 @@ internal fun PartTypeCatalogScreen() {
                                 onViewModeChange = viewModel::setViewMode,
                             )
                             when (state.viewMode) {
-                                PartTypeDetailViewMode.Dettaglio -> partTypeDetailRows(detail).forEach { (label, value) ->
-                                    AdminKeyValueRow(label = label, value = value)
+                                PartTypeDetailViewMode.Dettaglio -> Column(
+                                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.sm),
+                                ) {
+                                    partTypeDetailRows(detail).forEach { (label, value) ->
+                                        AdminKeyValueRow(label = label, value = value)
+                                    }
                                 }
                                 PartTypeDetailViewMode.Cronologia -> PartTypeRevisionList(
                                     isLoading = state.isLoadingRevisions,

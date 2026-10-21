@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,12 +25,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,35 +59,57 @@ internal fun AdminToolsShell(
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(sketch.windowBackground)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val compact = maxWidth < 600.dp
+        var menuExpanded by remember { mutableStateOf(false) }
+        Column(
+            Modifier.fillMaxSize().background(sketch.windowBackground)
+                .padding(if (compact) 12.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
             Text(
-                text = "Strumenti amministrativi",
-                style = MaterialTheme.typography.headlineMedium,
+                "Strumenti amministrativi",
+                color = sketch.ink,
+                style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                sections.forEach { item ->
-                    AdminSectionChip(
-                        label = item.section.label,
-                        selected = item.selected,
-                        tag = item.section.tag,
-                        icon = item.section.icon,
-                        onClick = { onSectionSelected(item.section) },
-                    )
+            if (compact) {
+                Box {
+                    OutlinedButton(onClick = { menuExpanded = true }) {
+                        Text(sections.first { it.selected }.section.label)
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Seleziona sezione amministrativa")
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        sections.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.section.label) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onSectionSelected(item.section)
+                                },
+                                modifier = Modifier.testTag(item.section.tag),
+                            )
+                        }
+                    }
+                }
+            } else {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    sections.forEach { item ->
+                        AdminSectionChip(
+                            label = item.section.label,
+                            selected = item.selected,
+                            tag = item.section.tag,
+                            icon = item.section.icon,
+                            onClick = { onSectionSelected(item.section) },
+                        )
+                    }
                 }
             }
+            Box(Modifier.fillMaxWidth().weight(1f)) { content() }
         }
-        content()
     }
 }
 
@@ -90,24 +120,17 @@ internal fun AdminSplitPane(
     detail: @Composable () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
-    Row(
-        modifier = modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.lg),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(360.dp)
-                .heightIn(min = 520.dp),
-        ) {
-            sidebar()
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 520.dp),
-        ) {
-            detail()
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        if (maxWidth < 900.dp) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.md)) {
+                Box(Modifier.fillMaxWidth().weight(0.35f)) { sidebar() }
+                Box(Modifier.fillMaxWidth().weight(0.65f)) { detail() }
+            }
+        } else {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(spacing.lg)) {
+                Box(Modifier.width(360.dp)) { sidebar() }
+                Box(Modifier.weight(1f)) { detail() }
+            }
         }
     }
 }
@@ -290,22 +313,27 @@ internal fun AdminKeyValueRow(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.widthIn(min = 120.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val compact = maxWidth < 400.dp
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            maxItemsInEachRow = if (compact) 1 else 2,
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.widthIn(min = 120.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
     }
 }
 

@@ -210,7 +210,7 @@ fun main() {
                 ) {
                     LaunchedEffect(Unit) {
                         window.minimumSize = Dimension(
-                            WindowSettings.MIN_WIDTH_DP,
+                            0,
                             WindowSettings.MIN_HEIGHT_DP,
                         )
                     }
