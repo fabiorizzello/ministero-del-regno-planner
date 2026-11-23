@@ -15,11 +15,13 @@ import org.example.project.feature.assignments.application.SalvaImpostazioniAsse
 import org.example.project.feature.assignments.application.SvuotaAssegnazioniProgrammaUseCase
 import org.example.project.feature.assignments.application.AutoAssignProgramResult
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
+import org.example.project.feature.assignments.application.AssignmentSettings
 import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.AssignmentTicketLine
 import org.example.project.feature.output.application.CaricaRiepilogoConsegneProgrammaUseCase
 import org.example.project.feature.output.application.CaricaStatoConsegneUseCase
 import org.example.project.feature.output.application.GeneraImmaginiAssegnazioniUseCase
+import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.application.AnnullaConsegnaUseCase
 import org.example.project.feature.output.application.SegnaComInviatoUseCase
 import org.example.project.feature.output.application.TicketGenerationResult
@@ -63,6 +65,37 @@ class AssignmentManagementViewModelTest {
 
         assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
         coVerify(exactly = 0) { salva(any()) }
+    }
+
+    @Test
+    fun `il filtro riposo salva l'ultima scelta fatta durante un salvataggio`() = runTest {
+        val firstSaveStarted = CompletableDeferred<Unit>()
+        val completeFirstSave = CompletableDeferred<Unit>()
+        val savedValues = mutableListOf<Boolean>()
+        val salva = mockk<SalvaImpostazioniAssegnatoreUseCase>()
+        coEvery { salva(any()) } coAnswers {
+            val strictCooldown = firstArg<AssignmentSettings>().strictCooldown
+            if (!strictCooldown) {
+                firstSaveStarted.complete(Unit)
+                completeFirstSave.await()
+            }
+            savedValues.add(strictCooldown)
+            Either.Right(Unit)
+        }
+        val vm = makeViewModel(scope = this, salva = salva)
+
+        vm.setStrictCooldown(false)
+        firstSaveStarted.await()
+        vm.setStrictCooldown(true)
+        vm.setStrictCooldown(false)
+        vm.setStrictCooldown(true)
+        completeFirstSave.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf(false, true), savedValues)
+        assertTrue(vm.uiState.value.assignmentSettings.strictCooldown)
+        assertFalse(vm.uiState.value.isSavingAssignmentSettings)
+        assertTrue(vm.uiState.value.settingsSaved)
     }
 
     // ── autoAssignSelectedProgram busy-guard ──────────────────────────────────
@@ -205,13 +238,14 @@ class AssignmentManagementViewModelTest {
             weeklyPartId = WeeklyPartId("p1"),
             weekPlanId = WeekPlanId("week-1"),
         )
-        coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()))
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Right(TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()))
 
         val vm = makeViewModel(scope = this, genera = genera)
-        vm.openAssignmentTickets(programId)
+        vm.openAssignmentTickets(programId, monthLabel = "marzo 2027")
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.isAssignmentTicketsDialogOpen)
+        assertEquals("marzo 2027", vm.uiState.value.assignmentTicketsMonthLabel)
         assertFalse(vm.uiState.value.isLoadingAssignmentTickets)
         assertEquals(listOf(ticket), vm.uiState.value.assignmentTickets)
         assertNull(vm.uiState.value.notice)
@@ -230,7 +264,7 @@ class AssignmentManagementViewModelTest {
             weeklyPartId = WeeklyPartId("p1"),
             weekPlanId = WeekPlanId("week-1"),
         )
-        coEvery { genera.generateProgramTickets(programId) } returns Either.Right(TicketGenerationResult(
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Right(TicketGenerationResult(
             tickets = listOf(ticket),
             warnings = emptyList(),
         ))
@@ -243,6 +277,45 @@ class AssignmentManagementViewModelTest {
         assertFalse(vm.uiState.value.isAssignmentTicketsDialogOpen)
         assertEquals(emptyList(), vm.uiState.value.assignmentTickets)
         assertNull(vm.uiState.value.assignmentTicketsError)
+    }
+
+    @Test
+    fun `i biglietti e gli avvisi correnti sono separati dallo storico con lo stesso cutoff dell'export`() = runTest {
+        val current = makeTicket()
+        val cutoff = current.weekStart
+        val folder = Paths.get("exports", "invio-2027-03")
+        val previous = current.copy(
+            weekStart = cutoff.minusWeeks(1),
+            weekEnd = current.weekEnd.minusWeeks(1),
+            imagePath = folder.resolve("Settimane passate").resolve("biglietto.png"),
+            weekPlanId = WeekPlanId("week-previous"),
+        )
+        val currentWarning = PartAssignmentWarning(cutoff, current.weekEnd, "Lettura", 0, 1)
+        val previousWarning = currentWarning.copy(weekStart = previous.weekStart, weekEnd = previous.weekEnd)
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
+        coEvery { genera.generateProgramTickets(programId, cutoff) } returns Either.Right(
+            TicketGenerationResult(
+                tickets = listOf(previous, current), warnings = listOf(previousWarning, currentWarning), exportFolder = folder,
+            ),
+        )
+        val caricaRiep = mockk<CaricaRiepilogoConsegneProgrammaUseCase>()
+        coEvery { caricaRiep(programId, cutoff) } returns Either.Right(ProgramDeliverySnapshot(pending = 1, blocked = 1))
+        val caricaStato = mockk<CaricaStatoConsegneUseCase>()
+        coEvery { caricaStato(listOf(previous.weekPlanId, current.weekPlanId)) } returns emptyMap()
+        val vm = makeViewModel(scope = this, genera = genera, caricaRiepilogo = caricaRiep, caricaStatoConsegne = caricaStato)
+        vm.loadDeliverySummary(programId, cutoff)
+        advanceUntilIdle()
+
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(listOf(current), state.assignmentTickets)
+        assertEquals(listOf(previous), state.historicalAssignmentTickets)
+        assertEquals(listOf(currentWarning), state.assignmentPartWarnings)
+        assertEquals(listOf(previousWarning), state.historicalAssignmentPartWarnings)
+        assertEquals(folder, state.assignmentTicketsFolder)
+        assertNull(state.ticketDeliveryError)
     }
 
     @Test
@@ -261,7 +334,7 @@ class AssignmentManagementViewModelTest {
     @Test
     fun `openAssignmentTickets mostra errore e testa loading su Either Left`() = runTest {
         val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
-        coEvery { genera.generateProgramTickets(programId) } returns Either.Left(DomainError.NotFound("Programma"))
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Left(DomainError.NotFound("Programma"))
 
         val vm = makeViewModel(scope = this, genera = genera)
         vm.openAssignmentTickets(programId)
@@ -295,7 +368,7 @@ class AssignmentManagementViewModelTest {
         coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 0, blocked = 0))
 
         val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
-        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+        coEvery { genera.generateProgramTickets(any(), any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
 
@@ -323,18 +396,25 @@ class AssignmentManagementViewModelTest {
     }
 
     @Test
-    fun `markAsDelivered errore mostra notice di errore`() = runTest {
+    fun `markAsDelivered mostra l'errore nella finestra dei biglietti`() = runTest {
         val ticket = makeTicket()
         val segna = mockk<SegnaComInviatoUseCase>()
         coEvery { segna(any(), any(), any(), any()) } returns Either.Left(DomainError.Validation("consegna fallita"))
 
-        val vm = makeViewModel(scope = this, segnaComInviato = segna)
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+        val vm = makeViewModel(scope = this, genera = genera, segnaComInviato = segna)
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
         vm.markAsDelivered(ticket)
         advanceUntilIdle()
 
         assertFalse(vm.uiState.value.isMarkingDelivered)
-        assertNotNull(vm.uiState.value.notice)
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+        assertNull(vm.uiState.value.notice)
+        val error = assertNotNull(vm.uiState.value.ticketDeliveryError)
+        assertTrue(error.contains("consegna fallita") && error.contains(ticket.fullName))
     }
 
     @Test
@@ -348,7 +428,7 @@ class AssignmentManagementViewModelTest {
         vm.markAsDelivered(ticket)
         advanceUntilIdle()
 
-        assertTrue(vm.uiState.value.isMarkingDelivered)
+        assertEquals(ticket.weeklyPartId to ticket.weekPlanId, vm.uiState.value.markingTicketKey)
         vm.markAsDelivered(ticket) // guard — should be ignored
 
         coVerify(exactly = 1) { segna(any(), any(), any(), any()) }
@@ -356,6 +436,38 @@ class AssignmentManagementViewModelTest {
         blocker.complete(Either.Right(Unit))
         advanceUntilIdle()
         assertFalse(vm.uiState.value.isMarkingDelivered)
+    }
+
+    @Test
+    fun `un errore tardivo di registrazione non appare nei biglietti di un altro programma`() = runTest {
+        val ticket = makeTicket()
+        val nextProgramId = ProgramMonthId("next")
+        val nextTicket = makeTicket(weeklyPartId = WeeklyPartId("p-next"), weekPlanId = WeekPlanId("week-next"))
+        val delivery = CompletableDeferred<Either<DomainError, Unit>>()
+        val segna = mockk<SegnaComInviatoUseCase>()
+        coEvery { segna(any(), any(), any(), any()) } coAnswers { delivery.await() }
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+        coEvery { genera.generateProgramTickets(nextProgramId, any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(nextTicket), warnings = emptyList()),
+        )
+        val vm = makeViewModel(scope = this, genera = genera, segnaComInviato = segna)
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
+        vm.markAsDelivered(ticket)
+        advanceUntilIdle()
+        vm.closeAssignmentTicketsDialog()
+        vm.openAssignmentTickets(nextProgramId)
+        advanceUntilIdle()
+
+        delivery.complete(Either.Left(DomainError.Validation("registrazione fallita")))
+        advanceUntilIdle()
+
+        assertEquals(listOf(nextTicket), vm.uiState.value.assignmentTickets)
+        assertNull(vm.uiState.value.ticketDeliveryError)
+        assertNull(vm.uiState.value.markingTicketKey)
     }
 
     // ── cancelDelivery ───────────────────────────────────────────────────────
@@ -380,7 +492,7 @@ class AssignmentManagementViewModelTest {
         coEvery { caricaRiep(any(), any()) } returns Either.Right(ProgramDeliverySnapshot(pending = 1, blocked = 0))
 
         val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
-        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+        coEvery { genera.generateProgramTickets(any(), any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
 
@@ -410,18 +522,26 @@ class AssignmentManagementViewModelTest {
     }
 
     @Test
-    fun `cancelDelivery errore mostra notice di errore`() = runTest {
+    fun `cancelDelivery mostra l'errore nella finestra e lo azzera alla chiusura`() = runTest {
         val ticket = makeTicket()
         val annulla = mockk<AnnullaConsegnaUseCase>()
         coEvery { annulla(any(), any()) } returns Either.Left(DomainError.Validation("annullamento fallito"))
 
-        val vm = makeViewModel(scope = this, annullaConsegna = annulla)
+        val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
+        coEvery { genera.generateProgramTickets(programId, any()) } returns Either.Right(
+            TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
+        )
+        val vm = makeViewModel(scope = this, genera = genera, annullaConsegna = annulla)
+        vm.openAssignmentTickets(programId)
+        advanceUntilIdle()
         vm.cancelDelivery(ticket)
         advanceUntilIdle()
 
         assertFalse(vm.uiState.value.isCancellingDelivery)
-        assertNotNull(vm.uiState.value.notice)
-        assertEquals(FeedbackBannerKind.ERROR, vm.uiState.value.notice?.kind)
+        assertNull(vm.uiState.value.notice)
+        assertTrue(assertNotNull(vm.uiState.value.ticketDeliveryError).contains("annullamento fallito"))
+        vm.closeAssignmentTicketsDialog()
+        assertNull(vm.uiState.value.ticketDeliveryError)
     }
 
     @Test
@@ -435,7 +555,7 @@ class AssignmentManagementViewModelTest {
         vm.cancelDelivery(ticket)
         advanceUntilIdle()
 
-        assertTrue(vm.uiState.value.isCancellingDelivery)
+        assertEquals(ticket.weeklyPartId to ticket.weekPlanId, vm.uiState.value.cancellingTicketKey)
         vm.cancelDelivery(ticket) // guard — should be ignored
 
         coVerify(exactly = 1) { annulla(any(), any()) }
@@ -461,7 +581,7 @@ class AssignmentManagementViewModelTest {
         )
 
         val genera = mockk<GeneraImmaginiAssegnazioniUseCase>()
-        coEvery { genera.generateProgramTickets(any()) } returns Either.Right(
+        coEvery { genera.generateProgramTickets(any(), any()) } returns Either.Right(
             TicketGenerationResult(tickets = listOf(ticket), warnings = emptyList()),
         )
 

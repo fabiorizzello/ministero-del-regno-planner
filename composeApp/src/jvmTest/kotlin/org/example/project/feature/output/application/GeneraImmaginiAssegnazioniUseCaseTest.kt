@@ -37,13 +37,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 
 class GeneraImmaginiAssegnazioniUseCaseTest {
 
     @Test
-    fun `generateProgramTickets crea png del mese, pulisce i vecchi e mantiene i metadati ordinati`() = runTest {
+    fun `generateProgramTickets separa lo storico dai biglietti correnti e mantiene nomi leggibili`() = runTest {
         val tempDir = Files.createTempDirectory("ticket-exports")
         val programId = ProgramMonthId("program-2026-03")
         val programStore = mockk<ProgramStore>()
@@ -54,7 +55,7 @@ class GeneraImmaginiAssegnazioniUseCaseTest {
             id = "week-1",
             monday = LocalDate.of(2026, 3, 2),
             status = WeekPlanStatus.ACTIVE,
-            parts = listOf(singleSlotPart("p1", "Lettura"), dualSlotPart("p2", "Visita")),
+            parts = listOf(singleSlotPart("p1", "Lettura"), dualSlotPart("p2", "Visita"), singleSlotPart("p5", "Commento")),
         )
         val skippedWeek = weekPlan(
             id = "week-2",
@@ -83,15 +84,17 @@ class GeneraImmaginiAssegnazioniUseCaseTest {
             createdAt = LocalDateTime.of(2026, 2, 20, 9, 0),
         )
         coEvery { weekPlanQueries.listByProgram(programId) } returns listOf(skippedWeek, weekThree, weekOne)
-        coEvery { assignmentRepository.listByWeekPlanIds(setOf(weekOne.id, weekThree.id)) } returns mapOf(
+        val assignments = mapOf(
             weekOne.id to listOf(
-                assignment("a1", weekOne.parts[0].id, "p-z", "Zeno", "Alfa", slot = 1),
+                assignment("a1", weekOne.parts[0].id, "p-z", "Zeno", "Alfà", slot = 1),
+                assignment("a4", weekOne.parts[2].id, "p-az", "ZENO", "ALFÀ", slot = 1),
             ),
             weekThree.id to listOf(
-                assignment("a2", weekThree.parts[0].id, "p-a", "Anna", "Bianchi", slot = 1),
+                assignment("a2", weekThree.parts[0].id, "p-a", "Anna", "D'Ambròsio/Verdi", slot = 1),
                 assignment("a3", weekThree.parts[0].id, "p-m", "Mario", "Rossi", slot = 2),
             ),
         )
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(weekOne.id, weekThree.id)) } returns assignments
 
         val useCase = GeneraImmaginiAssegnazioniUseCase(
             programStore = programStore,
@@ -104,14 +107,37 @@ class GeneraImmaginiAssegnazioniUseCaseTest {
             outputDirProvider = { tempDir },
         )
 
-        val result = useCase.generateProgramTickets(programId).getOrNull()!!
+        val result = useCase.generateProgramTickets(programId, weekThree.weekStartDate).getOrNull()!!
 
-        assertEquals(listOf("Zeno Alfa", "Anna Bianchi"), result.tickets.map { it.fullName })
+        assertEquals(listOf("Zeno Alfà", "ZENO ALFÀ", "Anna D'Ambròsio/Verdi"), result.tickets.map { it.fullName })
+        assertEquals(
+            listOf("Zeno Alfà - 2026-03-02.png", "ZENO ALFÀ - 2026-03-02 (2).png", "Anna D'Ambròsio-Verdi - 2026-03-16.png"),
+            result.tickets.map { it.imagePath.fileName.toString() },
+        )
         assertNull(result.tickets.first().assignments.single().roleLabel)
         assertNull(result.tickets.last().assignments.single().roleLabel)
         assertTrue(result.tickets.all { Files.exists(it.imagePath) })
-        assertTrue(result.tickets.all { it.imagePath.fileName.toString().startsWith("biglietto-") })
-        assertFalse(Files.exists(tempDir.resolve("biglietto-2026-03-old.png")))
+        val firstFolder = assertNotNull(result.exportFolder)
+        val historicalFolder = firstFolder.resolve("Settimane passate")
+        assertEquals(tempDir.resolve("biglietti-2026-03"), firstFolder.parent)
+        assertEquals(listOf(historicalFolder, historicalFolder, firstFolder), result.tickets.map { it.imagePath.parent })
+        Files.list(firstFolder).use { files ->
+            assertEquals(setOf(result.tickets.last().imagePath, historicalFolder), files.toList().toSet())
+        }
+        Files.list(historicalFolder).use { files ->
+            assertEquals(result.tickets.take(2).map { it.imagePath }.toSet(), files.toList().toSet())
+        }
+
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(weekOne.id, weekThree.id)) } returns
+            (assignments + (weekOne.id to assignments.getValue(weekOne.id).take(1)))
+        val regenerated = useCase.generateProgramTickets(programId, weekThree.weekStartDate).getOrNull()!!
+        val secondFolder = assertNotNull(regenerated.exportFolder)
+        assertFalse(firstFolder == secondFolder)
+        Files.walk(secondFolder).use { files ->
+            assertEquals(regenerated.tickets.map { it.imagePath }.toSet(), files.filter { Files.isRegularFile(it) }.toList().toSet())
+        }
+        assertEquals(listOf("Zeno Alfà", "Anna D'Ambròsio/Verdi"), regenerated.tickets.map { it.fullName })
+        assertTrue(Files.exists(tempDir.resolve("biglietto-2026-03-old.png")))
         assertTrue(Files.exists(tempDir.resolve("biglietto-2026-02-keep.png")))
         assertTrue(Files.exists(tempDir.resolve("other-file.png")))
     }
@@ -174,6 +200,17 @@ class GeneraImmaginiAssegnazioniUseCaseTest {
         assertTrue(parziale.isPartial)
         assertEquals(1, parziale.assignedCount)
         assertEquals(2, parziale.expectedCount)
+
+        coEvery { assignmentRepository.listByWeekPlanIds(setOf(week.id)) } returns mapOf(
+            week.id to listOf(assignment("a1", week.parts[1].id, "p-a", "Anna", "Bianchi", slot = 1)),
+        )
+        val allIncomplete = useCase.generateProgramTickets(programId).getOrNull()!!
+        assertNull(allIncomplete.exportFolder)
+        assertTrue(allIncomplete.tickets.isEmpty())
+        assertEquals(3, allIncomplete.warnings.size)
+        Files.list(tempDir.resolve("biglietti-2026-03")).use { dirs ->
+            assertEquals(1L, dirs.count())
+        }
     }
 
     @Test
@@ -357,13 +394,19 @@ class GeneraImmaginiAssegnazioniUseCaseTest {
             weekPlanQueries = weekPlanQueries,
             caricaAssegnazioni = caricaAssegnazioni,
             assignmentRepository = assignmentRepository,
-            renderer = TestAssignmentsRenderer { _, _ -> throw RuntimeException("PDF rendering fallito") },
+            renderer = TestAssignmentsRenderer { _, pngPath ->
+                Files.writeString(pngPath, "partial")
+                throw RuntimeException("PDF rendering fallito")
+            },
             outputDirProvider = { tempDir },
         )
 
-        val result = useCase.generateProgramTickets(programId)
+        val result = useCase.generateProgramTickets(programId, week.weekStartDate.plusWeeks(1))
 
         assertIs<arrow.core.Either.Left<DomainError.Validation>>(result)
+        Files.list(tempDir.resolve("biglietti-2026-03")).use { dirs ->
+            assertEquals(0L, dirs.count())
+        }
     }
 
     private fun weekPlan(

@@ -1,12 +1,15 @@
 package org.example.project.ui.workspace
 
+import arrow.core.Either
 import com.russhwolf.settings.Settings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.feature.assignments.application.AssignmentSettings
 import org.example.project.feature.assignments.application.AutoAssegnaProgrammaUseCase
 import org.example.project.feature.assignments.application.AutoAssignUnresolvedSlot
 import org.example.project.feature.assignments.application.CaricaImpostazioniAssegnatoreUseCase
@@ -26,6 +29,7 @@ import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.programs.domain.ProgramMonthId
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
 import org.example.project.feature.weeklyparts.domain.WeeklyPartId
+import org.example.project.core.domain.DomainError
 import org.example.project.core.domain.toMessage
 import org.example.project.ui.components.FeedbackBannerKind
 import org.example.project.ui.components.FeedbackBannerModel
@@ -33,7 +37,10 @@ import org.example.project.ui.components.errorNotice
 import org.example.project.ui.components.executeAsyncOperation
 import org.example.project.ui.components.executeEitherOperation
 import org.example.project.ui.components.successNotice
+import java.nio.file.Path
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 private const val KEY_SKIP_REMOVE_CONFIRM = "skip_assignment_removal_confirm"
 
@@ -50,12 +57,17 @@ internal data class AssignmentManagementUiState(
     val isPrintingProgram: Boolean = false,
     val isLoadingAssignmentTickets: Boolean = false,
     val isAssignmentTicketsDialogOpen: Boolean = false,
+    val assignmentTicketsMonthLabel: String = "",
     val assignmentTickets: List<AssignmentTicketImage> = emptyList(),
+    val historicalAssignmentTickets: List<AssignmentTicketImage> = emptyList(),
+    val assignmentTicketsFolder: Path? = null,
     val assignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
+    val historicalAssignmentPartWarnings: List<PartAssignmentWarning> = emptyList(),
     val assignmentTicketsError: String? = null,
     val deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo> = emptyMap(),
-    val isMarkingDelivered: Boolean = false,
-    val isCancellingDelivery: Boolean = false,
+    val markingTicketKey: Pair<WeeklyPartId, WeekPlanId>? = null,
+    val cancellingTicketKey: Pair<WeeklyPartId, WeekPlanId>? = null,
+    val ticketDeliveryError: String? = null,
     val isSavingAssignmentSettings: Boolean = false,
     val assignmentSettings: AssignmentSettingsUiState = AssignmentSettingsUiState(),
     val autoAssignUnresolved: List<AutoAssignUnresolvedSlot> = emptyList(),
@@ -68,7 +80,10 @@ internal data class AssignmentManagementUiState(
     val notice: FeedbackBannerModel? = null,
     val deliverySnapshot: ProgramDeliverySnapshot? = null,
     val isLoadingDeliverySnapshot: Boolean = false,
-)
+) {
+    val isMarkingDelivered: Boolean get() = markingTicketKey != null
+    val isCancellingDelivery: Boolean get() = cancellingTicketKey != null
+}
 
 internal class AssignmentManagementViewModel(
     private val scope: CoroutineScope,
@@ -90,6 +105,9 @@ internal class AssignmentManagementViewModel(
 
     private var currentProgramId: ProgramMonthId? = null
     private var currentReferenceDate: LocalDate? = null
+    private var pendingAssignmentSettings: AssignmentSettings? = null
+    private var ticketDialogVersion = 0L
+    private var deliveryStatusVersion = 0L
 
     fun loadDeliverySummary(programId: ProgramMonthId, referenceDate: LocalDate) {
         currentProgramId = programId
@@ -155,7 +173,6 @@ internal class AssignmentManagementViewModel(
     }
 
     fun saveAssignmentSettings() {
-        if (_uiState.value.isSavingAssignmentSettings) return
         val parsed = parseAssignmentSettings(_uiState.value.assignmentSettings)
         if (parsed == null) {
             _uiState.update {
@@ -169,18 +186,34 @@ internal class AssignmentManagementViewModel(
             return
         }
 
+        if (_uiState.value.isSavingAssignmentSettings) {
+            pendingAssignmentSettings = parsed
+            return
+        }
+        _uiState.update { it.copy(isSavingAssignmentSettings = true, settingsSaved = false) }
         scope.launch {
-            _uiState.executeEitherOperation(
-                loadingUpdate = { it.copy(isSavingAssignmentSettings = true) },
-                successUpdate = { state, _ -> state.copy(isSavingAssignmentSettings = false, settingsSaved = true) },
-                errorUpdate = { state, error ->
-                    state.copy(
-                        isSavingAssignmentSettings = false,
-                        notice = errorNotice(error.toMessage()),
+            var settingsToSave = pendingAssignmentSettings ?: parsed
+            pendingAssignmentSettings = null
+            while (true) {
+                val result = salvaImpostazioniAssegnatore(settingsToSave)
+                val pending = pendingAssignmentSettings
+                pendingAssignmentSettings = null
+                if (pending != null && (pending != settingsToSave || result.isLeft())) {
+                    settingsToSave = pending
+                    continue
+                }
+                _uiState.update { state ->
+                    result.fold(
+                        ifLeft = { error ->
+                            state.copy(isSavingAssignmentSettings = false, notice = errorNotice(error.toMessage()))
+                        },
+                        ifRight = {
+                            state.copy(isSavingAssignmentSettings = false, settingsSaved = true)
+                        },
                     )
-                },
-                operation = { salvaImpostazioniAssegnatore(parsed) },
-            )
+                }
+                break
+            }
         }
     }
 
@@ -245,56 +278,76 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    fun openAssignmentTickets(programId: ProgramMonthId) {
+    fun openAssignmentTickets(programId: ProgramMonthId, monthLabel: String = "") {
         if (_uiState.value.isLoadingAssignmentTickets) return
+        val dialogVersion = ++ticketDialogVersion
+        val cutoff = currentReferenceDate
+            ?.takeIf { currentProgramId == programId }
+            ?: LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        _uiState.update {
+            it.copy(
+                isAssignmentTicketsDialogOpen = true,
+                assignmentTicketsMonthLabel = monthLabel,
+                isLoadingAssignmentTickets = true,
+                assignmentTickets = emptyList(),
+                historicalAssignmentTickets = emptyList(),
+                assignmentTicketsFolder = null,
+                assignmentPartWarnings = emptyList(),
+                historicalAssignmentPartWarnings = emptyList(),
+                assignmentTicketsError = null,
+                deliveryStatus = emptyMap(),
+                ticketDeliveryError = null,
+            )
+        }
         scope.launch {
-            _uiState.executeEitherOperation(
-                loadingUpdate = {
-                    it.copy(
-                        isAssignmentTicketsDialogOpen = true,
-                        isLoadingAssignmentTickets = true,
-                        assignmentTickets = emptyList(),
-                        assignmentTicketsError = null,
-                        deliveryStatus = emptyMap(),
-                    )
+            val generated = generaImmaginiAssegnazioni.generateProgramTickets(programId, cutoff)
+            if (dialogVersion != ticketDialogVersion) return@launch
+            generated.fold(
+                ifLeft = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoadingAssignmentTickets = false,
+                            assignmentTicketsError = error.toMessage(),
+                            notice = errorNotice(error.toMessage()),
+                        )
+                    }
                 },
-                successUpdate = { state, result ->
-                    val cutoff = currentReferenceDate ?: LocalDate.now()
-                    val futureTickets = result.tickets.filter { it.weekStart >= cutoff }
-                    val futureWarnings = result.warnings.filter { it.weekStart >= cutoff }
-                    scope.launch { loadDeliveryStatus(futureTickets) }
-                    state.copy(
-                        isAssignmentTicketsDialogOpen = true,
-                        isLoadingAssignmentTickets = false,
-                        assignmentTickets = futureTickets,
-                        assignmentPartWarnings = futureWarnings,
-                        assignmentTicketsError = null,
-                    )
+                ifRight = { result ->
+                    val (currentTickets, pastTickets) = result.tickets.partition { it.weekStart >= cutoff }
+                    val (currentWarnings, pastWarnings) = result.warnings.partition { it.weekStart >= cutoff }
+                    _uiState.update { state ->
+                        state.copy(
+                            assignmentTickets = currentTickets,
+                            historicalAssignmentTickets = pastTickets,
+                            assignmentTicketsFolder = result.exportFolder,
+                            assignmentPartWarnings = currentWarnings,
+                            historicalAssignmentPartWarnings = pastWarnings,
+                        )
+                    }
+                    loadDeliveryStatus(dialogVersion, result.tickets)
+                    if (dialogVersion == ticketDialogVersion) {
+                        _uiState.update { it.copy(isLoadingAssignmentTickets = false) }
+                    }
                 },
-                errorUpdate = { state, error ->
-                    state.copy(
-                        isAssignmentTicketsDialogOpen = true,
-                        isLoadingAssignmentTickets = false,
-                        assignmentTickets = emptyList(),
-                        assignmentPartWarnings = emptyList(),
-                        assignmentTicketsError = error.toMessage(),
-                        notice = errorNotice(error.toMessage()),
-                    )
-                },
-                operation = { generaImmaginiAssegnazioni.generateProgramTickets(programId) },
             )
         }
     }
 
     fun closeAssignmentTicketsDialog() {
+        ++ticketDialogVersion
         _uiState.update {
             it.copy(
                 isAssignmentTicketsDialogOpen = false,
+                assignmentTicketsMonthLabel = "",
                 isLoadingAssignmentTickets = false,
                 assignmentTickets = emptyList(),
+                historicalAssignmentTickets = emptyList(),
+                assignmentTicketsFolder = null,
                 assignmentPartWarnings = emptyList(),
+                historicalAssignmentPartWarnings = emptyList(),
                 assignmentTicketsError = null,
                 deliveryStatus = emptyMap(),
+                ticketDeliveryError = null,
             )
         }
     }
@@ -402,60 +455,83 @@ internal class AssignmentManagementViewModel(
     }
 
     fun markAsDelivered(ticket: AssignmentTicketImage) {
-        if (_uiState.value.isMarkingDelivered) return
-        scope.launch {
-            _uiState.update { it.copy(isMarkingDelivered = true) }
+        runTicketDeliveryAction(ticket, cancelling = false) {
             segnaComInviato(
                 weeklyPartId = ticket.weeklyPartId,
                 weekPlanId = ticket.weekPlanId,
                 studentName = ticket.fullName,
                 assistantName = ticket.assistantName,
-            ).fold(
-                ifLeft = { error ->
-                    _uiState.update {
-                        it.copy(isMarkingDelivered = false, notice = errorNotice(error.toMessage()))
-                    }
-                },
-                ifRight = {
-                    loadDeliveryStatus(_uiState.value.assignmentTickets)
-                    _uiState.update { it.copy(isMarkingDelivered = false) }
-                    refreshDeliverySummary()
-                }
             )
         }
     }
 
     fun cancelDelivery(ticket: AssignmentTicketImage) {
-        if (_uiState.value.isCancellingDelivery) return
-        scope.launch {
-            _uiState.update { it.copy(isCancellingDelivery = true) }
+        runTicketDeliveryAction(ticket, cancelling = true) {
             annullaConsegna(
                 weeklyPartId = ticket.weeklyPartId,
                 weekPlanId = ticket.weekPlanId,
-            ).fold(
-                ifLeft = { error ->
-                    _uiState.update {
-                        it.copy(isCancellingDelivery = false, notice = errorNotice(error.toMessage()))
-                    }
-                },
-                ifRight = {
-                    loadDeliveryStatus(_uiState.value.assignmentTickets)
-                    _uiState.update { it.copy(isCancellingDelivery = false) }
-                    refreshDeliverySummary()
-                }
             )
         }
     }
 
-    private suspend fun loadDeliveryStatus(tickets: List<AssignmentTicketImage>) {
+    private fun runTicketDeliveryAction(
+        ticket: AssignmentTicketImage,
+        cancelling: Boolean,
+        operation: suspend () -> Either<DomainError, Unit>,
+    ) {
+        val state = _uiState.value
+        if (state.isMarkingDelivered || state.isCancellingDelivery) return
+        val dialogVersion = ticketDialogVersion
+        val ticketKey = ticket.weeklyPartId to ticket.weekPlanId
+        _uiState.update {
+            it.copy(
+                markingTicketKey = ticketKey.takeUnless { cancelling },
+                cancellingTicketKey = ticketKey.takeIf { cancelling },
+                ticketDeliveryError = null,
+            )
+        }
+        scope.launch {
+            try {
+                operation().fold(
+                    ifLeft = { error ->
+                        if (dialogVersion == ticketDialogVersion && _uiState.value.isAssignmentTicketsDialogOpen) {
+                            val action = if (cancelling) "annullare" else "registrare"
+                            _uiState.update {
+                                it.copy(ticketDeliveryError = "Impossibile $action l'invio per ${ticket.fullName}. ${error.toMessage()}")
+                            }
+                        }
+                    },
+                    ifRight = {
+                        val current = _uiState.value
+                        val tickets = current.assignmentTickets + current.historicalAssignmentTickets
+                        if (tickets.any { it.weeklyPartId == ticket.weeklyPartId && it.weekPlanId == ticket.weekPlanId }) {
+                            loadDeliveryStatus(ticketDialogVersion, tickets)
+                        }
+                        refreshDeliverySummary()
+                    },
+                )
+            } finally {
+                _uiState.update { it.copy(markingTicketKey = null, cancellingTicketKey = null) }
+            }
+        }
+    }
+
+    private suspend fun loadDeliveryStatus(dialogVersion: Long, tickets: List<AssignmentTicketImage>) {
         val weekPlanIds = tickets.map { it.weekPlanId }.distinct()
-        if (weekPlanIds.isEmpty()) return
+        if (weekPlanIds.isEmpty() || dialogVersion != ticketDialogVersion) return
+        val requestVersion = ++deliveryStatusVersion
         try {
             val status = caricaStatoConsegne(weekPlanIds)
-            _uiState.update { it.copy(deliveryStatus = status) }
-        } catch (e: Exception) {
-            _uiState.update {
-                it.copy(notice = errorNotice("Errore caricamento stato consegne: ${e.message}"))
+            if (dialogVersion == ticketDialogVersion && requestVersion == deliveryStatusVersion) {
+                _uiState.update { it.copy(deliveryStatus = status) }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            if (dialogVersion == ticketDialogVersion && requestVersion == deliveryStatusVersion) {
+                _uiState.update {
+                    it.copy(ticketDeliveryError = "Impossibile leggere lo stato degli invii. ${error.message.orEmpty()}")
+                }
             }
         }
     }
@@ -479,11 +555,11 @@ internal class AssignmentManagementViewModel(
         }
     }
 
-    private fun parseAssignmentSettings(state: AssignmentSettingsUiState): org.example.project.feature.assignments.application.AssignmentSettings? {
+    private fun parseAssignmentSettings(state: AssignmentSettingsUiState): AssignmentSettings? {
         val leadCooldown = state.leadCooldownWeeks.trim().toIntOrNull() ?: return null
         val assistCooldown = state.assistCooldownWeeks.trim().toIntOrNull() ?: return null
         if (leadCooldown < 0 || assistCooldown < 0) return null
-        return org.example.project.feature.assignments.application.AssignmentSettings(
+        return AssignmentSettings(
             strictCooldown = state.strictCooldown,
             leadCooldownWeeks = leadCooldown,
             assistCooldownWeeks = assistCooldown,

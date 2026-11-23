@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
@@ -32,6 +36,78 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalComposeUiApi::class)
 class StudentsResponsiveLayoutTest {
+    @Test
+    fun `the edit dialog keeps save and cancel visible above the fold with many roles`() {
+        val height = 760
+        for (width in listOf(375, 1200)) {
+            val savedStates = mutableListOf<Boolean>()
+            val roles = (1..9).map { index ->
+                LeadEligibilityOptionUi(
+                    PartTypeId("role-$index"), "Conversazione $index", SexRule.entries.first(), true, true, true,
+                )
+            }
+            val scene = ImageComposeScene(width = width, height = height) {
+                AppTheme {
+                    var suspended by remember { mutableStateOf(false) }
+                    ProclamatoriFormDialogComponent(
+                        route = ProclamatoriRoute.Modifica(ProclamatoreId("student")),
+                        nome = "Mario",
+                        onNomeChange = {},
+                        cognome = "Rossi",
+                        onCognomeChange = {},
+                        sesso = Sesso.M,
+                        onSessoChange = {},
+                        sospeso = suspended,
+                        onSospesoChange = { suspended = it },
+                        puoAssistere = true,
+                        onPuoAssistereChange = {},
+                        leadEligibilityOptions = roles,
+                        lastAssistantAssignmentDate = null,
+                        onLeadEligibilityChange = { _, _ -> },
+                        onSetAllEligibilityChange = {},
+                        nomeTrim = "Mario",
+                        cognomeTrim = "Rossi",
+                        showFieldErrors = false,
+                        duplicateError = null,
+                        isCheckingDuplicate = false,
+                        canSubmitForm = true,
+                        canGoToNext = true,
+                        isLoading = false,
+                        formError = null,
+                        onSubmit = { savedStates += suspended },
+                        onNext = {},
+                        onCancel = {},
+                        onDismiss = {},
+                        onDelete = {},
+                    )
+                }
+            }
+            try {
+                scene.render()
+                if (width == 375) {
+                    assertTrue(nodes(scene).any {
+                        (it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.maxValue?.invoke() ?: 0f) > 0f
+                    }, "The roles should overflow the compact form")
+                }
+                for (label in listOf("Salva modifiche", "Annulla")) {
+                    val button = textNode(scene, label)
+                    val bounds = button.boundsInRoot
+                    assertTrue(bounds.height > 0 && bounds.top >= 0 && bounds.bottom <= height, "$label at $width dp")
+                    assertTrue(generateSequence(button) { it.parent }.none {
+                        it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null
+                    }, "$label must stay outside the scrollable content")
+                }
+                repeat(2) {
+                    click(scene, "Sospeso")
+                    click(scene, "Salva modifiche")
+                }
+                assertEquals(listOf(true, false), savedStates, "Suspension changes at $width dp")
+            } finally {
+                scene.close()
+            }
+        }
+    }
+
     @Test
     fun `compact cards retain sorting and page selection`() {
         val person = Proclamatore(ProclamatoreId("preview"), "Mario", "Rossi", Sesso.M)
@@ -145,7 +221,7 @@ class StudentsResponsiveLayoutTest {
     }
 
     private fun click(scene: ImageComposeScene, label: String) {
-        var node: SemanticsNode? = nodes(scene).first { it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == label } == true }
+        var node: SemanticsNode? = textNode(scene, label)
         while (node != null) {
             val action = node.config.getOrNull(SemanticsActions.OnClick)?.action
             if (action != null) {
@@ -158,6 +234,9 @@ class StudentsResponsiveLayoutTest {
         }
         error("Missing action for $label")
     }
+
+    private fun textNode(scene: ImageComposeScene, label: String): SemanticsNode =
+        nodes(scene).first { it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == label } == true }
 
     private fun save(scene: ImageComposeScene, name: String) {
         val file = File("build/responsive-preview/$name.png")

@@ -68,6 +68,7 @@ internal class PersonPickerViewModel(
         weeklyPartId: WeeklyPartId,
         slot: Int,
         weekPlanId: WeekPlanId,
+        strictCooldownOverride: Boolean? = null,
     ) {
         _state.update {
             it.copy(
@@ -80,7 +81,7 @@ internal class PersonPickerViewModel(
                 isPickerLoading = true,
             )
         }
-        loadSuggestions()
+        loadSuggestions(strictCooldownOverride)
     }
 
     fun reloadSuggestions(strictCooldownOverride: Boolean? = null) {

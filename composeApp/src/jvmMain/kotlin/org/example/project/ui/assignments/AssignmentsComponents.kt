@@ -69,6 +69,7 @@ fun PartAssignmentCard(
     onAssignSlot: (slot: Int) -> Unit,
     onRemoveAssignment: (AssignmentId) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
@@ -112,20 +113,17 @@ fun PartAssignmentCard(
             modifier = Modifier.fillMaxWidth().padding(spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            // Header row: display number + label + sex rule chip
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
+            val heading: @Composable (Modifier) -> Unit = { headingModifier ->
                 Text(
                     text = "$displayNumber. ${part.partType.label}",
-                    modifier = Modifier.weight(1f),
+                    modifier = headingModifier,
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = sketch.ink,
-                    maxLines = 2,
+                    maxLines = if (compact) 4 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+            val badges: @Composable () -> Unit = {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
@@ -149,6 +147,21 @@ fun PartAssignmentCard(
                     }
                 }
             }
+            if (compact) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                    heading(Modifier.fillMaxWidth())
+                    badges()
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    heading(Modifier.weight(1f))
+                    badges()
+                }
+            }
 
             // Content
             if (part.partType.peopleCount == 1) {
@@ -160,6 +173,7 @@ fun PartAssignmentCard(
                     readOnly = readOnly,
                     onAssign = { onAssignSlot(1) },
                     onRemove = { assignment?.let { onRemoveAssignment(it.id) } },
+                    compact = compact,
                 )
             } else {
                 // Multiple slots with role labels
@@ -172,6 +186,7 @@ fun PartAssignmentCard(
                         readOnly = readOnly,
                         onAssign = { onAssignSlot(slot) },
                         onRemove = { assignment?.let { onRemoveAssignment(it.id) } },
+                        compact = compact,
                     )
                 }
             }
@@ -187,41 +202,51 @@ private fun SlotRow(
     readOnly: Boolean,
     onAssign: () -> Unit,
     onRemove: () -> Unit,
+    compact: Boolean,
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-    ) {
-        if (label != null) {
-            Text(
-                text = "$label:",
-                modifier = Modifier.width(106.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = sketch.inkSoft,
-                maxLines = 1,
-            )
-        }
-
+    val role: @Composable (String, Modifier) -> Unit = { roleLabel, modifier ->
+        Text(
+            text = "$roleLabel:",
+            modifier = modifier,
+            style = MaterialTheme.typography.labelMedium,
+            color = sketch.inkSoft,
+            maxLines = 1,
+        )
+    }
+    val control: @Composable (Modifier) -> Unit = { modifier ->
         if (assignment != null) {
             AssignedPersonChip(
                 fullName = assignment.fullName,
                 readOnly = readOnly,
                 onOpenPicker = onAssign,
                 onRemove = onRemove,
-                modifier = Modifier.weight(1f),
+                modifier = modifier,
+                compact = compact,
             )
         } else {
             MissingAssignmentChip(
                 readOnly = readOnly,
                 onAssign = onAssign,
-                modifier = Modifier
-                    .weight(1f)
-                    .handCursorOnHover(),
+                modifier = modifier.handCursorOnHover(),
             )
+        }
+    }
+    if (compact) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            if (label != null) role(label, Modifier)
+            control(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            if (label != null) role(label, Modifier.width(106.dp))
+            control(Modifier.weight(1f))
         }
     }
 }
@@ -233,6 +258,7 @@ private fun AssignedPersonChip(
     onOpenPicker: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean,
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
@@ -276,18 +302,20 @@ private fun AssignedPersonChip(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        Icon(
-            imageVector = Icons.Filled.TaskAlt,
-            contentDescription = null,
-            modifier = Modifier.size(15.dp),
-            tint = if (readOnly) sketch.inkMuted else sketch.ok,
-        )
+        if (!compact) {
+            Icon(
+                imageVector = Icons.Filled.TaskAlt,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = if (readOnly) sketch.inkMuted else sketch.ok,
+            )
+        }
         Text(
             text = fullName,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             color = sketch.ink,
-            maxLines = 1,
+            maxLines = if (compact) 3 else 1,
             overflow = TextOverflow.Ellipsis,
         )
         if (!readOnly) {

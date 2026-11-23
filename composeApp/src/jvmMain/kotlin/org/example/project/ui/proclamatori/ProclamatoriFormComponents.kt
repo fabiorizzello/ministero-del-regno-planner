@@ -22,10 +22,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -36,6 +37,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,205 +136,224 @@ internal fun ProclamatoriFormContentForm(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
-            modifier = Modifier
-                .padding(spacing.lg)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            // ── Two-column layout: identity (left) + idoneità (right) ────────
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.xl),
-                verticalArrangement = Arrangement.spacedBy(spacing.lg),
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
             ) {
-                // ── LEFT: identity ──────────────────────────────────────────
-                Column(
-                    modifier = Modifier.width(IDENTITY_COLUMN_WIDTH),
-                    verticalArrangement = Arrangement.spacedBy(spacing.md),
-                ) {
-                    FormStudentAvatar(
-                        nome = nomeTrim.ifBlank { nome },
-                        cognome = cognomeTrim.ifBlank { cognome },
-                        sesso = sesso,
-                    )
-                    val textFieldColors = OutlinedTextFieldDefaults.colors(
-                        cursorColor = MaterialTheme.colorScheme.primary,
-                        errorCursorColor = MaterialTheme.colorScheme.error,
-                    )
-                    OutlinedTextField(
-                        value = nome,
-                        onValueChange = { if (it.length <= NAME_MAX_LENGTH) onNomeChange(it) },
-                        label = { Text("Nome *") },
-                        isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
-                        modifier = Modifier.fillMaxWidth().focusRequester(nameFr),
-                        singleLine = true,
-                        colors = textFieldColors,
-                        supportingText = {
-                            if (showFieldErrors && nomeTrim.isBlank()) {
-                                Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("${nome.length}/$NAME_MAX_LENGTH")
-                            }
-                        },
-                    )
-                    OutlinedTextField(
-                        value = cognome,
-                        onValueChange = { if (it.length <= NAME_MAX_LENGTH) onCognomeChange(it) },
-                        label = { Text("Cognome *") },
-                        isError = (showFieldErrors && cognomeTrim.isBlank()) || duplicateError != null,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = textFieldColors,
-                        supportingText = {
-                            when {
-                                showFieldErrors && cognomeTrim.isBlank() ->
-                                    Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
-                                duplicateError != null ->
-                                    Text(duplicateError, color = MaterialTheme.colorScheme.error)
-                                isCheckingDuplicate ->
-                                    Text("Verifica duplicato in corso...")
-                                else ->
-                                    Text("${cognome.length}/$NAME_MAX_LENGTH")
-                            }
-                        },
-                    )
-
-                    // ── Genere — pill toggle ─────────────────────────────
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "Genere",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                val identityFields: @Composable (Modifier) -> Unit = { modifier ->
+                    Column(
+                        modifier = modifier,
+                        verticalArrangement = Arrangement.spacedBy(spacing.md),
+                    ) {
+                        FormStudentAvatar(
+                            nome = nomeTrim.ifBlank { nome },
+                            cognome = cognomeTrim.ifBlank { cognome },
+                            sesso = sesso,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
-                                val selected = sesso == sVal
-                                val chipShape = RoundedCornerShape(8.dp)
-                                val accentBg = if (sVal == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
-                                val accentFg = if (sVal == Sesso.M) sketch.accent else sketch.avatarFemminaFg
-                                Surface(
-                                    modifier = Modifier
-                                        .clip(chipShape)
-                                        .clickable { onSessoChange(sVal) }
-                                        .handCursorOnHover(),
-                                    shape = chipShape,
-                                    color = if (selected) accentBg else MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(
-                                        1.5.dp,
-                                        if (selected) accentFg else sketch.lineStrong,
-                                    ),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        val textFieldColors = OutlinedTextFieldDefaults.colors(
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            errorCursorColor = MaterialTheme.colorScheme.error,
+                        )
+                        OutlinedTextField(
+                            value = nome,
+                            onValueChange = { if (it.length <= NAME_MAX_LENGTH) onNomeChange(it) },
+                            label = { Text("Nome *") },
+                            isError = (showFieldErrors && nomeTrim.isBlank()) || duplicateError != null,
+                            modifier = Modifier.fillMaxWidth().focusRequester(nameFr),
+                            singleLine = true,
+                            colors = textFieldColors,
+                            supportingText = {
+                                if (showFieldErrors && nomeTrim.isBlank()) {
+                                    Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
+                                } else {
+                                    Text("${nome.length}/$NAME_MAX_LENGTH")
+                                }
+                            },
+                        )
+                        OutlinedTextField(
+                            value = cognome,
+                            onValueChange = { if (it.length <= NAME_MAX_LENGTH) onCognomeChange(it) },
+                            label = { Text("Cognome *") },
+                            isError = (showFieldErrors && cognomeTrim.isBlank()) || duplicateError != null,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = textFieldColors,
+                            supportingText = {
+                                when {
+                                    showFieldErrors && cognomeTrim.isBlank() ->
+                                        Text("Campo obbligatorio", color = MaterialTheme.colorScheme.error)
+                                    duplicateError != null ->
+                                        Text(duplicateError, color = MaterialTheme.colorScheme.error)
+                                    isCheckingDuplicate ->
+                                        Text("Verifica duplicato in corso...")
+                                    else ->
+                                        Text("${cognome.length}/$NAME_MAX_LENGTH")
+                                }
+                            },
+                        )
+
+                        // ── Genere — pill toggle ─────────────────────────────
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "Genere",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(Sesso.M to "Uomo", Sesso.F to "Donna").forEach { (sVal, label) ->
+                                    val selected = sesso == sVal
+                                    val chipShape = RoundedCornerShape(8.dp)
+                                    val accentBg = if (sVal == Sesso.M) sketch.accentSoft else sketch.avatarFemminaBg
+                                    val accentFg = if (sVal == Sesso.M) sketch.accent else sketch.avatarFemminaFg
+                                    Surface(
+                                        modifier = Modifier
+                                            .clip(chipShape)
+                                            .clickable { onSessoChange(sVal) }
+                                            .handCursorOnHover(),
+                                        shape = chipShape,
+                                        color = if (selected) accentBg else MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(
+                                            1.5.dp,
+                                            if (selected) accentFg else sketch.lineStrong,
+                                        ),
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(10.dp)
-                                                .clip(RoundedCornerShape(999.dp))
-                                                .background(if (selected) accentFg else accentBg),
-                                        )
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = if (selected) accentFg else MaterialTheme.colorScheme.onSurface,
-                                        )
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(RoundedCornerShape(999.dp))
+                                                    .background(if (selected) accentFg else accentBg),
+                                            )
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = if (selected) accentFg else MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // ── Sospeso — secondary toggle ──────────────────────
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isLoading) { onSospesoChange(!sospeso) }
-                            .handCursorOnHover(enabled = !isLoading),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        // ── Sospeso — secondary toggle ──────────────────────
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .toggleable(
+                                    value = sospeso,
+                                    enabled = !isLoading,
+                                    role = Role.Switch,
+                                    onValueChange = onSospesoChange,
+                                )
+                                .handCursorOnHover(enabled = !isLoading),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "Sospeso",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                if (sospeso) {
-                                    "Escluso dall'assegnazione automatica"
-                                } else {
-                                    "Escludi dall'assegnazione automatica"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (sospeso) {
-                                    sketch.warn.copy(alpha = 0.82f)
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    "Sospeso",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    if (sospeso) {
+                                        "Escluso dalle nuove assegnazioni"
+                                    } else {
+                                        "Escludi dalle nuove assegnazioni"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = sospeso,
+                                onCheckedChange = null,
+                                enabled = !isLoading,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = sketch.surface,
+                                    checkedTrackColor = sketch.warn,
+                                    checkedBorderColor = sketch.warn,
+                                    uncheckedTrackColor = sketch.lineStrong,
+                                    uncheckedThumbColor = sketch.surface,
+                                    uncheckedBorderColor = sketch.lineStrong,
+                                    disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
+                                    disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
+                                    disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
+                                    disabledUncheckedThumbColor = sketch.surface,
+                                    disabledUncheckedTrackColor = sketch.lineSoft,
+                                    disabledUncheckedBorderColor = sketch.lineSoft,
+                                ),
                             )
                         }
-                        Switch(
-                            checked = sospeso,
-                            onCheckedChange = onSospesoChange,
-                            enabled = !isLoading,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = sketch.surface,
-                                checkedTrackColor = sketch.warn,
-                                checkedBorderColor = sketch.warn,
-                                uncheckedTrackColor = sketch.lineStrong,
-                                uncheckedThumbColor = sketch.surface,
-                                uncheckedBorderColor = sketch.lineStrong,
-                                disabledCheckedThumbColor = sketch.surface.copy(alpha = 0.96f),
-                                disabledCheckedTrackColor = sketch.warn.copy(alpha = 0.44f),
-                                disabledCheckedBorderColor = sketch.warn.copy(alpha = 0.62f),
-                                disabledUncheckedThumbColor = sketch.surface,
-                                disabledUncheckedTrackColor = sketch.lineSoft,
-                                disabledUncheckedBorderColor = sketch.lineSoft,
-                            ),
-                        )
                     }
                 }
 
-                // ── RIGHT: idoneità ─────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .widthIn(min = ELIGIBILITY_COLUMN_MIN_WIDTH)
-                        .weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Idoneità", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Seleziona i ruoli che può svolgere.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (leadEligibilityOptions.isNotEmpty()) {
-                        EligibilityTable(
-                            options = leadEligibilityOptions,
-                            onToggle = onLeadEligibilityChange,
-                            puoAssistere = puoAssistere,
-                            onPuoAssistereChange = onPuoAssistereChange,
-                            onSetAllEligibilityChange = onSetAllEligibilityChange,
-                            lastAssistantAssignmentDate = lastAssistantAssignmentDate,
-                            showHistoryColumns = !isNew,
-                            today = remember { LocalDate.now() },
-                        )
-                    } else {
+                val eligibilityFields: @Composable (Modifier) -> Unit = { modifier ->
+                    Column(
+                        modifier = modifier,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Idoneità", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Nessun ruolo disponibile. Usa Aggiorna schemi.",
+                            "Seleziona i ruoli che può svolgere.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (leadEligibilityOptions.isNotEmpty()) {
+                            EligibilityTable(
+                                options = leadEligibilityOptions,
+                                onToggle = onLeadEligibilityChange,
+                                puoAssistere = puoAssistere,
+                                onPuoAssistereChange = onPuoAssistereChange,
+                                onSetAllEligibilityChange = onSetAllEligibilityChange,
+                                lastAssistantAssignmentDate = lastAssistantAssignmentDate,
+                                showHistoryColumns = !isNew,
+                                today = remember { LocalDate.now() },
+                            )
+                        } else {
+                            Text(
+                                "Nessun ruolo disponibile. Usa Aggiorna schemi.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                // A weighted FlowRow would query intrinsic sizes, which EligibilityTable cannot provide.
+                val twoColumnsWidth = IDENTITY_COLUMN_WIDTH + spacing.xl + ELIGIBILITY_COLUMN_MIN_WIDTH
+                if (maxWidth < twoColumnsWidth) {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
+                        identityFields(Modifier.fillMaxWidth())
+                        eligibilityFields(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.xl)) {
+                        identityFields(Modifier.width(IDENTITY_COLUMN_WIDTH))
+                        eligibilityFields(Modifier.weight(1f))
                     }
                 }
             }
 
-            // ── Buttons ──────────────────────────────────────────────────────
+            HorizontalDivider(color = sketch.lineSoft)
+            if (formError != null) {
+                SelectionContainer {
+                    Text(formError, color = MaterialTheme.colorScheme.error)
+                }
+            }
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
@@ -350,7 +372,7 @@ internal fun ProclamatoriFormContentForm(
                         enabled = canSubmitForm,
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp, hoveredElevation = 0.dp),
                     ) {
-                        Text(if (isNew) "Salva" else "Aggiorna")
+                        Text(if (isNew) "Salva" else "Salva modifiche")
                     }
                 }
                 TooltipBox(
@@ -387,12 +409,6 @@ internal fun ProclamatoriFormContentForm(
                     ) {
                         Text("Elimina studente")
                     }
-                }
-            }
-
-            if (formError != null) {
-                SelectionContainer {
-                    Text(formError, color = MaterialTheme.colorScheme.error)
                 }
             }
         }

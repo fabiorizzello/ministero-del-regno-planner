@@ -7,7 +7,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,10 +49,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,6 +75,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
@@ -85,13 +88,14 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draganddrop.DragAndDropTransferAction
-import androidx.compose.ui.draganddrop.DragAndDropTransferData
-import androidx.compose.ui.draganddrop.DragAndDropTransferable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,17 +109,13 @@ import androidx.compose.ui.window.rememberDialogState
 import androidx.compose.ui.window.rememberWindowState
 import java.awt.Toolkit
 import java.awt.RenderingHints
-import java.awt.datatransfer.DataFlavor
-import java.awt.datatransfer.Transferable
-import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
 import javax.imageio.ImageIO
 import java.time.LocalDate
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,6 +125,7 @@ import org.example.project.feature.output.application.AssignmentTicketImage
 import org.example.project.feature.output.application.PartAssignmentWarning
 import org.example.project.feature.output.domain.SlipDeliveryInfo
 import org.example.project.feature.output.domain.SlipDeliveryStatus
+import org.example.project.feature.output.infrastructure.DesktopFileOpener
 import org.example.project.feature.weeklyparts.domain.PartType
 import org.example.project.feature.weeklyparts.domain.WeeklyPart
 import org.example.project.feature.weeklyparts.domain.WeekPlanId
@@ -140,7 +141,7 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-private val assignmentTicketDragLogger = KotlinLogging.logger("AssignmentTicketDragAndDrop")
+private val assignmentTicketFolderLogger = KotlinLogging.logger("AssignmentTicketFolder")
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -445,21 +446,6 @@ private data class WeekSection(
     val warnings: List<PartAssignmentWarning>,
 )
 
-@Composable
-private fun DialogCountChip(label: String, contentColor: Color, containerColor: Color) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = containerColor,
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = contentColor,
-        )
-    }
-}
-
 private fun buildWeekSections(
     tickets: List<AssignmentTicketImage>,
     warnings: List<PartAssignmentWarning>,
@@ -481,11 +467,15 @@ internal fun AssignmentTicketsDialog(
     monthLabel: String,
     tickets: List<AssignmentTicketImage>,
     partWarnings: List<PartAssignmentWarning>,
+    historicalAssignmentTickets: List<AssignmentTicketImage>,
+    historicalAssignmentPartWarnings: List<PartAssignmentWarning>,
+    assignmentTicketsFolder: Path?,
     deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo>,
     isLoading: Boolean,
     errorMessage: String?,
-    isMarkingDelivered: Boolean,
-    isCancellingDelivery: Boolean,
+    markingTicketKey: Pair<WeeklyPartId, WeekPlanId>?,
+    cancellingTicketKey: Pair<WeeklyPartId, WeekPlanId>?,
+    ticketDeliveryError: String?,
     onMarkAsDelivered: (AssignmentTicketImage) -> Unit,
     onCancelDelivery: (AssignmentTicketImage) -> Unit,
     onDismiss: () -> Unit,
@@ -493,7 +483,7 @@ internal fun AssignmentTicketsDialog(
     val sketch = MaterialTheme.workspaceSketch
     val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
 
-    val previewMap = remember(tickets) { mutableStateMapOf<Path, ImageBitmap?>() }
+    val previewMap = remember(assignmentTicketsFolder) { mutableStateMapOf<Path, ImageBitmap?>() }
     var previewTicket by remember { mutableStateOf<AssignmentTicketImage?>(null) }
 
     Window(
@@ -524,238 +514,37 @@ internal fun AssignmentTicketsDialog(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                if (!isLoading && errorMessage == null && assignmentTicketsFolder != null &&
+                    (tickets.isNotEmpty() || historicalAssignmentTickets.isNotEmpty())
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    AssignmentTicketsFolderAction(assignmentTicketsFolder)
+                }
+
+                if (ticketDeliveryError != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ) {
-                        Text(
-                            "Biglietti assegnazioni",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.5).sp,
-                            ),
-                            color = sketch.ink,
-                        )
-                        if (monthLabel.isNotBlank()) {
-                            Text(
-                                monthLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = sketch.inkMuted,
-                            )
-                        }
-                    }
-                    if (!isLoading && tickets.isNotEmpty()) {
-                        val pendingCount = tickets.count { ticket ->
-                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
-                            info == null || info.status != SlipDeliveryStatus.INVIATO
-                        }
-                        val sentCount = tickets.count { ticket ->
-                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
-                            info?.status == SlipDeliveryStatus.INVIATO
-                        }
-                        val blockedCount = partWarnings.size
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (pendingCount > 0) {
-                                DialogCountChip("$pendingCount da inviare", sketch.accent, sketch.accentSoft)
-                            }
-                            if (sentCount > 0) {
-                                DialogCountChip("$sentCount inviati", sketch.ok, sketch.ok.copy(alpha = 0.12f))
-                            }
-                            if (blockedCount > 0) {
-                                DialogCountChip("$blockedCount non inviabili", sketch.bad, sketch.bad.copy(alpha = 0.12f))
-                            }
-                        }
+                        Text(ticketDeliveryError, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                     }
                 }
 
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            WorkspaceStatePane(
-                                kind = WorkspaceStateKind.Loading,
-                                message = "Generazione biglietti del mese in corso...",
-                                modifier = Modifier.width(420.dp),
-                            )
-                        }
-                    }
-                    errorMessage != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            WorkspaceStatePane(
-                                kind = WorkspaceStateKind.Error,
-                                message = errorMessage,
-                                modifier = Modifier.width(480.dp),
-                            )
-                        }
-                    }
-                    tickets.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            WorkspaceStatePane(
-                                kind = WorkspaceStateKind.Empty,
-                                message = "Nessun biglietto disponibile per il mese selezionato.",
-                                modifier = Modifier.width(420.dp),
-                            )
-                        }
-                    }
-                    else -> {
-                        val sections = remember(tickets, partWarnings) { buildWeekSections(tickets, partWarnings) }
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                            val cols = maxOf(1, ((maxWidth.value + 16f) / (240f + 16f)).toInt())
-                            val scrollState = rememberScrollState()
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .verticalScroll(scrollState)
-                                        .padding(bottom = 12.dp),
-                                ) {
-                                    sections.forEach { section ->
-                                        TicketWeekHeader(section.weekStart, section.weekEnd)
-
-                                        val pendingTickets = section.cards.filter { ticket ->
-                                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
-                                            info?.status != SlipDeliveryStatus.INVIATO
-                                        }
-                                        val sentTickets = section.cards.filter { ticket ->
-                                            val info = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]
-                                            info?.status == SlipDeliveryStatus.INVIATO
-                                        }
-                                        val pendingItems: List<Any> = pendingTickets + section.warnings
-
-                                        if (pendingItems.isNotEmpty()) {
-                                            Text(
-                                                "Da inviare",
-                                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                color = sketch.inkSoft,
-                                            )
-                                            pendingItems.chunked(cols).forEach { rowItems ->
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(IntrinsicSize.Min)
-                                                        .padding(bottom = 16.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                                ) {
-                                                    rowItems.forEach { item ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .fillMaxHeight(),
-                                                        ) {
-                                                            when (item) {
-                                                                is AssignmentTicketImage -> AssignmentTicketCard(
-                                                                    ticket = item,
-                                                                    deliveryInfo = deliveryStatus[item.weeklyPartId to item.weekPlanId],
-                                                                    onPreviewRequest = {
-                                                                        previewTicket = item
-                                                                        if (previewMap[item.imagePath] == null) {
-                                                                            previewMap[item.imagePath] = null
-                                                                        }
-                                                                    },
-                                                                    onMarkAsDelivered = { onMarkAsDelivered(item) },
-                                                                    onCancelDelivery = null,
-                                                                    isMarkingDelivered = isMarkingDelivered,
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .fillMaxHeight(),
-                                                                )
-                                                                is PartAssignmentWarning -> PartWarningCard(
-                                                                    warning = item,
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .fillMaxHeight(),
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                    repeat(cols - rowItems.size) {
-                                                        Spacer(modifier = Modifier.weight(1f))
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        if (sentTickets.isNotEmpty()) {
-                                            Row(
-                                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.CheckCircle,
-                                                    contentDescription = null,
-                                                    tint = sketch.ok,
-                                                    modifier = Modifier.size(14.dp),
-                                                )
-                                                Text(
-                                                    "Inviati",
-                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                    color = sketch.ok,
-                                                )
-                                            }
-                                            sentTickets.chunked(cols).forEach { rowItems ->
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(IntrinsicSize.Min)
-                                                        .padding(bottom = 16.dp)
-                                                        .alpha(0.6f),
-                                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                                ) {
-                                                    rowItems.forEach { item ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .fillMaxHeight(),
-                                                        ) {
-                                                            AssignmentTicketCard(
-                                                                ticket = item,
-                                                                deliveryInfo = deliveryStatus[item.weeklyPartId to item.weekPlanId],
-                                                                onPreviewRequest = {
-                                                                    previewTicket = item
-                                                                    if (previewMap[item.imagePath] == null) {
-                                                                        previewMap[item.imagePath] = null
-                                                                    }
-                                                                },
-                                                                onMarkAsDelivered = null,
-                                                                onCancelDelivery = { onCancelDelivery(item) },
-                                                                isCancellingDelivery = isCancellingDelivery,
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
-                                                                    .fillMaxHeight(),
-                                                            )
-                                                        }
-                                                    }
-                                                    repeat(cols - rowItems.size) {
-                                                        Spacer(modifier = Modifier.weight(1f))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                VerticalScrollbar(
-                                    adapter = rememberScrollbarAdapter(scrollState),
-                                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-                                )
-                            }
-                        }
-                    }
-                }
+                AssignmentTicketsBody(
+                    tickets = tickets,
+                    partWarnings = partWarnings,
+                    historicalAssignmentTickets = historicalAssignmentTickets,
+                    historicalAssignmentPartWarnings = historicalAssignmentPartWarnings,
+                    deliveryStatus = deliveryStatus,
+                    isLoading = isLoading,
+                    errorMessage = errorMessage,
+                    markingTicketKey = markingTicketKey,
+                    cancellingTicketKey = cancellingTicketKey,
+                    onPreviewRequest = { previewTicket = it },
+                    onMarkAsDelivered = onMarkAsDelivered,
+                    onCancelDelivery = onCancelDelivery,
+                )
             }
 
             val currentPreview = previewTicket
@@ -774,6 +563,210 @@ internal fun AssignmentTicketsDialog(
                 )
             }
             }
+        }
+    }
+}
+
+@Composable
+internal fun AssignmentTicketsBody(
+    tickets: List<AssignmentTicketImage>,
+    partWarnings: List<PartAssignmentWarning>,
+    historicalAssignmentTickets: List<AssignmentTicketImage>,
+    historicalAssignmentPartWarnings: List<PartAssignmentWarning>,
+    deliveryStatus: Map<Pair<WeeklyPartId, WeekPlanId>, SlipDeliveryInfo>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    markingTicketKey: Pair<WeeklyPartId, WeekPlanId>?,
+    cancellingTicketKey: Pair<WeeklyPartId, WeekPlanId>?,
+    onPreviewRequest: (AssignmentTicketImage) -> Unit,
+    onMarkAsDelivered: (AssignmentTicketImage) -> Unit,
+    onCancelDelivery: (AssignmentTicketImage) -> Unit,
+) {
+    val placeholder = when {
+        isLoading -> WorkspaceStateKind.Loading to "Generazione biglietti del mese in corso..."
+        errorMessage != null -> WorkspaceStateKind.Error to errorMessage
+        tickets.isEmpty() && partWarnings.isEmpty() &&
+            historicalAssignmentTickets.isEmpty() && historicalAssignmentPartWarnings.isEmpty() ->
+            WorkspaceStateKind.Empty to "Nessun biglietto disponibile per il mese selezionato."
+        else -> null
+    }
+    if (placeholder != null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            WorkspaceStatePane(
+                kind = placeholder.first,
+                message = placeholder.second,
+                modifier = Modifier.width(480.dp),
+            )
+        }
+        return
+    }
+
+    val sketch = MaterialTheme.workspaceSketch
+    val sections = remember(tickets, partWarnings) { buildWeekSections(tickets, partWarnings) }
+    val historicalSections = remember(historicalAssignmentTickets, historicalAssignmentPartWarnings) {
+        buildWeekSections(historicalAssignmentTickets, historicalAssignmentPartWarnings)
+    }
+    val deliveryActionsEnabled = markingTicketKey == null && cancellingTicketKey == null
+    var archiveOpen by rememberSaveable { mutableStateOf(false) }
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val columns = maxOf(1, ((maxWidth.value + 16f) / (240f + 16f)).toInt())
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(end = 12.dp, bottom = 12.dp),
+        ) {
+            sections.forEach { section ->
+                TicketWeekHeader(section.weekStart, section.weekEnd)
+                val (sentTickets, pendingTickets) = section.cards.partition { ticket ->
+                    deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId]?.status == SlipDeliveryStatus.INVIATO
+                }
+                for ((sent, group) in listOf(false to pendingTickets, true to sentTickets)) {
+                    if (group.isEmpty()) continue
+                    Text(
+                        if (sent) "Inviati" else "Da inviare",
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (sent) sketch.ok else sketch.inkSoft,
+                    )
+                    TicketGrid(group, columns) { ticket, modifier ->
+                        val ticketKey = ticket.weeklyPartId to ticket.weekPlanId
+                        AssignmentTicketCard(
+                            ticket = ticket,
+                            deliveryInfo = deliveryStatus[ticketKey],
+                            onPreviewRequest = { onPreviewRequest(ticket) },
+                            onMarkAsDelivered = if (sent) null else ({ onMarkAsDelivered(ticket) }),
+                            onCancelDelivery = if (sent) ({ onCancelDelivery(ticket) }) else null,
+                            isMarkingDelivered = markingTicketKey == ticketKey,
+                            isCancellingDelivery = cancellingTicketKey == ticketKey,
+                            deliveryActionsEnabled = deliveryActionsEnabled,
+                            modifier = modifier,
+                        )
+                    }
+                }
+                if (section.warnings.isNotEmpty()) {
+                    Text(
+                        "Non inviabili",
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = sketch.inkSoft,
+                    )
+                    TicketGrid(section.warnings, columns) { warning, modifier ->
+                        PartWarningCard(warning, modifier)
+                    }
+                }
+            }
+
+            if (historicalSections.isNotEmpty()) {
+                Surface(
+                    onClick = { archiveOpen = !archiveOpen },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .handCursorOnHover()
+                        .semantics { stateDescription = if (archiveOpen) "Espanso" else "Compresso" },
+                    shape = RoundedCornerShape(8.dp),
+                    color = sketch.surfaceMuted,
+                    border = BorderStroke(1.dp, sketch.lineSoft),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Settimane passate", style = MaterialTheme.typography.titleSmall, color = sketch.ink)
+                            Text("Solo consultazione", style = MaterialTheme.typography.bodySmall, color = sketch.inkSoft)
+                        }
+                        Icon(
+                            if (archiveOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = sketch.inkSoft,
+                        )
+                    }
+                }
+                if (archiveOpen) {
+                    historicalSections.forEach { section ->
+                        TicketWeekHeader(section.weekStart, section.weekEnd)
+                        TicketGrid(section.cards, columns) { ticket, modifier ->
+                            AssignmentTicketCard(
+                                ticket = ticket,
+                                deliveryInfo = deliveryStatus[ticket.weeklyPartId to ticket.weekPlanId],
+                                onPreviewRequest = { onPreviewRequest(ticket) },
+                                onMarkAsDelivered = null,
+                                modifier = modifier,
+                            )
+                        }
+                        TicketGrid(section.warnings, columns) { warning, modifier ->
+                            PartWarningCard(warning, modifier)
+                        }
+                    }
+                }
+            }
+        }
+        VerticalScrollbar(
+            adapter = rememberScrollbarAdapter(scrollState),
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
+    }
+}
+
+@Composable
+private fun <T> TicketGrid(
+    items: List<T>,
+    columns: Int,
+    content: @Composable (T, Modifier) -> Unit,
+) {
+    items.chunked(columns).forEach { rowItems ->
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            rowItems.forEach { item -> content(item, Modifier.weight(1f).fillMaxHeight()) }
+            repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+}
+
+@Composable
+internal fun AssignmentTicketsFolderAction(folder: Path) {
+    val scope = rememberCoroutineScope()
+    val fileOpener = remember { DesktopFileOpener() }
+    var openingFolder by remember(folder) { mutableStateOf(false) }
+    var openFailed by remember(folder) { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Button(
+            enabled = !openingFolder,
+            modifier = Modifier.handCursorOnHover(enabled = !openingFolder),
+            onClick = {
+                openingFolder = true
+                openFailed = false
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) { fileOpener.openDirectory(folder) }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        assignmentTicketFolderLogger.warn(error) { "Apertura cartella biglietti non riuscita" }
+                        openFailed = true
+                    } finally {
+                        openingFolder = false
+                    }
+                }
+            },
+        ) {
+            Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (openingFolder) "Apertura cartella…" else "Apri cartella biglietti")
+        }
+        if (openFailed) {
+            Text(
+                "Impossibile aprire la cartella dei biglietti. Riprova.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
@@ -807,7 +800,7 @@ private fun PartWarningCard(
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val isVuota = warning.isEmpty
-    val accentColor = if (isVuota) Color(0xFFE53935) else Color(0xFFF57C00)
+    val accentColor = if (isVuota) sketch.bad else sketch.warn
     val label = if (isVuota) "Parte vuota" else "Parte parziale"
     val detail = if (isVuota) "Nessuna assegnazione" else "${warning.assignedCount}/${warning.expectedCount} assegnati"
 
@@ -869,25 +862,16 @@ private fun AssignmentTicketCard(
     onCancelDelivery: (() -> Unit)? = null,
     isMarkingDelivered: Boolean = false,
     isCancellingDelivery: Boolean = false,
+    deliveryActionsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val sketch = MaterialTheme.workspaceSketch
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val line = ticket.assignments.firstOrNull()
-    val dragTransferData = remember(ticket.imagePath) { buildAssignmentTicketDragData(ticket.imagePath) }
 
     Surface(
-        modifier = modifier
-            .handCursorOnHover()
-            .hoverable(interactionSource)
-            .let { baseModifier ->
-                if (dragTransferData != null) {
-                    baseModifier.dragAndDropSource { dragTransferData }
-                } else {
-                    baseModifier
-                }
-            },
+        modifier = modifier.hoverable(interactionSource),
         shape = RoundedCornerShape(14.dp),
         color = if (hovered) sketch.surface else sketch.surfaceMuted,
         border = BorderStroke(
@@ -935,25 +919,9 @@ private fun AssignmentTicketCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DragIndicator,
-                        contentDescription = null,
-                        tint = sketch.inkMuted,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Text(
-                        "Trascina PNG",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = sketch.inkMuted,
-                    )
-                }
                 Surface(
                     onClick = onPreviewRequest,
                     shape = RoundedCornerShape(8.dp),
@@ -986,10 +954,10 @@ private fun AssignmentTicketCard(
             if (onMarkAsDelivered != null) {
                 Surface(
                     onClick = onMarkAsDelivered,
-                    enabled = !isMarkingDelivered,
+                    enabled = deliveryActionsEnabled,
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isMarkingDelivered) sketch.accent.copy(alpha = 0.5f) else sketch.accent,
-                    modifier = Modifier.fillMaxWidth().handCursorOnHover(),
+                    color = if (deliveryActionsEnabled) sketch.accent else sketch.accent.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth().handCursorOnHover(deliveryActionsEnabled),
                 ) {
                     Row(
                         modifier = Modifier
@@ -1007,7 +975,7 @@ private fun AssignmentTicketCard(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
-                            if (isMarkingDelivered) "Invio in corso\u2026" else "Segna come inviato",
+                            if (isMarkingDelivered) "Registrazione…" else "Segna come inviato",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = Color.White,
                             textAlign = TextAlign.Center,
@@ -1044,19 +1012,19 @@ private fun AssignmentTicketCard(
                         val errorColor = MaterialTheme.colorScheme.error
                         Surface(
                             onClick = { onCancelDelivery() },
-                            enabled = !isCancellingDelivery,
+                            enabled = deliveryActionsEnabled,
                             shape = RoundedCornerShape(6.dp),
                             color = errorColor.copy(alpha = when {
-                                isCancellingDelivery -> 0.06f
+                                !deliveryActionsEnabled -> 0.06f
                                 cancelHovered -> 0.18f
                                 else -> 0.08f
                             }),
                             border = BorderStroke(
                                 1.dp,
-                                errorColor.copy(alpha = if (cancelHovered) 0.6f else 0.25f),
+                                errorColor.copy(alpha = if (deliveryActionsEnabled && cancelHovered) 0.6f else 0.25f),
                             ),
                             interactionSource = cancelInteraction,
-                            modifier = Modifier.hoverable(cancelInteraction).handCursorOnHover(),
+                            modifier = Modifier.hoverable(cancelInteraction).handCursorOnHover(deliveryActionsEnabled),
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1073,7 +1041,7 @@ private fun AssignmentTicketCard(
                                 Text(
                                     if (isCancellingDelivery) "Annullamento\u2026" else "Annulla invio",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = errorColor.copy(alpha = if (cancelHovered) 1f else 0.8f),
+                                    color = errorColor.copy(alpha = if (deliveryActionsEnabled && cancelHovered) 1f else 0.8f),
                                 )
                             }
                         }
@@ -1108,62 +1076,6 @@ private fun loadAssignmentTicketPreview(
         output.toByteArray().decodeToImageBitmap()
     }
 }.getOrNull()
-
-@OptIn(ExperimentalComposeUiApi::class)
-internal fun buildAssignmentTicketDragData(path: Path): DragAndDropTransferData? {
-    val transferable = buildAssignmentTicketTransferable(path) ?: return null
-    return DragAndDropTransferData(
-        transferable = DragAndDropTransferable(transferable),
-        supportedActions = listOf(DragAndDropTransferAction.Copy),
-    )
-}
-
-internal fun buildAssignmentTicketTransferable(path: Path): Transferable? = runCatching {
-    val normalizedPath = path.toAbsolutePath().normalize()
-    if (!Files.isRegularFile(normalizedPath)) {
-        assignmentTicketDragLogger.warn { "Drag&drop biglietto disabilitato: file non trovato $normalizedPath" }
-        return null
-    }
-    FileListTransferable(listOf(normalizedPath.toFile()))
-}.onFailure { error ->
-    assignmentTicketDragLogger.error(error) {
-        "Impossibile inizializzare il drag&drop del biglietto ${path.toAbsolutePath()}"
-    }
-}.getOrNull()
-
-private class FileListTransferable(
-    private val files: List<File>,
-) : Transferable {
-    private val existingFiles = files
-        .map { it.absoluteFile }
-        .filter { it.isFile }
-
-    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(
-        DataFlavor.javaFileListFlavor,
-        DataFlavor.stringFlavor,
-    )
-
-    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor || flavor == DataFlavor.stringFlavor
-
-    override fun getTransferData(flavor: DataFlavor): Any {
-        return runCatching {
-            when (flavor) {
-                DataFlavor.javaFileListFlavor -> existingFiles
-                DataFlavor.stringFlavor -> existingFiles.joinToString(separator = System.lineSeparator()) { it.absolutePath }
-                else -> throw UnsupportedFlavorException(flavor)
-            }
-        }.onFailure { error ->
-            assignmentTicketDragLogger.error(error) {
-                "Errore durante il drop del biglietto verso il target esterno"
-            }
-        }.getOrElse {
-            when (flavor) {
-                DataFlavor.stringFlavor -> ""
-                else -> emptyList<File>()
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1386,6 +1298,7 @@ internal fun WeekSidebarItem(
     status: WeekSidebarStatus,
     fraction: Float,
     selected: Boolean,
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
     val sketch = MaterialTheme.workspaceSketch
@@ -1413,6 +1326,12 @@ internal fun WeekSidebarItem(
         hovered -> sketch.lineSoft.copy(alpha = 0.28f)
         else -> Color.Transparent
     }
+    val statusLabel = when (status) {
+        WeekSidebarStatus.CURRENT -> "CORRENTE"
+        WeekSidebarStatus.SKIPPED -> "SALTATA"
+        else -> null
+    }
+    val statusColor = if (status == WeekSidebarStatus.CURRENT) sketch.accent else sketch.inkMuted
 
     Column(
         modifier = Modifier
@@ -1439,12 +1358,16 @@ internal fun WeekSidebarItem(
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 ),
                 color = if (selected) sketch.accent else sketch.ink,
-                maxLines = 1,
+                maxLines = if (compact) 2 else 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            when (status) {
-                WeekSidebarStatus.CURRENT -> WeekSidebarTag("CORRENTE", sketch.accent)
-                WeekSidebarStatus.SKIPPED -> WeekSidebarTag("SALTATA", sketch.inkMuted)
-                else -> {}
+            if (!compact && statusLabel != null) {
+                WeekSidebarTag(statusLabel, statusColor)
+            }
+        }
+        if (compact && statusLabel != null) {
+            Box(Modifier.padding(start = 25.dp, bottom = 6.dp)) {
+                WeekSidebarTag(statusLabel, statusColor)
             }
         }
         if (status != WeekSidebarStatus.SKIPPED) {
@@ -1856,8 +1779,8 @@ internal fun ProgramRightPanelButton(
         ) {
             Row(
                 modifier = Modifier
-                    .height(34.dp)
-                    .padding(horizontal = 10.dp),
+                    .heightIn(min = 34.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
@@ -1872,7 +1795,7 @@ internal fun ProgramRightPanelButton(
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     modifier = Modifier.weight(1f),
                     color = contentColor,
-                    maxLines = 1,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -2173,8 +2096,8 @@ internal fun ProgramDangerButton(
         ) {
             Row(
                 modifier = Modifier
-                    .height(34.dp)
-                    .padding(horizontal = 10.dp),
+                    .heightIn(min = 34.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2189,7 +2112,7 @@ internal fun ProgramDangerButton(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = sketch.bad.copy(alpha = alpha),
-                    maxLines = 1,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

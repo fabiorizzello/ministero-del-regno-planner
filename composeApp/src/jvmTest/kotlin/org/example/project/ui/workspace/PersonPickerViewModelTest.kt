@@ -181,7 +181,7 @@ class PersonPickerViewModelTest {
     }
 
     @Test
-    fun `reloadSuggestions passes strict cooldown override immediately`() = runTest {
+    fun `opening or refreshing the picker uses the latest rest filter immediately`() = runTest {
         val suggerisci = mockk<SuggerisciProclamatoriUseCase>()
         coEvery { suggerisci(any(), any(), any(), any(), any(), any(), any()) } returnsMany listOf(
             listOf(makeSuggestion("p1", "Mario", "Rossi")),
@@ -189,13 +189,16 @@ class PersonPickerViewModelTest {
         )
 
         val vm = makeViewModel(scope = this, suggerisci = suggerisci)
-        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId)
+        vm.openPersonPicker(weekStartDate, weeklyPartId, slot, weekPlanId, strictCooldownOverride = true)
         advanceUntilIdle()
 
         vm.reloadSuggestions(strictCooldownOverride = false)
         advanceUntilIdle()
 
-        coVerify {
+        coVerify(exactly = 1) {
+            suggerisci(weekStartDate, weeklyPartId, slot, any(), any(), any(), strictCooldownOverride = true)
+        }
+        coVerify(exactly = 1) {
             suggerisci(
                 weekStartDate = weekStartDate,
                 weeklyPartId = weeklyPartId,

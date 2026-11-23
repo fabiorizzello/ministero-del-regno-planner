@@ -78,7 +78,8 @@ proclamatori. Ogni biglietto viene consegnato individualmente.
 
 **Independent Test**: Con un programma con parti complete, parziali e vuote -> generare
 biglietti -> verificare 1 PNG per parte completa (con studente + assistente), card ghost
-per parti incomplete, e template S-89 compilato correttamente.
+per parti incomplete, e template S-89 compilato correttamente. Aprire la cartella dei
+biglietti e verificare che contenga i PNG del programma con nome, cognome e data.
 
 **Acceptance Scenarios**:
 
@@ -100,8 +101,8 @@ per parti incomplete, e template S-89 compilato correttamente.
 6. **Given** una parte completamente priva di assegnazioni, **When** si visualizzano i biglietti,
    **Then** la UI mostra una card ghost "Parte vuota"; nessun PNG viene generato.
 7. **Given** biglietti già generati per un mese, **When** si rigenerano i biglietti dello
-   stesso mese, **Then** i PNG precedenti del mese vengono eliminati prima di produrre
-   i nuovi; i biglietti di altri mesi non vengono toccati.
+   stesso mese, **Then** il pulsante "Apri cartella biglietti" apre una nuova cartella
+   con i biglietti appena prodotti. I file precedenti restano nelle loro cartelle.
 
 ---
 
@@ -125,9 +126,8 @@ biglietto inviato → verificare warning e reset stato.
 1. **Given** un biglietto generato in dialog, **When** l'utente clicca "Segna come inviato",
    **Then** il sistema registra la consegna con `studentName`, `assistantName`, `sentAt` e
    il biglietto si sposta nella sezione "Inviati" della dialog.
-2. **Given** un biglietto già inviato, **When** l'utente trascina o visualizza il biglietto,
-   **Then** il biglietto resta utilizzabile normalmente (drag & drop, visualizza); lo stato
-   "inviato" non impedisce nessuna azione.
+2. **Given** un biglietto già inviato, **When** l'utente apre la cartella o visualizza
+   l'anteprima, **Then** il biglietto resta disponibile per visualizzazione e condivisione.
 3. **Given** biglietti inviati e non inviati per lo stesso programma, **When** l'utente apre
    la dialog biglietti, **Then** la dialog mostra due sezioni per settimana:
    **"Da inviare"** (prominente, in alto) e **"Inviati"** (visivamente secondaria, sotto).
@@ -223,10 +223,14 @@ biglietto inviato → verificare warning e reset stato.
   MUST apparire dopo i biglietti normali all'interno della stessa settimana. Le card ghost
   MUST occupare l'intera altezza della riga della griglia (`fillMaxHeight`) per allinearsi
   visivamente ai biglietti normali adiacenti.
-- **FR-022**: Prima di generare i biglietti di un mese, il sistema MUST tentare
-  la pulizia dei PNG `biglietto-YYYY-MM-*.png` dello stesso mese presenti nella cartella
-  export; i file di altri mesi MUST essere preservati; un errore di cleanup MUST essere
-  loggato ma non bloccare la generazione.
+- **FR-022**: I biglietti mensili MUST essere generati in una cartella dedicata alla
+  singola esportazione, sotto `<exportsDir>/assegnazioni/biglietti-YYYY-MM/`.
+  I file MUST usare il formato `Nome Cognome - YYYY-MM-DD.png` con la data di inizio
+  settimana e un suffisso numerico in caso di omonimia nella stessa data. La finestra
+  MUST offrire il pulsante "Apri cartella biglietti" per condividere manualmente i file
+  dal gestore di file. I biglietti delle settimane correnti e future MUST trovarsi al
+  primo livello; quelli delle settimane precedenti MUST trovarsi nella sottocartella
+  `Settimane passate` e nello storico di sola consultazione della finestra.
 - **FR-023**: Ogni `AssignmentTicketLine` MUST includere un `partNumber: Int` calcolato
   come `sortOrder + PART_DISPLAY_NUMBER_OFFSET` (costante = 3, poiché le parti fisse
   di apertura occupano i numeri 1 e 2). La costante è definita in
@@ -290,7 +294,7 @@ biglietto inviato → verificare warning e reset stato.
   biglietto PNG generato per un proclamatore con ruolo principale.
 - **PartAssignmentWarning**: `weekStart`, `weekEnd`, `partLabel`, `assignedCount`,
   `expectedCount`; segnalazione di parte parziale (`isPartial`) o vuota (`isEmpty`).
-- **TicketGenerationResult**: `tickets: List<AssignmentTicketImage>`, `warnings: List<PartAssignmentWarning>`;
+- **TicketGenerationResult**: `tickets: List<AssignmentTicketImage>`, `warnings: List<PartAssignmentWarning>`, `exportFolder: Path?`;
   risultato aggregato di `generateProgramTickets`.
 - **SlipDelivery**: `id`, `weeklyPartId`, `weekPlanId`, `studentName`, `assistantName?`,
   `sentAt`, `cancelledAt?`; record di consegna di un biglietto S-89. Una sola consegna

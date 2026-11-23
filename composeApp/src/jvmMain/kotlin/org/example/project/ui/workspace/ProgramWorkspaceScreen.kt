@@ -4,8 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,18 +49,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -74,8 +68,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -279,14 +279,18 @@ fun ProgramWorkspaceScreen() {
 
     if (assignmentState.isAssignmentTicketsDialogOpen) {
         AssignmentTicketsDialog(
-            monthLabel = lifecycleState.selectedProgram?.let { formatMonthYearLabel(it.month, it.year) } ?: "",
+            monthLabel = assignmentState.assignmentTicketsMonthLabel,
             tickets = assignmentState.assignmentTickets,
             partWarnings = assignmentState.assignmentPartWarnings,
+            historicalAssignmentTickets = assignmentState.historicalAssignmentTickets,
+            historicalAssignmentPartWarnings = assignmentState.historicalAssignmentPartWarnings,
+            assignmentTicketsFolder = assignmentState.assignmentTicketsFolder,
             deliveryStatus = assignmentState.deliveryStatus,
             isLoading = assignmentState.isLoadingAssignmentTickets,
             errorMessage = assignmentState.assignmentTicketsError,
-            isMarkingDelivered = assignmentState.isMarkingDelivered,
-            isCancellingDelivery = assignmentState.isCancellingDelivery,
+            markingTicketKey = assignmentState.markingTicketKey,
+            cancellingTicketKey = assignmentState.cancellingTicketKey,
+            ticketDeliveryError = assignmentState.ticketDeliveryError,
             onMarkAsDelivered = { assignmentVM.markAsDelivered(it) },
             onCancelDelivery = { assignmentVM.cancelDelivery(it) },
             onDismiss = { assignmentVM.closeAssignmentTicketsDialog() },
@@ -447,11 +451,12 @@ fun ProgramWorkspaceScreen() {
 
         val showLoadingState = lifecycleState.isLoading
 
-        // Hoisted above the `when` so they survive the loading flicker triggered by
-        // refresh-after-mutation paths (loadProgramsAndWeeks → isLoading=true → ramo
-        // else esce dalla composition → tutti i remember interni vengono distrutti).
+        // Keep the current week and panel state while the workspace reloads.
         var selectedWeekId by remember { mutableStateOf<String?>(null) }
         var pendingSkipWeek by remember { mutableStateOf(false) }
+        var showActions by rememberSaveable { mutableStateOf(false) }
+        var settingsOpen by rememberSaveable { mutableStateOf(false) }
+        val actionsScrollState = rememberScrollState()
 
         FeedbackBanner(
             model = activeNotice,
@@ -515,13 +520,12 @@ fun ProgramWorkspaceScreen() {
             }
 
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val compact = maxWidth < 1100.dp
-                val drawerState = rememberDrawerState(DrawerValue.Closed)
-                val scope = rememberCoroutineScope()
-                var showActions by rememberSaveable { mutableStateOf(false) }
-                LaunchedEffect(compact) {
-                    if (!compact) drawerState.close()
-                }
+                val compact = maxWidth < 900.dp
+                val programsWidth = minOf(210.dp, maxWidth * 0.32f)
+                val actionsWidth = minOf(296.dp, maxWidth * (if (compact) 0.48f else 0.30f))
+                val weekWidth = maxWidth - programsWidth - if (compact) 0.dp else actionsWidth
+                val weekContentPadding = if (weekWidth < 300.dp) 8.dp else 20.dp
+                val actionsToggleFocus = remember { FocusRequester() }
                 val programsPanel: @Composable () -> Unit = {
                     Column(
                         modifier = Modifier
@@ -643,10 +647,8 @@ fun ProgramWorkspaceScreen() {
                                     status = weekStatus,
                                     fraction = fraction,
                                     selected = effectiveSelectedWeekId == week.id.value,
-                                    onClick = {
-                                        selectedWeekId = week.id.value
-                                        scope.launch { drawerState.close() }
-                                    },
+                                    compact = programsWidth < 180.dp,
+                                    onClick = { selectedWeekId = week.id.value },
                                 )
                             }
                         }
@@ -710,12 +712,6 @@ fun ProgramWorkspaceScreen() {
                                         color = sketch.inkSoft,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     )
-                                    if (compact) {
-                                        TextButton(onClick = {
-                                            showActions = false
-                                            scope.launch { drawerState.open() }
-                                        }) { Text("Apri Programmi") }
-                                    }
                                 }
                             }
                         } else {
@@ -793,7 +789,7 @@ fun ProgramWorkspaceScreen() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                    .padding(horizontal = weekContentPadding, vertical = 16.dp),
                             ) {
                                 when {
                                     isSkipped -> {
@@ -827,6 +823,7 @@ fun ProgramWorkspaceScreen() {
                                         val assignmentsByPart = weekAssignments.groupBy { it.weeklyPartId }
                                         BoxWithConstraints(Modifier.fillMaxWidth()) {
                                             val cardColumns = if (maxWidth < 600.dp) 1 else 2
+                                            val compactCards = maxWidth < 270.dp
                                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                 selectedWeek.parts.chunked(cardColumns).forEach { rowParts ->
                                                     Row(
@@ -843,12 +840,15 @@ fun ProgramWorkspaceScreen() {
                                                                 displayNumber = part.sortOrder + org.example.project.ui.components.DISPLAY_NUMBER_OFFSET,
                                                                 readOnly = !canMutate,
                                                                 showSexRuleChip = false,
+                                                                compact = compactCards,
                                                                 onAssignSlot = { slot ->
                                                                     personPickerVM.openPersonPicker(
                                                                         weekStartDate = selectedWeek.weekStartDate,
                                                                         weeklyPartId = part.id,
                                                                         slot = slot,
                                                                         weekPlanId = selectedWeek.id,
+                                                                        strictCooldownOverride = assignmentState.assignmentSettings.strictCooldown
+                                                                            .takeIf { assignmentState.isSavingAssignmentSettings },
                                                                     )
                                                                 },
                                                                 onRemoveAssignment = { assignmentId ->
@@ -889,7 +889,7 @@ fun ProgramWorkspaceScreen() {
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(actionsScrollState)
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -919,7 +919,10 @@ fun ProgramWorkspaceScreen() {
                                         tooltip = "Genera e apre i biglietti immagine per le assegnazioni del mese",
                                         onClick = {
                                             lifecycleState.selectedProgramId?.let { programId ->
-                                                assignmentVM.openAssignmentTickets(programId)
+                                                assignmentVM.openAssignmentTickets(
+                                                    programId = programId,
+                                                    monthLabel = selectedProgram?.let { formatMonthYearLabel(it.month, it.year) }.orEmpty(),
+                                                )
                                             }
                                         },
                                         modifier = Modifier.fillMaxWidth(),
@@ -973,7 +976,6 @@ fun ProgramWorkspaceScreen() {
                             }
 
                             // Settings (collapsible, closed by default)
-                            var settingsOpen by remember { mutableStateOf(false) }
                             RightPanelCollapsibleSection(
                                 title = "IMPOSTAZIONI",
                                 open = settingsOpen,
@@ -987,6 +989,7 @@ fun ProgramWorkspaceScreen() {
                                         onLeadCooldownChange = assignmentVM::setLeadCooldownWeeks,
                                         onAssistCooldownChange = assignmentVM::setAssistCooldownWeeks,
                                         onSave = assignmentVM::saveAssignmentSettings,
+                                        compact = actionsWidth < 220.dp,
                                     )
                                 }
                             }
@@ -1038,72 +1041,58 @@ fun ProgramWorkspaceScreen() {
                         }
                     }
                 }
-                ModalNavigationDrawer(
-                    drawerState = drawerState,
-                    gesturesEnabled = compact && drawerState.isOpen,
+                Column(
                     modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
-                        if (drawerState.isOpen && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                            scope.launch { drawerState.close() }
+                        if (compact && showActions && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                            showActions = false
+                            actionsToggleFocus.requestFocus()
                             true
                         } else false
                     },
-                    drawerContent = {
-                        if (compact) ModalDrawerSheet(Modifier.width(360.dp).fillMaxHeight()) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    if (showActions) "Azioni programma" else "Programmi e settimane",
-                                    Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                IconButton(onClick = { scope.launch { drawerState.close() } }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Chiudi pannello")
-                                }
-                            }
-                            Box(Modifier.weight(1f)) {
-                                if (showActions) actionsPanel() else programsPanel()
-                            }
-                        }
-                    },
                 ) {
-                    Column(Modifier.fillMaxSize()) {
-                        if (compact) {
-                            FlowRow(
-                                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                TextButton(onClick = {
-                                    showActions = false
-                                    scope.launch { drawerState.open() }
-                                }) { Text("Programmi") }
-                                val weeks = lifecycleState.selectedProgramWeeks
-                                val weekIndex = weeks.indexOfFirst { it.id.value == effectiveSelectedWeekId }
-                                IconButton(
-                                    enabled = weekIndex > 0,
-                                    onClick = { selectedWeekId = weeks[weekIndex - 1].id.value },
-                                ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Settimana precedente") }
-                                IconButton(
-                                    enabled = weekIndex >= 0 && weekIndex < weeks.lastIndex,
-                                    onClick = { selectedWeekId = weeks[weekIndex + 1].id.value },
-                                ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Settimana successiva") }
-                                TextButton(onClick = {
-                                    showActions = true
-                                    scope.launch { drawerState.open() }
-                                }) { Text("Azioni") }
+                    if (compact) {
+                        TextButton(
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .padding(end = 8.dp)
+                                .handCursorOnHover()
+                                .focusRequester(actionsToggleFocus)
+                                .semantics { stateDescription = if (showActions) "Aperto" else "Chiuso" },
+                            onClick = { showActions = !showActions },
+                        ) {
+                            Text(if (showActions) "Chiudi azioni" else "Azioni programma")
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        Row(Modifier.fillMaxSize()) {
+                            Box(Modifier.width(programsWidth).testTag("program-programs-panel")) { programsPanel() }
+                            Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
+                            Box(Modifier.weight(1f).testTag("program-week-panel")) { weekPanel() }
+                            if (!compact) {
+                                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
+                                Box(Modifier.width(actionsWidth).testTag("program-actions-panel")) { actionsPanel() }
                             }
                         }
-                        Row(Modifier.weight(1f).fillMaxWidth()) {
-                            if (!compact) {
-                                Box(Modifier.width(210.dp)) { programsPanel() }
-                                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
+                        if (compact && showActions) {
+                            val panelFocus = remember { FocusRequester() }
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 4.dp, end = 8.dp, bottom = 8.dp)
+                                    .width(actionsWidth)
+                                    .fillMaxHeight()
+                                    .testTag("program-actions-panel")
+                                    .semantics { paneTitle = "Azioni programma" }
+                                    .focusRequester(panelFocus)
+                                    .focusGroup(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = sketch.panelRight,
+                                border = BorderStroke(1.dp, sketch.lineStrong),
+                                shadowElevation = 8.dp,
+                            ) {
+                                actionsPanel()
                             }
-                            Box(Modifier.weight(1f)) { weekPanel() }
-                            if (!compact) {
-                                Box(Modifier.fillMaxHeight().width(1.dp).background(sketch.lineSoft))
-                                Box(Modifier.width(296.dp)) { actionsPanel() }
-                            }
+                            LaunchedEffect(panelFocus) { panelFocus.requestFocus() }
                         }
                     }
                 }
@@ -1216,17 +1205,17 @@ private fun ProgramMonthSelectorButton(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = label,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.align(Alignment.CenterVertically),
                     style = MaterialTheme.typography.titleSmall,
                     color = content.copy(alpha = if (enabled) 1f else 0.45f),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (isPast) {
@@ -1348,6 +1337,7 @@ private fun ProgramInlineAssignmentSettings(
     onLeadCooldownChange: (String) -> Unit,
     onAssistCooldownChange: (String) -> Unit,
     onSave: () -> Unit,
+    compact: Boolean,
 ) {
     val spacing = MaterialTheme.spacing
     val sketch = MaterialTheme.workspaceSketch
@@ -1362,85 +1352,55 @@ private fun ProgramInlineAssignmentSettings(
                 .padding(spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-            ) {
+            val fields: @Composable (Modifier) -> Unit = { modifier ->
                 DesktopNumericField(
-                    label = "Cooldown conduzione",
+                    label = "Riposo conduzione",
                     value = state.leadCooldownWeeks,
                     onValueChange = onLeadCooldownChange,
                     onBlur = onSave,
-                    modifier = Modifier.weight(1f),
+                    modifier = modifier,
                 )
                 DesktopNumericField(
-                    label = "Cooldown assistenza",
+                    label = "Riposo assistenza",
                     value = state.assistCooldownWeeks,
                     onValueChange = onAssistCooldownChange,
                     onBlur = onSave,
-                    modifier = Modifier.weight(1f),
+                    modifier = modifier,
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            if (compact) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                    fields(Modifier.fillMaxWidth())
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                    fields(Modifier.weight(1f))
+                }
+            }
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .handCursorOnHover()
+                    .toggleable(
+                        value = skipRemoveConfirm,
+                        role = Role.Switch,
+                        onValueChange = onSkipRemoveConfirmChange,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
                 Text(
                     "Rimuovi senza conferma",
+                    modifier = Modifier.align(Alignment.CenterVertically),
                     style = MaterialTheme.typography.bodySmall,
                     color = sketch.inkSoft,
                 )
-                DesktopToggle(
+                Switch(
+                    modifier = Modifier.align(Alignment.CenterVertically),
                     checked = skipRemoveConfirm,
-                    onToggle = onSkipRemoveConfirmChange,
+                    onCheckedChange = null,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun DesktopToggle(
-    checked: Boolean,
-    onToggle: (Boolean) -> Unit,
-) {
-    val sketch = MaterialTheme.workspaceSketch
-    val interactionSource = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(999.dp)
-    val focused by interactionSource.collectIsFocusedAsState()
-    val hovered by interactionSource.collectIsHoveredAsState()
-    val trackColor = if (checked) {
-        sketch.accent.copy(alpha = 0.72f)
-    } else {
-        sketch.lineStrong
-    }
-    Surface(
-        modifier = Modifier
-            .width(42.dp)
-            .height(24.dp)
-            .clip(shape)
-            .handCursorOnHover()
-            .hoverable(interactionSource)
-            .focusable(interactionSource = interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-            ) { onToggle(!checked) },
-        shape = shape,
-        color = if (focused || hovered) trackColor.copy(alpha = 0.92f) else trackColor,
-        border = BorderStroke(
-            1.dp,
-            if (focused) sketch.accent.copy(alpha = 0.8f) else trackColor.copy(alpha = 0.9f),
-        ),
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(3.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(18.dp)
-                    .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
-                    .background(sketch.ink.copy(alpha = 0.9f), RoundedCornerShape(999.dp)),
-            )
         }
     }
 }
